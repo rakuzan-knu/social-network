@@ -4,9 +4,9 @@ on:
   pull_request:
     branches: [main, develop]
     paths:
-      - "frontend/src/**"
-      - "frontend/.storybook/**"
-      - "frontend/package*.json"
+      - 'frontend/src/**'
+      - 'frontend/.storybook/**'
+      - 'frontend/package*.json'
 
 concurrency:
   group: storybook-${{ github.ref }}
@@ -21,8 +21,8 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
-          cache: "npm"
+          node-version: '22'
+          cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install deps

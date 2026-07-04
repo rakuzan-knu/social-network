@@ -1,5 +1,5 @@
 # Stage 1: deps
-FROM node:20-alpine AS deps
+FROM node:22-alpine AS deps
 
 RUN apk add --no-cache libc6-compat python3 make g++
 
@@ -13,7 +13,7 @@ RUN npm ci --ignore-scripts
 RUN npx prisma generate
 
 # Stage 2: builder
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
@@ -24,7 +24,7 @@ COPY . .
 RUN npm run build
 
 # Stage 3: production
-FROM node:20-alpine AS production
+FROM node:22-alpine AS production
 
 RUN apk add --no-cache tini
 
