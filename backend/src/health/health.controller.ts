@@ -26,10 +26,7 @@ export class HealthController {
   @ApiResponse({ status: 200, description: 'Service is healthy' })
   @ApiResponse({ status: 503, description: 'Service is unhealthy' })
   async check(): Promise<HealthStatus> {
-    const [dbOk, redisOk] = await Promise.all([
-      this.checkDatabase(),
-      this.checkRedis(),
-    ]);
+    const [dbOk, redisOk] = await Promise.all([this.checkDatabase(), this.checkRedis()]);
 
     const allOk = dbOk && redisOk;
 

@@ -9,11 +9,7 @@ export class CommentsService {
     @Inject('ICommentsRepository')
     private readonly commentsRepository: ICommentsRepository,
   ) {}
-  async addComment(
-    postId: string,
-    userId: string,
-    dto: CreateCommentDto,
-  ): Promise<Comment> {
+  async addComment(postId: string, userId: string, dto: CreateCommentDto): Promise<Comment> {
     return this.commentsRepository.addComment(postId, userId, dto);
   }
   async deleteComment(commentId: string, userId: string): Promise<Comment> {

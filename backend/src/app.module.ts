@@ -7,13 +7,6 @@ import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
 
 @Module({
-  imports: [
-    PrismaModule,
-    HealthModule,
-    PostsModule,
-    LikesModule,
-    CommentsModule,
-    RedisModule,
-  ],
+  imports: [PrismaModule, HealthModule, PostsModule, LikesModule, CommentsModule, RedisModule],
 })
 export class AppModule {}
