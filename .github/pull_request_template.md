@@ -1,41 +1,39 @@
-## 📋 Description
+## 📝 What's Changed
 
-<!-- What does this PR implement/fix? Be concise. -->
+<!-- Briefly describe the core changes in substance -->
 
 ## 🔗 Jira Ticket
 
-Closes: [SOC-XXX](https://yourteam.atlassian.net/browse/SOC-XXX)
+**SOC-XXX**
 
-## ✅ Acceptance Criteria
+## 🛠️ Type of Changes
 
-<!-- Copy AC from the Jira ticket and check each one -->
+- [ ] `feat` — New feature
+- [ ] `fix` — Bug fix
+- [ ] `refactor` — Refactoring without changing behavior
+- [ ] `chore` — Configs, dependencies, tooling
 
-- [ ] AC 1
-- [ ] AC 2
+## 🧪 How It Was Tested
 
-## 🧪 How to Test
+<!-- Provide reproduction steps or attach screenshots/videos for UI changes -->
 
-<!-- Step-by-step instructions for the reviewer to test the changes locally -->
+---
 
-1.
-2.
+## ✅ Author's Checklist
 
-## 📸 Screenshots / Recordings
+### ⚡ Validation & Testing
 
-<!-- For UI changes — before/after screenshots or a short recording (Loom, etc.) -->
-<!-- For backend-only changes — remove this section -->
+- [ ] `npm run lint` — Passes with no errors
+- [ ] `npm run typecheck` — Passes with no errors
+- [ ] `npm run test` — All tests are green
+- [ ] Updated/added tests for the new logic
 
-## 🔍 Self-Review Checklist
+### 📦 Ecosystem & UI
 
-- [ ] I have reviewed my own code before requesting review
-- [ ] My code follows the project's coding standards (NestJS modules / FSD slices)
-- [ ] I have added/updated tests for new logic
-- [ ] All existing tests pass locally (`npm test`)
-- [ ] Lint passes (`npm run lint`)
-- [ ] No sensitive data (secrets, passwords, PII) is committed
-- [ ] PR size is under 300 LOC (per CONTRIBUTING.md)
-- [ ] Commit messages follow Conventional Commits format
+- [ ] **If `schema.prisma` was changed:** Applied the migration and ran `prisma generate`
+- [ ] **If UI components were changed:** Updated Storybook stories
 
-## 📝 Notes for Reviewers
+### 🧹 Code Hygiene
 
-<!-- Anything specific you want reviewers to focus on? Tricky logic? Design decisions? -->
+- [ ] Removed all `console.log` statements and commented-out dead code
+- [ ] Verified no secrets, tokens, or credentials are left in the code or `.env` files

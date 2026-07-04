@@ -2,11 +2,13 @@
   "name": "social-network",
   "private": true,
   "type": "module",
+  "packageManager": "npm@10.9.0",
   "workspaces": [
     "backend",
     "frontend"
   ],
   "scripts": {
+    "postinstall": "npm run db:generate -w backend --if-present",
     "dev:backend": "npm run start:dev -w backend",
     "dev:frontend": "npm run dev -w frontend",
     "dev": "concurrently -n backend,frontend -c blue,green \"npm run dev:backend\" \"npm run dev:frontend\"",
@@ -59,7 +61,7 @@
     ]
   },
   "engines": {
-    "node": ">=20.0.0",
+    "node": ">=20.18.0",
     "npm": ">=10.0.0"
   }
 }
