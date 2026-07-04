@@ -1,0 +1,5 @@
+#!/bin/sh
+echo "Running typecheck..."
+cd backend && npm run typecheck && cd ..
+cd frontend && npm run typecheck && cd ..
+echo "Typecheck passed ✅"

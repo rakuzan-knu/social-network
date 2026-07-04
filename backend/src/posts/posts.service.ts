@@ -5,7 +5,6 @@ import { CreatePostDto } from './dto/create-post.dto';
 import { EditPostDto } from './dto/edit-post.dto';
 import { GetAllPostsResult } from './post.types';
 
-
 @Injectable()
 export class PostsService {
   constructor(
