@@ -1,4 +1,4 @@
-import { Post, Prisma } from '@prisma/client';
+import type { Post, Prisma } from '@prisma/client';
 
 export interface IPostRepository {
   createPost(data: Prisma.PostCreateInput): Promise<Post>;

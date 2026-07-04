@@ -109,7 +109,7 @@
       "lcov",
       "html"
     ],
-    "coverageThresholds": {
+    "coverageThreshold": {
       "global": {
         "lines": 70,
         "functions": 70,

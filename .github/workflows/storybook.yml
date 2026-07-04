@@ -29,11 +29,25 @@ jobs:
         working-directory: frontend
         run: npm ci
 
+      - name: Check if stories exist
+        id: stories-check
+        working-directory: frontend
+        run: |
+          COUNT=$(find src -name "*.stories.ts" -o -name "*.stories.tsx" 2>/dev/null | wc -l)
+          echo "count=$COUNT" >> $GITHUB_OUTPUT
+          echo "Found $COUNT story files"
+
       - name: Build Storybook
+        if: steps.stories-check.outputs.count != '0'
         working-directory: frontend
         run: npm run build:storybook
 
+      - name: Skip — no stories yet
+        if: steps.stories-check.outputs.count == '0'
+        run: echo "No .stories.ts(x) files found — skipping Storybook build"
+
       - name: Upload Storybook artifact
+        if: steps.stories-check.outputs.count != '0'
         uses: actions/upload-artifact@v4
         with:
           name: storybook-build

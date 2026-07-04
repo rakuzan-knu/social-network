@@ -33,12 +33,12 @@ RUN addgroup --system --gid 1001 nodejs && \
 
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
-
+COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=deps    /app/prisma ./prisma
+COPY --from=deps /app/prisma ./prisma
+COPY package*.json ./
+
+RUN npm prune --omit=dev && npm cache clean --force
 
 RUN chown -R nestjs:nodejs /app
 

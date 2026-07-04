@@ -18,7 +18,6 @@ const preview: Preview = {
       ],
     },
     a11y: {
-      // Axe accessibility config
       config: {
         rules: [{ id: 'color-contrast', enabled: true }],
       },
