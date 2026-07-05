@@ -4,6 +4,10 @@ import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule } from './auth/auth.module';
 import { validateEnv } from './config/env.validation';
+import { CommentsModule } from './comments/comments.module';
+import { HealthModule } from './health/health.module';
+import { LikesModule } from './likes/likes.module';
+import { PostsModule } from './posts/posts.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
 
@@ -19,6 +23,10 @@ import { RedisModule } from './redis/redis.module';
     PrismaModule,
     RedisModule,
     AuthModule,
+    HealthModule,
+    PostsModule,
+    LikesModule,
+    CommentsModule
   ],
   controllers: [],
   providers: [

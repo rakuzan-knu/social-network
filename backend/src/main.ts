@@ -22,7 +22,7 @@ async function bootstrap() {
 
   const config = new DocumentBuilder()
     .setTitle('Social Network API')
-    .setDescription('API documentation for the social network backend')
+    .setDescription('Social Network backend API documentation')
     .setVersion('1.0')
     .addBearerAuth()
     .build();
