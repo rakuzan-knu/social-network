@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { useUIStore } from '../shared/useUIStore';
-import ProfileHeader from '../features/profile/components/ProfileHeader';
-import ProfileTabs from '../features/profile/components/ProfileTabs';
-import CreatePost from '../features/posts/CreatePost';
-import { PostCard } from '../features/posts/components/PostCard';
-import { CommentModal } from '../features/posts/CommentModal';
+import { useUIStore } from '../shared/model/useUIStore';
+import ProfileHeader from '../entities/profile/ui/ProfileHeader';
+import ProfileTabs from '../shared/ui/ProfileTabs';
+import CreatePost from '../features/posts/ui/CreatePost';
+import { PostCard } from '../entities/post/ui/PostCard';
+import { CommentModal } from '../features/comment/create/ui/CommentModal';
 
 export default function ProfilePage() {
   const { username } = useParams();

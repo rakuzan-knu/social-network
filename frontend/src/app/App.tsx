@@ -1,12 +1,12 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
-import Sidebar from '../features/layout/Sidebar';
-import EditProfileModal from '../features/profile/EditProfileModal';
+import Sidebar from '../widgets/sidebar/ui/Sidebar';
+import EditProfileModal from '../features/profile/ui/EditProfileModal';
 import FeedPage from '../pages/Feed';
 import ProfilePage from '../pages/Profile';
 
-import { useUIStore } from '../shared/useUIStore';
+import { useUIStore } from '../shared/model/useUIStore';
 
 export default function App() {
 
