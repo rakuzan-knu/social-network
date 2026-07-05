@@ -71,6 +71,7 @@
     "storybook": "^8.6.0"
   },
   "overrides": {
-    "vite": "$vite"
+    "vite": "$vite",
+    "uuid": "^11.1.1"
   }
 }

@@ -10,7 +10,7 @@ export default {
     'scope-enum': [
       1,
       'always',
-      ['auth', 'feed', 'chat', 'profile', 'user', 'post', 'follow', 'media', 'ws', 'infra', 'deps'],
+      ['auth', 'feed', 'chat', 'profile', 'user', 'post', 'follow', 'media', 'ws', 'infra', 'deps', 'security'],
     ],
     'subject-max-length': [2, 'always', 100],
     'body-max-line-length': [1, 'always', 200],

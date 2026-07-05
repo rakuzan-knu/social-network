@@ -30,12 +30,10 @@ jobs:
           node-version: '22'
 
       - name: Install dependencies
-        working-directory: ${{ matrix.workspace }}
-        run: npm ci
+        run: npm ci --workspace=${{ matrix.workspace }} --legacy-peer-deps
 
       - name: Run npm audit
-        working-directory: ${{ matrix.workspace }}
-        run: npm audit --audit-level=high --json > audit-report.json || true
+        run: npm audit --workspace=${{ matrix.workspace }} --audit-level=high --json > ${{ matrix.workspace }}/audit-report.json || true
 
       - name: Check for critical vulnerabilities
         working-directory: ${{ matrix.workspace }}
@@ -45,6 +43,7 @@ jobs:
             const r=JSON.parse(d);
             const vulns = r.vulnerabilities || {};
             const critical = Object.values(vulns).filter(v=>v.severity==='critical').length;
+            const high = Object.values(vulns).filter(v=>v.severity==='high').length;
             console.log(critical);
           " 2>/dev/null || echo "0")
           echo "Critical vulnerabilities: $CRITICAL"

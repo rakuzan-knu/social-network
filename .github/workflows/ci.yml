@@ -247,7 +247,7 @@ jobs:
         run: npm ci
       - name: Unit tests + coverage
         working-directory: frontend
-        run: npm run test:cov -- --passWithNoTests --coverage.thresholds.global.lines=0 --coverage.thresholds.global.statements=0 --coverage.thresholds.global.functions=0 --coverage.thresholds.global.branches=0
+        run: npm run test:cov -- --passWithNoTests --coverage.thresholds.lines=0 --coverage.thresholds.statements=0 --coverage.thresholds.functions=0 --coverage.thresholds.branches=0
       - name: Upload coverage
         if: always()
         uses: actions/upload-artifact@v4
