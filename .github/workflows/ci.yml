@@ -259,8 +259,10 @@ jobs:
   lighthouse:
     name: Lighthouse CI
     runs-on: ubuntu-latest
-    needs: [frontend-lint, frontend-test]
-    if: github.event_name == 'pull_request'
+    needs: [changes, frontend-lint, frontend-test]
+    if: |
+      github.event_name == 'pull_request' && 
+      (needs.changes.outputs.frontend == 'true' || needs.changes.outputs.ci == 'true')
     steps:
       - uses: actions/checkout@v4
 
