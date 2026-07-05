@@ -110,6 +110,7 @@ jobs:
   backend-test:
     name: Backend — Unit Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: changes
     if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.ci == 'true'
     steps:
@@ -141,6 +142,7 @@ jobs:
   backend-e2e:
     name: Backend — E2E Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: [backend-lint, backend-test]
 
     services:
@@ -230,6 +232,7 @@ jobs:
   frontend-test:
     name: Frontend — Unit Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: changes
     if: needs.changes.outputs.frontend == 'true' || needs.changes.outputs.ci == 'true'
     steps:
