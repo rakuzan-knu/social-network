@@ -19,7 +19,13 @@ export const AddFileButton: React.FC<AddFileButtonProps> = ({ onImageSelect }) =
 
   return (
     <>
-      <input type="file" ref={fileInputRef} onChange={handleImageChange} accept="image/*" className="hidden" />
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleImageChange}
+        accept="image/*"
+        className="hidden"
+      />
       <button
         onClick={() => fileInputRef.current?.click()}
         title="Прикріпити фото"

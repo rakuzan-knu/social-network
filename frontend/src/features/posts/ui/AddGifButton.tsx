@@ -11,7 +11,7 @@ const mockGifs = [
   'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbW9sc3A0b3g0Ym9pZnd5Ym9pZnd5Ym9pZnd5Ym9pZnd5JnB0Xz1mLg/a5viI92PAFUsU/giphy.gif',
   'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbXN6MXN3bXN6MXN3bXN6MXN3bXN6MXN3bXN6MXN3bXN6JnB0Xz1mLg/du3J3cXyzhj75IOgvA/giphy.gif',
   'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbW9pZnd5Ym9pZnd5Ym9pZnd5Ym9pZnd5Ym9pZnd5JnB0Xz1mLg/l3q2zVr6cu95nF6O4/giphy.gif',
-  'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbW9pZnd5Ym9pZnd5Ym9pZnd5Ym9pZnd5Ym9pZnd5JnB0Xz1mLg/3ntq5Fx7vH7E4/giphy.gif'
+  'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbW9pZnd5Ym9pZnd5Ym9pZnd5Ym9pZnd5Ym9pZnd5JnB0Xz1mLg/3ntq5Fx7vH7E4/giphy.gif',
 ];
 
 export const AddGifButton: React.FC<AddGifButtonProps> = ({ isOpen, onToggle, onGifSelect }) => {
@@ -36,7 +36,9 @@ export const AddGifButton: React.FC<AddGifButtonProps> = ({ isOpen, onToggle, on
       </button>
 
       {isOpen && (
-        <div className={`absolute left-0 z-50 shadow-[0_10px_30px_rgba(0,0,0,0.5)] bg-[#1a1a1a] rounded-2xl overflow-hidden border border-white/5 animate-fadeIn p-3 w-[320px] backdrop-blur-md ${direction === 'top' ? 'bottom-full mb-3' : 'top-full mt-3'}`}>
+        <div
+          className={`absolute left-0 z-50 shadow-[0_10px_30px_rgba(0,0,0,0.5)] bg-[#1a1a1a] rounded-2xl overflow-hidden border border-white/5 animate-fadeIn p-3 w-[320px] backdrop-blur-md ${direction === 'top' ? 'bottom-full mb-3' : 'top-full mt-3'}`}
+        >
           <span className="text-xs font-semibold text-gray-400 px-1">Тренди Giphy / Tenor</span>
           <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-1 custom-scrollbar mt-2">
             {mockGifs.map((gif, index) => (

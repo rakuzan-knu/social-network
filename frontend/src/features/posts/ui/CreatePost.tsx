@@ -15,7 +15,11 @@ export interface PostSubmitData {
   poll: { option1: string; option2: string } | null;
 }
 
-export default function CreatePost({ onPostSubmit }: { onPostSubmit: (data: PostSubmitData) => void }) {
+export default function CreatePost({
+  onPostSubmit,
+}: {
+  onPostSubmit: (data: PostSubmitData) => void;
+}) {
   const [text, setText] = useState<string>('');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [selectedGif, setSelectedGif] = useState<string | null>(null);
@@ -39,7 +43,7 @@ export default function CreatePost({ onPostSubmit }: { onPostSubmit: (data: Post
   };
 
   const toggleMenu = (menu: 'emoji' | 'gif') => {
-    setActiveMenu(prev => (prev === menu ? null : menu));
+    setActiveMenu((prev) => (prev === menu ? null : menu));
   };
 
   const handleSubmit = () => {
@@ -49,7 +53,7 @@ export default function CreatePost({ onPostSubmit }: { onPostSubmit: (data: Post
       text,
       image: imagePreview,
       gif: selectedGif,
-      poll: showPoll ? pollOptions : null
+      poll: showPoll ? pollOptions : null,
     });
 
     setText('');
@@ -69,14 +73,16 @@ export default function CreatePost({ onPostSubmit }: { onPostSubmit: (data: Post
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="Що нового?"
-            className="w-full bg-transparent resize-none text-white placeholder-gray-500 focus:outline-none text-[15px] min-h-[50px] pt-2" />
+            className="w-full bg-transparent resize-none text-white placeholder-gray-500 focus:outline-none text-[15px] min-h-[50px] pt-2"
+          />
 
           {imagePreview && (
             <div className="relative rounded-2xl overflow-hidden border border-white/10 max-h-[350px]">
               <img src={imagePreview} alt="Upload preview" className="w-full h-full object-cover" />
               <button
                 onClick={() => setImagePreview(null)}
-                className="absolute top-3 right-3 bg-black/70 hover:bg-black/90 p-1.5 rounded-full text-white transition-all">
+                className="absolute top-3 right-3 bg-black/70 hover:bg-black/90 p-1.5 rounded-full text-white transition-all"
+              >
                 <X size={16} />
               </button>
             </div>
@@ -87,7 +93,8 @@ export default function CreatePost({ onPostSubmit }: { onPostSubmit: (data: Post
               <img src={selectedGif} alt="GIF preview" className="w-full h-full object-cover" />
               <button
                 onClick={() => setSelectedGif(null)}
-                className="absolute top-3 right-3 bg-black/70 hover:bg-black/90 p-1.5 rounded-full text-white transition-all" >
+                className="absolute top-3 right-3 bg-black/70 hover:bg-black/90 p-1.5 rounded-full text-white transition-all"
+              >
                 <X size={16} />
               </button>
             </div>
@@ -97,7 +104,8 @@ export default function CreatePost({ onPostSubmit }: { onPostSubmit: (data: Post
             isOpen={showPoll}
             options={pollOptions}
             onChange={setPollOptions}
-            onClose={() => setShowPoll(false)} />
+            onClose={() => setShowPoll(false)}
+          />
         </div>
       </div>
 
@@ -106,11 +114,22 @@ export default function CreatePost({ onPostSubmit }: { onPostSubmit: (data: Post
       <div className="flex justify-between items-center relative">
         <div className="flex gap-1 -ml-2">
           <AddFileButton onImageSelect={handleImageSelect} />
-          <AddEmojiButton isOpen={activeMenu === 'emoji'} onToggle={() => toggleMenu('emoji')} onEmojiSelect={handleEmojiSelect} />
-          <AddGifButton isOpen={activeMenu === 'gif'} onToggle={() => toggleMenu('gif')} onGifSelect={handleGifSelect} />
+          <AddEmojiButton
+            isOpen={activeMenu === 'emoji'}
+            onToggle={() => toggleMenu('emoji')}
+            onEmojiSelect={handleEmojiSelect}
+          />
+          <AddGifButton
+            isOpen={activeMenu === 'gif'}
+            onToggle={() => toggleMenu('gif')}
+            onGifSelect={handleGifSelect}
+          />
           <AddPollButton isOpen={showPoll} onToggle={() => setShowPoll((prev) => !prev)} />
         </div>
-        <button onClick={handleSubmit} className="bg-white text-black font-bold px-5 py-1.5 rounded-full hover:bg-gray-200 transition-all text-sm">
+        <button
+          onClick={handleSubmit}
+          className="bg-white text-black font-bold px-5 py-1.5 rounded-full hover:bg-gray-200 transition-all text-sm"
+        >
           Опублікувати
         </button>
       </div>

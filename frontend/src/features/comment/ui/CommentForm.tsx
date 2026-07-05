@@ -5,12 +5,12 @@ import { AddEmojiButton } from '../../posts/ui/AddEmojiButton';
 export function CommentForm({ currentUserHandle }: { currentUserHandle: string }) {
   const [text, setText] = useState('');
   const [images, setImages] = useState<string[]>([]);
-  const [isEmojiOpen, setIsEmojiOpen] = useState(false); 
+  const [isEmojiOpen, setIsEmojiOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleCommentSubmit = () => {
     if (!text.trim() && images.length === 0) return;
-    
+
     setText('');
     setImages([]);
     setIsEmojiOpen(false);
@@ -30,20 +30,29 @@ export function CommentForm({ currentUserHandle }: { currentUserHandle: string }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      const filesArray = Array.from(e.target.files).map(file => URL.createObjectURL(file));
-      setImages(prev => [...prev, ...filesArray]);
+      const filesArray = Array.from(e.target.files).map((file) => URL.createObjectURL(file));
+      setImages((prev) => [...prev, ...filesArray]);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3 border-t border-white/[0.06] pt-4 mt-2 w-full">
+    <form
+      onSubmit={handleSubmit}
+      className="flex flex-col gap-3 border-t border-white/[0.06] pt-4 mt-2 w-full"
+    >
       {images.length > 0 && (
         <div className="flex flex-wrap gap-2 p-2 bg-white/[0.01] border border-white/[0.04] rounded-2xl">
           {images.map((url, idx) => (
-            <div key={idx} className="relative group w-16 h-16 rounded-xl overflow-hidden border border-white/[0.1]">
+            <div
+              key={idx}
+              className="relative group w-16 h-16 rounded-xl overflow-hidden border border-white/[0.1]"
+            >
               <img src={url} className="w-full h-full object-cover" alt="preview" />
-              <button type="button" onClick={() => setImages(images.filter((_, i) => i !== idx))}
-                className="absolute top-1 right-1 bg-black/75 p-0.5 rounded-full text-white transition-all cursor-pointer">
+              <button
+                type="button"
+                onClick={() => setImages(images.filter((_, i) => i !== idx))}
+                className="absolute top-1 right-1 bg-black/75 p-0.5 rounded-full text-white transition-all cursor-pointer"
+              >
                 <X size={12} />
               </button>
             </div>
@@ -59,23 +68,38 @@ export function CommentForm({ currentUserHandle }: { currentUserHandle: string }
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="flex-1 bg-transparent text-sm text-white placeholder-gray-500 focus:outline-none resize-none max-h-24 py-1 custom-scrollbar min-h-[24px]" />
+            className="flex-1 bg-transparent text-sm text-white placeholder-gray-500 focus:outline-none resize-none max-h-24 py-1 custom-scrollbar min-h-[24px]"
+          />
           <div className="flex items-center gap-2 text-gray-400 pb-0.5">
-            
-            <AddEmojiButton 
-              isOpen={isEmojiOpen} 
-              onToggle={() => setIsEmojiOpen(!isEmojiOpen)} 
-              onEmojiSelect={(emoji) => setText(prev => prev + emoji)} />
-            
-            <button type="button" onClick={() => fileInputRef.current?.click()} className="hover:text-white transition-colors cursor-pointer">
+            <AddEmojiButton
+              isOpen={isEmojiOpen}
+              onToggle={() => setIsEmojiOpen(!isEmojiOpen)}
+              onEmojiSelect={(emoji) => setText((prev) => prev + emoji)}
+            />
+
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="hover:text-white transition-colors cursor-pointer"
+            >
               <Image size={18} />
             </button>
-            <input type="file" ref={fileInputRef} onChange={handleFileChange} multiple accept="image/*" className="hidden" />
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              multiple
+              accept="image/*"
+              className="hidden"
+            />
           </div>
         </div>
-        
-        <button type="submit" disabled={!text.trim() && images.length === 0}
-          className="text-blue-500 hover:text-blue-400 disabled:opacity-20 bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] p-3 mb-1 rounded-xl transition-all cursor-pointer flex items-center justify-center h-[50px] w-[50px]">
+
+        <button
+          type="submit"
+          disabled={!text.trim() && images.length === 0}
+          className="text-blue-500 hover:text-blue-400 disabled:opacity-20 bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] p-3 mb-1 rounded-xl transition-all cursor-pointer flex items-center justify-center h-[50px] w-[50px]"
+        >
           <Send size={20} />
         </button>
       </div>
