@@ -1,7 +1,8 @@
 import React from 'react';
 import Avatar from '../../../shared/ui/Avatar';
+import { CommentType } from '../../../shared/model/useUIStore';
 
-export function CommentItem({ comment }: { comment: any }) {
+export function CommentItem({ comment }: { comment: CommentType }) {
   return (
     <div className="flex gap-3 items-start py-3 border-b border-white/[0.03] animate-fadeIn">
       <Avatar size="sm" emoji={comment.avatar || "💬"} />

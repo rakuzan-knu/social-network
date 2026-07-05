@@ -1,9 +1,9 @@
 import React from 'react';
 import { MessageSquare, Repeat, Heart, Share } from 'lucide-react';
 import Avatar from '../../../shared/ui/Avatar';
-import { useUIStore } from '../../../shared/model/useUIStore';
+import { useUIStore, PostType } from '../../../shared/model/useUIStore';
 
-export function PostCard({ post }: { post: any }) {
+export function PostCard({ post }: { post: PostType }) {
   const openCommentModal = useUIStore((state) => state.openCommentModal);
 
   return (

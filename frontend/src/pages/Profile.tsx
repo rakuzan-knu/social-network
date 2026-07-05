@@ -7,6 +7,10 @@ import CreatePost from '../features/posts/ui/CreatePost';
 import { PostCard } from '../entities/post/ui/PostCard';
 import { CommentModal } from '../features/comment/ui/CommentModal';
 
+interface PostSubmitData {
+  text: string;
+}
+
 export default function ProfilePage() {
   const { username } = useParams();
   const currentUsername = username || 'my_profile';
@@ -25,7 +29,7 @@ export default function ProfilePage() {
 
   const activeFeed = activeTab === 'posts' ? userPosts : userReposts;
 
-  const handleProfilePostSubmit = (postData: any) => {
+  const handleProfilePostSubmit = (postData: PostSubmitData) => {
     console.log('Пост створено з профілю користувача:', postData);
   };
 

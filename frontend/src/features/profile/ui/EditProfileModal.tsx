@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { User, Palette, Shield, Hand, Bell, X, Upload, Check, Image as ImageIcon, MoveVertical } from 'lucide-react';
 import { useUIStore } from '../../../shared/model/useUIStore';
@@ -26,16 +26,16 @@ export default function EditProfileModal() {
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
 
-  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<ProfileFormValues>({
+  const { register, handleSubmit, setValue, control, formState: { errors } } = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
-    defaultValues: { username: 'my_profile', bio: 'Розробляю Eternal.', onlineStatus: true, notifMain: true, notifSound: false }
+    defaultValues: { username: 'my_profile', bio: 'Rozroblyayu Eternal.', onlineStatus: true, notifMain: true, notifSound: false }
   });
 
-  if (!isEditProfileOpen) return null;
+  const onlineStatus = useWatch({ control, name: 'onlineStatus' });
+  const notifMain = useWatch({ control, name: 'notifMain' });
+  const notifSound = useWatch({ control, name: 'notifSound' });
 
-  const onlineStatus = watch('onlineStatus');
-  const notifMain = watch('notifMain');
-  const notifSound = watch('notifSound');
+  if (!isEditProfileOpen) return null;
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -58,19 +58,20 @@ export default function EditProfileModal() {
     }
   };
 
-  const handleDragStart = (e: any) => {
+  const handleDragStart = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
     if (!bannerPreview) return;
     setIsDragging(true);
-    const clientY = e.clientY || (e.touches && e.touches[0].clientY);
-    dragRef.current = { startY: clientY, startPos: bannerPos };
+    const clientY = 'touches' in e ? e.touches[0]?.clientY : e.clientY;
+    dragRef.current = { startY: clientY || 0, startPos: bannerPos };
   };
 
-  const handleDragMove = (e: any) => {
+  const handleDragMove = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
     if (!isDragging || !bannerPreview) return;
-    const clientY = e.clientY || (e.touches && e.touches[0].clientY);
-    if (!clientY) return;
+    const clientY = 'touches' in e ? e.touches[0]?.clientY : e.clientY;
+    if (clientY === undefined) return;
+    
     const deltaY = clientY - dragRef.current.startY;
-    let newPos = dragRef.current.startPos - (deltaY * 0.4);
+    const newPos = dragRef.current.startPos - (deltaY * 0.4);
     setBannerPos(Math.max(0, Math.min(100, newPos)));
   };
 

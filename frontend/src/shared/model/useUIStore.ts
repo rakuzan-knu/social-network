@@ -1,5 +1,30 @@
 import { create } from 'zustand';
 
+export interface CommentType {
+  id: string | number;
+  author: string;
+  avatar?: string;
+  handle: string;
+  text: string;
+  time: string;
+}
+
+export interface PostType {
+  id: string | number;
+  author: string;
+  avatar?: string;
+  handle: string;
+  text: string;
+  type?: 'repost' | string;
+  repostedBy?: string;
+  time?: string;
+  image?: string;
+  comments?: number;
+  reposts?: number;
+  likes?: number;
+  commentList?: CommentType[];
+}
+
 interface UIState {
   isSidebarExpanded: boolean;
   setSidebarExpanded: (expanded: boolean) => void;
@@ -7,8 +32,8 @@ interface UIState {
   openEditProfile: () => void;
   closeEditProfile: () => void;
   isCommentModalOpen: boolean;
-  activePostForComments: any | null;
-  openCommentModal: (post: any) => void;
+  activePostForComments: PostType | null;
+  openCommentModal: (post: PostType) => void;
   closeCommentModal: () => void;
 }
 

@@ -8,7 +8,14 @@ import { AddEmojiButton } from './AddEmojiButton';
 import { AddGifButton } from './AddGifButton';
 import { AddPollButton } from './AddPollButton';
 
-export default function CreatePost({ onPostSubmit }: { onPostSubmit: (data: any) => void }) {
+export interface PostSubmitData {
+  text: string;
+  image: string | null;
+  gif: string | null;
+  poll: { option1: string; option2: string } | null;
+}
+
+export default function CreatePost({ onPostSubmit }: { onPostSubmit: (data: PostSubmitData) => void }) {
   const [text, setText] = useState<string>('');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [selectedGif, setSelectedGif] = useState<string | null>(null);
@@ -98,13 +105,9 @@ export default function CreatePost({ onPostSubmit }: { onPostSubmit: (data: any)
 
       <div className="flex justify-between items-center relative">
         <div className="flex gap-1 -ml-2">
-          
           <AddFileButton onImageSelect={handleImageSelect} />
-          
           <AddEmojiButton isOpen={activeMenu === 'emoji'} onToggle={() => toggleMenu('emoji')} onEmojiSelect={handleEmojiSelect} />
-          
           <AddGifButton isOpen={activeMenu === 'gif'} onToggle={() => toggleMenu('gif')} onGifSelect={handleGifSelect} />
-
           <AddPollButton isOpen={showPoll} onToggle={() => setShowPoll((prev) => !prev)} />
         </div>
         <button onClick={handleSubmit} className="bg-white text-black font-bold px-5 py-1.5 rounded-full hover:bg-gray-200 transition-all text-sm">

@@ -2,8 +2,12 @@ import React from 'react';
 import CreatePost from '../features/posts/ui/CreatePost';
 import { CommentModal } from '@/features/comment/ui/CommentModal';
 
+interface PostSubmitData {
+  text: string;
+}
+
 export default function FeedPage() {
-  const handleNewPost = (postData: any) => {
+  const handleNewPost = (postData: PostSubmitData) => {
     console.log('Новий пост готовий до відправки:', postData);
   };
 

@@ -30,7 +30,7 @@ export function CommentModal() {
 
           <div className="space-y-1">
             {activePostForComments.commentList?.length ? (
-              activePostForComments.commentList.map((c: any) => <CommentItem key={c.id} comment={c} />)
+              activePostForComments.commentList.map((c) => <CommentItem key={c.id} comment={c} />)
             ) : (
               <div className="flex flex-col items-center justify-center py-14 text-gray-500 gap-2">
                 <MessageSquare size={32} className="opacity-30" />
