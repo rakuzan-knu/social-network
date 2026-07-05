@@ -6,7 +6,7 @@ import { UsersService } from '../../users/users.service';
 import {
   AccessTokenPayload,
   RequestUser,
-} from '../types/jwt-payload.interface';
+} from '../interfaces/jwt-payload.interface';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {

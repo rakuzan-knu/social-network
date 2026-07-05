@@ -23,7 +23,7 @@ import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterDto } from './dto/register.dto';
 import { AuthGuard } from './guards/jwt-auth.guard';
-import { RequestUser } from './types/jwt-payload.interface';
+import { RequestUser } from './interfaces/jwt-payload.interface';
 
 @ApiTags('auth')
 @Controller('auth')

@@ -10,18 +10,16 @@ import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { randomUUID } from 'crypto';
 import type { StringValue } from 'ms';
 import { RedisService } from '../redis/redis.service';
+import { CreateUserDto } from '../users/dto/create-user.dto';
 import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import {
   AccessTokenPayload,
   RefreshTokenPayload,
-} from './types/jwt-payload.interface';
-
-interface TokenPair {
-  accessToken: string;
-  refreshToken: string;
-}
+} from './interfaces/jwt-payload.interface';
+import { PublicUser } from './interfaces/public-user.interface';
+import { TokenPair } from './interfaces/token-pair.interface';
 
 @Injectable()
 export class AuthService {
@@ -49,12 +47,14 @@ export class AuthService {
 
     let user;
     try {
-      user = await this.usersService.create({
-        email: dto.email,
-        username: dto.username,
-        displayName: dto.displayName,
-        passwordHash,
-      });
+      user = await this.usersService.create(
+        new CreateUserDto({
+          email: dto.email,
+          username: dto.username,
+          displayName: dto.displayName,
+          passwordHash,
+        }),
+      );
     } catch (error) {
       if (
         error instanceof PrismaClientKnownRequestError &&
@@ -83,7 +83,10 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const passwordMatches = await argon2.verify(user.password, dto.password);
+    const passwordMatches = await argon2.verify(
+      user.passwordHash,
+      dto.password,
+    );
     if (!passwordMatches) {
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -242,7 +245,7 @@ export class AuthService {
     email: string;
     username: string;
     displayName?: string | null;
-  }) {
+  }): PublicUser {
     return {
       id: user.id,
       email: user.email,
