@@ -1,11 +1,8 @@
-import {
-  ConflictException,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
+import type { User } from '@prisma/client';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { randomUUID } from 'crypto';
 import type { StringValue } from 'ms';
@@ -14,10 +11,7 @@ import { CreateUserDto } from '../users/dto/create-user.dto';
 import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
-import {
-  AccessTokenPayload,
-  RefreshTokenPayload,
-} from './interfaces/jwt-payload.interface';
+import { AccessTokenPayload, RefreshTokenPayload } from './interfaces/jwt-payload.interface';
 import { PublicUser } from './interfaces/public-user.interface';
 import { TokenPair } from './interfaces/token-pair.interface';
 
@@ -45,7 +39,7 @@ export class AuthService {
 
     const passwordHash = await argon2.hash(dto.password);
 
-    let user;
+    let user: User;
     try {
       user = await this.usersService.create(
         new CreateUserDto({
@@ -56,20 +50,13 @@ export class AuthService {
         }),
       );
     } catch (error) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
+      if (error instanceof PrismaClientKnownRequestError && error.code === 'P2002') {
         throw new ConflictException('Email or username is already taken');
       }
       throw error;
     }
 
-    const tokens = await this.issueTokenPair(
-      user.id,
-      user.email,
-      user.username,
-    );
+    const tokens = await this.issueTokenPair(user.id, user.email, user.username);
 
     return {
       ...tokens,
@@ -83,19 +70,12 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const passwordMatches = await argon2.verify(
-      user.passwordHash,
-      dto.password,
-    );
+    const passwordMatches = await argon2.verify(user.passwordHash, dto.password);
     if (!passwordMatches) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const tokens = await this.issueTokenPair(
-      user.id,
-      user.email,
-      user.username,
-    );
+    const tokens = await this.issueTokenPair(user.id, user.email, user.username);
 
     return {
       ...tokens,
@@ -117,11 +97,7 @@ export class AuthService {
       throw new UnauthorizedException('User no longer exists');
     }
 
-    const accessToken = await this.signAccessToken(
-      user.id,
-      user.email,
-      user.username,
-    );
+    const accessToken = await this.signAccessToken(user.id, user.email, user.username);
 
     return { accessToken };
   }
@@ -130,9 +106,7 @@ export class AuthService {
     const payload = await this.verifyRefreshToken(refreshToken);
 
     if (payload.sub !== userId) {
-      throw new UnauthorizedException(
-        'Refresh token does not belong to the current user',
-      );
+      throw new UnauthorizedException('Refresh token does not belong to the current user');
     }
 
     const redisKey = this.buildRefreshKey(payload.sub, payload.jti);
@@ -150,11 +124,7 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
-  private signAccessToken(
-    userId: string,
-    email: string,
-    username: string,
-  ): Promise<string> {
+  private signAccessToken(userId: string, email: string, username: string): Promise<string> {
     const payload: AccessTokenPayload = {
       type: 'access',
       sub: userId,
@@ -178,11 +148,7 @@ export class AuthService {
     });
 
     const ttlSeconds = this.parseTtlToSeconds(ttl);
-    await this.redisService.set(
-      this.buildRefreshKey(userId, jti),
-      '1',
-      ttlSeconds,
-    );
+    await this.redisService.set(this.buildRefreshKey(userId, jti), '1', ttlSeconds);
 
     return token;
   }
@@ -195,16 +161,11 @@ export class AuthService {
     return value;
   }
 
-  private async verifyRefreshToken(
-    refreshToken: string,
-  ): Promise<RefreshTokenPayload> {
+  private async verifyRefreshToken(refreshToken: string): Promise<RefreshTokenPayload> {
     try {
-      const payload = await this.jwtService.verifyAsync<RefreshTokenPayload>(
-        refreshToken,
-        {
-          secret: this.getRequiredEnv('JWT_REFRESH_SECRET'),
-        },
-      );
+      const payload = await this.jwtService.verifyAsync<RefreshTokenPayload>(refreshToken, {
+        secret: this.getRequiredEnv('JWT_REFRESH_SECRET'),
+      });
 
       if (payload.type !== 'refresh') {
         throw new UnauthorizedException('Invalid refresh token');

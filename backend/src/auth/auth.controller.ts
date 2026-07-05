@@ -1,29 +1,14 @@
-import {
-  Body,
-  Controller,
-  HttpCode,
-  HttpStatus,
-  Post,
-  UseGuards,
-} from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './decorators/current-user.decorator';
-import {
-  AccessTokenResponseDto,
-  AuthResponseDto,
-} from './dto/auth-response.dto';
+import { AccessTokenResponseDto, AuthResponseDto } from './dto/auth-response.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterDto } from './dto/register.dto';
 import { AuthGuard } from './guards/jwt-auth.guard';
-import { RequestUser } from './interfaces/jwt-payload.interface';
+import type { RequestUser } from './interfaces/jwt-payload.interface';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -98,10 +83,7 @@ export class AuthController {
     status: HttpStatus.UNAUTHORIZED,
     description: 'Missing or invalid access token',
   })
-  async logout(
-    @CurrentUser() user: RequestUser,
-    @Body() dto: RefreshTokenDto,
-  ): Promise<void> {
+  async logout(@CurrentUser() user: RequestUser, @Body() dto: RefreshTokenDto): Promise<void> {
     await this.authService.logout(user.id, dto.refreshToken);
   }
 }

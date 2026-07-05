@@ -1,13 +1,5 @@
 import { plainToInstance } from 'class-transformer';
-import {
-  IsInt,
-  IsNotEmpty,
-  IsString,
-  Max,
-  Min,
-  MinLength,
-  validateSync,
-} from 'class-validator';
+import { IsInt, IsNotEmpty, IsString, Max, Min, MinLength, validateSync } from 'class-validator';
 
 class EnvironmentVariables {
   @IsString()
@@ -54,15 +46,11 @@ export function validateEnv(config: Record<string, unknown>) {
   });
 
   if (errors.length > 0) {
-    const message = errors
-      .map((err) => Object.values(err.constraints ?? {}).join(', '))
-      .join('; ');
+    const message = errors.map((err) => Object.values(err.constraints ?? {}).join(', ')).join('; ');
     throw new Error(`Environment validation failed: ${message}`);
   }
 
-  if (
-    validatedConfig.JWT_ACCESS_SECRET === validatedConfig.JWT_REFRESH_SECRET
-  ) {
+  if (validatedConfig.JWT_ACCESS_SECRET === validatedConfig.JWT_REFRESH_SECRET) {
     throw new Error(
       'Environment validation failed: JWT_ACCESS_SECRET and JWT_REFRESH_SECRET must be different',
     );

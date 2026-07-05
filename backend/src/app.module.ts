@@ -26,7 +26,7 @@ import { RedisModule } from './redis/redis.module';
     HealthModule,
     PostsModule,
     LikesModule,
-    CommentsModule
+    CommentsModule,
   ],
   controllers: [],
   providers: [
