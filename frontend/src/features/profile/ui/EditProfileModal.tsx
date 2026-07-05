@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { User, Palette, Shield, Hand, Bell, X, Upload, Check, Image as ImageIcon, MoveVertical } from 'lucide-react';
 import { useUIStore } from '../../../shared/model/useUIStore';
-import { profileSchema, ProfileFormValues } from '../model/profileModel';
+import { profileSchema, ProfileFormValues } from '../model/profileSchema';
 
 const Toggle = ({ checked, onChange }: { checked: boolean; onChange: () => void }) => (
   <button

@@ -5,7 +5,7 @@ import ProfileHeader from '../entities/profile/ui/ProfileHeader';
 import ProfileTabs from '../shared/ui/ProfileTabs';
 import CreatePost from '../features/posts/ui/CreatePost';
 import { PostCard } from '../entities/post/ui/PostCard';
-import { CommentModal } from '../features/comment/create/ui/CommentModal';
+import { CommentModal } from '../features/comment/ui/CommentModal';
 
 export default function ProfilePage() {
   const { username } = useParams();

@@ -1,6 +1,6 @@
 import React from 'react';
 import CreatePost from '../features/posts/ui/CreatePost';
-import { CommentModal } from '@/features/comment/create/ui/CommentModal';
+import { CommentModal } from '@/features/comment/ui/CommentModal';
 
 export default function FeedPage() {
   const handleNewPost = (postData: any) => {
