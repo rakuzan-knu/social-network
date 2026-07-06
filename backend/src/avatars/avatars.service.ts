@@ -1,12 +1,9 @@
-import { Injectable, Inject, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { S3_CLIENT } from './s3-provider';
-import { AVATAR_REPOSITORY } from './avatars-repository.interface';
-import type { IAvatarRepository } from './avatars-repository.interface';
-
-const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+import { AVATAR_REPOSITORY } from './interfaces/avatars-repository.interface';
+import type { IAvatarRepository, AvatarView } from './interfaces/avatars-repository.interface';
 
 @Injectable()
 export class AvatarsService {
@@ -22,12 +19,10 @@ export class AvatarsService {
     this.publicUrl = this.configService.getOrThrow<string>('MINIO_PUBLIC_URL');
   }
 
-  async uploadAvatar(userId: string, file: Express.Multer.File) {
-    this.validateFile(file);
-
+  async uploadAvatar(userId: string, file: Express.Multer.File): Promise<AvatarView> {
     const user = await this.avatarRepository.findById(userId);
     if (!user) {
-      throw new NotFoundException('Пользователь не найден');
+      throw new NotFoundException('User not found');
     }
 
     if (user.avatar) {
@@ -51,10 +46,10 @@ export class AvatarsService {
     return this.avatarRepository.updateAvatar(userId, url);
   }
 
-  async deleteAvatar(userId: string) {
+  async deleteAvatar(userId: string): Promise<AvatarView> {
     const user = await this.avatarRepository.findById(userId);
     if (!user) {
-      throw new NotFoundException('Пользователь не найден');
+      throw new NotFoundException('User not found');
     }
 
     if (user.avatar) {
@@ -64,21 +59,7 @@ export class AvatarsService {
     return this.avatarRepository.updateAvatar(userId, null);
   }
 
-  private validateFile(file: Express.Multer.File) {
-    if (!file) {
-      throw new BadRequestException('Файл не передан');
-    }
-    if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
-      throw new BadRequestException(
-        `Недопустимый тип файла. Разрешены: ${ALLOWED_MIME_TYPES.join(', ')}`,
-      );
-    }
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      throw new BadRequestException('Файл превышает максимальный размер 5MB');
-    }
-  }
-
-  private async deleteObjectByUrl(url: string) {
+  private async deleteObjectByUrl(url: string): Promise<void> {
     const key = url.replace(`${this.publicUrl}/${this.bucket}/`, '');
     await this.s3.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
   }

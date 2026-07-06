@@ -6,12 +6,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma, User } from '@prisma/client';
-import type { IFollowersRepository } from './followers-repository.interface';
+import { FOLLOWERS_REPOSITORY } from './interfaces/followers-repository.interface';
+import type { IFollowersRepository } from './interfaces/followers-repository.interface';
 
 @Injectable()
 export class FollowersService {
   constructor(
-    @Inject('IFollowersRepository') private readonly followersRepository: IFollowersRepository,
+    @Inject(FOLLOWERS_REPOSITORY)
+    private readonly followersRepository: IFollowersRepository,
   ) {}
 
   async getFollowers(id: string): Promise<User[]> {

@@ -1,19 +1,19 @@
 import { Module } from '@nestjs/common';
 import { FollowersController } from './followers.controller';
 import { FollowersService } from './followers.service';
-import { FollowersRepository } from './followers.repository';
+import { FollowersRepository } from './repositories/followers.repository';
+import { FOLLOWERS_REPOSITORY } from './interfaces/followers-repository.interface';
 import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
   imports: [PrismaModule],
   controllers: [FollowersController],
   providers: [
-    FollowersRepository,
+    FollowersService,
     {
-      provide: 'IFollowersRepository',
+      provide: FOLLOWERS_REPOSITORY,
       useClass: FollowersRepository,
     },
-    FollowersService,
   ],
   exports: [FollowersService],
 })

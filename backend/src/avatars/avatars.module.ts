@@ -4,8 +4,8 @@ import { AvatarsController } from './avatars.controller';
 import { AvatarsService } from './avatars.service';
 import { s3Provider } from './s3-provider';
 import { PrismaModule } from '../prisma/prisma.module';
-import { PrismaAvatarRepository } from './avatars.repository';
-import { AVATAR_REPOSITORY } from './avatars-repository.interface';
+import { PrismaAvatarRepository } from './repositories/avatars.repository';
+import { AVATAR_REPOSITORY } from './interfaces/avatars-repository.interface';
 
 @Module({
   imports: [ConfigModule, PrismaModule],
