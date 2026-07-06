@@ -47,7 +47,7 @@ docker compose -f docker-compose.dev.yml up -d
 
 **4. Install all dependencies:**
 ```bash
-npm run install:all
+npm install
 ```
 
 **5. Run database migrations:**
@@ -118,7 +118,7 @@ social-network/
 
 **From root:**
 ```bash
-npm run install:all       # install all dependencies
+npm install               # install all dependencies
 npm run dev:backend       # start backend
 npm run dev:frontend      # start frontend
 ```
