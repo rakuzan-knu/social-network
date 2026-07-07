@@ -66,7 +66,7 @@ jobs:
           cache: 'npm'
 
       - name: Install root deps
-        run: npm ci
+        run: npm ci --fetch-retries=5 --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=120000
 
       - name: Validate PR commits
         run: |
@@ -75,11 +75,13 @@ jobs:
             --to ${{ github.event.pull_request.head.sha }} \
             --verbose
 
-  backend-lint:
-    name: Backend — Lint & Typecheck
+  backend-setup:
+    name: Backend — Prepare Dependencies
     runs-on: ubuntu-latest
     needs: changes
     if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.ci == 'true'
+    outputs:
+      cache-key: ${{ steps.cache-key-gen.outputs.key }}
     steps:
       - uses: actions/checkout@v4
 
@@ -89,15 +91,57 @@ jobs:
           cache: 'npm'
           cache-dependency-path: backend/package-lock.json
 
-      - name: Install deps
-        working-directory: backend
-        run: npm ci
+      - name: Generate Cache Key
+        id: cache-key-gen
+        run: |
+          echo "key=${{ runner.os }}-backend-deps-${{ hashFiles('backend/package-lock.json', 'backend/prisma/schema.prisma') }}" >> $GITHUB_OUTPUT
 
-      - name: Generate Prisma Client
+      - name: Cache Node Modules & Prisma
+        id: backend-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            backend/node_modules
+            ~/.cache/prisma
+          key: ${{ steps.cache-key-gen.outputs.key }}
+
+      - name: Install & Generate (On Cache Miss)
+        if: steps.backend-cache.outputs.cache-hit != 'true'
         working-directory: backend
-        run: npx prisma generate
+        run: |
+          npm ci --fetch-retries=5 --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=120000
+          npx prisma generate
         env:
           DATABASE_URL: postgresql://user:password@localhost:5432/social
+
+  backend-lint:
+    name: Backend — Lint & Typecheck
+    runs-on: ubuntu-latest
+    needs: [changes, backend-setup]
+    if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.ci == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Restore Backend Dependencies
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            backend/node_modules
+            ~/.cache/prisma
+          key: ${{ needs.backend-setup.outputs.cache-key }}
+          fail-on-cache-miss: true
+
+      - name: Cache ESLint
+        uses: actions/cache@v4
+        with:
+          path: backend/.eslintcache
+          key: ${{ runner.os }}-backend-eslint-${{ github.ref }}
+          restore-keys: |
+            ${{ runner.os }}-backend-eslint-
 
       - name: Lint
         working-directory: backend
@@ -108,34 +152,47 @@ jobs:
         run: npm run typecheck
 
   backend-test:
-    name: Backend — Unit Tests
+    name: Backend — Unit Tests (Shard ${{ matrix.shard }})
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: changes
+    needs: [changes, backend-setup]
     if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.ci == 'true'
+    strategy:
+      matrix:
+        shard: [1, 2, 3]
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: backend/package-lock.json
-      - name: Install deps
-        working-directory: backend
-        run: npm ci
-      - name: Generate Prisma Client
-        working-directory: backend
-        run: npx prisma generate
-        env:
-          DATABASE_URL: postgresql://user:password@localhost:5432/social
+
+      - name: Restore Backend Dependencies
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            backend/node_modules
+            ~/.cache/prisma
+          key: ${{ needs.backend-setup.outputs.cache-key }}
+          fail-on-cache-miss: true
+
+      - name: Cache Vitest Compiler (Backend)
+        uses: actions/cache@v4
+        with:
+          path: backend/node_modules/.cache
+          key: ${{ runner.os }}-backend-compiler-shard-${{ matrix.shard }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-backend-compiler-shard-${{ matrix.shard }}-
+
       - name: Unit tests + coverage
         working-directory: backend
-        run: npm run test:cov -- --ci --forceExit --passWithNoTests
+        run: npm run test:cov -- --ci --shard=${{ matrix.shard }}/3 --forceExit --passWithNoTests
+
       - name: Upload coverage
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: backend-coverage
+          name: backend-coverage-shard-${{ matrix.shard }}
           path: backend/coverage/
           retention-days: 7
 
@@ -143,7 +200,7 @@ jobs:
     name: Backend — E2E Tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [backend-lint, backend-test]
+    needs: [backend-setup, backend-lint, backend-test]
 
     services:
       postgres:
@@ -184,16 +241,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: backend/package-lock.json
 
-      - name: Install deps
-        working-directory: backend
-        run: npm ci
-
-      - name: Generate Prisma Client
-        working-directory: backend
-        run: npx prisma generate
+      - name: Restore Backend Dependencies
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            backend/node_modules
+            ~/.cache/prisma
+          key: ${{ needs.backend-setup.outputs.cache-key }}
+          fail-on-cache-miss: true
 
       - name: Run migrations
         working-directory: backend
@@ -203,11 +259,13 @@ jobs:
         working-directory: backend
         run: npm run test:e2e -- --forceExit
 
-  frontend-lint:
-    name: Frontend — Lint & Typecheck
+  frontend-setup:
+    name: Frontend — Prepare Dependencies
     runs-on: ubuntu-latest
     needs: changes
     if: needs.changes.outputs.frontend == 'true' || needs.changes.outputs.ci == 'true'
+    outputs:
+      cache-key: ${{ steps.cache-key-gen.outputs.key }}
     steps:
       - uses: actions/checkout@v4
 
@@ -217,9 +275,54 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Install deps
+      - name: Generate Cache Key
+        id: cache-key-gen
+        run: |
+          echo "key=${{ runner.os }}-frontend-deps-${{ hashFiles('frontend/package-lock.json') }}" >> $GITHUB_OUTPUT
+
+      - name: Cache Node Modules
+        id: frontend-cache
+        uses: actions/cache@v4
+        with:
+          path: frontend/node_modules
+          key: ${{ steps.cache-key-gen.outputs.key }}
+
+      - name: Install (On Cache Miss)
+        if: steps.frontend-cache.outputs.cache-hit != 'true'
         working-directory: frontend
-        run: npm ci
+        run: npm ci --fetch-retries=5 --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=120000
+
+  frontend-lint:
+    name: Frontend — Lint & Typecheck
+    runs-on: ubuntu-latest
+    needs: [changes, frontend-setup]
+    if: needs.changes.outputs.frontend == 'true' || needs.changes.outputs.ci == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Restore Frontend Dependencies
+        uses: actions/cache/restore@v4
+        with:
+          path: frontend/node_modules
+          key: ${{ needs.frontend-setup.outputs.cache-key }}
+          fail-on-cache-miss: true
+
+      - name: Cache ESLint
+        uses: actions/cache@v4
+        with:
+          path: frontend/.eslintcache
+          key: ${{ runner.os }}-frontend-eslint-${{ github.ref }}
+          restore-keys: |
+            ${{ runner.os }}-frontend-eslint-
+
+      - name: Register Problem Matchers
+        run: |
+          echo "::add-matcher::.github/matchers/eslint.json" 2>/dev/null || true
+          echo "::add-matcher::.github/matchers/tsc.json" 2>/dev/null || true
 
       - name: Lint
         working-directory: frontend
@@ -233,21 +336,34 @@ jobs:
     name: Frontend — Unit Tests
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: changes
+    needs: [changes, frontend-setup]
     if: needs.changes.outputs.frontend == 'true' || needs.changes.outputs.ci == 'true'
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-      - name: Install deps
-        working-directory: frontend
-        run: npm ci
+
+      - name: Restore Frontend Dependencies
+        uses: actions/cache/restore@v4
+        with:
+          path: frontend/node_modules
+          key: ${{ needs.frontend-setup.outputs.cache-key }}
+          fail-on-cache-miss: true
+
+      - name: Cache Vitest Compiler (Frontend)
+        uses: actions/cache@v4
+        with:
+          path: frontend/node_modules/.cache
+          key: ${{ runner.os }}-frontend-compiler-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-frontend-compiler-
+
       - name: Unit tests + coverage
         working-directory: frontend
-        run: npm run test:cov -- --passWithNoTests --coverage.thresholds.lines=0 --coverage.thresholds.statements=0 --coverage.thresholds.functions=0 --coverage.thresholds.branches=0
+        run: npm run test:cov -- --passWithNoTests --reporter=default --reporter=github --coverage.thresholds.lines=0 --coverage.thresholds.statements=0 --coverage.thresholds.functions=0 --coverage.thresholds.branches=0
+
       - name: Upload coverage
         if: always()
         uses: actions/upload-artifact@v4
@@ -256,31 +372,42 @@ jobs:
           path: frontend/coverage/
           retention-days: 7
 
-  lighthouse:
-    name: Lighthouse CI
+  frontend-prod-assessment:
+    name: Frontend — Lighthouse & Bundle Size
     runs-on: ubuntu-latest
-    needs: [changes, frontend-lint, frontend-test]
+    needs: [changes, frontend-setup, frontend-lint, frontend-test]
     if: |
       github.event_name == 'pull_request' && 
       (needs.changes.outputs.frontend == 'true' || needs.changes.outputs.ci == 'true')
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
 
-      - name: Install deps
-        working-directory: frontend
-        run: npm ci
+      - name: Restore Frontend Dependencies
+        uses: actions/cache/restore@v4
+        with:
+          path: frontend/node_modules
+          key: ${{ needs.frontend-setup.outputs.cache-key }}
+          fail-on-cache-miss: true
 
       - name: Build frontend
         working-directory: frontend
         run: npm run build
         env:
           VITE_API_URL: http://localhost:3000
+
+      - name: Check bundle size changes
+        uses: preactjs/compressed-size-action@v2
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          pattern: 'frontend/dist/**/*.{js,css}'
+          strip-hash: "\\b\\w{8}\\."
 
       - name: Run Lighthouse CI
         uses: treosh/lighthouse-ci-action@v12
@@ -290,13 +417,16 @@ jobs:
           temporaryPublicStorage: true
 
   docker-build:
-    name: Docker — Build check (${{ matrix.service }})
+    name: Docker — Build & Scan (${{ matrix.service }})
     runs-on: ubuntu-latest
     needs: changes
     if: |
       needs.changes.outputs.docker == 'true' ||
       needs.changes.outputs.backend == 'true' ||
       needs.changes.outputs.frontend == 'true'
+    permissions:
+      contents: read
+      security-events: write
     strategy:
       matrix:
         include:
@@ -310,14 +440,31 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build image (no push)
+      - name: Build image
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
           push: false
-          tags: social-network-${{ matrix.service }}:pr-${{ github.event.number || 'local' }}
+          load: true
+          tags: social-network-${{ matrix.service }}:ci-${{ github.sha }}
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: social-network-${{ matrix.service }}:ci-${{ github.sha }}
+          format: sarif
+          output: trivy-${{ matrix.service }}.sarif
+          severity: 'CRITICAL,HIGH'
+          exit-code: '0'
+
+      - name: Upload Trivy SARIF report
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-${{ matrix.service }}.sarif
+          category: trivy-${{ matrix.service }}-image
 
   coverage-report:
     name: Coverage Report
@@ -345,11 +492,14 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - commitlint
+      - backend-setup
       - backend-lint
       - backend-test
       - backend-e2e
+      - frontend-setup
       - frontend-lint
       - frontend-test
+      - frontend-prod-assessment
       - docker-build
     if: always()
     steps:
