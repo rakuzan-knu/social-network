@@ -4,6 +4,7 @@ WORKDIR /app
 
 COPY package*.json ./
 COPY frontend/package*.json ./frontend/
+COPY scripts ./scripts/
 
 RUN npm ci --workspace=frontend
 

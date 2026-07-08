@@ -16,6 +16,7 @@ WORKDIR /app
 
 COPY --from=deps /app ./
 COPY backend ./backend
+COPY scripts ./scripts/
 
 RUN npm run build --workspace=backend
 

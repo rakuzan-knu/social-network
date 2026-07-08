@@ -344,7 +344,7 @@ jobs:
 
       - name: Unit tests + coverage
         working-directory: frontend
-        run: npm run test:cov -- --passWithNoTests --reporter=default --reporter=github --coverage.thresholds.lines=0 --coverage.thresholds.statements=0 --coverage.thresholds.functions=0 --coverage.thresholds.branches=0
+        run: npm run test:cov -- --passWithNoTests --reporter=default --reporter=github-actions --coverage.thresholds.lines=0 --coverage.thresholds.statements=0 --coverage.thresholds.functions=0 --coverage.thresholds.branches=0
 
       - name: Upload coverage
         if: always()
