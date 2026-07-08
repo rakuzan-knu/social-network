@@ -5,6 +5,8 @@ WORKDIR /app
 COPY package*.json ./
 COPY backend/package*.json ./backend/
 COPY backend/prisma ./backend/prisma/
+COPY scripts ./scripts/
+ENV CI=true
 
 RUN npm ci --workspace=backend
 
@@ -16,7 +18,6 @@ WORKDIR /app
 
 COPY --from=deps /app ./
 COPY backend ./backend
-COPY scripts ./scripts/
 
 RUN npm run build --workspace=backend
 
