@@ -6,6 +6,8 @@ COPY package*.json ./
 COPY frontend/package*.json ./frontend/
 COPY scripts ./scripts/
 
+ENV CI=true
+
 RUN npm ci --workspace=frontend
 
 # Stage 2: builder
