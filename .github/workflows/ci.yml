@@ -438,6 +438,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
 
       - name: Run Trivy vulnerability scanner
+        id: trivy_scanner
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: social-network-${{ matrix.service }}:ci-${{ github.sha }}
@@ -447,7 +448,7 @@ jobs:
           exit-code: '0'
 
       - name: Upload Trivy SARIF report
-        if: always()
+        if: always() && steps.trivy_scanner.outcome == 'success'
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-${{ matrix.service }}.sarif
