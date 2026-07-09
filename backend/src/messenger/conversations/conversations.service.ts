@@ -62,7 +62,7 @@ export class ConversationsService {
     }
 
     return this.prisma.$transaction(async (tx) => {
-      const other = await tx.user.findUnique({ where: { id: dto.participantId } });
+      const other = await this.usersService.findById(dto.participantId);
       if (!other) throw new NotFoundException('User not found');
 
       const block = await tx.userBlock.findFirst({
