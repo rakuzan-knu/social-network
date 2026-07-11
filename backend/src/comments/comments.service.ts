@@ -1,12 +1,14 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { CreateCommentDto } from './dto/create-comment.dto';
-import type { ICommentsRepository } from './comments-repository.interface';
+import { COMMENTS_REPOSITORY } from './interfaces/comments-repository.interface';
+import type { ICommentsRepository } from './interfaces/comments-repository.interface';
 import { Comment } from '@prisma/client';
+import { GetAllCommentsResult } from './types/comments.types';
 
 @Injectable()
 export class CommentsService {
   constructor(
-    @Inject('ICommentsRepository')
+    @Inject(COMMENTS_REPOSITORY)
     private readonly commentsRepository: ICommentsRepository,
   ) {}
   async addComment(postId: string, userId: string, dto: CreateCommentDto): Promise<Comment> {
@@ -15,7 +17,17 @@ export class CommentsService {
   async deleteComment(commentId: string, userId: string): Promise<Comment> {
     return this.commentsRepository.deleteComment(commentId, userId);
   }
-  async getComments(postId: string): Promise<Comment[]> {
-    return this.commentsRepository.getCommentsByPostId(postId);
+  async getComments(postId: string, limit: number, cursor?: string): Promise<GetAllCommentsResult> {
+    const comments = await this.commentsRepository.getCommentsByPostId(postId, limit, cursor);
+    const hasNext = comments.length > limit;
+    const resultComments = hasNext ? comments.slice(0, limit) : comments;
+    const nextCursor = hasNext ? resultComments[resultComments.length - 1].id : null;
+    return {
+      data: resultComments,
+      meta: {
+        nextCursor,
+        hasNextPage: hasNext,
+      },
+    };
   }
 }

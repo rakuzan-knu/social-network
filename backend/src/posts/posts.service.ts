@@ -1,14 +1,15 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Post } from '@prisma/client';
 import { CreatePostDto } from './dto/create-post.dto';
 import { EditPostDto } from './dto/edit-post.dto';
-import { GetAllPostsResult } from './post.types';
-import type { IPostRepository } from './posts-repository.interface';
+import { GetAllPostsResult } from './types/post.types';
+import { POSTS_REPOSITORY } from './interfaces/posts-repository.interface';
+import type { IPostRepository } from './interfaces/posts-repository.interface';
 
 @Injectable()
 export class PostsService {
   constructor(
-    @Inject('IPostRepository')
+    @Inject(POSTS_REPOSITORY)
     private readonly postsRepository: IPostRepository,
   ) {}
   async getAllPosts(limit: number, after?: string): Promise<GetAllPostsResult> {
@@ -33,17 +34,23 @@ export class PostsService {
       },
     });
   }
-  async deletePost(id: string): Promise<Post> {
+  async deletePost(id: string, userId: string): Promise<Post> {
     const post = await this.postsRepository.getPostById(id);
     if (!post) {
       throw new NotFoundException('Post not found');
     }
+    if (post.authorId !== userId) {
+      throw new ForbiddenException('Author not found');
+    }
     return this.postsRepository.deletePost(id);
   }
-  async editPost(id: string, dto: EditPostDto): Promise<Post> {
+  async editPost(id: string, dto: EditPostDto, userId): Promise<Post> {
     const post = await this.postsRepository.getPostById(id);
     if (!post) {
       throw new NotFoundException('Post not found');
+    }
+    if (post.authorId !== userId) {
+      throw new ForbiddenException('Author not found');
     }
     return this.postsRepository.editPost(id, dto);
   }

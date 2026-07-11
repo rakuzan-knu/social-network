@@ -1,24 +1,36 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { IFollowersRepository } from '../interfaces/followers-repository.interface';
 import { PrismaService } from '../../prisma/prisma.service';
-import { User } from '@prisma/client';
+import { UserProfileDto } from '../../users/dto/user-profile.dto';
+
+const userProfileSelect = {
+  id: true,
+  email: true,
+  username: true,
+  displayName: true,
+  avatar: true,
+  bio: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.UserSelect;
 
 @Injectable()
 export class FollowersRepository implements IFollowersRepository {
   constructor(private readonly prismaService: PrismaService) {}
 
-  async getFollowers(userId: string): Promise<User[]> {
+  async getFollowers(userId: string): Promise<UserProfileDto[]> {
     const follows = await this.prismaService.follow.findMany({
       where: { followingId: userId },
-      include: { follower: true },
+      include: { follower: { select: userProfileSelect } },
     });
     return follows.map((f) => f.follower);
   }
 
-  async getFollowing(userId: string): Promise<User[]> {
+  async getFollowing(userId: string): Promise<UserProfileDto[]> {
     const follows = await this.prismaService.follow.findMany({
       where: { followerId: userId },
-      include: { following: true },
+      include: { following: { select: userProfileSelect } },
     });
     return follows.map((f) => f.following);
   }

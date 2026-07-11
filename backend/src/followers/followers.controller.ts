@@ -9,11 +9,11 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { User } from '@prisma/client';
 import { AuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/interfaces/jwt-payload.interface';
 import { FollowersService } from './followers.service';
+import { UserProfileDto } from '../users/dto/user-profile.dto';
 
 @ApiTags('Followers')
 @Controller('users')
@@ -23,18 +23,18 @@ export class FollowersController {
   @Get(':id/followers')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get followers of a user' })
-  @ApiResponse({ status: 200, description: 'List of followers' })
+  @ApiResponse({ status: 200, description: 'List of followers', type: [UserProfileDto] })
   @ApiResponse({ status: 404, description: 'User not found' })
-  getFollowers(@Param('id') id: string): Promise<User[]> {
+  getFollowers(@Param('id') id: string): Promise<UserProfileDto[]> {
     return this.followersService.getFollowers(id);
   }
 
   @Get(':id/following')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get users that a user is following' })
-  @ApiResponse({ status: 200, description: 'List of following' })
+  @ApiResponse({ status: 200, description: 'List of following', type: [UserProfileDto] })
   @ApiResponse({ status: 404, description: 'User not found' })
-  getFollowing(@Param('id') id: string): Promise<User[]> {
+  getFollowing(@Param('id') id: string): Promise<UserProfileDto[]> {
     return this.followersService.getFollowing(id);
   }
 
