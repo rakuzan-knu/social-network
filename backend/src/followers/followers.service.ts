@@ -5,9 +5,10 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, User } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { FOLLOWERS_REPOSITORY } from './interfaces/followers-repository.interface';
 import type { IFollowersRepository } from './interfaces/followers-repository.interface';
+import { UserProfileDto } from '../users/dto/user-profile.dto';
 
 @Injectable()
 export class FollowersService {
@@ -16,14 +17,14 @@ export class FollowersService {
     private readonly followersRepository: IFollowersRepository,
   ) {}
 
-  async getFollowers(id: string): Promise<User[]> {
+  async getFollowers(id: string): Promise<UserProfileDto[]> {
     if (!id) {
       throw new BadRequestException('id is required');
     }
     return this.followersRepository.getFollowers(id);
   }
 
-  async getFollowing(id: string): Promise<User[]> {
+  async getFollowing(id: string): Promise<UserProfileDto[]> {
     if (!id) {
       throw new BadRequestException('id is required');
     }
