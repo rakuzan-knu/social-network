@@ -45,7 +45,7 @@ export class UsersController {
     @Body() dto: UpdateUserDto,
     @CurrentUser() user: RequestUser,
   ): Promise<UserProfileDto> {
-    if (user.id !== id) throw new ForbiddenException('different id');
+    if (user.id !== id) throw new ForbiddenException('You can only update your own profile');
     return this.usersService.updateUser(id, dto);
   }
 }
