@@ -8,7 +8,8 @@ import {
 import { Prisma } from '@prisma/client';
 import { FOLLOWERS_REPOSITORY } from './interfaces/followers-repository.interface';
 import type { IFollowersRepository } from './interfaces/followers-repository.interface';
-import { UserProfileDto } from '../users/dto/user-profile.dto';
+import type { GetFollowersResult } from './types/followers.types';
+import { paginate } from '../common/pagination';
 
 @Injectable()
 export class FollowersService {
@@ -17,18 +18,20 @@ export class FollowersService {
     private readonly followersRepository: IFollowersRepository,
   ) {}
 
-  async getFollowers(id: string): Promise<UserProfileDto[]> {
+  async getFollowers(id: string, limit: number, after?: string): Promise<GetFollowersResult> {
     if (!id) {
       throw new BadRequestException('id is required');
     }
-    return this.followersRepository.getFollowers(id);
+    const rows = await this.followersRepository.getFollowers(id, limit, after);
+    return paginate(rows, limit, (row) => row.user);
   }
 
-  async getFollowing(id: string): Promise<UserProfileDto[]> {
+  async getFollowing(id: string, limit: number, after?: string): Promise<GetFollowersResult> {
     if (!id) {
       throw new BadRequestException('id is required');
     }
-    return this.followersRepository.getFollowing(id);
+    const rows = await this.followersRepository.getFollowing(id, limit, after);
+    return paginate(rows, limit, (row) => row.user);
   }
 
   async followUser(followerId: string, followingId: string): Promise<void> {

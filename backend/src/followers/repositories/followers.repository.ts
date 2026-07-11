@@ -1,38 +1,35 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import { IFollowersRepository } from '../interfaces/followers-repository.interface';
 import { PrismaService } from '../../prisma/prisma.service';
-import { UserProfileDto } from '../../users/dto/user-profile.dto';
-
-const userProfileSelect = {
-  id: true,
-  email: true,
-  username: true,
-  displayName: true,
-  avatar: true,
-  bio: true,
-  createdAt: true,
-  updatedAt: true,
-} satisfies Prisma.UserSelect;
+import { publicUserSelect } from '../../users/users.select';
+import type { FollowUserRow } from '../types/followers.types';
 
 @Injectable()
 export class FollowersRepository implements IFollowersRepository {
   constructor(private readonly prismaService: PrismaService) {}
 
-  async getFollowers(userId: string): Promise<UserProfileDto[]> {
+  async getFollowers(userId: string, limit: number, after?: string): Promise<FollowUserRow[]> {
     const follows = await this.prismaService.follow.findMany({
       where: { followingId: userId },
-      include: { follower: { select: userProfileSelect } },
+      include: { follower: { select: publicUserSelect } },
+      take: limit + 1,
+      skip: after ? 1 : 0,
+      cursor: after ? { id: after } : undefined,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     });
-    return follows.map((f) => f.follower);
+    return follows.map((f) => ({ id: f.id, user: f.follower }));
   }
 
-  async getFollowing(userId: string): Promise<UserProfileDto[]> {
+  async getFollowing(userId: string, limit: number, after?: string): Promise<FollowUserRow[]> {
     const follows = await this.prismaService.follow.findMany({
       where: { followerId: userId },
-      include: { following: { select: userProfileSelect } },
+      include: { following: { select: publicUserSelect } },
+      take: limit + 1,
+      skip: after ? 1 : 0,
+      cursor: after ? { id: after } : undefined,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     });
-    return follows.map((f) => f.following);
+    return follows.map((f) => ({ id: f.id, user: f.following }));
   }
 
   async followUser(followerId: string, followingId: string): Promise<void> {
