@@ -1,9 +1,4 @@
 import { type Comment } from '@prisma/client';
+import type { Paginated } from '../../common/pagination';
 
-export type GetAllCommentsResult = {
-  data: Comment[];
-  meta: {
-    nextCursor: string | null;
-    hasNextPage: boolean;
-  };
-};
+export type GetAllCommentsResult = Paginated<Comment>;

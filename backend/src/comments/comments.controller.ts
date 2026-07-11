@@ -2,9 +2,7 @@ import {
   Body,
   Controller,
   Delete,
-  ForbiddenException,
   Get,
-  Headers,
   HttpCode,
   HttpStatus,
   Param,
@@ -36,7 +34,6 @@ export class CommentsController {
     @CurrentUser() user: RequestUser,
     @Body() dto: CreateCommentDto,
   ) {
-    if (!user.id) throw new ForbiddenException('Missing x-user-id header');
     return this.commentsService.addComment(postId, user.id, dto);
   }
 
@@ -54,7 +51,6 @@ export class CommentsController {
   @ApiResponse({ status: 404, description: 'Comment not found.' })
   @UseGuards(AuthGuard)
   deleteComment(@Param('id') commentId: string, @CurrentUser() user: RequestUser) {
-    if (!user.id) throw new ForbiddenException('Missing x-user-id header');
     return this.commentsService.deleteComment(commentId, user.id);
   }
 }

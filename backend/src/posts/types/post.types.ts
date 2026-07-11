@@ -1,9 +1,4 @@
 import type { Post } from '@prisma/client';
+import type { Paginated } from '../../common/pagination';
 
-export type GetAllPostsResult = {
-  data: Post[];
-  meta: {
-    nextCursor: string | null;
-    hasNextPage: boolean;
-  };
-};
+export type GetAllPostsResult = Paginated<Post>;

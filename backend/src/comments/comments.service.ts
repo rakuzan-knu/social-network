@@ -4,6 +4,7 @@ import { COMMENTS_REPOSITORY } from './interfaces/comments-repository.interface'
 import type { ICommentsRepository } from './interfaces/comments-repository.interface';
 import { Comment } from '@prisma/client';
 import { GetAllCommentsResult } from './types/comments.types';
+import { paginate } from '../common/pagination';
 
 @Injectable()
 export class CommentsService {
@@ -19,15 +20,6 @@ export class CommentsService {
   }
   async getComments(postId: string, limit: number, cursor?: string): Promise<GetAllCommentsResult> {
     const comments = await this.commentsRepository.getCommentsByPostId(postId, limit, cursor);
-    const hasNext = comments.length > limit;
-    const resultComments = hasNext ? comments.slice(0, limit) : comments;
-    const nextCursor = hasNext ? resultComments[resultComments.length - 1].id : null;
-    return {
-      data: resultComments,
-      meta: {
-        nextCursor,
-        hasNextPage: hasNext,
-      },
-    };
+    return paginate(comments, limit, (comment) => comment);
   }
 }
