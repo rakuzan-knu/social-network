@@ -66,7 +66,7 @@ export class AvatarsController {
     )
     file: Express.Multer.File,
   ): Promise<AvatarView> {
-    if (user.id !== userId) throw new ForbiddenException('You cannot upload photo');
+    if (user.id !== userId) throw new ForbiddenException('You can only upload your own avatar');
     return this.avatarsService.uploadAvatar(userId, file);
   }
 
@@ -78,7 +78,7 @@ export class AvatarsController {
   @ApiResponse({ status: 200, description: 'Avatar deleted successfully' })
   @ApiResponse({ status: 404, description: 'User not found' })
   delete(@Param('id') userId: string, @CurrentUser() user: RequestUser): Promise<AvatarView> {
-    if (user.id !== userId) throw new ForbiddenException('You cannot upload photo');
+    if (user.id !== userId) throw new ForbiddenException('You can only delete your own avatar');
     return this.avatarsService.deleteAvatar(userId);
   }
 }
