@@ -50,7 +50,7 @@ export function PostCard({ post, queryKey }: PostCardProps) {
                 @{post.handle} • {formatRelativeTime(post.createdAt)}
               </span>
               {!post.isOwner && (
-                <FollowButton authorId={post.authorId} initiallyFollowing={post.isFollowing} />
+                <FollowButton authorId={post.authorId} isFollowing={!!post.isFollowing} />
               )}
             </div>
             <PostMenu postId={post.id} isOwner={post.isOwner} />

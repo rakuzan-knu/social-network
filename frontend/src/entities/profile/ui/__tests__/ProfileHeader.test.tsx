@@ -1,19 +1,32 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import ProfileHeader from '../ProfileHeader';
 
-describe('ProfileHeader', () => {
-  beforeEach(() => {
-    vi.spyOn(window, 'alert').mockImplementation(() => {});
-  });
+vi.mock('@/entities/follow/ui/UserListModal', () => ({
+  UserListModal: ({ mode }: { mode: 'followers' | 'following' }) => (
+    <div data-testid="mock-user-list-modal">{mode}</div>
+  ),
+}));
 
+vi.mock('@/features/follow/ui/FollowButton', () => ({
+  FollowButton: () => <button>Follow</button>,
+}));
+
+const defaultProps = {
+  userId: 'user-1',
+  username: 'ayate',
+  isOwnProfile: true,
+  onEditClick: vi.fn(),
+};
+
+describe('ProfileHeader', () => {
   afterEach(() => {
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
   it('renders the username with an @ prefix', () => {
-    render(<ProfileHeader username="ayate" onEditClick={vi.fn()} />);
+    render(<ProfileHeader {...defaultProps} />);
 
     expect(screen.getByText('@ayate')).toBeInTheDocument();
   });
@@ -21,37 +34,37 @@ describe('ProfileHeader', () => {
   it('calls onEditClick exactly once when the edit button is clicked', async () => {
     const onEditClick = vi.fn();
     const user = userEvent.setup();
-    render(<ProfileHeader username="ayate" onEditClick={onEditClick} />);
+    render(<ProfileHeader {...defaultProps} onEditClick={onEditClick} />);
 
-    await user.click(screen.getByText('Редагувати'));
+    await user.click(screen.getByText('Edit'));
 
     expect(onEditClick).toHaveBeenCalledTimes(1);
   });
 
-  it('shows a follower count alert when the followers count is clicked', async () => {
+  it('opens the followers list when the followers count is clicked', async () => {
     const user = userEvent.setup();
-    render(<ProfileHeader username="ayate" onEditClick={vi.fn()} />);
+    render(<ProfileHeader {...defaultProps} followersCount={12} />);
 
-    await user.click(screen.getByText('підписників'));
+    await user.click(screen.getByText('followers'));
 
-    expect(window.alert).toHaveBeenCalledWith('Вікно підписників');
+    expect(screen.getByTestId('mock-user-list-modal')).toHaveTextContent('followers');
   });
 
-  it('shows a following count alert when the following count is clicked', async () => {
+  it('opens the following list when the following count is clicked', async () => {
     const user = userEvent.setup();
-    render(<ProfileHeader username="ayate" onEditClick={vi.fn()} />);
+    render(<ProfileHeader {...defaultProps} followingCount={8} />);
 
-    await user.click(screen.getByText('підписок'));
+    await user.click(screen.getByText('following'));
 
-    expect(window.alert).toHaveBeenCalledWith('Вікно підписок');
+    expect(screen.getByTestId('mock-user-list-modal')).toHaveTextContent('following');
   });
 
   it('does not call onEditClick when only the followers count is clicked', async () => {
     const onEditClick = vi.fn();
     const user = userEvent.setup();
-    render(<ProfileHeader username="ayate" onEditClick={onEditClick} />);
+    render(<ProfileHeader {...defaultProps} onEditClick={onEditClick} followersCount={12} />);
 
-    await user.click(screen.getByText('підписників'));
+    await user.click(screen.getByText('followers'));
 
     expect(onEditClick).not.toHaveBeenCalled();
   });
