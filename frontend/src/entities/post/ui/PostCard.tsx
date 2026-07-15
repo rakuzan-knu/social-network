@@ -1,10 +1,30 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { MessageSquare, Repeat, Heart, Share } from 'lucide-react';
-import Avatar from '../../../shared/ui/Avatar';
-import { useUIStore, PostType } from '../../../shared/model/useUIStore';
 
-export function PostCard({ post }: { post: PostType }) {
+import Avatar from '../../../shared/ui/Avatar';
+import { ExpandableText } from '../../../shared/ui/ExpandableText';
+import { PostMenu } from '../../../features/posts/ui/PostMenu';
+import { FollowButton } from '../../../features/follow/ui/FollowButton';
+import { PostMedia } from './PostMedia';
+import { PollDisplay } from './PollDisplay';
+import { PollVotersModal } from './PollVotersModal';
+
+import { useUIStore, PostType } from '../../../shared/model/useUIStore';
+import { useLikeMutation } from '../model/useLikeMutation';
+import { formatRelativeTime } from '../../../shared/lib/formatRelativeTime';
+
+interface PostCardProps {
+  post: PostType;
+  queryKey: unknown[];
+}
+
+export function PostCard({ post, queryKey }: PostCardProps) {
+  const [showVoters, setShowVoters] = useState(false);
   const openCommentModal = useUIStore((state) => state.openCommentModal);
+  const likeMutation = useLikeMutation(post.id, !!post.isLiked, queryKey);
+
+  const media = post.media ?? (post.image ? [{ type: 'image' as const, url: post.image }] : []);
 
   return (
     <div className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.05] rounded-3xl p-5 shadow-lg flex flex-col gap-3 transition-all hover:bg-white/[0.03]">
@@ -14,20 +34,55 @@ export function PostCard({ post }: { post: PostType }) {
         </div>
       )}
       <div className="flex gap-4 items-start">
-        <Avatar size="md" emoji={post.avatar} />
-        <div className="flex flex-col flex-1 gap-1">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-white text-sm">{post.author}</span>
-            <span className="text-xs text-gray-500">
-              @{post.handle} • {post.time}
-            </span>
-          </div>
-          <p className="text-gray-200 text-[15px] leading-relaxed mt-1">{post.text}</p>
-
-          {post.image && (
-            <div className="mt-3 rounded-2xl overflow-hidden border border-white/5 max-h-[300px]">
-              <img src={post.image} alt="Post Attachment" className="w-full h-full object-cover" />
+        <Link to={`/profile/${post.handle}`}>
+          <Avatar size="md" src={post.avatar} />
+        </Link>
+        <div className="flex flex-col flex-1 gap-1 min-w-0">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <Link
+                to={`/profile/${post.handle}`}
+                className="font-bold text-white text-sm truncate hover:underline"
+              >
+                {post.author}
+              </Link>
+              <span className="text-xs text-gray-500 shrink-0">
+                @{post.handle} • {formatRelativeTime(post.createdAt)}
+              </span>
+              {!post.isOwner && (
+                <FollowButton authorId={post.authorId} initiallyFollowing={post.isFollowing} />
+              )}
             </div>
+            <PostMenu postId={post.id} isOwner={post.isOwner} />
+          </div>
+
+          <ExpandableText text={post.text} />
+          <PostMedia media={media} />
+          {post.poll && (
+            <>
+              <PollDisplay
+                postId={post.id}
+                poll={post.poll}
+                isOwner={post.isOwner}
+                queryKey={queryKey}
+              />
+              {post.isOwner && (
+                <button
+                  type="button"
+                  onClick={() => setShowVoters(true)}
+                  className="text-xs text-gray-500 hover:text-gray-300 self-start"
+                >
+                  Who voted
+                </button>
+              )}
+              {showVoters && (
+                <PollVotersModal
+                  postId={post.id}
+                  options={post.poll.options}
+                  onClose={() => setShowVoters(false)}
+                />
+              )}
+            </>
           )}
 
           <div className="flex justify-between items-center text-gray-500 text-xs mt-4 max-w-[400px]">
@@ -35,13 +90,18 @@ export function PostCard({ post }: { post: PostType }) {
               onClick={() => openCommentModal(post)}
               className="flex items-center gap-1.5 cursor-pointer hover:text-blue-400 transition-colors"
             >
-              <MessageSquare size={16} /> {post.comments}
+              <MessageSquare size={16} /> {post.comments ?? 0}
             </button>
-            <button className="flex items-center gap-1.5 cursor-pointer hover:text-green-400">
-              <Repeat size={16} /> {post.reposts}
+            <button
+              className={`flex items-center gap-1.5 cursor-pointer hover:text-green-400 ${post.isLiked ? '' : ''}`}
+            >
+              <Repeat size={16} /> {post.reposts ?? 0}
             </button>
-            <button className="flex items-center gap-1.5 cursor-pointer hover:text-pink-500">
-              <Heart size={16} /> {post.likes}
+            <button
+              onClick={() => likeMutation.mutate()}
+              className={`flex items-center gap-1.5 cursor-pointer hover:text-pink-500 ${post.isLiked ? 'text-pink-500' : ''}`}
+            >
+              <Heart size={16} fill={post.isLiked ? 'currentColor' : 'none'} /> {post.likes ?? 0}
             </button>
             <button className="flex items-center gap-1.5 cursor-pointer hover:text-gray-300">
               <Share size={16} />
