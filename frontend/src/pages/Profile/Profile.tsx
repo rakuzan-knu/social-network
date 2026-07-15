@@ -91,7 +91,7 @@ export default function ProfilePage() {
     );
   }
 
-  const isOwnProfile = !!user && user.id === myUserId;
+  const isOwnProfile = user.id === myUserId;
 
   const posts = postsQuery.data?.pages.flatMap((p) => p.posts) ?? [];
   const reposts = repostsQuery.data?.pages.flatMap((p) => p.posts) ?? [];
