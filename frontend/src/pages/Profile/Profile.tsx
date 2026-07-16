@@ -4,12 +4,13 @@ import { useUIStore } from '../../shared/model/useUIStore';
 import { useUserByUsername } from '../../entities/profile/model/useUserByUsername';
 import { useAuthStore } from '../../shared/model/useAuthStore';
 import { useUserReposts } from '../../entities/post/model/useUserReposts';
-import { useCreatePost } from '../../entities/post/model/useCreatePost';
+import { useCreatePost } from '@/features/posts/model/useCreatePost';
+import { USER_POSTS_KEY, USER_REPOSTS_KEY } from '@/shared/api/queryKeys';
 import { useUserPosts } from '../../entities/post/model/useUserPosts';
-import ProfileHeader from '../../entities/profile/ui/ProfileHeader';
+import ProfileHeader from '@/widgets/profile/ui/ProfileHeader';
 import ProfileTabs from '../../shared/ui/ProfileTabs';
 import CreatePost from '../../features/posts/ui/CreatePost';
-import { PostCard } from '../../entities/post/ui/PostCard';
+import { PostCard } from '@/widgets/post/ui/PostCard';
 import { CommentModal } from '../../features/comment/ui/CommentModal';
 
 function SkeletonProfileHeader() {
@@ -39,7 +40,7 @@ export default function ProfilePage() {
 
   const postsQuery = useUserPosts(user?.id ?? '');
   const repostsQuery = useUserReposts(user?.id ?? '');
-  const createPost = useCreatePost(['userPosts', user?.id ?? '']);
+  const createPost = useCreatePost([USER_POSTS_KEY, user?.id ?? '']);
 
   if (isLoading) {
     return (
@@ -98,7 +99,8 @@ export default function ProfilePage() {
 
   const activeFeed = activeTab === 'posts' ? posts : reposts;
   const activeQuery = activeTab === 'posts' ? postsQuery : repostsQuery;
-  const feedQueryKey = activeTab === 'posts' ? ['userPosts', user.id] : ['userReposts', user.id];
+  const feedQueryKey =
+    activeTab === 'posts' ? [USER_POSTS_KEY, user.id] : [USER_REPOSTS_KEY, user.id];
 
   return (
     <div className="w-full flex flex-col animate-fadeIn">

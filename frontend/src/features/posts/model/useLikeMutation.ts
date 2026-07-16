@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient, InfiniteData } from '@tanstack/react-query';
-import { postsApi, FeedPage } from '../api/postsApi';
+import { postsApi } from '../api/postsApi';
+import { FeedPage } from '@/entities/post/api/postsApi';
 import { PostType } from '@/shared/model/useUIStore';
 
 export function useLikeMutation(postId: string | number, isLiked: boolean, queryKey: unknown[]) {

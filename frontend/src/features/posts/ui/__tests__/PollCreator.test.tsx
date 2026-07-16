@@ -1,7 +1,8 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { PollCreator, PollOptionDraft } from '../PollCreator';
+import { PollCreator } from '../PollCreator';
+import { PollOptionDraft } from '../../model/types';
 
 function makeOptions(...texts: string[]): PollOptionDraft[] {
   return texts.map((text, i) => ({ id: `opt-${i}`, text }));

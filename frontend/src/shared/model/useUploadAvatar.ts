@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { USER_KEY } from '@/shared/api/queryKeys';
 
 interface UploadAvatarPayload {
   userId: string;
@@ -30,7 +31,7 @@ export function useUploadAvatar() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['user'] });
+      queryClient.invalidateQueries({ queryKey: [USER_KEY] });
     },
   });
 }

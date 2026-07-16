@@ -1,20 +1,15 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
 import Avatar from '../../../shared/ui/Avatar';
-import { PollCreator, PollOptionDraft } from './PollCreator';
+import { PollCreator } from './PollCreator';
 import { AddFileButton } from './AddFileButton';
 import { AddEmojiButton } from './AddEmojiButton';
 import { AddGifButton } from './AddGifButton';
 import { AddPollButton } from './AddPollButton';
-import { useCurrentUser } from '../../../shared/model/useCurrentUser';
+import { useCurrentUser } from '@/entities/profile/model/useCurrentUser';
+import { PollOptionDraft, MediaDraft } from '../model/types';
 
 const MAX_MEDIA = 5;
-
-interface MediaDraft {
-  file?: File;
-  gifUrl?: string;
-  previewUrl: string;
-}
 
 const emptyPollOptions = (): PollOptionDraft[] => [
   { id: crypto.randomUUID(), text: '' },

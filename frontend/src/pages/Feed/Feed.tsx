@@ -1,15 +1,16 @@
 import React from 'react';
 import CreatePost from '../../features/posts/ui/CreatePost';
-import { PostCard } from '../../entities/post/ui/PostCard';
+import { PostCard } from '@/widgets/post/ui/PostCard';
 import { SkeletonFeed } from '../../entities/post/ui/SkeletonPostCard';
 import { CommentModal } from '@/features/comment/ui/CommentModal';
 import { useHiddenPostsStore } from '@/shared/model/useHiddenPostsStore';
 import { usePostsFeed } from '@/entities/post/model/usePostsFeed';
-import { useCreatePost } from '@/entities/post/model/useCreatePost';
+import { useCreatePost } from '@/features/posts/model/useCreatePost';
+import { FEED_KEY } from '@/shared/api/queryKeys';
 
 export default function FeedPage() {
   const { data, isLoading } = usePostsFeed();
-  const createPost = useCreatePost(['feed']);
+  const createPost = useCreatePost([FEED_KEY]);
   const hiddenIds = useHiddenPostsStore((s) => s.hiddenIds);
 
   const posts = data?.pages.flatMap((p) => p.posts) ?? [];
@@ -25,7 +26,7 @@ export default function FeedPage() {
       ) : visiblePosts.length > 0 ? (
         <div className="flex flex-col gap-4">
           {visiblePosts.map((post) => (
-            <PostCard key={post.id} post={post} queryKey={['feed']} />
+            <PostCard key={post.id} post={post} queryKey={[FEED_KEY]} />
           ))}
         </div>
       ) : (

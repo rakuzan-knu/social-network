@@ -1,33 +1,16 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { useNavigate, Link } from 'react-router-dom';
 import { Input } from '../../../shared/ui/Input';
 import { Button } from '../../../shared/ui/Button';
 import { useAuthMutations } from '../api/useAuth';
 import type { AuthResponse } from '../api/authApi';
+import { loginSchema, type LoginFields } from '../model/loginSchema';
 import { useAccountsStore } from '@/shared/model/useAccountsStore';
 import { useAuthStore } from '@/shared/model/useAuthStore';
 import { Eye, EyeOff, AlertCircle } from 'lucide-react';
 import axios from 'axios';
-
-const loginSchema = z.object({
-  identity: z.string().refine(
-    (val) => {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      const phoneRegex = /^\+?[1-9]\d{1,14}$|^[0-9]{10,12}$/;
-      const cleanPhone = val.replace(/[\s\-()]/g, '');
-      return emailRegex.test(val) || phoneRegex.test(cleanPhone);
-    },
-    {
-      message: 'Please enter a valid email address or phone number.',
-    },
-  ),
-  password: z.string().min(6, 'Password must contain at least 6 characters.'),
-});
-
-type LoginFields = z.infer<typeof loginSchema>;
 
 interface LoginFormProps {
   onSuccess?: (data: AuthResponse) => void;

@@ -1,17 +1,6 @@
 import React from 'react';
 import { useVotePollMutation } from '../model/useVotePollMutation';
-
-interface PollOptionResult {
-  id: string;
-  text: string;
-  votes: number;
-}
-interface PollData {
-  id: string;
-  options: PollOptionResult[];
-  totalVotes: number;
-  myVoteOptionId: string | null;
-}
+import { PollData } from '@/entities/post/model/types';
 
 export function PollDisplay({
   postId,

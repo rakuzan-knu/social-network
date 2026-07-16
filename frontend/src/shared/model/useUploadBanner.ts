@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { USER_KEY } from '@/shared/api/queryKeys';
 
 interface UploadBannerPayload {
   userId: string;
@@ -32,7 +33,7 @@ export function useUploadBanner() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['user'] });
+      queryClient.invalidateQueries({ queryKey: [USER_KEY] });
     },
   });
 }

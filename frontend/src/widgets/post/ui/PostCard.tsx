@@ -2,17 +2,17 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { MessageSquare, Repeat, Heart, Share } from 'lucide-react';
 
-import Avatar from '../../../shared/ui/Avatar';
-import { ExpandableText } from '../../../shared/ui/ExpandableText';
-import { PostMenu } from '../../../features/posts/ui/PostMenu';
-import { FollowButton } from '../../../features/follow/ui/FollowButton';
-import { PostMedia } from './PostMedia';
-import { PollDisplay } from './PollDisplay';
-import { PollVotersModal } from './PollVotersModal';
+import Avatar from '@/shared/ui/Avatar';
+import { ExpandableText } from '@/shared/ui/ExpandableText';
+import { PostMenu } from '@/features/posts/ui/PostMenu';
+import { FollowButton } from '@/features/follow/ui/FollowButton';
+import { PollDisplay } from '@/features/posts/ui/PollDisplay';
+import { PostMedia } from '@/entities/post/ui/PostMedia';
+import { PollVotersModal } from '@/entities/post/ui/PollVotersModal';
 
-import { useUIStore, PostType } from '../../../shared/model/useUIStore';
-import { useLikeMutation } from '../model/useLikeMutation';
-import { formatRelativeTime } from '../../../shared/lib/formatRelativeTime';
+import { useUIStore, PostType } from '@/shared/model/useUIStore';
+import { useLikeMutation } from '@/features/posts/model/useLikeMutation';
+import { formatRelativeTime } from '@/shared/lib/formatRelativeTime';
 
 interface PostCardProps {
   post: PostType;

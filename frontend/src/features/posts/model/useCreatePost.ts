@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient, InfiniteData } from '@tanstack/react-query';
-import { postsApi, FeedPage } from '../api/postsApi';
+import { postsApi } from '../api/postsApi';
+import { FeedPage } from '@/entities/post/api/postsApi';
 
 export function useCreatePost(queryKey: unknown[]) {
   const queryClient = useQueryClient();

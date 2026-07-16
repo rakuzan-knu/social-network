@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient, InfiniteData } from '@tanstack/react-query';
 import { followApi, FollowListPage } from '../api/followApi';
-import type { UserProfile } from '@/features/auth/api/authApi';
+import type { UserProfile } from '@/entities/profile/model/types';
+import { USER_KEY, FOLLOW_LIST_KEY } from '@/shared/api/queryKeys';
 
 export function useFollowMutation(id: string, isFollowing: boolean) {
   const queryClient = useQueryClient();
@@ -12,7 +13,7 @@ export function useFollowMutation(id: string, isFollowing: boolean) {
 
       queryClient.setQueriesData<UserProfile>(
         {
-          queryKey: ['user'],
+          queryKey: [USER_KEY],
           predicate: (q) => (q.state.data as UserProfile | undefined)?.id === id,
         },
         (old) =>
@@ -24,7 +25,7 @@ export function useFollowMutation(id: string, isFollowing: boolean) {
       );
 
       queryClient.setQueriesData<InfiniteData<FollowListPage>>(
-        { queryKey: ['followList'] },
+        { queryKey: [FOLLOW_LIST_KEY] },
         (old) =>
           old?.pages && {
             ...old,
@@ -38,8 +39,8 @@ export function useFollowMutation(id: string, isFollowing: boolean) {
       );
     },
     onError: () => {
-      queryClient.invalidateQueries({ queryKey: ['user'] });
-      queryClient.invalidateQueries({ queryKey: ['followList'] });
+      queryClient.invalidateQueries({ queryKey: [USER_KEY] });
+      queryClient.invalidateQueries({ queryKey: [FOLLOW_LIST_KEY] });
     },
   });
 }

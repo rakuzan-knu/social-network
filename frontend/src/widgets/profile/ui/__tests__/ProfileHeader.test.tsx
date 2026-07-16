@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import ProfileHeader from '../ProfileHeader';
 
-vi.mock('@/entities/follow/ui/UserListModal', () => ({
+vi.mock('@/features/follow/ui/UserListModal', () => ({
   UserListModal: ({ mode }: { mode: 'followers' | 'following' }) => (
     <div data-testid="mock-user-list-modal">{mode}</div>
   ),

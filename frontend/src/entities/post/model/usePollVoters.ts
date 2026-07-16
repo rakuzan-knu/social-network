@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { postsApi } from '../api/postsApi';
+import { POLL_VOTERS_KEY } from '@/shared/api/queryKeys';
 
 export interface PollVoterGroup {
   optionId: string;
@@ -8,7 +9,7 @@ export interface PollVoterGroup {
 
 export function usePollVoters(postId: string | number) {
   return useQuery<PollVoterGroup[]>({
-    queryKey: ['poll-voters', postId],
+    queryKey: [POLL_VOTERS_KEY, postId],
     queryFn: () => postsApi.getPollVoters(postId),
   });
 }

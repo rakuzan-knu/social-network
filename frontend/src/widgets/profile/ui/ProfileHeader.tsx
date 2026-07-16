@@ -3,7 +3,7 @@ import { Calendar, Edit3 } from 'lucide-react';
 import Avatar from '../../../shared/ui/Avatar';
 import Banner from '../../../shared/ui/Banner';
 import { FollowButton } from '@/features/follow/ui/FollowButton';
-import { UserListModal } from '@/entities/follow/ui/UserListModal';
+import { UserListModal } from '@/features/follow/ui/UserListModal';
 
 interface ProfileHeaderProps {
   userId: string;

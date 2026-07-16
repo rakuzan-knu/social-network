@@ -4,15 +4,15 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { PostCard } from '../PostCard';
-import { useUIStore, PostType } from '../../../../shared/model/useUIStore';
-import { resetUIStore } from '../../../../test/resetUIStore';
+import { useUIStore, PostType } from '@/shared/model/useUIStore';
+import { resetUIStore } from '@/test/resetUIStore';
 
-vi.mock('../PostMedia', () => ({
+vi.mock('@/entities/post/ui/PostMedia', () => ({
   PostMedia: ({ media }: { media: { url: string }[] }) =>
     media.length > 0 ? <img alt="Post Attachment" src={media[0].url} /> : null,
 }));
 
-vi.mock('../../../../shared/lib/formatRelativeTime', () => ({
+vi.mock('@/shared/lib/formatRelativeTime', () => ({
   formatRelativeTime: () => '3h',
 }));
 

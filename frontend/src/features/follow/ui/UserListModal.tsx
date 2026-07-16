@@ -1,12 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { useInfiniteQuery } from '@tanstack/react-query';
 import { Search, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Avatar from '@/shared/ui/Avatar';
-import { FollowButton } from '@/features/follow/ui/FollowButton';
-import { followApi } from '@/features/follow/api/followApi';
+import { FollowButton } from './FollowButton';
 import { useAuthStore } from '@/shared/model/useAuthStore';
-import { useRemoveFollowerMutation } from '@/features/follow/model/useRemoveFollowerMutation';
+import { useRemoveFollowerMutation } from '../model/useRemoveFollowerMutation';
+import { useFollowList } from '../model/useFollowList';
 
 interface UserListModalProps {
   userId: string;
@@ -20,15 +19,7 @@ export function UserListModal({ userId, mode, isOwnProfile, onClose }: UserListM
   const { userId: myUserId } = useAuthStore();
   const removeFollowerMutation = useRemoveFollowerMutation(userId);
 
-  const query = useInfiniteQuery({
-    queryKey: ['followList', mode, userId],
-    queryFn: ({ pageParam }) =>
-      mode === 'followers'
-        ? followApi.getFollowers(userId, pageParam as string | undefined)
-        : followApi.getFollowing(userId, pageParam as string | undefined),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
-  });
+  const query = useFollowList(userId, mode);
 
   const allUsers = useMemo(() => query.data?.pages.flatMap((p) => p.items) ?? [], [query.data]);
   const filteredUsers = search.trim()

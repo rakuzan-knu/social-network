@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useQueryClient, useQuery } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   User,
   Palette,
@@ -17,11 +17,12 @@ import {
   Loader2,
 } from 'lucide-react';
 import { useUIStore } from '../../../shared/model/useUIStore';
-import { authApi } from '@/features/auth/api/authApi';
+import { useCheckUsername } from '@/entities/profile/model/useCheckUsername';
+import { USER_KEY } from '@/shared/api/queryKeys';
 import { profileSchema, ProfileFormValues } from '../model/profileSchema';
 import { useUploadAvatar } from '../../../shared/model/useUploadAvatar';
 import { useUploadBanner } from '../../../shared/model/useUploadBanner';
-import { useCurrentUser } from '../../../shared/model/useCurrentUser';
+import { useCurrentUser } from '@/entities/profile/model/useCurrentUser';
 import { useDebounce } from '@/shared/lib/useDebounce';
 import Avatar from '../../../shared/ui/Avatar';
 
@@ -87,13 +88,10 @@ export default function EditProfileModal() {
   const notifMain = useWatch({ control, name: 'notifMain' });
   const notifSound = useWatch({ control, name: 'notifSound' });
 
-  const { data: usernameStatus, isFetching: isCheckingUsername } = useQuery({
-    queryKey: ['checkUsername', debouncedUsername],
-    queryFn: () => authApi.checkUsername(debouncedUsername),
-    enabled: !!debouncedUsername && debouncedUsername.length >= 3 && !isUsernameUnchanged,
-    retry: false,
-    refetchOnWindowFocus: false,
-  });
+  const { data: usernameStatus, isFetching: isCheckingUsername } = useCheckUsername(
+    debouncedUsername,
+    !!debouncedUsername && debouncedUsername.length >= 3 && !isUsernameUnchanged,
+  );
 
   const isUsernameTaken = !isUsernameUnchanged && usernameStatus?.isAvailable === false;
 
@@ -193,7 +191,7 @@ export default function EditProfileModal() {
         throw new Error('Failed to update profile text data');
       }
 
-      queryClient.invalidateQueries({ queryKey: ['user'] });
+      queryClient.invalidateQueries({ queryKey: [USER_KEY] });
       if (data.username !== currentUser.username) {
         navigate(`/${data.username}`, { replace: true });
       }

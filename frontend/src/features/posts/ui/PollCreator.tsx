@@ -1,10 +1,6 @@
 import React from 'react';
 import { X, Plus } from 'lucide-react';
-
-export interface PollOptionDraft {
-  id: string;
-  text: string;
-}
+import { PollOptionDraft } from '../model/types';
 
 interface PollProps {
   isOpen: boolean;

@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { Home, Search, Compass, MessageSquare, Bell, PlusSquare, ChevronRight } from 'lucide-react';
 import { useUIStore } from '../../../shared/model/useUIStore';
-import { useCurrentUser } from '../../../shared/model/useCurrentUser';
+import { useCurrentUser } from '@/entities/profile/model/useCurrentUser';
 import { ProfileMenu } from '@/features/sidebar/ui/SidebarMenu';
 import Avatar from '../../../shared/ui/Avatar';
 

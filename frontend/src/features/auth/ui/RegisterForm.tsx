@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useForm, Controller, Control, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useQuery } from '@tanstack/react-query';
-import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
@@ -10,7 +8,9 @@ import { Input } from '../../../shared/ui/Input';
 import { Button } from '../../../shared/ui/Button';
 import { Select } from '../../../shared/ui/Select';
 import { useAuthMutations } from '../api/useAuth';
-import { authApi, RegisterPayload, AuthResponse } from '../api/authApi';
+import { RegisterPayload, AuthResponse } from '../api/authApi';
+import { registerSchema, type RegisterFields } from '../model/registerSchema';
+import { useCheckUsername } from '@/entities/profile/model/useCheckUsername';
 import { useAuthStore } from '@/shared/model/useAuthStore';
 import { useAccountsStore } from '@/shared/model/useAccountsStore';
 import { useDebounce } from '@/shared/lib/useDebounce';
@@ -33,43 +33,6 @@ const MONTHS = [
 ];
 
 const YEARS = Array.from({ length: 2026 - 1876 + 1 }, (_, i) => String(2026 - i));
-
-const registerSchema = z.object({
-  firstName: z
-    .string()
-    .min(1, 'Enter first name')
-    .regex(/^[A-Za-zА-Яа-яЁёІіЇїЄєҐґ']+$/, 'The name can only contain letters.'),
-  lastName: z
-    .string()
-    .min(1, 'Enter last name')
-    .regex(/^[A-Za-zА-Яа-яЁёІіЇїЄєҐґ']+$/, 'Last name can only contain letters'),
-  username: z
-    .string()
-    .min(3, 'Username must be at least 3 characters long')
-    .max(20, 'Username cannot be longer than 20 characters.')
-    .startsWith('@', 'Username must start with @')
-    .regex(/^@[a-zA-Z0-9_]+$/, 'Only letters, numbers, and the underscore character can be used'),
-  birthMonth: z.string().min(1, 'Select a month'),
-  birthDay: z.string().min(1, 'Select a day'),
-  birthYear: z.string().min(1, 'Select a year'),
-  gender: z.string().refine((val) => ['Male', 'Female', 'Custom'].includes(val), {
-    message: 'Select gender',
-  }),
-  identity: z.string().refine(
-    (val) => {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      const phoneRegex = /^(\+?0|0)\d{9,14}$/;
-      const cleanPhone = val.replace(/[\s\-()]/g, '');
-      return emailRegex.test(val) || phoneRegex.test(cleanPhone);
-    },
-    {
-      message: 'Please enter a valid email address or phone number.',
-    },
-  ),
-  password: z.string().min(6, 'The password must contain at least 6 characters.'),
-});
-
-type RegisterFields = z.infer<typeof registerSchema>;
 
 const InfoTooltip: React.FC<{ text: string }> = ({ text }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -210,13 +173,10 @@ export const RegisterForm: React.FC = () => {
   const usernameValue = useWatch({ control, name: 'username' });
   const debouncedUsername = useDebounce(usernameValue, 500);
 
-  const { data: usernameStatus, isFetching: isCheckingUsername } = useQuery({
-    queryKey: ['checkUsername', debouncedUsername],
-    queryFn: () => authApi.checkUsername(debouncedUsername),
-    enabled: !!debouncedUsername && debouncedUsername !== '@' && debouncedUsername.length >= 4,
-    retry: false,
-    refetchOnWindowFocus: false,
-  });
+  const { data: usernameStatus, isFetching: isCheckingUsername } = useCheckUsername(
+    debouncedUsername,
+    !!debouncedUsername && debouncedUsername !== '@' && debouncedUsername.length >= 4,
+  );
 
   const isUsernameTaken = usernameStatus?.isAvailable === false;
 
