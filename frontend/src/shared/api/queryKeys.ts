@@ -6,3 +6,5 @@ export const FEED_KEY = 'feed';
 export const USER_POSTS_KEY = 'userPosts';
 export const USER_REPOSTS_KEY = 'userReposts';
 export const POLL_VOTERS_KEY = 'poll-voters';
+export const CONVERSATIONS_KEY = 'conversations';
+export const CONVERSATION_MESSAGES_KEY = 'conversation-messages';

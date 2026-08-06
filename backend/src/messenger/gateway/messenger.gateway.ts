@@ -27,6 +27,7 @@ import {
   TogglePinMessageDto,
   ConversationIdDto,
   MarkReadDto,
+  GetOnlineStatusDto,
 } from '../dto/message.dto';
 
 interface AuthenticatedSocket extends Socket {
@@ -76,8 +77,12 @@ export class MessengerGateway implements OnGatewayInit, OnGatewayConnection, OnG
       const userId = payload.sub;
       (client as AuthenticatedSocket).userId = userId;
 
+      const wasOffline = !this.onlineUsers.has(userId);
       if (!this.onlineUsers.has(userId)) this.onlineUsers.set(userId, new Set());
       this.onlineUsers.get(userId)!.add(client.id);
+      if (wasOffline) {
+        this.server.emit(WS_EVENTS.USER_ONLINE, { userId });
+      }
 
       this.logger.log(`Client connected: ${client.id} (user: ${userId})`);
     } catch (err) {
@@ -99,6 +104,16 @@ export class MessengerGateway implements OnGatewayInit, OnGatewayConnection, OnG
       }
     }
     this.logger.log(`Client disconnected: ${client.id}`);
+  }
+
+  @UsePipes(WsPipe)
+  @SubscribeMessage(WS_EVENTS.GET_ONLINE_STATUS)
+  handleGetOnlineStatus(
+    @MessageBody() payload: GetOnlineStatusDto,
+    callback?: (res: { status: string; online?: string[]; error?: string }) => void,
+  ): void {
+    const online = payload.userIds.filter((userId) => this.onlineUsers.has(userId));
+    callback?.({ status: 'ok', online });
   }
 
   @UsePipes(WsPipe)

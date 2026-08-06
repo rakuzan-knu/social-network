@@ -215,7 +215,7 @@ export default function EditProfileModal() {
   const menuItems = [
     { id: 'account', icon: User, label: 'Account' },
     { id: 'appearance', icon: Palette, label: 'Design' },
-    { id: 'security', icon: Shield, label: 'Securityа' },
+    { id: 'security', icon: Shield, label: 'Security' },
     { id: 'privacy', icon: Hand, label: 'Privacy' },
     { id: 'notifications', icon: Bell, label: 'Notifications' },
   ];
