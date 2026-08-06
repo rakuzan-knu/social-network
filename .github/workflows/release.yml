@@ -51,7 +51,7 @@ jobs:
           extra_plugins: |
             @semantic-release/changelog
             @semantic-release/git
-            conventional-changelog-conventionalcommits
+            @conventional-changelog/conventionalcommits
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
 
@@ -95,3 +95,4 @@ jobs:
           sourcemaps: frontend/dist/assets
           url_prefix: '~/assets'
           ignore_missing: true
+          finalize: true
