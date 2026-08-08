@@ -1,0 +1,32 @@
+backend:
+  - changed-files:
+      - any-glob-to-match: backend/**/*
+
+frontend:
+  - changed-files:
+      - any-glob-to-match: frontend/**/*
+
+infra:
+  - changed-files:
+      - any-glob-to-match: .github/**/*
+      - any-glob-to-match: docker-compose*.yml
+      - any-glob-to-match: Dockerfile*
+      - any-glob-to-match: nginx.conf
+
+docs:
+  - changed-files:
+      - any-glob-to-match: "**/*.md"
+      - any-glob-to-match: docs/**/*
+
+deps:
+  - changed-files:
+      - any-glob-to-match: "**/package.json"
+      - any-glob-to-match: "**/package-lock.json"
+
+database:
+  - changed-files:
+      - any-glob-to-match: backend/prisma/**/*
+
+ci:
+  - changed-files:
+      - any-glob-to-match: .github/workflows/**/*
