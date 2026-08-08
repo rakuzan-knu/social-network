@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule } from './auth/auth.module';
@@ -13,7 +14,9 @@ import { RedisModule } from './redis/redis.module';
 import { UsersModule } from './users/users.module';
 import { FollowersModule } from './followers/followers.module';
 import { AvatarsModule } from './avatars/avatars.module';
+import { BannersModule } from './banners/banners.module';
 import { MessengerModule } from './messenger/messenger.module';
+import { SessionsModule } from './sessions/sessions.module';
 
 @Module({
   imports: [
@@ -24,6 +27,7 @@ import { MessengerModule } from './messenger/messenger.module';
     ThrottlerModule.forRoot({
       throttlers: [{ ttl: 60_000, limit: 100 }],
     }),
+    ScheduleModule.forRoot(),
     PrismaModule,
     RedisModule,
     AuthModule,
@@ -34,7 +38,9 @@ import { MessengerModule } from './messenger/messenger.module';
     UsersModule,
     FollowersModule,
     AvatarsModule,
+    BannersModule,
     MessengerModule,
+    SessionsModule,
   ],
   controllers: [],
   providers: [

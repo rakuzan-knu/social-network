@@ -30,7 +30,6 @@ export default function App() {
   const isSidebarExpanded = useUIStore((state) => state.isSidebarExpanded);
   const location = useLocation();
   const isMessengerRoute = location.pathname.startsWith('/messages');
-
   if (!isAuthenticated) {
     return (
       <Routes>

@@ -24,6 +24,18 @@ export class RedisService {
     await this.client.del(key);
   }
 
+  /** Deletes every key matching a glob pattern using a non-blocking SCAN cursor. */
+  async delByPattern(pattern: string): Promise<void> {
+    let cursor = '0';
+    do {
+      const [next, keys] = await this.client.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+      cursor = next;
+      if (keys.length > 0) {
+        await this.client.del(...keys);
+      }
+    } while (cursor !== '0');
+  }
+
   async exists(key: string): Promise<boolean> {
     const result = await this.client.exists(key);
     return result === 1;

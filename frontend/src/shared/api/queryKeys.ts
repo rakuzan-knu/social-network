@@ -8,3 +8,4 @@ export const USER_REPOSTS_KEY = 'userReposts';
 export const POLL_VOTERS_KEY = 'poll-voters';
 export const CONVERSATIONS_KEY = 'conversations';
 export const CONVERSATION_MESSAGES_KEY = 'conversation-messages';
+export const BLOCKED_USERS_KEY = 'blocked-users';

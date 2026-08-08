@@ -4,6 +4,7 @@ import {
   MessageView,
   MuteLevel,
   PaginatedMessages,
+  UserSnapshot,
 } from '../../../entities/chat/model/types';
 
 export const chatApi = {
@@ -100,6 +101,9 @@ export const chatApi = {
 
   unblockUser: (userId: string) =>
     api.delete(`/conversations/users/${userId}/block`).then((r) => r.data),
+
+  getBlockedUsers: () =>
+    api.get<UserSnapshot[]>('/conversations/users/blocked').then((r) => r.data),
 
   reportUser: (userId: string, category: string, details?: string) =>
     api.post(`/conversations/users/${userId}/report`, { category, details }).then((r) => r.data),

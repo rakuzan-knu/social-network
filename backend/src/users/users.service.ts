@@ -5,13 +5,33 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, User } from '@prisma/client';
+import { PrivacyDimension, Prisma, User } from '@prisma/client';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-users.dto';
-import { UserProfileDto } from './dto/user-profile.dto';
+import { FollowStatusView, UserProfileDto } from './dto/user-profile.dto';
 import { USERS_REPOSITORY } from './interfaces/users-repository.interface';
 import type { IUsersRepository } from './interfaces/users-repository.interface';
 import { RedisService } from '../redis/redis.service';
+import { VisibilityResolver } from './privacy/visibility.resolver';
+import type { VisibilityContext } from './privacy/visibility.resolver';
+import { toLastSeenGranularity } from './privacy/last-seen.util';
+
+/** Raw, non-viewer-specific profile snapshot cached in Redis. */
+type RawProfile = {
+  id: string;
+  username: string;
+  displayName: string | null;
+  avatar: string | null;
+  banner: string | null;
+  bannerPosition: number;
+  bio: string | null;
+  birthDate: string | null;
+  isPrivate: boolean;
+  lastSeenAt: string | null;
+  autoDeletePeriod: User['autoDeletePeriod'];
+  createdAt: string;
+  updatedAt: string;
+};
 
 @Injectable()
 export class UsersService {
@@ -19,6 +39,7 @@ export class UsersService {
     @Inject(USERS_REPOSITORY)
     private readonly usersRepository: IUsersRepository,
     private readonly redis: RedisService,
+    private readonly visibility: VisibilityResolver,
   ) {}
 
   private userKey(id: string): string {
@@ -41,15 +62,39 @@ export class UsersService {
     return this.usersRepository.create(dto);
   }
 
-  async getProfile(id: string): Promise<UserProfileDto> {
+  async updatePasswordHash(id: string, passwordHash: string): Promise<void> {
+    await this.usersRepository.updatePassword(id, passwordHash);
+    await this.redis.del(this.userKey(id));
+  }
+
+  /** Records the user's last-seen time on disconnect and busts the cached profile. */
+  async touchLastSeen(id: string, when: Date = new Date()): Promise<void> {
+    await this.usersRepository.updateUser(id, { lastSeenAt: when });
+    await this.redis.del(this.userKey(id));
+  }
+
+  /** Viewer-agnostic raw profile (cached). Never returned directly to the wire. */
+  private async getRawProfile(id: string): Promise<RawProfile> {
     const key = this.userKey(id);
     return this.redis.getOrSet(key, 3600, async () => {
       const user = await this.usersRepository.findById(id);
       if (!user) {
         throw new NotFoundException(`User with id ${id} not found`);
       }
-      return this.toProfileDto(user);
+      return this.toRawProfile(user);
     });
+  }
+
+  /** Public profile as seen by `viewerId` (null = anonymous), with privacy applied per-viewer. */
+  async getProfileFor(id: string, viewerId: string | null): Promise<UserProfileDto> {
+    const raw = await this.getRawProfile(id);
+    const ctx = await this.visibility.loadContext([id], viewerId);
+    return this.applyPrivacy(raw, viewerId, ctx);
+  }
+
+  /** Backwards-compatible anonymous profile fetch. */
+  getProfile(id: string): Promise<UserProfileDto> {
+    return this.getProfileFor(id, null);
   }
 
   async updateUser(id: string, dto: UpdateUserDto): Promise<UserProfileDto> {
@@ -80,20 +125,100 @@ export class UsersService {
     if (dto.displayName !== undefined) data.displayName = dto.displayName;
     if (dto.bio !== undefined) data.bio = dto.bio;
 
-    const updated = await this.usersRepository.updateUser(id, data);
+    await this.usersRepository.updateUser(id, data);
     await this.redis.del(this.userKey(id));
-    return this.toProfileDto(updated);
+    // Owner viewing their own freshly-updated profile: no gating.
+    return this.getProfileFor(id, id);
   }
 
-  private toProfileDto(user: User): UserProfileDto {
+  private toRawProfile(user: User): RawProfile {
     return {
       id: user.id,
       username: user.username,
       displayName: user.displayName,
       avatar: user.avatar,
+      banner: user.banner,
+      bannerPosition: user.bannerPosition,
       bio: user.bio,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
+      birthDate: user.birthDate ? user.birthDate.toISOString() : null,
+      isPrivate: user.isPrivate,
+      lastSeenAt: user.lastSeenAt ? user.lastSeenAt.toISOString() : null,
+      autoDeletePeriod: user.autoDeletePeriod,
+      createdAt: user.createdAt.toISOString(),
+      updatedAt: user.updatedAt.toISOString(),
     };
+  }
+
+  private followStatusView(ownerId: string, ctx: VisibilityContext): FollowStatusView {
+    if (ctx.acceptedFollowing.has(ownerId)) return FollowStatusView.FOLLOWING;
+    if (ctx.pendingFollowing.has(ownerId)) return FollowStatusView.PENDING;
+    return FollowStatusView.NONE;
+  }
+
+  /** Applies per-viewer privacy to a raw profile. Pure aside from the injected `ctx`. */
+  applyPrivacy(
+    raw: RawProfile,
+    viewerId: string | null,
+    ctx: VisibilityContext,
+    now: number = Date.now(),
+  ): UserProfileDto {
+    const isOwner = viewerId === raw.id;
+    const isFollower = this.visibility.isFollower(raw.id, ctx);
+
+    const base: UserProfileDto = {
+      id: raw.id,
+      username: raw.username,
+      displayName: raw.displayName,
+      avatar: raw.avatar,
+      bio: null,
+      isPrivate: raw.isPrivate,
+      createdAt: new Date(raw.createdAt),
+      updatedAt: new Date(raw.updatedAt),
+    };
+
+    if (!isOwner) {
+      base.followStatus = this.followStatusView(raw.id, ctx);
+    }
+
+    // Private-account gate (Instagram-minimal): strangers get only the follow card
+    // (username, display name, minimal avatar) — enough to render a Follow button.
+    if (raw.isPrivate && !isOwner && !isFollower) {
+      return { ...base, avatar: raw.avatar };
+    }
+
+    // Per-dimension gating for everyone who passes the private gate.
+    if (isOwner || this.visibility.resolve(PrivacyDimension.AVATAR, raw.id, ctx)) {
+      base.avatar = raw.avatar;
+    } else {
+      base.avatar = null;
+    }
+
+    if (isOwner || this.visibility.resolve(PrivacyDimension.BANNER, raw.id, ctx)) {
+      base.banner = raw.banner;
+      base.bannerPosition = raw.bannerPosition;
+    }
+
+    if (isOwner || this.visibility.resolve(PrivacyDimension.BIO, raw.id, ctx)) {
+      base.bio = raw.bio;
+    }
+
+    if (isOwner || this.visibility.resolve(PrivacyDimension.BIRTHDAY, raw.id, ctx)) {
+      base.birthDate = raw.birthDate;
+    }
+
+    // Last-seen: exact ISO when visible, coarse granularity bucket otherwise.
+    if (raw.lastSeenAt) {
+      if (isOwner || this.visibility.resolve(PrivacyDimension.LAST_SEEN, raw.id, ctx)) {
+        base.lastSeen = raw.lastSeenAt;
+      } else {
+        base.lastSeen = toLastSeenGranularity(new Date(raw.lastSeenAt), now);
+      }
+    }
+
+    if (isOwner) {
+      base.autoDeletePeriod = raw.autoDeletePeriod;
+    }
+
+    return base;
   }
 }

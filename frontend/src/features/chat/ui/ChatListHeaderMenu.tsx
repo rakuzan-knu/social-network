@@ -1,29 +1,22 @@
 import React from 'react';
-import { ShieldAlert, Settings, Inbox, Archive, UserX, Lock, HelpCircle } from 'lucide-react';
+import { Settings, Inbox, Archive, UserX, Lock, HelpCircle } from 'lucide-react';
 import DropdownMenu, { DropdownMenuItem } from '../../../shared/ui/DropdownMenu';
 
 export type ChatListHeaderSection =
-  'security' | 'settings' | 'requests' | 'archive' | 'restricted' | 'privacy' | 'help';
+  'settings' | 'requests' | 'archive' | 'restricted' | 'privacy' | 'help';
 
 interface ChatListHeaderMenuProps {
   onClose: () => void;
-  securityAlertsCount?: number;
+  archivedCount?: number;
   onOpen: (section: ChatListHeaderSection) => void;
 }
 
 export default function ChatListHeaderMenu({
   onClose,
-  securityAlertsCount = 0,
+  archivedCount = 0,
   onOpen,
 }: ChatListHeaderMenuProps) {
   const items: DropdownMenuItem[] = [
-    {
-      key: 'security',
-      label: 'View security notices',
-      icon: <ShieldAlert size={18} />,
-      badge: securityAlertsCount > 0 ? securityAlertsCount : undefined,
-      onClick: () => onOpen('security'),
-    },
     {
       key: 'settings',
       label: 'Settings',
@@ -40,6 +33,7 @@ export default function ChatListHeaderMenu({
       key: 'archive',
       label: 'Archived chats',
       icon: <Archive size={18} />,
+      badge: archivedCount > 0 ? archivedCount : undefined,
       onClick: () => onOpen('archive'),
     },
     {

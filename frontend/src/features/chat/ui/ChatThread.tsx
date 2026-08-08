@@ -11,6 +11,7 @@ import { useStagedAttachments } from '@/shared/model/useStagedAttachments';
 import ChatThreadHeader from './ChatThreadHeader';
 import MessageList from './MessageList';
 import MessageComposer from './MessageComposer';
+import BlockedComposerBanner from './BlockedComposerBanner';
 import ForwardMessageModal from './ForwardMessageModal';
 import AttachmentDropZone from '@/shared/ui/AttachmentDropZone';
 import ConversationDetailsPanel from './ConversationDetailsPanel';
@@ -54,6 +55,8 @@ export default function ChatThread({ conversation }: ChatThreadProps) {
   const typingParticipants = conversation.participants
     .filter((p) => typingUserIds.has(p.userId))
     .map((p) => p.user);
+
+  const isBlocked = conversation.type !== 'GROUP' && conversation.isBlocked;
 
   const actionsRef = useRef(actions);
   useEffect(() => {
@@ -143,19 +146,27 @@ export default function ChatThread({ conversation }: ChatThreadProps) {
             onHighlightHandled={() => setHighlightMessageId(null)}
           />
 
-          <MessageComposer
-            actions={actions}
-            replyingTo={replyingTo}
-            onCancelReply={() => setReplyingTo(null)}
-            stagedFiles={staged.files}
-            stagedFilesError={staged.error}
-            onAddFiles={staged.addFiles}
-            onRemoveFile={staged.removeFile}
-            onReplaceFile={staged.replaceFile}
-            onClearFiles={staged.clear}
-            onDismissFilesError={staged.dismissError}
-            isGroup={conversation.type === 'GROUP'}
-          />
+          {isBlocked && otherParticipant ? (
+            <BlockedComposerBanner
+              otherUserId={otherParticipant.userId}
+              blockedByMe={conversation.blockedByMe}
+              blockingMe={conversation.blockingMe}
+            />
+          ) : (
+            <MessageComposer
+              actions={actions}
+              replyingTo={replyingTo}
+              onCancelReply={() => setReplyingTo(null)}
+              stagedFiles={staged.files}
+              stagedFilesError={staged.error}
+              onAddFiles={staged.addFiles}
+              onRemoveFile={staged.removeFile}
+              onReplaceFile={staged.replaceFile}
+              onClearFiles={staged.clear}
+              onDismissFilesError={staged.dismissError}
+              isGroup={conversation.type === 'GROUP'}
+            />
+          )}
         </AttachmentDropZone>
 
         {forwardingMessage && (

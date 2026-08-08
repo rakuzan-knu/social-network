@@ -26,6 +26,8 @@ import ChatFolderIcon from './ChatFolderIcon';
 import ChatFolderModal from './ChatFolderModal';
 import ChatFolderContextMenu from './ChatFolderContextMenu';
 import DeleteChatFolderModal from './DeleteChatFolderModal';
+import ArchivedChatsModal from './ArchivedChatsModal';
+import RestrictedAccountsPanel from './RestrictedAccountsPanel';
 
 const MIN_WIDTH = 280;
 const MAX_WIDTH = 480;
@@ -86,6 +88,8 @@ export default function ChatListPanel({
   const [activeFolderId, setActiveFolderId] = useState('all');
   const [isHeaderMenuOpen, setHeaderMenuOpen] = useState(false);
   const [isNewGroupModalOpen, setNewGroupModalOpen] = useState(false);
+  const [isArchiveModalOpen, setArchiveModalOpen] = useState(false);
+  const [isRestrictedOpen, setRestrictedOpen] = useState(false);
   const [editingFolder, setEditingFolder] = useState<ChatFolder | null>(null);
   const [isFolderModalOpen, setFolderModalOpen] = useState(false);
   const [contextMenu, setContextMenu] = useState<{
@@ -210,8 +214,21 @@ export default function ChatListPanel({
     );
   };
 
+  const archivedCount = useMemo(
+    () => conversations?.filter((c) => c.isArchived).length ?? 0,
+    [conversations],
+  );
+
   const handleOpenHeaderSection = (section: ChatListHeaderSection) => {
-    // TODO: wire these to real routes/modals once they exist
+    if (section === 'archive') {
+      setArchiveModalOpen(true);
+      return;
+    }
+    if (section === 'restricted') {
+      setRestrictedOpen(true);
+      return;
+    }
+    // TODO: wire the remaining sections to real routes/modals once they exist
     console.log('open section:', section);
   };
 
@@ -303,7 +320,7 @@ export default function ChatListPanel({
               {isHeaderMenuOpen && (
                 <ChatListHeaderMenu
                   onClose={() => setHeaderMenuOpen(false)}
-                  securityAlertsCount={0}
+                  archivedCount={archivedCount}
                   onOpen={handleOpenHeaderSection}
                 />
               )}
@@ -431,6 +448,8 @@ export default function ChatListPanel({
         />
       )}
 
+      {isArchiveModalOpen && <ArchivedChatsModal onClose={() => setArchiveModalOpen(false)} />}
+
       {contextMenu && (
         <ChatFolderContextMenu
           folder={contextMenu.folder}
@@ -470,6 +489,8 @@ export default function ChatListPanel({
           }}
         />
       )}
+
+      {isRestrictedOpen && <RestrictedAccountsPanel onClose={() => setRestrictedOpen(false)} />}
     </div>
   );
 }

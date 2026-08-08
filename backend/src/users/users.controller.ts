@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OptionalAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 import { UpdateUserDto } from './dto/update-users.dto';
 import { UserProfileDto } from './dto/user-profile.dto';
 import { UsersService } from './users.service';
@@ -24,11 +25,15 @@ export class UsersController {
 
   @Get(':id')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Get public user profile by ID' })
+  @UseGuards(OptionalAuthGuard)
+  @ApiOperation({ summary: 'Get public user profile by ID (privacy-aware)' })
   @ApiResponse({ status: 200, description: 'Profile retrieved', type: UserProfileDto })
   @ApiResponse({ status: 404, description: 'User not found' })
-  getProfile(@Param('id') id: string): Promise<UserProfileDto> {
-    return this.usersService.getProfile(id);
+  getProfile(
+    @Param('id') id: string,
+    @CurrentUser() viewer: RequestUser | null,
+  ): Promise<UserProfileDto> {
+    return this.usersService.getProfileFor(id, viewer?.id ?? null);
   }
 
   @Patch(':id')

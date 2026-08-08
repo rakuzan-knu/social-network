@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { chatApi } from '../api/chatApi';
-import { CONVERSATIONS_KEY } from '@/shared/api/queryKeys';
+import { CONVERSATIONS_KEY, BLOCKED_USERS_KEY } from '@/shared/api/queryKeys';
 import { ConversationView, MuteLevel } from '../../../entities/chat/model/types';
 
 function useOptimisticConversationUpdate() {
@@ -44,7 +44,22 @@ export function useBlockUser() {
 
   return useMutation({
     mutationFn: (userId: string) => chatApi.blockUser(userId),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: [CONVERSATIONS_KEY] }),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: [CONVERSATIONS_KEY] });
+      queryClient.invalidateQueries({ queryKey: [BLOCKED_USERS_KEY] });
+    },
+  });
+}
+
+export function useUnblockUser() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (userId: string) => chatApi.unblockUser(userId),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: [CONVERSATIONS_KEY] });
+      queryClient.invalidateQueries({ queryKey: [BLOCKED_USERS_KEY] });
+    },
   });
 }
 
