@@ -26,9 +26,10 @@ The server tracks user presence via an in-memory Map. When a user's last socket 
 Join a conversation room to receive real-time events.
 
 **Payload**:
+
 ```typescript
 {
-  conversationId: string  // UUID
+  conversationId: string; // UUID
 }
 ```
 
@@ -41,9 +42,10 @@ Join a conversation room to receive real-time events.
 Leave a conversation room.
 
 **Payload**:
+
 ```typescript
 {
-  conversationId: string  // UUID
+  conversationId: string; // UUID
 }
 ```
 
@@ -54,9 +56,10 @@ Leave a conversation room.
 Notify room that user is typing.
 
 **Payload**:
+
 ```typescript
 {
-  conversationId: string  // UUID
+  conversationId: string; // UUID
 }
 ```
 
@@ -69,9 +72,10 @@ Notify room that user is typing.
 Notify room that user stopped typing.
 
 **Payload**:
+
 ```typescript
 {
-  conversationId: string  // UUID
+  conversationId: string; // UUID
 }
 ```
 
@@ -84,6 +88,7 @@ Notify room that user stopped typing.
 Mark messages as read.
 
 **Payload**:
+
 ```typescript
 {
   conversationId: string,  // UUID
@@ -100,6 +105,7 @@ Mark messages as read.
 Send a message to a conversation. Rate limited to **20 messages per 10 seconds**.
 
 **Payload**:
+
 ```typescript
 {
   conversationId: string,       // UUID
@@ -112,6 +118,7 @@ Send a message to a conversation. Rate limited to **20 messages per 10 seconds**
 ```
 
 **Ack**:
+
 ```typescript
 {
   status: 'ok',
@@ -120,6 +127,7 @@ Send a message to a conversation. Rate limited to **20 messages per 10 seconds**
 ```
 
 **On rate limit exceeded**:
+
 ```typescript
 {
   status: 'error',
@@ -136,6 +144,7 @@ Send a message to a conversation. Rate limited to **20 messages per 10 seconds**
 Edit an existing message. Sender only.
 
 **Payload**:
+
 ```typescript
 {
   messageId: string,  // UUID
@@ -144,6 +153,7 @@ Edit an existing message. Sender only.
 ```
 
 **Ack**:
+
 ```typescript
 {
   status: 'ok',
@@ -160,6 +170,7 @@ Edit an existing message. Sender only.
 Delete a message.
 
 **Payload**:
+
 ```typescript
 {
   messageId: string,  // UUID
@@ -168,6 +179,7 @@ Delete a message.
 ```
 
 **Ack**:
+
 ```typescript
 {
   status: 'ok',
@@ -184,6 +196,7 @@ Delete a message.
 Forward a message to other conversations.
 
 **Payload**:
+
 ```typescript
 {
   messageId: string,          // UUID
@@ -192,6 +205,7 @@ Forward a message to other conversations.
 ```
 
 **Ack**:
+
 ```typescript
 {
   status: 'ok',
@@ -208,6 +222,7 @@ Forward a message to other conversations.
 Add emoji reaction to a message.
 
 **Payload**:
+
 ```typescript
 {
   messageId: string,  // UUID
@@ -216,6 +231,7 @@ Add emoji reaction to a message.
 ```
 
 **Ack**:
+
 ```typescript
 {
   status: 'ok',
@@ -232,6 +248,7 @@ Add emoji reaction to a message.
 Remove emoji reaction from a message.
 
 **Payload**:
+
 ```typescript
 {
   messageId: string,  // UUID
@@ -240,6 +257,7 @@ Remove emoji reaction from a message.
 ```
 
 **Ack**:
+
 ```typescript
 {
   status: 'ok',
@@ -256,6 +274,7 @@ Remove emoji reaction from a message.
 Pin a message in conversation.
 
 **Payload**:
+
 ```typescript
 {
   conversationId: string,  // UUID
@@ -264,9 +283,10 @@ Pin a message in conversation.
 ```
 
 **Ack**:
+
 ```typescript
 {
-  status: 'ok'
+  status: 'ok';
 }
 ```
 
@@ -279,6 +299,7 @@ Pin a message in conversation.
 Unpin a message in conversation.
 
 **Payload**:
+
 ```typescript
 {
   conversationId: string,  // UUID
@@ -287,9 +308,10 @@ Unpin a message in conversation.
 ```
 
 **Ack**:
+
 ```typescript
 {
-  status: 'ok'
+  status: 'ok';
 }
 ```
 
@@ -304,6 +326,7 @@ Unpin a message in conversation.
 A user started or stopped typing.
 
 **Payload**:
+
 ```typescript
 {
   conversationId: string,
@@ -319,6 +342,7 @@ A user started or stopped typing.
 Messages were read by a user.
 
 **Payload**:
+
 ```typescript
 {
   conversationId: string,
@@ -335,6 +359,7 @@ Messages were read by a user.
 A new message was sent.
 
 **Payload**:
+
 ```typescript
 {
   conversationId: string,
@@ -349,6 +374,7 @@ A new message was sent.
 A message was edited.
 
 **Payload**:
+
 ```typescript
 {
   conversationId: string,
@@ -363,6 +389,7 @@ A message was edited.
 A message was deleted.
 
 **Payload**:
+
 ```typescript
 {
   conversationId: string,
@@ -378,6 +405,7 @@ A message was deleted.
 A reaction was added to a message.
 
 **Payload**:
+
 ```typescript
 {
   conversationId: string,
@@ -392,6 +420,7 @@ A reaction was added to a message.
 A reaction was removed from a message.
 
 **Payload**:
+
 ```typescript
 {
   conversationId: string,
@@ -406,6 +435,7 @@ A reaction was removed from a message.
 A message was pinned.
 
 **Payload**:
+
 ```typescript
 {
   conversationId: string,
@@ -420,6 +450,7 @@ A message was pinned.
 A message was unpinned.
 
 **Payload**:
+
 ```typescript
 {
   conversationId: string,
@@ -434,9 +465,10 @@ A message was unpinned.
 A user went offline (last socket disconnected).
 
 **Payload**:
+
 ```typescript
 {
-  userId: string
+  userId: string;
 }
 ```
 
@@ -449,9 +481,10 @@ A user went offline (last socket disconnected).
 Send rate limit was exceeded.
 
 **Payload**:
+
 ```typescript
 {
-  message: string  // e.g., "Too many messages, slow down"
+  message: string; // e.g., "Too many messages, slow down"
 }
 ```
 
@@ -463,78 +496,78 @@ Send rate limit was exceeded.
 
 ```typescript
 interface UserSnapshot {
-  id: string
-  username: string
-  displayName: string | null
-  avatar: string | null
+  id: string;
+  username: string;
+  displayName: string | null;
+  avatar: string | null;
 }
 
 interface AttachmentView {
-  id: string
-  type: AttachmentType
-  url: string
-  fileName: string | null
-  mimeType: string | null
-  size: number | null
-  width: number | null
-  height: number | null
-  duration: number | null
-  thumbnailUrl: string | null
+  id: string;
+  type: AttachmentType;
+  url: string;
+  fileName: string | null;
+  mimeType: string | null;
+  size: number | null;
+  width: number | null;
+  height: number | null;
+  duration: number | null;
+  thumbnailUrl: string | null;
 }
 
 interface ReactionSummary {
-  emoji: string
-  count: number
-  selfReacted: boolean
-  users: UserSnapshot[]
+  emoji: string;
+  count: number;
+  selfReacted: boolean;
+  users: UserSnapshot[];
 }
 
 interface MessageView {
-  id: string
-  conversationId: string
-  sender: UserSnapshot
-  body: string | null
-  messageType: MessageType
-  replyTo: MessageView | null
-  forwardedFrom: Pick<MessageView, 'id' | 'body' | 'sender'> | null
-  attachments: AttachmentView[]
-  reactions: ReactionSummary[]
-  readBy: string[]
-  isEdited: boolean
-  isDeleted: boolean
-  isPinned: boolean
-  createdAt: Date
-  editedAt: Date | null
+  id: string;
+  conversationId: string;
+  sender: UserSnapshot;
+  body: string | null;
+  messageType: MessageType;
+  replyTo: MessageView | null;
+  forwardedFrom: Pick<MessageView, 'id' | 'body' | 'sender'> | null;
+  attachments: AttachmentView[];
+  reactions: ReactionSummary[];
+  readBy: string[];
+  isEdited: boolean;
+  isDeleted: boolean;
+  isPinned: boolean;
+  createdAt: Date;
+  editedAt: Date | null;
 }
 
 interface ParticipantView {
-  userId: string
-  user: UserSnapshot
-  nickname: string | null
-  role: ParticipantRole
-  theme: string
-  muteLevel: MuteLevel
-  mutedUntil: Date | null
-  joinedAt: Date
+  userId: string;
+  user: UserSnapshot;
+  nickname: string | null;
+  role: ParticipantRole;
+  theme: string;
+  muteLevel: MuteLevel;
+  mutedUntil: Date | null;
+  joinedAt: Date;
 }
 
 interface ConversationView {
-  id: string
-  type: ConversationType
-  name: string | null
-  avatar: string | null
-  description: string | null
-  createdById: string
-  participants: ParticipantView[]
-  lastMessage: MessageView | null
-  unreadCount: number
-  myTheme: string
-  myMuteLevel: MuteLevel
-  myNickname: string | null
-  isArchived: boolean
-  pinnedMessages: MessageView[]
-  createdAt: Date
-  updatedAt: Date
+  id: string;
+  type: ConversationType;
+  name: string | null;
+  avatar: string | null;
+  description: string | null;
+  createdById: string;
+  participants: ParticipantView[];
+  lastMessage: MessageView | null;
+  unreadCount: number;
+  myTheme: string;
+  myMuteLevel: MuteLevel;
+  myNickname: string | null;
+  isArchived: boolean;
+  pinnedMessages: MessageView[];
+  createdAt: Date;
+  updatedAt: Date;
 }
 ```
 
@@ -545,20 +578,20 @@ interface ConversationView {
 ```typescript
 enum ConversationType {
   DIRECT = 'DIRECT',
-  GROUP = 'GROUP'
+  GROUP = 'GROUP',
 }
 
 enum ParticipantRole {
   MEMBER = 'MEMBER',
   ADMIN = 'ADMIN',
-  OWNER = 'OWNER'
+  OWNER = 'OWNER',
 }
 
 enum MuteLevel {
   NONE = 'NONE',
   MESSAGES = 'MESSAGES',
   CALLS = 'CALLS',
-  MESSAGES_AND_CALLS = 'MESSAGES_AND_CALLS'
+  MESSAGES_AND_CALLS = 'MESSAGES_AND_CALLS',
 }
 
 enum MessageType {
@@ -572,7 +605,7 @@ enum MessageType {
   LOCATION = 'LOCATION',
   CALL_LOG = 'CALL_LOG',
   SYSTEM = 'SYSTEM',
-  DELETED = 'DELETED'
+  DELETED = 'DELETED',
 }
 
 enum AttachmentType {
@@ -581,6 +614,6 @@ enum AttachmentType {
   AUDIO = 'AUDIO',
   FILE = 'FILE',
   LINK = 'LINK',
-  GIF = 'GIF'
+  GIF = 'GIF',
 }
 ```

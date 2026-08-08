@@ -8,26 +8,62 @@ const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
 
 const TEXT_EXTENSIONS = new Set([
-  '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs',
-  '.json', '.yml', '.yaml', '.md', '.txt', '.css', '.scss',
-  '.html', '.htm', '.svg', '.env', '.env.example',
-  '.sh', '.bash', '.zsh', '.fish',
-  '.dockerignore', '.gitignore', '.editorconfig', '.prettierignore',
-  '.npmrc', '.nvmrc',
-  'Dockerfile', 'Makefile', 'Justfile',
-  '.graphql', '.gql',
+  '.ts',
+  '.tsx',
+  '.js',
+  '.jsx',
+  '.mjs',
+  '.cjs',
+  '.json',
+  '.yml',
+  '.yaml',
+  '.md',
+  '.txt',
+  '.css',
+  '.scss',
+  '.html',
+  '.htm',
+  '.svg',
+  '.env',
+  '.env.example',
+  '.sh',
+  '.bash',
+  '.zsh',
+  '.fish',
+  '.dockerignore',
+  '.gitignore',
+  '.editorconfig',
+  '.prettierignore',
+  '.npmrc',
+  '.nvmrc',
+  'Dockerfile',
+  'Makefile',
+  'Justfile',
+  '.graphql',
+  '.gql',
   '.prisma',
 ]);
 
 const IGNORED_DIRS = new Set([
-  'node_modules', '.git', 'dist', 'build', 'coverage',
-  '.next', '.nuxt', '.cache', '.turbo',
-  'storybook-static', '.output',
+  'node_modules',
+  '.git',
+  'dist',
+  'build',
+  'coverage',
+  '.next',
+  '.nuxt',
+  '.cache',
+  '.turbo',
+  'storybook-static',
+  '.output',
 ]);
 
 const IGNORED_FILES = new Set([
-  'package-lock.json', 'pnpm-lock.yaml', 'yarn.lock',
-  'bun.lockb', '.DS_Store',
+  'package-lock.json',
+  'pnpm-lock.yaml',
+  'yarn.lock',
+  'bun.lockb',
+  '.DS_Store',
 ]);
 
 function isTextFile(filePath) {
@@ -80,7 +116,10 @@ function hasCRLF(filePath) {
 function getTrackedFiles() {
   try {
     const output = execSync('git ls-files', { cwd: rootDir, encoding: 'utf8' });
-    return output.split('\n').filter(Boolean).map(f => path.join(rootDir, f));
+    return output
+      .split('\n')
+      .filter(Boolean)
+      .map((f) => path.join(rootDir, f));
   } catch {
     return null;
   }

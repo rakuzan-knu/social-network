@@ -2,11 +2,11 @@
 
 ## Base URL
 
-| Environment | URL |
-|-------------|-----|
-| Development | `http://localhost:3000` |
-| Production | Configured via `VITE_API_URL` |
-| Vercel | `/api/*` (rewritten to backend) |
+| Environment | URL                             |
+| ----------- | ------------------------------- |
+| Development | `http://localhost:3000`         |
+| Production  | Configured via `VITE_API_URL`   |
+| Vercel      | `/api/*` (rewritten to backend) |
 
 ## Authentication
 
@@ -27,6 +27,7 @@ Token refresh is handled automatically by the frontend HTTP client interceptor.
 Returns service health status. No auth required.
 
 **Response**:
+
 ```json
 {
   "status": "ok",
@@ -48,14 +49,16 @@ Returns service health status. No auth required.
 Create a new account. Rate limited: 5 requests per 60 seconds.
 
 **Body**:
-| Field | Type | Required | Rules |
-|-------|------|----------|-------|
-| email | string | Yes | Valid email, trimmed, lowercased |
-| username | string | Yes | 3-32 chars, `a-zA-Z0-9_` |
-| displayName | string | No | Max 64 chars |
-| password | string | Yes | 8-128 chars |
+
+| Field       | Type   | Required | Rules                            |
+| ----------- | ------ | -------- | -------------------------------- |
+| email       | string | Yes      | Valid email, trimmed, lowercased |
+| username    | string | Yes      | 3-32 chars, `a-zA-Z0-9_`         |
+| displayName | string | No       | Max 64 chars                     |
+| password    | string | Yes      | 8-128 chars                      |
 
 **Response** (201):
+
 ```json
 {
   "accessToken": "eyJ...",
@@ -78,9 +81,10 @@ Create a new account. Rate limited: 5 requests per 60 seconds.
 Authenticate with email + password. Rate limited: 10 requests per 60 seconds.
 
 **Body**:
-| Field | Type | Required |
-|-------|------|----------|
-| email | string | Yes |
+
+| Field    | Type   | Required    |
+| -------- | ------ | ----------- |
+| email    | string | Yes         |
 | password | string | Yes (min 8) |
 
 **Response** (200): Same as register.
@@ -94,11 +98,13 @@ Authenticate with email + password. Rate limited: 10 requests per 60 seconds.
 Exchange a refresh token for a new access token.
 
 **Body**:
-| Field | Type | Required |
-|-------|------|----------|
-| refreshToken | string | Yes |
+
+| Field        | Type   | Required |
+| ------------ | ------ | -------- |
+| refreshToken | string | Yes      |
 
 **Response** (200):
+
 ```json
 {
   "accessToken": "eyJ..."
@@ -114,9 +120,10 @@ Exchange a refresh token for a new access token.
 **Auth required**. Invalidate the current refresh token.
 
 **Body**:
-| Field | Type | Required |
-|-------|------|----------|
-| refreshToken | string | Yes |
+
+| Field        | Type   | Required |
+| ------------ | ------ | -------- |
+| refreshToken | string | Yes      |
 
 **Response**: 204 No Content
 
@@ -129,6 +136,7 @@ Exchange a refresh token for a new access token.
 Get public profile. No auth required.
 
 **Response** (200):
+
 ```json
 {
   "id": "uuid",
@@ -148,12 +156,13 @@ Get public profile. No auth required.
 **Auth required**. Update own profile only.
 
 **Body** (all optional):
-| Field | Type | Rules |
-|-------|------|-------|
-| email | string | Valid email |
-| username | string | 3-32 chars |
-| displayName | string | Max 64 chars |
-| bio | string | Max 300 chars |
+
+| Field       | Type   | Rules         |
+| ----------- | ------ | ------------- |
+| email       | string | Valid email   |
+| username    | string | 3-32 chars    |
+| displayName | string | Max 64 chars  |
+| bio         | string | Max 300 chars |
 
 **Response** (200): Updated `UserProfileDto`
 
@@ -166,11 +175,13 @@ Get public profile. No auth required.
 **Auth required**. Upload avatar image.
 
 **Body**: `multipart/form-data`
-| Field | Type | Rules |
-|-------|------|-------|
-| file | File | JPEG/PNG/WebP, max 5MB |
+
+| Field | Type | Rules                  |
+| ----- | ---- | ---------------------- |
+| file  | File | JPEG/PNG/WebP, max 5MB |
 
 **Response** (200):
+
 ```json
 {
   "id": "uuid",
@@ -185,6 +196,7 @@ Get public profile. No auth required.
 **Auth required**. Remove avatar.
 
 **Response** (200):
+
 ```json
 {
   "id": "uuid",
@@ -201,12 +213,14 @@ Get public profile. No auth required.
 Paginated list of followers. No auth required.
 
 **Query**:
-| Param | Type | Default |
-|-------|------|---------|
-| limit | number (1-100) | 20 |
-| after | string (cursor) | — |
+
+| Param | Type            | Default |
+| ----- | --------------- | ------- |
+| limit | number (1-100)  | 20      |
+| after | string (cursor) | —       |
 
 **Response** (200):
+
 ```json
 {
   "data": [UserProfileDto],
@@ -250,12 +264,14 @@ Paginated list of following. Same shape as followers.
 Get feed posts with cursor pagination. No auth required.
 
 **Query**:
-| Param | Type | Default |
-|-------|------|---------|
-| limit | number (1-100) | 20 |
-| after | string (cursor) | — |
+
+| Param | Type            | Default |
+| ----- | --------------- | ------- |
+| limit | number (1-100)  | 20      |
+| after | string (cursor) | —       |
 
 **Response** (200):
+
 ```json
 {
   "data": [PostResponseDto],
@@ -273,12 +289,14 @@ Get feed posts with cursor pagination. No auth required.
 **Auth required**. Create a new post.
 
 **Body**:
-| Field | Type | Required |
-|-------|------|----------|
-| content | string | Yes (non-empty) |
-| image | string (URL) | No |
+
+| Field   | Type         | Required        |
+| ------- | ------------ | --------------- |
+| content | string       | Yes (non-empty) |
+| image   | string (URL) | No              |
 
 **Response** (201):
+
 ```json
 {
   "id": "uuid",
@@ -305,10 +323,11 @@ Get single post. No auth required.
 **Auth required**. Edit own post.
 
 **Body** (all optional):
-| Field | Type | Required |
-|-------|------|----------|
-| content | string | No (non-empty if present) |
-| image | string (URL) | No |
+
+| Field   | Type         | Required                  |
+| ------- | ------------ | ------------------------- |
+| content | string       | No (non-empty if present) |
+| image   | string (URL) | No                        |
 
 **Response** (200): Updated `PostResponseDto`
 
@@ -347,11 +366,13 @@ Get single post. No auth required.
 **Auth required**. Add a comment.
 
 **Body**:
-| Field | Type | Required |
-|-------|------|----------|
-| text | string | Yes (1-1000 chars) |
+
+| Field | Type   | Required           |
+| ----- | ------ | ------------------ |
+| text  | string | Yes (1-1000 chars) |
 
 **Response** (201):
+
 ```json
 {
   "id": "uuid",
@@ -369,12 +390,14 @@ Get single post. No auth required.
 Paginated comments. No auth required.
 
 **Query**:
-| Param | Type | Default |
-|-------|------|---------|
-| limit | number (1-100) | 20 |
-| after | string (cursor) | — |
+
+| Param | Type            | Default |
+| ----- | --------------- | ------- |
+| limit | number (1-100)  | 20      |
+| after | string (cursor) | —       |
 
 **Response** (200):
+
 ```json
 {
   "data": [CommentResponseDto],
@@ -420,9 +443,10 @@ Get single conversation with participants.
 Create or get existing direct conversation.
 
 **Body**:
-| Field | Type | Required |
-|-------|------|----------|
-| participantId | string (UUID) | Yes |
+
+| Field         | Type          | Required |
+| ------------- | ------------- | -------- |
+| participantId | string (UUID) | Yes      |
 
 **Response** (201): `ConversationView`
 
@@ -433,11 +457,12 @@ Create or get existing direct conversation.
 Create a group conversation.
 
 **Body**:
-| Field | Type | Required |
-|-------|------|----------|
-| name | string | Yes (max 128) |
-| description | string | No (max 512) |
-| memberIds | string[] (UUIDs) | Yes |
+
+| Field       | Type             | Required      |
+| ----------- | ---------------- | ------------- |
+| name        | string           | Yes (max 128) |
+| description | string           | No (max 512)  |
+| memberIds   | string[] (UUIDs) | Yes           |
 
 **Response** (201): `ConversationView`
 
@@ -448,9 +473,10 @@ Create a group conversation.
 Update group info (name/description).
 
 **Body** (all optional):
-| Field | Type |
-|-------|------|
-| name | string (max 128) |
+
+| Field       | Type             |
+| ----------- | ---------------- |
+| name        | string (max 128) |
 | description | string (max 512) |
 
 **Response** (200): `ConversationView`
@@ -462,9 +488,10 @@ Update group info (name/description).
 Add members to group.
 
 **Body**:
-| Field | Type | Required |
-|-------|------|----------|
-| memberIds | string[] (UUIDs) | Yes |
+
+| Field     | Type             | Required |
+| --------- | ---------------- | -------- |
+| memberIds | string[] (UUIDs) | Yes      |
 
 **Response** (201)
 
@@ -491,9 +518,10 @@ Leave a conversation.
 Transfer group ownership.
 
 **Body**:
-| Field | Type | Required |
-|-------|------|----------|
-| newOwnerId | string (UUID) | Yes |
+
+| Field      | Type          | Required |
+| ---------- | ------------- | -------- |
+| newOwnerId | string (UUID) | Yes      |
 
 **Response**: 204
 
@@ -520,10 +548,11 @@ Demote admin to MEMBER.
 Set nickname for a participant.
 
 **Body**:
-| Field | Type | Required |
-|-------|------|----------|
-| targetUserId | string (UUID) | Yes |
-| nickname | string | No (null clears, max 64) |
+
+| Field        | Type          | Required                 |
+| ------------ | ------------- | ------------------------ |
+| targetUserId | string (UUID) | Yes                      |
+| nickname     | string        | No (null clears, max 64) |
 
 **Response**: 204
 
@@ -534,9 +563,10 @@ Set nickname for a participant.
 Set per-user theme for this conversation.
 
 **Body**:
-| Field | Type | Required |
-|-------|------|----------|
-| theme | string | Yes |
+
+| Field | Type   | Required |
+| ----- | ------ | -------- |
+| theme | string | Yes      |
 
 **Response**: 204
 
@@ -547,10 +577,11 @@ Set per-user theme for this conversation.
 Mute conversation.
 
 **Body**:
-| Field | Type | Required |
-|-------|------|----------|
-| muteLevel | MuteLevel enum | Yes |
-| mutedUntil | string (ISO) | No (omit = permanent) |
+
+| Field      | Type           | Required              |
+| ---------- | -------------- | --------------------- |
+| muteLevel  | MuteLevel enum | Yes                   |
+| mutedUntil | string (ISO)   | No (omit = permanent) |
 
 **Response**: 204
 
@@ -593,11 +624,12 @@ Unblock a user.
 Report a user.
 
 **Body**:
-| Field | Type | Required |
-|-------|------|----------|
-| messageId | string (UUID) | No |
-| category | ReportCategory enum | Yes |
-| details | string | No (max 1024) |
+
+| Field     | Type                | Required      |
+| --------- | ------------------- | ------------- |
+| messageId | string (UUID)       | No            |
+| category  | ReportCategory enum | Yes           |
+| details   | string              | No (max 1024) |
 
 **Response**: 204
 
@@ -612,13 +644,15 @@ Report a user.
 Paginated messages. Loaded in reverse (newest first).
 
 **Query**:
-| Param | Type | Default |
-|-------|------|---------|
-| before | string (UUID) | — |
-| after | string (UUID) | — |
-| limit | number | 50 |
+
+| Param  | Type          | Default |
+| ------ | ------------- | ------- |
+| before | string (UUID) | —       |
+| after  | string (UUID) | —       |
+| limit  | number        | 50      |
 
 **Response** (200):
+
 ```json
 {
   "data": [MessageView],
@@ -634,10 +668,11 @@ Paginated messages. Loaded in reverse (newest first).
 Search messages in conversation.
 
 **Query**:
-| Param | Type | Default |
-|-------|------|---------|
-| q | string (max 256) | — |
-| limit | number | 30 |
+
+| Param | Type             | Default |
+| ----- | ---------------- | ------- |
+| q     | string (max 256) | —       |
+| limit | number           | 30      |
 
 **Response** (200): `MessageView[]`
 
@@ -648,14 +683,15 @@ Search messages in conversation.
 Send a message.
 
 **Body**:
-| Field | Type | Required |
-|-------|------|----------|
-| conversationId | string (UUID) | Yes |
-| text | string | No (max 4096) |
-| messageType | MessageType enum | No (default TEXT) |
-| replyToId | string (UUID) | No |
-| forwardedFromId | string (UUID) | No |
-| attachments | AttachmentDto[] | No |
+
+| Field           | Type             | Required          |
+| --------------- | ---------------- | ----------------- |
+| conversationId  | string (UUID)    | Yes               |
+| text            | string           | No (max 4096)     |
+| messageType     | MessageType enum | No (default TEXT) |
+| replyToId       | string (UUID)    | No                |
+| forwardedFromId | string (UUID)    | No                |
+| attachments     | AttachmentDto[]  | No                |
 
 **Response** (201): `MessageView`
 
@@ -666,10 +702,11 @@ Send a message.
 **Sender only**. Edit message.
 
 **Body**:
-| Field | Type | Required |
-|-------|------|----------|
-| messageId | string (UUID) | Yes |
-| body | string | Yes (max 4096) |
+
+| Field     | Type          | Required       |
+| --------- | ------------- | -------------- |
+| messageId | string (UUID) | Yes            |
+| body      | string        | Yes (max 4096) |
 
 **Response** (200): Updated `MessageView`
 
@@ -680,12 +717,14 @@ Send a message.
 Delete message.
 
 **Body**:
-| Field | Type | Required |
-|-------|------|----------|
-| messageId | string (UUID) | Yes |
-| forAll | boolean | No |
+
+| Field     | Type          | Required |
+| --------- | ------------- | -------- |
+| messageId | string (UUID) | Yes      |
+| forAll    | boolean       | No       |
 
 **Response** (200):
+
 ```json
 {
   "messageId": "uuid",
@@ -700,10 +739,11 @@ Delete message.
 Forward message to other conversations.
 
 **Body**:
-| Field | Type | Required |
-|-------|------|----------|
-| messageId | string (UUID) | Yes |
-| conversationIds | string[] (UUIDs) | Yes |
+
+| Field           | Type             | Required |
+| --------------- | ---------------- | -------- |
+| messageId       | string (UUID)    | Yes      |
+| conversationIds | string[] (UUIDs) | Yes      |
 
 **Response** (201): `MessageView[]`
 
@@ -714,10 +754,11 @@ Forward message to other conversations.
 Add reaction.
 
 **Body**:
-| Field | Type | Required |
-|-------|------|----------|
-| messageId | string (UUID) | Yes |
-| emoji | string | Yes (max 8) |
+
+| Field     | Type          | Required    |
+| --------- | ------------- | ----------- |
+| messageId | string (UUID) | Yes         |
+| emoji     | string        | Yes (max 8) |
 
 **Response** (201): Updated `MessageView`
 

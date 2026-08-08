@@ -47,6 +47,7 @@ Backend unit tests use **Jest** with **ts-jest**.
 **Configuration**: `backend/package.json` (jest section)
 
 **Coverage thresholds**:
+
 - Lines: 70%
 - Functions: 70%
 - Branches: 60%
@@ -75,6 +76,7 @@ Backend E2E tests use Jest with a real PostgreSQL and Redis instance.
 **Configuration**: `backend/test/jest-e2e.json`
 
 **Services required**:
+
 - PostgreSQL (test database)
 - Redis
 
@@ -113,6 +115,7 @@ Frontend unit tests use **Vitest** with **React Testing Library**.
 **Configuration**: `frontend/vitest.config.ts`
 
 **Coverage**:
+
 - Provider: V8
 - Reporters: text, lcov, html, json-summary
 - Thresholds: 70% lines, 70% functions, 65% branches, 70% statements
@@ -176,17 +179,17 @@ npm run lhci
 
 ### Performance Budgets
 
-| Metric | Threshold |
-|--------|-----------|
-| Performance score | ≥0.85 |
-| Accessibility score | ≥0.95 |
-| Best Practices score | ≥0.90 |
-| SEO score | ≥0.85 |
-| First Contentful Paint | ≤1800ms |
-| Largest Contentful Paint | ≤2500ms |
-| Total Blocking Time | ≤200ms |
-| Cumulative Layout Shift | ≤0.1 |
-| Speed Index | ≤2000ms |
+| Metric                   | Threshold |
+| ------------------------ | --------- |
+| Performance score        | ≥0.85     |
+| Accessibility score      | ≥0.95     |
+| Best Practices score     | ≥0.90     |
+| SEO score                | ≥0.85     |
+| First Contentful Paint   | ≤1800ms   |
+| Largest Contentful Paint | ≤2500ms   |
+| Total Blocking Time      | ≤200ms    |
+| Cumulative Layout Shift  | ≤0.1      |
+| Speed Index              | ≤2000ms   |
 
 ---
 
@@ -275,24 +278,28 @@ describe('Button', () => {
 ### Common Issues
 
 **Tests fail due to missing environment variables**:
+
 ```bash
 # Ensure .env is configured
 cp backend/.env.example backend/.env
 ```
 
 **E2E tests fail due to database connection**:
+
 ```bash
 # Start test databases
 docker compose -f docker-compose.dev.yml up -d
 ```
 
 **Lighthouse CI fails due to missing build**:
+
 ```bash
 # Build frontend first
 npm run build -w frontend
 ```
 
 **Coverage not collected**:
+
 ```bash
 # Ensure coverage reporters are configured
 npm run test:cov

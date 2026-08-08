@@ -45,7 +45,9 @@ function main() {
     if (requiredKeys.length === 0) continue;
 
     if (!fs.existsSync(envPath)) {
-      console.error(`  [missing] ${ws.name}/.env does not exist (expected ${requiredKeys.length} keys)`);
+      console.error(
+        `  [missing] ${ws.name}/.env does not exist (expected ${requiredKeys.length} keys)`,
+      );
       hasError = true;
       continue;
     }
@@ -70,7 +72,9 @@ function main() {
     });
 
     if (missing.length > 0) {
-      console.error(`  [missing] ${ws.name}/.env missing keys: ${missing.map((m) => m.key).join(', ')}`);
+      console.error(
+        `  [missing] ${ws.name}/.env missing keys: ${missing.map((m) => m.key).join(', ')}`,
+      );
       hasError = true;
     } else if (empty.length > 0) {
       console.error(`  [empty] ${ws.name}/.env empty keys: ${empty.map((m) => m.key).join(', ')}`);

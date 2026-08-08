@@ -35,15 +35,15 @@ Social Network is a full-stack monorepo application built with:
 
 ## Documentation Index
 
-| Document | Description |
-|----------|-------------|
-| [API Reference](api-reference.md) | Complete HTTP endpoint documentation |
-| [Real-time Events](real-time-events.md) | Socket.IO events for chat/messaging |
-| [Database Schema](database-schema.md) | Prisma models, relations, enums |
+| Document                                | Description                           |
+| --------------------------------------- | ------------------------------------- |
+| [API Reference](api-reference.md)       | Complete HTTP endpoint documentation  |
+| [Real-time Events](real-time-events.md) | Socket.IO events for chat/messaging   |
+| [Database Schema](database-schema.md)   | Prisma models, relations, enums       |
 | [Deployment Guide](deployment-guide.md) | Docker, Vercel, environment variables |
-| [Testing Guide](testing-guide.md) | Unit tests, E2E tests, Lighthouse CI |
-| [CI/CD Pipeline](ci/README.md) | GitHub Actions workflows |
-| [ADR](adr/README.md) | Architecture Decision Records |
+| [Testing Guide](testing-guide.md)       | Unit tests, E2E tests, Lighthouse CI  |
+| [CI/CD Pipeline](ci/README.md)          | GitHub Actions workflows              |
+| [ADR](adr/README.md)                    | Architecture Decision Records         |
 
 ---
 
@@ -173,26 +173,26 @@ npm run dev
 
 #### Backend (.env)
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| DATABASE_URL | PostgreSQL connection string | Yes |
-| REDIS_URL | Redis connection string | Yes |
-| JWT_ACCESS_SECRET | JWT access token secret (32+ chars) | Yes |
-| JWT_REFRESH_SECRET | JWT refresh token secret (32+ chars) | Yes |
-| PORT | Server port (default: 3000) | No |
-| CORS_ORIGIN | Allowed CORS origin | Yes |
-| MINIO_ENDPOINT | MinIO endpoint URL | Yes |
-| MINIO_ACCESS_KEY | MinIO access key | Yes |
-| MINIO_SECRET_KEY | MinIO secret key | Yes |
-| MINIO_BUCKET | MinIO bucket name | Yes |
-| SENTRY_DSN | Sentry DSN (optional) | No |
+| Variable           | Description                          | Required |
+| ------------------ | ------------------------------------ | -------- |
+| DATABASE_URL       | PostgreSQL connection string         | Yes      |
+| REDIS_URL          | Redis connection string              | Yes      |
+| JWT_ACCESS_SECRET  | JWT access token secret (32+ chars)  | Yes      |
+| JWT_REFRESH_SECRET | JWT refresh token secret (32+ chars) | Yes      |
+| PORT               | Server port (default: 3000)          | No       |
+| CORS_ORIGIN        | Allowed CORS origin                  | Yes      |
+| MINIO_ENDPOINT     | MinIO endpoint URL                   | Yes      |
+| MINIO_ACCESS_KEY   | MinIO access key                     | Yes      |
+| MINIO_SECRET_KEY   | MinIO secret key                     | Yes      |
+| MINIO_BUCKET       | MinIO bucket name                    | Yes      |
+| SENTRY_DSN         | Sentry DSN (optional)                | No       |
 
 #### Frontend (.env)
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| VITE_API_URL | Backend API URL | Yes |
-| VITE_SENTRY_DSN | Sentry DSN (optional) | No |
+| Variable        | Description           | Required |
+| --------------- | --------------------- | -------- |
+| VITE_API_URL    | Backend API URL       | Yes      |
+| VITE_SENTRY_DSN | Sentry DSN (optional) | No       |
 
 ---
 
@@ -215,6 +215,7 @@ npm run docker:dev:build
 ```
 
 Dev services include:
+
 - PostgreSQL 16 (port 5432)
 - Redis 7 (port 6379)
 - MinIO (ports 9000, 9001)
@@ -230,6 +231,7 @@ npm run docker:prod:down
 ```
 
 Production stack includes all dev services plus:
+
 - Backend API (with Prisma migration runner)
 - Frontend (Nginx-served SPA)
 - Internal + public Docker networks
@@ -238,30 +240,30 @@ Production stack includes all dev services plus:
 
 ## Scripts
 
-| Script | Description |
-|--------|-------------|
-| `npm run dev` | Start backend + frontend in dev mode |
-| `npm run dev:backend` | Start backend dev server only |
-| `npm run dev:frontend` | Start frontend dev server only |
-| `npm run build` | Build both workspaces |
-| `npm run lint` | Lint both workspaces |
-| `npm run lint:fix` | Lint + auto-fix both workspaces |
-| `npm run test` | Run tests for both workspaces |
-| `npm run test:cov` | Run tests with coverage |
-| `npm run test:e2e` | Run backend E2E tests |
-| `npm run typecheck` | TypeScript type checking |
-| `npm run format` | Format code with Prettier |
-| `npm run format:check` | Check code formatting |
-| `npm run validate` | Run all validators (EOL, env, typecheck, lint) |
-| `npm run validate:eol` | Validate line endings (LF) |
-| `npm run validate:env` | Validate environment variables |
-| `npm run clean` | Clean build artifacts + node_modules |
-| `npm run clean:prune` | Clean + Docker prune |
-| `npm run lhci` | Run Lighthouse CI locally |
-| `npm run docker:dev:up` | Start dev Docker services |
-| `npm run docker:dev:down` | Stop dev Docker services |
-| `npm run docker:prod:up` | Start production Docker stack |
-| `npm run docker:prod:down` | Stop production Docker stack |
+| Script                     | Description                                    |
+| -------------------------- | ---------------------------------------------- |
+| `npm run dev`              | Start backend + frontend in dev mode           |
+| `npm run dev:backend`      | Start backend dev server only                  |
+| `npm run dev:frontend`     | Start frontend dev server only                 |
+| `npm run build`            | Build both workspaces                          |
+| `npm run lint`             | Lint both workspaces                           |
+| `npm run lint:fix`         | Lint + auto-fix both workspaces                |
+| `npm run test`             | Run tests for both workspaces                  |
+| `npm run test:cov`         | Run tests with coverage                        |
+| `npm run test:e2e`         | Run backend E2E tests                          |
+| `npm run typecheck`        | TypeScript type checking                       |
+| `npm run format`           | Format code with Prettier                      |
+| `npm run format:check`     | Check code formatting                          |
+| `npm run validate`         | Run all validators (EOL, env, typecheck, lint) |
+| `npm run validate:eol`     | Validate line endings (LF)                     |
+| `npm run validate:env`     | Validate environment variables                 |
+| `npm run clean`            | Clean build artifacts + node_modules           |
+| `npm run clean:prune`      | Clean + Docker prune                           |
+| `npm run lhci`             | Run Lighthouse CI locally                      |
+| `npm run docker:dev:up`    | Start dev Docker services                      |
+| `npm run docker:dev:down`  | Stop dev Docker services                       |
+| `npm run docker:prod:up`   | Start production Docker stack                  |
+| `npm run docker:prod:down` | Stop production Docker stack                   |
 
 ---
 
@@ -271,17 +273,17 @@ See [CI Documentation](ci/README.md) for detailed workflow documentation.
 
 ### Workflows
 
-| Workflow | Trigger | Purpose |
-|----------|---------|---------|
-| `ci.yml` | push/PR to main, develop | Main CI pipeline (lint, test, build, scan) |
-| `release.yml` | push to main, develop | Semantic release + Sentry source maps |
-| `security.yml` | schedule, push/PR | npm audit, Trivy scan, Gitleaks |
-| `codeql.yml` | schedule, push/PR | CodeQL security analysis |
-| `pr-title.yml` | PR opened/edited | Validate PR title (conventional commits) |
-| `storybook.yml` | PR with stories | Build Storybook |
-| `vercel-preview.yml` | PR (frontend paths) | Deploy Vercel preview |
-| `labeler.yml` | PR opened/sync | Auto-label PRs by path |
-| `sync-labels.yml` | push to main | Sync repository labels |
+| Workflow             | Trigger                  | Purpose                                    |
+| -------------------- | ------------------------ | ------------------------------------------ |
+| `ci.yml`             | push/PR to main, develop | Main CI pipeline (lint, test, build, scan) |
+| `release.yml`        | push to main, develop    | Semantic release + Sentry source maps      |
+| `security.yml`       | schedule, push/PR        | npm audit, Trivy scan, Gitleaks            |
+| `codeql.yml`         | schedule, push/PR        | CodeQL security analysis                   |
+| `pr-title.yml`       | PR opened/edited         | Validate PR title (conventional commits)   |
+| `storybook.yml`      | PR with stories          | Build Storybook                            |
+| `vercel-preview.yml` | PR (frontend paths)      | Deploy Vercel preview                      |
+| `labeler.yml`        | PR opened/sync           | Auto-label PRs by path                     |
+| `sync-labels.yml`    | push to main             | Sync repository labels                     |
 
 ### CI Pipeline Stages
 
@@ -319,11 +321,11 @@ changes → validate-eol → format-check → setup
 
 ### Git Hooks (Husky)
 
-| Hook | Command |
-|------|---------|
-| pre-commit | Validate EOL → lint-staged |
-| pre-push | Typecheck backend + frontend |
-| commit-msg | commitlint |
+| Hook       | Command                      |
+| ---------- | ---------------------------- |
+| pre-commit | Validate EOL → lint-staged   |
+| pre-push   | Typecheck backend + frontend |
+| commit-msg | commitlint                   |
 
 ### Line Endings
 

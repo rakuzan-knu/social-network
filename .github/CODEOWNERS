@@ -1,7 +1,7 @@
 # Default owners for everything
-*                           @subvincdebian @chupikx228
+*                           @subvincdebian
 
-/backend/                   @subvincdebian
+/backend/                   @subvincdebian @chupikx228
 /backend/prisma/            @subvincdebian @chupikx228
 /frontend/                  @chupikx228
 /.github/                   @subvincdebian
@@ -9,7 +9,7 @@
 /docker-compose.dev.yml     @subvincdebian
 /vercel.json                @subvincdebian
 /package.json               @subvincdebian @chupikx228
-/package-lock.json          @subvincdebian
+/package-lock.json          @subvincdebian @chupikx228
 /scripts/                   @subvincdebian
 /.npmrc                     @subvincdebian
 /SECURITY.md                @subvincdebian

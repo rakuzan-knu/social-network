@@ -9,9 +9,24 @@ const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
 
 const TARGETS = [
-  { label: 'node_modules', paths: ['node_modules', 'backend/node_modules', 'frontend/node_modules'] },
-  { label: 'build output', paths: ['backend/dist', 'frontend/dist', 'backend/coverage', 'frontend/coverage', 'coverage'] },
-  { label: 'cache files', paths: ['backend/.eslintcache', 'frontend/.eslintcache', '.cache', 'backend/node_modules/.cache', 'frontend/node_modules/.cache'] },
+  {
+    label: 'node_modules',
+    paths: ['node_modules', 'backend/node_modules', 'frontend/node_modules'],
+  },
+  {
+    label: 'build output',
+    paths: ['backend/dist', 'frontend/dist', 'backend/coverage', 'frontend/coverage', 'coverage'],
+  },
+  {
+    label: 'cache files',
+    paths: [
+      'backend/.eslintcache',
+      'frontend/.eslintcache',
+      '.cache',
+      'backend/node_modules/.cache',
+      'frontend/node_modules/.cache',
+    ],
+  },
   { label: 'storybook-static', paths: ['frontend/storybook-static'] },
 ];
 

@@ -61,30 +61,30 @@ docker build -t social-network-frontend:latest ./frontend
 
 ### Backend
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| DATABASE_URL | Yes | PostgreSQL connection string |
-| REDIS_URL | Yes | Redis connection string |
-| JWT_ACCESS_SECRET | Yes | Access token secret (32+ chars) |
-| JWT_REFRESH_SECRET | Yes | Refresh token secret (32+ chars) |
-| JWT_ACCESS_TTL | No | Access token TTL (default: 15m) |
-| JWT_REFRESH_TTL | No | Refresh token TTL (default: 7d) |
-| PORT | No | Server port (default: 3000) |
-| CORS_ORIGIN | Yes | Comma-separated allowed origins |
-| NODE_ENV | No | Environment (development/production) |
-| MINIO_ENDPOINT | Yes | MinIO/S3 endpoint |
-| MINIO_PORT | No | MinIO port (default: 9000) |
-| MINIO_ROOT_USER | Yes | MinIO/S3 access key |
-| MINIO_ROOT_PASSWORD | Yes | MinIO/S3 secret key |
-| S3_BUCKET_AVATARS | Yes | Avatar bucket name |
-| SENTRY_DSN | No | Sentry error tracking DSN |
+| Variable            | Required | Description                          |
+| ------------------- | -------- | ------------------------------------ |
+| DATABASE_URL        | Yes      | PostgreSQL connection string         |
+| REDIS_URL           | Yes      | Redis connection string              |
+| JWT_ACCESS_SECRET   | Yes      | Access token secret (32+ chars)      |
+| JWT_REFRESH_SECRET  | Yes      | Refresh token secret (32+ chars)     |
+| JWT_ACCESS_TTL      | No       | Access token TTL (default: 15m)      |
+| JWT_REFRESH_TTL     | No       | Refresh token TTL (default: 7d)      |
+| PORT                | No       | Server port (default: 3000)          |
+| CORS_ORIGIN         | Yes      | Comma-separated allowed origins      |
+| NODE_ENV            | No       | Environment (development/production) |
+| MINIO_ENDPOINT      | Yes      | MinIO/S3 endpoint                    |
+| MINIO_PORT          | No       | MinIO port (default: 9000)           |
+| MINIO_ROOT_USER     | Yes      | MinIO/S3 access key                  |
+| MINIO_ROOT_PASSWORD | Yes      | MinIO/S3 secret key                  |
+| S3_BUCKET_AVATARS   | Yes      | Avatar bucket name                   |
+| SENTRY_DSN          | No       | Sentry error tracking DSN            |
 
 ### Frontend
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| VITE_API_URL | Yes | Backend API base URL |
-| VITE_SENTRY_DSN | No | Sentry error tracking DSN |
+| Variable        | Required | Description               |
+| --------------- | -------- | ------------------------- |
+| VITE_API_URL    | Yes      | Backend API base URL      |
+| VITE_SENTRY_DSN | No       | Sentry error tracking DSN |
 
 ---
 
@@ -128,10 +128,10 @@ The frontend is configured for Vercel deployment via `vercel.json`:
 
 Set these in your Vercel project settings:
 
-| Variable | Value |
-|----------|-------|
-| VITE_API_URL | Your backend API URL |
-| VITE_SENTRY_DSN | (optional) |
+| Variable        | Value                |
+| --------------- | -------------------- |
+| VITE_API_URL    | Your backend API URL |
+| VITE_SENTRY_DSN | (optional)           |
 
 ### Preview Deployments
 

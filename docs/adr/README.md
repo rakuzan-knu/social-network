@@ -127,6 +127,7 @@ Development and production Docker configurations had diverged, causing "works on
 ### Decision
 
 Align `docker-compose.dev.yml` with `docker-compose.prod.yml` patterns:
+
 - Both use `internal` + `public` networks
 - Both use json-file logging with rotation
 - Both define resource limits (deploy.resources)
@@ -155,6 +156,7 @@ Need automated versioning and changelog generation based on commit history.
 Use **Conventional Commits** specification enforced by **commitlint** (local) and **action-semantic-pull-request** (CI). Releases automated via **semantic-release** with `@semantic-release/changelog` and `@semantic-release/git`.
 
 ### Branch strategy:
+
 - `main` → stable releases
 - `develop` → beta prereleases
 
@@ -209,6 +211,7 @@ Cross-platform development (Windows + macOS + Linux) caused CRLF/LF inconsistenc
 ### Decision
 
 Enforce **LF everywhere** via:
+
 1. `.editorconfig` — `end_of_line = lf`
 2. `.gitattributes` — `* text=auto eol=lf` + explicit binary declarations
 3. `scripts/validate-eol.js` — cross-platform validator using `git ls-files`
@@ -236,17 +239,17 @@ Need automated performance/quality gates for frontend changes without blocking d
 
 Use **lighthouse:recommended** preset with custom assertions:
 
-| Category | Level | Threshold |
-|----------|-------|-----------|
-| performance | error | ≥0.85 |
-| accessibility | error | ≥0.95 |
-| best-practices | error | ≥0.90 |
-| seo | error | ≥0.85 |
-| errors-in-console | error | — |
-| FCP | warn | ≤1800ms |
-| LCP | warn | ≤2500ms |
-| TBT | warn | ≤200ms |
-| CLS | warn | ≤0.1 |
+| Category          | Level | Threshold |
+| ----------------- | ----- | --------- |
+| performance       | error | ≥0.85     |
+| accessibility     | error | ≥0.95     |
+| best-practices    | error | ≥0.90     |
+| seo               | error | ≥0.85     |
+| errors-in-console | error | —         |
+| FCP               | warn  | ≤1800ms   |
+| LCP               | warn  | ≤2500ms   |
+| TBT               | warn  | ≤200ms    |
+| CLS               | warn  | ≤0.1      |
 
 Runs 3 times (median score) on `pull_request` with frontend changes.
 
@@ -270,6 +273,7 @@ Need automated dependency updates without overwhelming the team or introducing b
 ### Decision
 
 Use **Dependabot** with:
+
 - Root-only npm updates (single lockfile model)
 - Weekly schedule, 10 PR limit
 - Major version updates ignored (manual review required)
