@@ -1,5 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
+import sanitizeHtmlLib from 'sanitize-html';
 import {
   IsEmail,
   IsNotIn,
@@ -42,7 +43,10 @@ export const HARDENED_USERNAME_REGEX = /^(?![._])(?!.*[._]{2})[a-zA-Z0-9._]{2,32
 
 function sanitizeHtml(value: unknown): unknown {
   if (typeof value !== 'string') return value;
-  return value.replace(/<[^>]*>?/gm, '').trim();
+  return sanitizeHtmlLib(value, {
+    allowedTags: [],
+    allowedAttributes: {},
+  }).trim();
 }
 
 export class UpdateUserDto {
