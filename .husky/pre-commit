@@ -4,4 +4,8 @@ set -e
 echo "Validating line endings..."
 node scripts/validate-eol.js
 
+echo "Updating Graphify code graph (0 tokens)..."
+graphify . --code-only
+graphify cluster-only .
+
 npx lint-staged --concurrent false
