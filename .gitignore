@@ -168,7 +168,5 @@ GEMINI.md
 *.svg
 
 graphify-out/cache/
-graphify-out/2026*
-graphify-out/2027*
-graphify-out/2028*
-graphify-out/2029*
+graphify-out/20*
+graphify-out/
