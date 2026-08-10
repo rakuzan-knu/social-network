@@ -40,7 +40,6 @@ export class SessionsRepository implements ISessionsRepository {
   }
 
   async touchByJti(jti: string): Promise<void> {
-    // updateMany avoids throwing when the session row is already gone.
     await this.prisma.session.updateMany({
       where: { jti },
       data: { lastActiveAt: new Date() },

@@ -144,10 +144,11 @@ export class MessagesRepository implements IMessagesRepository {
     limit: number,
     hiddenUserIds?: string[],
   ): Promise<MessageWithDetails[]> {
+    const escapedQuery = query.replace(/[%_\\]/g, '\\$&');
     return this.prisma.message.findMany({
       where: {
         conversationId,
-        body: { contains: query, mode: 'insensitive' },
+        body: { contains: escapedQuery, mode: 'insensitive' },
         deletedAt: null,
         deletedForAll: false,
         ...(hiddenUserIds && hiddenUserIds.length > 0

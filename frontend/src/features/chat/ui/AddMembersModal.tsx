@@ -82,6 +82,7 @@ export default function AddMembersModal({
                 <input
                   autoFocus
                   value={query}
+                  maxLength={32}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search by username"
                   className="w-full h-10 pl-10 pr-4 rounded-full bg-white/5 border border-white/5 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-white/20 transition-colors"

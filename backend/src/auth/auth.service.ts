@@ -107,7 +107,6 @@ export class AuthService {
       throw new UnauthorizedException('User no longer exists');
     }
 
-    // Reuse the same jti so the access token keeps pointing at its session row.
     const accessToken = await this.signAccessToken(user.id, user.email, user.username, payload.jti);
     await this.sessionsService.touch(payload.jti);
 
@@ -126,10 +125,6 @@ export class AuthService {
     await this.sessionsService.deleteByJti(payload.jti);
   }
 
-  /**
-   * Verify the current password, set a new one, and revoke every other session so
-   * other devices are logged out. The caller's own session (keepJti) survives.
-   */
   async changePassword(userId: string, dto: ChangePasswordDto, keepJti?: string): Promise<void> {
     const user = await this.usersService.findById(userId);
     if (!user) throw new UnauthorizedException('User no longer exists');
@@ -143,12 +138,10 @@ export class AuthService {
     if (keepJti) await this.revokeOtherSessions(userId, keepJti);
   }
 
-  /** Revoke a single refresh token (Redis key) for a session being deleted. */
   async revokeRefreshByJti(userId: string, jti: string): Promise<void> {
     await this.redisService.del(this.buildRefreshKey(userId, jti));
   }
 
-  /** Revoke every session except keepJti: delete Session rows + their Redis refresh keys. */
   async revokeOtherSessions(userId: string, keepJti: string): Promise<void> {
     const revokedJtis = await this.sessionsService.revokeOthers(userId, keepJti);
     await Promise.all(
@@ -236,7 +229,6 @@ export class AuthService {
   private parseTtlToSeconds(ttl: string): number {
     const match = /^(\d+)([smhd])$/.exec(ttl);
     if (!match) {
-      // fall back: assume value is already in seconds
       const asNumber = Number(ttl);
       return Number.isNaN(asNumber) ? 60 * 60 * 24 * 7 : asNumber;
     }

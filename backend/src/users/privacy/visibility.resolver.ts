@@ -2,31 +2,20 @@ import { Injectable } from '@nestjs/common';
 import { ExceptionMode, FollowStatus, PrivacyDimension, Visibility } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
-/** Per-owner allow/deny target sets for a single dimension. */
 interface ExceptionSets {
   allow: Set<string>;
   deny: Set<string>;
 }
 
-/**
- * Batch-loaded context for resolving any privacy dimension of a *set* of owners
- * against one viewer, with a constant number of DB queries regardless of owner count.
- */
 export interface VisibilityContext {
   viewerId: string | null;
-  /** owner -> dimension -> {allow,deny} */
   exceptions: Map<string, Map<PrivacyDimension, ExceptionSets>>;
-  /** owner -> per-dimension visibility (defaults applied) */
   visibility: Map<string, Record<PrivacyDimension, Visibility>>;
-  /** owners the viewer follows with ACCEPTED status */
   acceptedFollowing: Set<string>;
-  /** owners with a PENDING follow request from the viewer */
   pendingFollowing: Set<string>;
-  /** owners hidden bidirectionally by a block with the viewer */
   blocked: Set<string>;
 }
 
-/** Schema-default visibility per dimension (birthday defaults to NOBODY, rest EVERYBODY). */
 const DIMENSION_DEFAULT: Record<PrivacyDimension, Visibility> = {
   LAST_SEEN: Visibility.EVERYBODY,
   AVATAR: Visibility.EVERYBODY,
@@ -40,7 +29,6 @@ const DIMENSION_DEFAULT: Record<PrivacyDimension, Visibility> = {
   GROUP_INVITES: Visibility.EVERYBODY,
 };
 
-/** Maps a UserPrivacy row column to its PrivacyDimension. */
 const PRIVACY_COLUMN: Record<PrivacyDimension, keyof UserPrivacyRow> = {
   LAST_SEEN: 'lastSeen',
   AVATAR: 'avatar',
@@ -74,7 +62,6 @@ const ALL_DIMENSIONS = Object.keys(DIMENSION_DEFAULT) as PrivacyDimension[];
 export class VisibilityResolver {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Loads all data needed to resolve any dimension for the given owners + viewer in constant queries. */
   async loadContext(ownerIds: string[], viewerId: string | null): Promise<VisibilityContext> {
     const uniqueOwners = [...new Set(ownerIds)];
 
@@ -152,15 +139,10 @@ export class VisibilityResolver {
     };
   }
 
-  /** True if the viewer is an ACCEPTED follower of the owner. */
   isFollower(ownerId: string, ctx: VisibilityContext): boolean {
     return ctx.acceptedFollowing.has(ownerId);
   }
 
-  /**
-   * Pure, synchronous visibility check for one dimension.
-   * Precedence: block > deny exception > allow exception > base visibility.
-   */
   resolve(dimension: PrivacyDimension, ownerId: string, ctx: VisibilityContext): boolean {
     const { viewerId } = ctx;
     if (viewerId === ownerId) return true; // owner always sees own data
@@ -184,10 +166,6 @@ export class VisibilityResolver {
     }
   }
 
-  /**
-   * Presence audience for one subject across many candidate viewers, in constant queries.
-   * Returns the set of viewerIds who MAY see the subject's LAST_SEEN presence.
-   */
   async resolvePresenceAudience(ownerId: string, viewerIds: string[]): Promise<Set<string>> {
     const uniqueViewers = [...new Set(viewerIds)].filter((v) => v !== ownerId);
     if (uniqueViewers.length === 0) return new Set();
@@ -239,7 +217,6 @@ export class VisibilityResolver {
       }
       if (base === Visibility.EVERYBODY) audience.add(viewerId);
       else if (base === Visibility.CONTACTS && followers.has(viewerId)) audience.add(viewerId);
-      // NOBODY: excluded
     }
     return audience;
   }

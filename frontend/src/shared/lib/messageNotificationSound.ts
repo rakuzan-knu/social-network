@@ -1,3 +1,5 @@
+import { useNotificationSettingsStore } from '@/shared/model/useNotificationSettingsStore';
+
 const MESSAGE_NOTIFICATION_SOUND_SRC = '/sounds/message-received.wav';
 
 let audio: HTMLAudioElement | null = null;
@@ -9,7 +11,7 @@ function getAudio() {
   if (!audio) {
     audio = new Audio(MESSAGE_NOTIFICATION_SOUND_SRC);
     audio.preload = 'auto';
-    audio.volume = 0.75;
+    audio.volume = 1;
   }
   return audio;
 }
@@ -45,12 +47,25 @@ export function initializeMessageNotificationSound() {
   window.addEventListener('touchstart', unlock, { passive: true });
 }
 
-export function playMessageNotificationSound() {
+export function playMessageNotificationSound(customVolume?: number) {
   const sound = getAudio();
   if (!sound) return;
 
+  const { allowSound, volume: storeVolume } = useNotificationSettingsStore.getState();
+  if (!allowSound && customVolume === undefined) return;
+
+  const targetVolPercent = customVolume !== undefined ? customVolume : storeVolume;
+  const targetVolume = Math.max(0, Math.min(1, targetVolPercent / 100));
+
+  if (targetVolume === 0) return;
+
+  sound.volume = targetVolume;
   sound.currentTime = 0;
   void sound.play().catch(() => {
     void unlockAudio();
   });
+}
+
+export function playPreviewNotificationSound(volumePercent: number) {
+  playMessageNotificationSound(volumePercent);
 }

@@ -9,6 +9,7 @@ import {
   playMessageNotificationSound,
 } from '@/shared/lib/messageNotificationSound';
 import { useMessageToastStore } from '@/shared/model/useMessageToastStore';
+import { useNotificationSettingsStore } from '@/shared/model/useNotificationSettingsStore';
 import { getConversationDisplay } from '../lib/getConversationDisplay';
 import { getMessageToastPreview } from '../lib/getMessageToastPreview';
 
@@ -21,6 +22,9 @@ export function useMessengerRealtime(
   const queryClient = useQueryClient();
   const { userId } = useAuthStore();
   const addToast = useMessageToastStore((s) => s.addToast);
+  const { enableNotifications, privateChats, groups, reactions, showName, showText } =
+    useNotificationSettingsStore();
+
   const joinedRef = useRef<Set<string>>(new Set());
   const playedMessageIdsRef = useRef<Set<string>>(new Set());
 
@@ -40,6 +44,11 @@ export function useMessengerRealtime(
     const handleNewMessage = ({ message }: { conversationId: string; message: MessageView }) => {
       const conversations = queryClient.getQueryData<ConversationView[]>([CONVERSATIONS_KEY]);
       const conversation = conversations?.find((c) => c.id === message.conversationId);
+      const isGroup = conversation?.type === 'GROUP';
+
+      if (isGroup && !groups) return;
+      if (!isGroup && !privateChats) return;
+
       const shouldNotify =
         message.sender.id !== userId &&
         message.conversationId !== activeConversationId &&
@@ -66,17 +75,73 @@ export function useMessengerRealtime(
         playedMessageIdsRef.current.add(message.id);
         playMessageNotificationSound();
 
-        if (showPushNotifications && conversation) {
+        if (showPushNotifications && enableNotifications && conversation) {
           const display = getConversationDisplay(conversation, userId);
+          const toastTitle = showName ? display.title : 'Eternal';
+          const toastBody = showName
+            ? showText
+              ? getMessageToastPreview(message)
+              : 'You have a new message'
+            : 'You have a new message';
+
           addToast({
             id: message.id,
             conversationId: message.conversationId,
             messageId: message.id,
-            title: display.title,
-            body: getMessageToastPreview(message),
-            avatar: display.avatar,
-            memberAvatars: conversation.participants.map((participant) => participant.user.avatar),
-            isGroup: display.isGroup,
+            title: toastTitle,
+            body: toastBody,
+            avatar: showName ? display.avatar : null,
+            memberAvatars: showName
+              ? conversation.participants.map((participant) => participant.user.avatar)
+              : [],
+            isGroup: showName ? display.isGroup : false,
+          });
+        }
+      }
+    };
+
+    const handleReactionAdded = ({
+      conversationId,
+      message,
+    }: {
+      conversationId: string;
+      message: MessageView;
+    }) => {
+      if (!reactions) return;
+      const conversations = queryClient.getQueryData<ConversationView[]>([CONVERSATIONS_KEY]);
+      const conversation = conversations?.find((c) => c.id === conversationId);
+
+      const latestReaction = message.reactions?.[message.reactions.length - 1];
+      if (!latestReaction) return;
+
+      const reactor = latestReaction.users?.[latestReaction.users.length - 1];
+      if (!reactor || reactor.id === userId) return;
+
+      if (
+        conversationId !== activeConversationId &&
+        conversation?.myMuteLevel !== 'MESSAGES' &&
+        conversation?.myMuteLevel !== 'MESSAGES_AND_CALLS'
+      ) {
+        playMessageNotificationSound();
+
+        if (showPushNotifications && enableNotifications) {
+          const reactorName = reactor.displayName || reactor.username;
+          const toastTitle = showName && reactorName ? reactorName : 'Eternal';
+          const toastBody = showName
+            ? showText
+              ? `Reacted ${latestReaction.emoji} to your message`
+              : 'Reacted to your message'
+            : 'Reacted to your message';
+
+          addToast({
+            id: `react-${message.id}-${Date.now()}`,
+            conversationId,
+            messageId: message.id,
+            title: toastTitle,
+            body: toastBody,
+            avatar: showName ? reactor.avatar || null : null,
+            memberAvatars: [],
+            isGroup: false,
           });
         }
       }
@@ -89,11 +154,26 @@ export function useMessengerRealtime(
     };
 
     socket.on('newMessage', handleNewMessage);
+    socket.on('messageReactionAdded', handleReactionAdded);
     socket.on('conversationUpdated', handleConversationUpdated);
 
     return () => {
       socket.off('newMessage', handleNewMessage);
+      socket.off('messageReactionAdded', handleReactionAdded);
       socket.off('conversationUpdated', handleConversationUpdated);
     };
-  }, [socket, queryClient, userId, activeConversationId, showPushNotifications, addToast]);
+  }, [
+    socket,
+    queryClient,
+    userId,
+    activeConversationId,
+    showPushNotifications,
+    enableNotifications,
+    privateChats,
+    groups,
+    reactions,
+    showName,
+    showText,
+    addToast,
+  ]);
 }

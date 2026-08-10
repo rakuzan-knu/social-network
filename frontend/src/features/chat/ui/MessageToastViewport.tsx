@@ -9,10 +9,13 @@ import { CONVERSATIONS_KEY } from '@/shared/api/queryKeys';
 import { ConversationView } from '../../../entities/chat/model/types';
 import { chatApi } from '../api/chatApi';
 
+import { useNotificationSettingsStore } from '@/shared/model/useNotificationSettingsStore';
+
 export default function MessageToastViewport() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { toasts, removeToast, dismissAll } = useMessageToastStore();
+  const { toastPosition, maxToasts } = useNotificationSettingsStore();
 
   const openToast = (toastId: string, conversationId: string, messageId: string) => {
     removeToast(toastId);
@@ -25,10 +28,21 @@ export default function MessageToastViewport() {
     navigate(`/messages/${conversationId}?messageId=${messageId}`);
   };
 
-  if (toasts.length === 0) return null;
+  const visibleToasts = toasts.slice(0, maxToasts);
+
+  if (visibleToasts.length === 0) return null;
+
+  const positionClasses = {
+    'top-left': 'top-5 left-5 flex-col',
+    'top-right': 'top-5 right-5 flex-col',
+    'bottom-left': 'bottom-5 left-5 flex-col-reverse',
+    'bottom-right': 'bottom-5 right-5 flex-col-reverse',
+  }[toastPosition || 'bottom-right'];
 
   return (
-    <div className="fixed right-5 bottom-5 z-[70] flex w-[min(380px,calc(100vw-2.5rem))] flex-col gap-2 pointer-events-none">
+    <div
+      className={`fixed z-[350] flex w-[min(380px,calc(100vw-2.5rem))] gap-2 pointer-events-none transition-all duration-300 ${positionClasses}`}
+    >
       {toasts.length >= 3 && (
         <button
           type="button"
@@ -39,7 +53,7 @@ export default function MessageToastViewport() {
         </button>
       )}
 
-      {toasts.map((toast) => (
+      {visibleToasts.map((toast) => (
         <div
           key={toast.id}
           role="button"
@@ -57,11 +71,19 @@ export default function MessageToastViewport() {
             {toast.isGroup ? (
               toast.avatar ? (
                 <Avatar size="md" src={toast.avatar} />
-              ) : (
+              ) : toast.memberAvatars.length > 0 ? (
                 <GroupAvatarCollage avatars={toast.memberAvatars} size={40} />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center text-white font-black text-base shadow-md">
+                  E
+                </div>
               )
-            ) : (
+            ) : toast.avatar ? (
               <Avatar size="md" src={toast.avatar} />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center text-white font-black text-base shadow-md">
+                E
+              </div>
             )}
           </div>
 

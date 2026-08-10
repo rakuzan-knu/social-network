@@ -29,7 +29,6 @@ export default function BlockUserModal({ onClose }: BlockUserModalProps) {
 
   const blockedIds = useMemo(() => new Set((blockedUsers ?? []).map((u) => u.id)), [blockedUsers]);
 
-  // People you've chatted with / share a group with (deduped, excluding self).
   const chattedWith = useMemo<BlockCandidate[]>(() => {
     const map = new Map<string, BlockCandidate>();
     for (const conv of conversations ?? []) {

@@ -12,4 +12,5 @@ export interface IUsersRepository {
   updateUser(id: string, data: Prisma.UserUpdateInput): Promise<User>;
   updateAvatar(id: string, avatarUrl: string | null): Promise<User>;
   updatePassword(id: string, passwordHash: string): Promise<void>;
+  deleteUser(id: string): Promise<void>;
 }

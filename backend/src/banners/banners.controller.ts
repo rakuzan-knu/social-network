@@ -29,9 +29,8 @@ import type { BannerView } from './interfaces/banners-repository.interface';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/interfaces/jwt-payload.interface';
 
-const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
 
-/** Parses a multipart string field into a 0..100 position, defaulting to undefined when absent/invalid. */
 function parsePosition(raw?: string): number | undefined {
   if (raw === undefined || raw === '') return undefined;
   const n = Number(raw);
@@ -70,7 +69,7 @@ export class BannersController {
       new ParseFilePipe({
         validators: [
           new MaxFileSizeValidator({ maxSize: MAX_FILE_SIZE_BYTES }),
-          new FileTypeValidator({ fileType: /^image\/(jpeg|png|webp)$/ }),
+          new FileTypeValidator({ fileType: /^image\/(jpeg|jpg|png|gif|webp)$/ }),
         ],
       }),
     )

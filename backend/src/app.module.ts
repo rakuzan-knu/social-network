@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { ScheduleModule } from '@nestjs/schedule';
 import { APP_GUARD } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule } from './auth/auth.module';
-import { validateEnv } from './config/env.validation';
 import { CommentsModule } from './comments/comments.module';
+import { validateEnv } from './config/env.validation';
 import { HealthModule } from './health/health.module';
 import { LikesModule } from './likes/likes.module';
 import { PostsModule } from './posts/posts.module';

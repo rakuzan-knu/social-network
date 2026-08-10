@@ -12,17 +12,18 @@ export function useUserSearch(rawQuery: string) {
     return () => clearTimeout(id);
   }, [rawQuery]);
 
-  const trimmed = debouncedQuery.trim();
+  const clean = debouncedQuery.trim().replace(/^@/, '');
+  const isValidQuery = clean.length >= 2 && /^[a-zA-Z0-9._]+$/.test(clean);
 
   const query = useQuery({
-    queryKey: ['user-search', trimmed],
-    queryFn: () => userSearchApi.search(trimmed),
-    enabled: trimmed.length > 0,
+    queryKey: ['user-search', clean],
+    queryFn: () => userSearchApi.search(clean),
+    enabled: isValidQuery,
     staleTime: 1000 * 30,
   });
 
   return {
-    results: trimmed.length > 0 ? (query.data ?? []) : [],
-    isSearching: trimmed.length > 0 && query.isFetching,
+    results: isValidQuery ? (query.data ?? []).slice(0, 20) : [],
+    isSearching: isValidQuery && query.isFetching,
   };
 }

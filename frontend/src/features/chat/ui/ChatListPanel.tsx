@@ -51,7 +51,7 @@ export default function ChatListPanel({
   onSelectConversation,
   activeConversationId,
 }: ChatListPanelProps) {
-  const { isChatListExpanded, toggleChatList } = useUIStore();
+  const { isChatListExpanded, toggleChatList, openEditProfile } = useUIStore();
   const { userId } = useAuthStore();
   const { data: conversations, isLoading, isError } = useConversations();
   const {
@@ -228,6 +228,10 @@ export default function ChatListPanel({
       setRestrictedOpen(true);
       return;
     }
+    if (section === 'settings' || section === 'privacy') {
+      openEditProfile();
+      return;
+    }
     // TODO: wire the remaining sections to real routes/modals once they exist
     console.log('open section:', section);
   };
@@ -343,6 +347,7 @@ export default function ChatListPanel({
               />
               <input
                 value={search}
+                maxLength={100}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search in Messenger"
                 className="w-full h-10 pl-10 pr-4 rounded-full bg-white/5 border border-white/5 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-white/20 transition-colors"

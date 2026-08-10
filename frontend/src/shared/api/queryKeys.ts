@@ -9,3 +9,7 @@ export const POLL_VOTERS_KEY = 'poll-voters';
 export const CONVERSATIONS_KEY = 'conversations';
 export const CONVERSATION_MESSAGES_KEY = 'conversation-messages';
 export const BLOCKED_USERS_KEY = 'blocked-users';
+export const SESSIONS_KEY = 'sessions';
+export const PRIVACY_KEY = 'privacy';
+export const PRIVACY_EXCEPTIONS_KEY = 'privacy-exceptions';
+export const FOLLOW_REQUESTS_KEY = 'follow-requests';

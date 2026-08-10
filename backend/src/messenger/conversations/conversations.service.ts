@@ -335,12 +335,6 @@ export class ConversationsService {
     return this.convsRepo.findBlockedUsers(userId);
   }
 
-  /**
-   * Resolve, in a single query, both directions of block relationships for a user.
-   * `blockedByMe` — users this user has blocked.
-   * `blockingMe`  — users who have blocked this user.
-   * The union of the two is the set to hide bidirectionally (Telegram-style).
-   */
   async getBlockRelationships(
     userId: string,
   ): Promise<{ blockedByMe: Set<string>; blockingMe: Set<string> }> {

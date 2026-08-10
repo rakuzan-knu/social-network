@@ -116,14 +116,22 @@ export default function ChatFolderModal({
                 </span>
               </button>
               <div className="relative flex-1">
-                <label className="text-sm font-medium" style={{ color }}>
-                  Folder name
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium" style={{ color }}>
+                    Folder name
+                  </label>
+                  <span className="text-[11px] text-gray-500 font-medium">
+                    {Array.from(name).length}/12
+                  </span>
+                </div>
                 <input
                   autoFocus
                   value={name}
-                  maxLength={15}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => {
+                    if (Array.from(e.target.value).length <= 12) {
+                      setName(e.target.value);
+                    }
+                  }}
                   className="mt-1 w-full border-b bg-transparent pb-2 pr-10 text-sm outline-none"
                   style={{ borderColor: color }}
                 />
@@ -132,8 +140,9 @@ export default function ChatFolderModal({
                     isOpen={isEmojiPickerOpen}
                     onToggle={() => setEmojiPickerOpen((v) => !v)}
                     onEmojiSelect={(selectedEmoji) => {
-                      setEmoji(selectedEmoji);
-                      setIcon(null);
+                      if (Array.from(name + selectedEmoji).length <= 12) {
+                        setName((prev) => prev + selectedEmoji);
+                      }
                       setEmojiPickerOpen(false);
                     }}
                     forceDirection="bottom"
@@ -330,7 +339,15 @@ export default function ChatFolderModal({
             <button className="font-semibold text-sky-300" onClick={close}>
               Cancel
             </button>
-            <button className="font-semibold text-sky-300" onClick={handleSave}>
+            <button
+              disabled={!trimmedName}
+              className={`font-semibold transition-opacity ${
+                !trimmedName
+                  ? 'text-gray-500 cursor-not-allowed opacity-40'
+                  : 'text-sky-300 hover:text-sky-200'
+              }`}
+              onClick={handleSave}
+            >
               {isEditing ? 'Save' : 'Create'}
             </button>
           </div>

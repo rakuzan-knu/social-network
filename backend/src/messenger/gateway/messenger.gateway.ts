@@ -40,6 +40,7 @@ interface AuthenticatedSocket extends Socket {
 const WsPipe = new ValidationPipe({ transform: true, whitelist: true });
 
 @UseFilters(WsValidationFilter)
+@UsePipes(WsPipe)
 @WebSocketGateway({
   namespace: '/messenger',
   cors: { origin: '*', credentials: true },
@@ -364,11 +365,6 @@ export class MessengerGateway implements OnGatewayInit, OnGatewayConnection, OnG
     callback?.({ status: 'ok' });
   }
 
-  /**
-   * Emit an event to every online participant of a conversation EXCEPT those in a
-   * block relationship with the acting user (either direction — Telegram-style).
-   * The acting user's own sockets are always included unless `includeActor` is false.
-   */
   private async emitToConversationExceptBlocked(
     conversationId: string,
     actingUserId: string,
@@ -393,11 +389,6 @@ export class MessengerGateway implements OnGatewayInit, OnGatewayConnection, OnG
     }
   }
 
-  /**
-   * Broadcast a presence event to every online user who may see the subject:
-   * excludes block relationships (both ways) AND anyone the subject's LAST_SEEN
-   * privacy (Everybody / Contacts / Nobody + allow/deny exceptions) hides them from.
-   */
   private async emitPresenceExceptBlocked(
     subjectUserId: string,
     event: string,

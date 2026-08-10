@@ -124,8 +124,6 @@ export class MessengerMapper {
       this.mapMessage(pm.message, requestingUserId, pinnedMessageIds),
     );
 
-    // Bidirectional block flags. Only meaningful for DIRECT conversations, where
-    // "the other user" is unambiguous.
     const blockedByMe = blockCtx?.blockedByMe ?? new Set<string>();
     const blockingMe = blockCtx?.blockingMe ?? new Set<string>();
     const otherUserId =
@@ -135,7 +133,6 @@ export class MessengerMapper {
     const iBlockedThem = !!otherUserId && blockedByMe.has(otherUserId);
     const theyBlockedMe = !!otherUserId && blockingMe.has(otherUserId);
 
-    // Hide the last-message preview if its sender is on either side of a block.
     const lastRaw = conv.messages && conv.messages.length > 0 ? conv.messages[0] : null;
     const lastSenderHidden =
       !!lastRaw && (blockedByMe.has(lastRaw.senderId) || blockingMe.has(lastRaw.senderId));

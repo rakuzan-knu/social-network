@@ -54,7 +54,6 @@ export default function ArchivedChatsModal({ onClose }: ArchivedChatsModalProps)
     [conversations],
   );
 
-  // Drop the selection if the active chat leaves the archive (e.g. after unarchiving).
   const activeConversation = archived.find((c) => c.id === activeId) ?? null;
   if (activeId && !activeConversation) setActiveId(null);
 

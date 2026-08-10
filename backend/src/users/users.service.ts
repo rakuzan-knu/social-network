@@ -4,7 +4,9 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
+import * as argon2 from 'argon2';
 import { PrivacyDimension, Prisma, User } from '@prisma/client';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-users.dto';
@@ -16,7 +18,6 @@ import { VisibilityResolver } from './privacy/visibility.resolver';
 import type { VisibilityContext } from './privacy/visibility.resolver';
 import { toLastSeenGranularity } from './privacy/last-seen.util';
 
-/** Raw, non-viewer-specific profile snapshot cached in Redis. */
 type RawProfile = {
   id: string;
   username: string;
@@ -67,13 +68,26 @@ export class UsersService {
     await this.redis.del(this.userKey(id));
   }
 
-  /** Records the user's last-seen time on disconnect and busts the cached profile. */
   async touchLastSeen(id: string, when: Date = new Date()): Promise<void> {
     await this.usersRepository.updateUser(id, { lastSeenAt: when });
     await this.redis.del(this.userKey(id));
   }
 
-  /** Viewer-agnostic raw profile (cached). Never returned directly to the wire. */
+  async deleteAccount(id: string, password: string): Promise<void> {
+    const user = await this.usersRepository.findById(id);
+    if (!user) {
+      throw new NotFoundException(`User with id ${id} not found`);
+    }
+
+    const matches = await argon2.verify(user.passwordHash, password);
+    if (!matches) {
+      throw new UnauthorizedException('Incorrect password');
+    }
+
+    await this.usersRepository.deleteUser(id);
+    await this.redis.del(this.userKey(id));
+  }
+
   private async getRawProfile(id: string): Promise<RawProfile> {
     const key = this.userKey(id);
     return this.redis.getOrSet(key, 3600, async () => {
@@ -85,14 +99,12 @@ export class UsersService {
     });
   }
 
-  /** Public profile as seen by `viewerId` (null = anonymous), with privacy applied per-viewer. */
   async getProfileFor(id: string, viewerId: string | null): Promise<UserProfileDto> {
     const raw = await this.getRawProfile(id);
     const ctx = await this.visibility.loadContext([id], viewerId);
     return this.applyPrivacy(raw, viewerId, ctx);
   }
 
-  /** Backwards-compatible anonymous profile fetch. */
   getProfile(id: string): Promise<UserProfileDto> {
     return this.getProfileFor(id, null);
   }
@@ -115,8 +127,14 @@ export class UsersService {
     }
 
     if (dto.username && dto.username !== user.username) {
+      const cooldownKey = `username_change_cooldown:${id}`;
+      const lastChange = await this.redis.get(cooldownKey);
+      if (lastChange) {
+        throw new BadRequestException('Username can only be changed once every 7 days.');
+      }
       const existing = await this.usersRepository.findByUsername(dto.username);
       if (existing) throw new ConflictException('Username is already taken');
+      await this.redis.set(cooldownKey, Date.now().toString(), 604800);
     }
 
     const data: Prisma.UserUpdateInput = {};
@@ -127,7 +145,6 @@ export class UsersService {
 
     await this.usersRepository.updateUser(id, data);
     await this.redis.del(this.userKey(id));
-    // Owner viewing their own freshly-updated profile: no gating.
     return this.getProfileFor(id, id);
   }
 
@@ -155,7 +172,6 @@ export class UsersService {
     return FollowStatusView.NONE;
   }
 
-  /** Applies per-viewer privacy to a raw profile. Pure aside from the injected `ctx`. */
   applyPrivacy(
     raw: RawProfile,
     viewerId: string | null,
@@ -180,13 +196,10 @@ export class UsersService {
       base.followStatus = this.followStatusView(raw.id, ctx);
     }
 
-    // Private-account gate (Instagram-minimal): strangers get only the follow card
-    // (username, display name, minimal avatar) — enough to render a Follow button.
     if (raw.isPrivate && !isOwner && !isFollower) {
       return { ...base, avatar: raw.avatar };
     }
 
-    // Per-dimension gating for everyone who passes the private gate.
     if (isOwner || this.visibility.resolve(PrivacyDimension.AVATAR, raw.id, ctx)) {
       base.avatar = raw.avatar;
     } else {
@@ -206,7 +219,6 @@ export class UsersService {
       base.birthDate = raw.birthDate;
     }
 
-    // Last-seen: exact ISO when visible, coarse granularity bucket otherwise.
     if (raw.lastSeenAt) {
       if (isOwner || this.visibility.resolve(PrivacyDimension.LAST_SEEN, raw.id, ctx)) {
         base.lastSeen = raw.lastSeenAt;

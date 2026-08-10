@@ -20,7 +20,6 @@ export class SessionsService {
     private readonly sessionsRepo: ISessionsRepository,
   ) {}
 
-  /** Build a Session row for a freshly issued refresh token. */
   async create(userId: string, jti: string, meta: RequestMeta): Promise<void> {
     const data: CreateSessionData = {
       userId,
@@ -41,7 +40,6 @@ export class SessionsService {
     return this.sessionsRepo.deleteByJti(jti);
   }
 
-  /** Delete every session except keepJti; returns the revoked jtis so callers can purge Redis. */
   revokeOthers(userId: string, keepJti: string): Promise<string[]> {
     return this.sessionsRepo.deleteOtherJtis(userId, keepJti);
   }
@@ -60,7 +58,6 @@ export class SessionsService {
     }));
   }
 
-  /** Revoke a single session by id (ownership-checked). Returns the jti so Redis can be purged. */
   async revokeById(userId: string, sessionId: string): Promise<string> {
     const row = await this.sessionsRepo.findById(sessionId);
     if (!row) throw new NotFoundException('Session not found');
@@ -80,7 +77,6 @@ export class SessionsService {
 
   private normalizeIp(ip?: string | null): string | null {
     if (!ip) return null;
-    // Express prefixes IPv4-mapped IPv6 addresses like ::ffff:127.0.0.1
     return ip.replace(/^::ffff:/, '');
   }
 

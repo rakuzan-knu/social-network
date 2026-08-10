@@ -12,7 +12,6 @@ import { RedisService } from '../../redis/redis.service';
 import { DimensionExceptionsDto, PrivacyExceptionUserDto } from './dto/privacy-exceptions.dto';
 import { PrivacySettingsDto, UpdatePrivacyDto } from './dto/privacy-settings.dto';
 
-/** Column defaults mirror the Prisma schema; birthday defaults to NOBODY. */
 const DEFAULT_PRIVACY: Omit<PrivacySettingsDto, 'isPrivate' | 'autoDeletePeriod'> = {
   lastSeen: Visibility.EVERYBODY,
   avatar: Visibility.EVERYBODY,
@@ -26,7 +25,6 @@ const DEFAULT_PRIVACY: Omit<PrivacySettingsDto, 'isPrivate' | 'autoDeletePeriod'
   groupInvites: Visibility.EVERYBODY,
 };
 
-/** Maps an UpdatePrivacyDto key to the UserPrivacy column of the same name. */
 const VISIBILITY_KEYS = [
   'lastSeen',
   'avatar',

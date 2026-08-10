@@ -8,7 +8,6 @@ import { MessengerGateway } from '../gateway/messenger.gateway';
 import { AUTO_DELETE_S3_CLIENT } from './s3-provider';
 import { cutoffFor } from './auto-delete.util';
 
-/** Rows fetched per page while draining a user's expired messages. */
 const PAGE_SIZE = 200;
 
 @Injectable()
@@ -55,7 +54,6 @@ export class AutoDeleteService {
     }
   }
 
-  /** Deletes, in pages, all of a user's messages older than the cutoff and their S3 media. */
   private async purgeUserMessages(userId: string, cutoff: Date): Promise<void> {
     while (true) {
       const messages = await this.prisma.message.findMany({
@@ -71,7 +69,6 @@ export class AutoDeleteService {
 
       if (messages.length === 0) break;
 
-      // S3 first so a DB delete never orphans a file. Per-object errors are swallowed.
       for (const message of messages) {
         for (const attachment of message.attachments) {
           await this.deleteObjectByUrl(attachment.url).catch((e) =>
@@ -83,7 +80,6 @@ export class AutoDeleteService {
       const ids = messages.map((m) => m.id);
       await this.prisma.message.deleteMany({ where: { id: { in: ids } } });
 
-      // Live-drop the bubbles from any open chat (deletedForAll = true).
       for (const message of messages) {
         this.gateway.emitMessageDeleted(message.conversationId, message.id, true);
       }
@@ -92,7 +88,6 @@ export class AutoDeleteService {
     }
   }
 
-  /** Best-effort S3 delete; only attempts URLs that match our public bucket prefix. */
   private async deleteObjectByUrl(url: string): Promise<void> {
     const prefix = `${this.publicUrl}/${this.bucket}/`;
     if (!this.publicUrl || !url.startsWith(prefix)) return;

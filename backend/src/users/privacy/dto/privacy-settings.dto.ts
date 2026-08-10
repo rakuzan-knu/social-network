@@ -2,7 +2,6 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { AutoDeletePeriod, ExceptionMode, PrivacyDimension, Visibility } from '@prisma/client';
 import { IsBoolean, IsEnum, IsOptional, IsString } from 'class-validator';
 
-/** Full privacy settings snapshot returned to the owner. */
 export class PrivacySettingsDto {
   @ApiProperty({ enum: Visibility }) lastSeen!: Visibility;
   @ApiProperty({ enum: Visibility }) avatar!: Visibility;

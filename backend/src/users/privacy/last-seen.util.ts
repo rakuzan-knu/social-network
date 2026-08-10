@@ -2,7 +2,6 @@ import { LastSeenGranularity } from '../dto/user-profile.dto';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** Buckets a lastSeen timestamp into a coarse Telegram-style label for viewers without exact access. */
 export function toLastSeenGranularity(lastSeenAt: Date, now: number): LastSeenGranularity {
   const age = now - lastSeenAt.getTime();
   if (age <= 3 * DAY_MS) return LastSeenGranularity.RECENTLY;

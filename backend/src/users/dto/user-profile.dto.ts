@@ -1,7 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { AutoDeletePeriod } from '@prisma/client';
 
-/** Coarse "last seen" bucket shown when the viewer may not see the exact timestamp. */
 export enum LastSeenGranularity {
   RECENTLY = 'RECENTLY',
   WITHIN_WEEK = 'WITHIN_WEEK',
@@ -9,7 +8,6 @@ export enum LastSeenGranularity {
   LONG_AGO = 'LONG_AGO',
 }
 
-/** Viewer's follow relationship to the profile owner. */
 export enum FollowStatusView {
   NONE = 'none',
   PENDING = 'pending',

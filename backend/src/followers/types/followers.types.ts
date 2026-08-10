@@ -1,7 +1,6 @@
 import type { FollowStatus } from '@prisma/client';
 import type { Paginated } from '../../common/pagination';
 
-/** Lightweight public user summary returned in follower/following/request lists. */
 export type PublicUserSummary = {
   id: string;
   username: string;

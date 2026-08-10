@@ -287,11 +287,6 @@ export class MessagesService {
     if (!p) throw new ForbiddenException('Not a member of this conversation');
   }
 
-  /**
-   * All user ids in a block relationship with `userId` (either direction). Messages
-   * from these users are hidden from `userId`'s history/search (group hiding is
-   * bidirectional and in-place — we hide going forward, we do not purge).
-   */
   private async getHiddenUserIds(userId: string): Promise<string[]> {
     const rows = await this.prisma.userBlock.findMany({
       where: { OR: [{ blockerId: userId }, { blockedId: userId }] },
@@ -304,11 +299,6 @@ export class MessagesService {
     return Array.from(hidden);
   }
 
-  /**
-   * For DIRECT conversations, refuse to send if either side has blocked the other
-   * (Telegram-style). Groups are not blocked at the send path — hiding happens at
-   * delivery/read instead.
-   */
   private async assertNotBlockedDirect(conversationId: string, senderId: string): Promise<void> {
     const conversation = await this.prisma.conversation.findUnique({
       where: { id: conversationId },
