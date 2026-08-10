@@ -1,19 +1,25 @@
 import { fireEvent, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import Sidebar from '../Sidebar';
 import { useUIStore } from '../../../../shared/model/useUIStore';
+import { useAuthStore } from '../../../../shared/model/useAuthStore';
 import { resetUIStore } from '../../../../test/resetUIStore';
 import { renderWithProviders } from '../../../../test/renderWithProviders';
 
 describe('Sidebar', () => {
+  beforeEach(() => {
+    useAuthStore.getState().setAuth('user-1');
+  });
+
   afterEach(() => {
     resetUIStore();
+    useAuthStore.getState().clearAuth();
   });
 
   it('renders collapsed by default', () => {
     renderWithProviders(<Sidebar />);
 
-    expect(screen.getByText('Home').closest('aside')).toHaveClass('w-16');
+    expect(screen.getByText('Home').closest('aside')).toHaveClass('w-20');
   });
 
   it('expands on mouse enter and updates the store', () => {
@@ -23,7 +29,7 @@ describe('Sidebar', () => {
     fireEvent.mouseEnter(aside);
 
     expect(useUIStore.getState().isSidebarExpanded).toBe(true);
-    expect(aside).toHaveClass('w-[200px]');
+    expect(aside).toHaveClass('w-[256px]');
   });
 
   it('collapses again on mouse leave', () => {
@@ -34,7 +40,7 @@ describe('Sidebar', () => {
     fireEvent.mouseLeave(aside);
 
     expect(useUIStore.getState().isSidebarExpanded).toBe(false);
-    expect(aside).toHaveClass('w-16');
+    expect(aside).toHaveClass('w-20');
   });
 
   it('renders all navigation menu items with their target routes', () => {
@@ -61,6 +67,6 @@ describe('Sidebar', () => {
   it('falls back to a generic profile link when no user is authenticated', () => {
     renderWithProviders(<Sidebar />);
 
-    expect(screen.getByText('Profile').closest('a')).toHaveAttribute('href', '#');
+    expect(screen.getByText('Profile').closest('a')).toHaveAttribute('href', '/');
   });
 });

@@ -1,4 +1,14 @@
 #!/bin/sh
 set -e
 
+echo "Validating line endings..."
+node scripts/validate-eol.js
+
+if command -v graphify >/dev/null 2>&1; then
+  echo "Updating Graphify code graph..."
+  graphify . --code-only || true
+  graphify cluster-only . || true
+  git add graphify-out/GRAPH_REPORT.md 2>/dev/null || true
+fi
+
 npx lint-staged --concurrent false

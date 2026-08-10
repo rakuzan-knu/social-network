@@ -17,6 +17,7 @@ import { RedisService } from '../redis/redis.service';
 import { VisibilityResolver } from './privacy/visibility.resolver';
 import type { VisibilityContext } from './privacy/visibility.resolver';
 import { toLastSeenGranularity } from './privacy/last-seen.util';
+import { PrismaService } from '../prisma/prisma.service';
 
 type RawProfile = {
   id: string;
@@ -41,10 +42,11 @@ export class UsersService {
     private readonly usersRepository: IUsersRepository,
     private readonly redis: RedisService,
     private readonly visibility: VisibilityResolver,
+    private readonly prisma: PrismaService,
   ) {}
 
   private userKey(id: string): string {
-    return `user${id}`;
+    return `user:${id}`;
   }
 
   findByEmail(email: string): Promise<User | null> {
@@ -117,9 +119,7 @@ export class UsersService {
     }
 
     const user = await this.usersRepository.findById(id);
-    if (!user) {
-      throw new NotFoundException(`User with id ${id} not found`);
-    }
+    if (!user) throw new NotFoundException(`User with id ${id} not found`);
 
     if (dto.email && dto.email !== user.email) {
       const existing = await this.usersRepository.findByEmail(dto.email);
@@ -220,15 +220,18 @@ export class UsersService {
     }
 
     if (raw.lastSeenAt) {
+      const parsed = new Date(raw.lastSeenAt);
+      const isOnline = now - parsed.getTime() < 5 * 60 * 1000;
       if (isOwner || this.visibility.resolve(PrivacyDimension.LAST_SEEN, raw.id, ctx)) {
-        base.lastSeen = raw.lastSeenAt;
+        base.lastSeen = parsed.toISOString();
+        base.lastSeenAt = parsed.toISOString();
+        base.isOnline = isOnline;
       } else {
-        base.lastSeen = toLastSeenGranularity(new Date(raw.lastSeenAt), now);
+        const gran = toLastSeenGranularity(parsed, now);
+        base.lastSeen = gran;
+        base.lastSeenAt = gran;
+        base.isOnline = false;
       }
-    }
-
-    if (isOwner) {
-      base.autoDeletePeriod = raw.autoDeletePeriod;
     }
 
     return base;

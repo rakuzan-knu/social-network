@@ -5,6 +5,7 @@ import { REDIS_CLIENT } from './redis.constants';
 @Injectable()
 export class RedisService {
   private readonly logger = new Logger(RedisService.name);
+
   constructor(@Inject(REDIS_CLIENT) private readonly client: Redis) {}
 
   getClient(): Redis {
@@ -24,16 +25,22 @@ export class RedisService {
     await this.client.del(key);
   }
 
-  /** Deletes every key matching a glob pattern using a non-blocking SCAN cursor. */
+  /** Deletes every key matching a glob pattern using scanStream. */
   async delByPattern(pattern: string): Promise<void> {
-    let cursor = '0';
-    do {
-      const [next, keys] = await this.client.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
-      cursor = next;
-      if (keys.length > 0) {
-        await this.client.del(...keys);
+    try {
+      const stream = this.client.scanStream({ match: pattern, count: 100 });
+      const keysToDelete: string[] = [];
+
+      for await (const resultKeys of stream) {
+        keysToDelete.push(...(resultKeys as string[]));
       }
-    } while (cursor !== '0');
+
+      if (keysToDelete.length > 0) {
+        await this.client.unlink(...keysToDelete);
+      }
+    } catch (e) {
+      this.logger.error(`Redis delByPattern failed for pattern ${pattern}: ${String(e)}`);
+    }
   }
 
   async exists(key: string): Promise<boolean> {
@@ -48,13 +55,16 @@ export class RedisService {
     } catch (e) {
       this.logger.warn(`Redis get failed for ${key}: ${String(e)}`);
     }
+
     const value = await loader();
     const ttl = ttlSeconds + Math.floor(Math.random() * 15);
+
     try {
       await this.client.set(key, JSON.stringify(value), 'EX', ttl);
     } catch (e) {
-      this.logger.warn(`Redis get failed for ${key}: ${String(e)}`);
+      this.logger.warn(`Redis set failed for ${key}: ${String(e)}`);
     }
+
     return value;
   }
 }

@@ -13,7 +13,9 @@ export class OptionalAuthGuard extends PassportAuthGuard('jwt') {
     return Promise.resolve(result).catch(() => true);
   }
 
-  handleRequest<TUser = unknown>(_err: unknown, user: TUser): TUser | null {
+  override handleRequest<TUser = unknown>(_err: unknown, user: TUser): TUser | null {
     return user ?? null;
   }
 }
+
+export const OptionalJwtAuthGuard = OptionalAuthGuard;

@@ -27,8 +27,9 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get(':id')
-  @HttpCode(HttpStatus.OK)
   @UseGuards(OptionalAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get public user profile by ID (privacy-aware)' })
   @ApiResponse({ status: 200, description: 'Profile retrieved', type: UserProfileDto })
   @ApiResponse({ status: 404, description: 'User not found' })
@@ -40,10 +41,10 @@ export class UsersController {
   }
 
   @Patch(':id')
-  @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @Throttle({ default: { limit: 3, ttl: 60000 } })
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Update own profile' })
   @ApiResponse({ status: 200, description: 'Profile updated', type: UserProfileDto })
   @ApiResponse({ status: 400, description: 'No fields provided or validation error' })

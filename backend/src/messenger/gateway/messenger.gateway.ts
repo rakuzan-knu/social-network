@@ -144,7 +144,6 @@ export class MessengerGateway implements OnGatewayInit, OnGatewayConnection, OnG
     await client.join(payload.conversationId);
   }
 
-  @UsePipes(WsPipe)
   @SubscribeMessage(WS_EVENTS.LEAVE_CONVERSATION)
   async handleLeave(
     @ConnectedSocket() client: AuthenticatedSocket,
@@ -153,7 +152,6 @@ export class MessengerGateway implements OnGatewayInit, OnGatewayConnection, OnG
     await client.leave(payload.conversationId);
   }
 
-  @UsePipes(WsPipe)
   @SubscribeMessage(WS_EVENTS.TYPING_START)
   async handleTypingStart(
     @ConnectedSocket() client: AuthenticatedSocket,
@@ -172,7 +170,6 @@ export class MessengerGateway implements OnGatewayInit, OnGatewayConnection, OnG
     );
   }
 
-  @UsePipes(WsPipe)
   @SubscribeMessage(WS_EVENTS.TYPING_STOP)
   async handleTypingStop(
     @ConnectedSocket() client: AuthenticatedSocket,
@@ -191,7 +188,6 @@ export class MessengerGateway implements OnGatewayInit, OnGatewayConnection, OnG
     );
   }
 
-  @UsePipes(WsPipe)
   @SubscribeMessage(WS_EVENTS.MARK_READ)
   async handleMarkRead(
     @ConnectedSocket() client: AuthenticatedSocket,
@@ -219,7 +215,6 @@ export class MessengerGateway implements OnGatewayInit, OnGatewayConnection, OnG
     );
   }
 
-  @UsePipes(WsPipe)
   @SubscribeMessage(WS_EVENTS.SEND_MESSAGE)
   async handleSendMessage(
     @ConnectedSocket() client: AuthenticatedSocket,
@@ -248,7 +243,6 @@ export class MessengerGateway implements OnGatewayInit, OnGatewayConnection, OnG
     callback?.({ status: 'ok', message });
   }
 
-  @UsePipes(WsPipe)
   @SubscribeMessage(WS_EVENTS.EDIT_MESSAGE)
   async handleEditMessage(
     @ConnectedSocket() client: AuthenticatedSocket,
@@ -264,7 +258,6 @@ export class MessengerGateway implements OnGatewayInit, OnGatewayConnection, OnG
     callback?.({ status: 'ok', message: updatedMessage });
   }
 
-  @UsePipes(WsPipe)
   @SubscribeMessage(WS_EVENTS.DELETE_MESSAGE)
   async handleDeleteMessage(
     @ConnectedSocket() client: AuthenticatedSocket,
@@ -284,7 +277,6 @@ export class MessengerGateway implements OnGatewayInit, OnGatewayConnection, OnG
     callback?.({ status: 'ok', deletedForAll: result.deletedForAll });
   }
 
-  @UsePipes(WsPipe)
   @SubscribeMessage(WS_EVENTS.FORWARD_MESSAGE)
   async handleForwardMessage(
     @ConnectedSocket() client: AuthenticatedSocket,
@@ -305,7 +297,6 @@ export class MessengerGateway implements OnGatewayInit, OnGatewayConnection, OnG
     callback?.({ status: 'ok', messages: results });
   }
 
-  @UsePipes(WsPipe)
   @SubscribeMessage(WS_EVENTS.ADD_REACTION)
   async handleAddReaction(
     @ConnectedSocket() client: AuthenticatedSocket,
@@ -321,7 +312,6 @@ export class MessengerGateway implements OnGatewayInit, OnGatewayConnection, OnG
     callback?.({ status: 'ok', message: updated });
   }
 
-  @UsePipes(WsPipe)
   @SubscribeMessage(WS_EVENTS.REMOVE_REACTION)
   async handleRemoveReaction(
     @ConnectedSocket() client: AuthenticatedSocket,
@@ -337,7 +327,6 @@ export class MessengerGateway implements OnGatewayInit, OnGatewayConnection, OnG
     callback?.({ status: 'ok', message: updated });
   }
 
-  @UsePipes(WsPipe)
   @SubscribeMessage(WS_EVENTS.PIN_MESSAGE)
   async handlePinMessage(
     @ConnectedSocket() client: AuthenticatedSocket,
@@ -349,7 +338,6 @@ export class MessengerGateway implements OnGatewayInit, OnGatewayConnection, OnG
     callback?.({ status: 'ok' });
   }
 
-  @UsePipes(WsPipe)
   @SubscribeMessage(WS_EVENTS.UNPIN_MESSAGE)
   async handleUnpinMessage(
     @ConnectedSocket() client: AuthenticatedSocket,

@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @tailwind base;
 @tailwind components;
@@ -10,23 +10,24 @@ body {
 }
 
 .bg-radial-gradient {
-  background-image: radial-gradient(
-    circle at 20% 40%, 
-    rgba(88, 28, 135, 0.15) 0%, 
-    rgba(0, 0, 0, 0) 50%
-  );
+  background-image: radial-gradient(circle at 20% 40%,
+      rgba(88, 28, 135, 0.15) 0%,
+      rgba(0, 0, 0, 0) 50%);
 }
 
 .custom-scrollbar::-webkit-scrollbar {
   width: 5px;
 }
+
 .custom-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
+
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background: #262626;
   border-radius: 99px;
 }
+
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #404040;
 }
@@ -35,6 +36,7 @@ body {
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
+
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
@@ -47,13 +49,16 @@ body {
 .EmojiPickerReact *::-webkit-scrollbar {
   width: 6px;
 }
+
 .EmojiPickerReact *::-webkit-scrollbar-track {
   background: transparent;
 }
+
 .EmojiPickerReact *::-webkit-scrollbar-thumb {
   background-color: rgba(255, 255, 255, 0.15);
   border-radius: 999px;
 }
+
 .EmojiPickerReact *::-webkit-scrollbar-thumb:hover {
   background-color: rgba(255, 255, 255, 0.25);
 }
@@ -61,6 +66,7 @@ body {
 .volume-slider {
   accent-color: white;
 }
+
 .volume-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 12px;
@@ -72,120 +78,238 @@ body {
 
 @layer utilities {
   .skeleton-shimmer {
-    background: linear-gradient(
-      100deg,
-      rgba(255, 255, 255, 0.04) 20%,
-      rgba(255, 255, 255, 0.09) 40%,
-      rgba(255, 255, 255, 0.04) 60%
-    );
+    background: linear-gradient(100deg,
+        rgba(255, 255, 255, 0.04) 20%,
+        rgba(255, 255, 255, 0.09) 40%,
+        rgba(255, 255, 255, 0.04) 60%);
     background-size: 200% 100%;
     animation: shimmer 1.6s ease-in-out infinite;
     border-radius: 6px;
   }
 
   @keyframes shimmer {
-    0% { background-position: 150% 0; }
-    100% { background-position: -50% 0; }
+    0% {
+      background-position: 150% 0;
+    }
+
+    100% {
+      background-position: -50% 0;
+    }
   }
 
   .animate-fadeIn {
     animation: fadeIn 150ms ease-out;
   }
+
   @keyframes fadeIn {
-    from { opacity: 0; transform: scale(0.96); }
-    to { opacity: 1; transform: scale(1); }
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
   }
 
   .animate-menuIn {
     animation: menuIn 150ms cubic-bezier(0.16, 1, 0.3, 1);
   }
+
   @keyframes menuIn {
-    from { opacity: 0; transform: scale(0.9) translateY(4px); }
-    to { opacity: 1; transform: scale(1) translateY(0); }
+    from {
+      opacity: 0;
+      transform: scale(0.9) translateY(4px);
+    }
+
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
   }
 
   .animate-popIn {
     animation: popIn 280ms cubic-bezier(0.34, 1.56, 0.64, 1);
   }
+
   @keyframes popIn {
-    0% { opacity: 0; transform: scale(0.3); }
-    60% { opacity: 1; transform: scale(1.15); }
-    100% { opacity: 1; transform: scale(1); }
+    0% {
+      opacity: 0;
+      transform: scale(0.3);
+    }
+
+    60% {
+      opacity: 1;
+      transform: scale(1.15);
+    }
+
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
   }
 
   .animate-reactionBounce {
     animation: reactionBounce 350ms cubic-bezier(0.34, 1.56, 0.64, 1);
   }
+
   @keyframes reactionBounce {
-    0% { transform: scale(1); }
-    35% { transform: scale(1.4); }
-    60% { transform: scale(0.9); }
-    100% { transform: scale(1); }
+    0% {
+      transform: scale(1);
+    }
+
+    35% {
+      transform: scale(1.4);
+    }
+
+    60% {
+      transform: scale(0.9);
+    }
+
+    100% {
+      transform: scale(1);
+    }
   }
 
   .animate-typingDot {
     animation: typingDot 1.2s ease-in-out infinite;
   }
+
   @keyframes typingDot {
-    0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
-    30% { transform: translateY(-4px); opacity: 1; }
+
+    0%,
+    60%,
+    100% {
+      transform: translateY(0);
+      opacity: 0.5;
+    }
+
+    30% {
+      transform: translateY(-4px);
+      opacity: 1;
+    }
   }
 
   .animate-slideInRight {
     animation: slideInRight 220ms cubic-bezier(0.16, 1, 0.3, 1);
   }
+
   @keyframes slideInRight {
-    from { opacity: 0; transform: translateX(24px); }
-    to { opacity: 1; transform: translateX(0); }
+    from {
+      opacity: 0;
+      transform: translateX(24px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
   }
 
   .animate-jumpHighlight {
     animation: jumpHighlight 1.6s ease-out;
   }
+
   @keyframes jumpHighlight {
-    0% { background-color: rgba(251, 191, 36, 0.25); }
-    100% { background-color: transparent; }
+    0% {
+      background-color: rgba(251, 191, 36, 0.25);
+    }
+
+    100% {
+      background-color: transparent;
+    }
   }
 
   .animate-modalPop {
     animation: modalPop 200ms cubic-bezier(0.16, 1, 0.3, 1);
   }
+
   @keyframes modalPop {
-    from { opacity: 0; transform: scale(0.92) translateY(6px); }
-    to { opacity: 1; transform: scale(1) translateY(0); }
+    from {
+      opacity: 0;
+      transform: scale(0.92) translateY(6px);
+    }
+
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
   }
 
   .animate-slideOutRight {
     animation: slideOutRight 180ms cubic-bezier(0.4, 0, 1, 1) forwards;
   }
+
   @keyframes slideOutRight {
-    from { opacity: 1; transform: translateX(0); }
-    to { opacity: 0; transform: translateX(24px); }
+    from {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    to {
+      opacity: 0;
+      transform: translateX(24px);
+    }
   }
 
   .animate-slideInLeft {
     animation: slideInLeft 220ms cubic-bezier(0.16, 1, 0.3, 1);
   }
+
   @keyframes slideInLeft {
-    from { opacity: 0; transform: translateX(-24px); }
-    to { opacity: 1; transform: translateX(0); }
+    from {
+      opacity: 0;
+      transform: translateX(-24px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
   }
 
   .animate-slideOutLeft {
     animation: slideOutLeft 180ms cubic-bezier(0.4, 0, 1, 1) forwards;
   }
+
   @keyframes slideOutLeft {
-    from { opacity: 1; transform: translateX(0); }
-    to { opacity: 0; transform: translateX(-24px); }
+    from {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    to {
+      opacity: 0;
+      transform: translateX(-24px);
+    }
   }
 
   .animate-shake {
     animation: shake 400ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
   }
+
   @keyframes shake {
-    10%, 90% { transform: translateX(-1px); }
-    20%, 80% { transform: translateX(2px); }
-    30%, 50%, 70% { transform: translateX(-5px); }
-    40%, 60% { transform: translateX(5px); }
+
+    10%,
+    90% {
+      transform: translateX(-1px);
+    }
+
+    20%,
+    80% {
+      transform: translateX(2px);
+    }
+
+    30%,
+    50%,
+    70% {
+      transform: translateX(-5px);
+    }
+
+    40%,
+    60% {
+      transform: translateX(5px);
+    }
   }
 }

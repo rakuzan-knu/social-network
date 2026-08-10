@@ -1,15 +1,19 @@
-import 'dotenv/config';
-import { ValidationPipe } from '@nestjs/common';
+import './instrument';
+import { type INestApplication, Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
+import { ExpressAdapter } from '@nestjs/platform-express';
 import { IoAdapter } from '@nestjs/platform-socket.io';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import express, { type Request, type Response } from 'express';
 
-async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+const logger = new Logger('Bootstrap');
 
-  // Behind a reverse proxy (nginx/Docker) so req.ip reflects the real client, not the proxy.
+async function createNestServer(expressApp: express.Express): Promise<INestApplication> {
+  const adapter = new ExpressAdapter(expressApp);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, adapter);
+
   app.set('trust proxy', 1);
 
   app.enableCors({
@@ -36,7 +40,30 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
 
-  const port = process.env.PORT ?? 3000;
-  await app.listen(port);
+  await app.init();
+  return app;
 }
-void bootstrap();
+
+// Local development
+if (process.env.NODE_ENV !== 'production') {
+  async function bootstrap() {
+    const expressApp = express();
+    await createNestServer(expressApp);
+    const port = process.env.PORT ?? 3000;
+    expressApp.listen(port, () => {
+      logger.log(`Server running on port ${port}`);
+    });
+  }
+  void bootstrap();
+}
+
+// Vercel Serverless Handler
+let expressAppInstance: express.Express | undefined;
+
+export default async function handler(req: Request, res: Response): Promise<void> {
+  if (!expressAppInstance) {
+    expressAppInstance = express();
+    await createNestServer(expressAppInstance);
+  }
+  expressAppInstance(req, res);
+}

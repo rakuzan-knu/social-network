@@ -15,16 +15,16 @@ export enum FollowStatusView {
 }
 
 export class UserProfileDto {
-  @ApiProperty()
+  @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440000' })
   id!: string;
 
-  @ApiProperty()
+  @ApiProperty({ example: 'johndoe' })
   username!: string;
 
-  @ApiProperty({ nullable: true })
+  @ApiPropertyOptional({ example: 'John Doe' })
   displayName!: string | null;
 
-  @ApiProperty({ nullable: true })
+  @ApiPropertyOptional({ example: 'https://cdn.example.com/avatar.jpg' })
   avatar!: string | null;
 
   @ApiPropertyOptional({ nullable: true })
@@ -53,6 +53,12 @@ export class UserProfileDto {
   })
   lastSeen?: string | LastSeenGranularity | null;
 
+  @ApiPropertyOptional()
+  lastSeenAt?: string | LastSeenGranularity | null;
+
+  @ApiPropertyOptional()
+  isOnline?: boolean;
+
   @ApiPropertyOptional({ enum: AutoDeletePeriod, description: 'Owner-only' })
   autoDeletePeriod?: AutoDeletePeriod;
 
@@ -61,4 +67,11 @@ export class UserProfileDto {
 
   @ApiProperty()
   updatedAt!: Date;
+
+  @ApiPropertyOptional({
+    example: false,
+    description:
+      'Whether the requesting user is following this profile. Always false for anonymous requests.',
+  })
+  isFollowing?: boolean;
 }

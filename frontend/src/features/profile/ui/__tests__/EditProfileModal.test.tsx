@@ -54,6 +54,7 @@ describe('EditProfileModal', () => {
     originalFileReader = global.FileReader;
     // @ts-expect-error - simplified mock, not a full FileReader implementation
     global.FileReader = MockFileReader;
+    useAuthStore.getState().setAuth('user-1');
   });
 
   afterEach(() => {

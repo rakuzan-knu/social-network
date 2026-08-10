@@ -34,8 +34,9 @@ export class FollowersController {
   getFollowers(
     @Param('id') id: string,
     @Query() query: GetFollowersQueryDto,
+    @CurrentUser() currentUser?: RequestUser,
   ): Promise<GetFollowersResult> {
-    return this.followersService.getFollowers(id, query.limit, query.after);
+    return this.followersService.getFollowers(id, query.limit, query.after, currentUser?.id);
   }
 
   @Get(':id/following')
@@ -46,8 +47,9 @@ export class FollowersController {
   getFollowing(
     @Param('id') id: string,
     @Query() query: GetFollowersQueryDto,
+    @CurrentUser() currentUser?: RequestUser,
   ): Promise<GetFollowersResult> {
-    return this.followersService.getFollowing(id, query.limit, query.after);
+    return this.followersService.getFollowing(id, query.limit, query.after, currentUser?.id);
   }
 
   @Get('me/follow-requests')
