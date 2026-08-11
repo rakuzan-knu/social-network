@@ -4,7 +4,9 @@
   "description": "",
   "author": "",
   "private": true,
-  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=24.0.0"
+  },
   "scripts": {
     "postinstall": "prisma generate",
     "build": "nest build",
@@ -61,7 +63,18 @@
     "sanitize-html": "^2.14.0",
     "sharp": "^0.35.2",
     "socket.io": "^4.8.3",
-    "ua-parser-js": "2.0.10"
+    "ua-parser-js": "2.0.10",
+    "prom-client": "^15.1.3",
+    "require-in-the-middle": "^7.5.2",
+    "import-in-the-middle": "^1.14.1",
+    "uid": "^2.0.2",
+    "load-esm": "^1.0.0",
+    "iterare": "^1.2.1",
+    "luxon": "^3.5.0",
+    "validator": "^13.12.0",
+    "libphonenumber-js": "^1.11.19",
+    "node-gyp-build": "^4.8.4",
+    "streamsearch": "^1.1.0"
   },
   "overrides": {
     "multer": "^2.2.0",

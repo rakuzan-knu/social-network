@@ -487,9 +487,11 @@ jobs:
       matrix:
         include:
           - service: backend
-            context: ./backend
+            context: .
+            file: backend/Dockerfile
           - service: frontend
             context: ./frontend
+            file: frontend/Dockerfile
     steps:
       - uses: actions/checkout@v7
 
@@ -499,8 +501,8 @@ jobs:
       - name: Build image
         uses: docker/build-push-action@v7
         with:
-          context: .
-          file: ${{ matrix.context }}/Dockerfile
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
           push: false
           load: true
           tags: social-network-${{ matrix.service }}:ci-${{ github.sha }}

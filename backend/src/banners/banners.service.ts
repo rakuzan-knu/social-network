@@ -18,7 +18,10 @@ export class BannersService {
     private readonly redis: RedisService,
   ) {
     this.bucket = this.configService.get<string>('MINIO_BUCKET', 'avatars');
-    this.publicUrl = this.configService.getOrThrow<string>('MINIO_PUBLIC_URL');
+    this.publicUrl =
+      this.configService.get<string>('MINIO_PUBLIC_URL') ??
+      this.configService.get<string>('S3_PUBLIC_URL') ??
+      'http://localhost:9000';
   }
 
   async uploadBanner(

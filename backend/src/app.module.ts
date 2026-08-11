@@ -20,6 +20,7 @@ import { AvatarsModule } from './avatars/avatars.module';
 import { BannersModule } from './banners/banners.module';
 import { MessengerModule } from './messenger/messenger.module';
 import { SessionsModule } from './sessions/sessions.module';
+import { MetricsModule } from './metrics/metrics.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { SessionsModule } from './sessions/sessions.module';
       throttlers: [{ ttl: 60_000, limit: 100 }],
     }),
     ScheduleModule.forRoot(),
+    MetricsModule,
     PrismaModule,
     RedisModule,
     AuthModule,
