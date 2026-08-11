@@ -14,6 +14,7 @@ import { UsersModule } from './users/users.module';
 import { FollowersModule } from './followers/followers.module';
 import { AvatarsModule } from './avatars/avatars.module';
 import { MessengerModule } from './messenger/messenger.module';
+import { PollModule } from './poll/poll.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { MessengerModule } from './messenger/messenger.module';
     FollowersModule,
     AvatarsModule,
     MessengerModule,
+    PollModule,
   ],
   controllers: [],
   providers: [
