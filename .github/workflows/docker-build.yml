@@ -127,6 +127,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      security-events: write
     
     strategy:
       matrix:
