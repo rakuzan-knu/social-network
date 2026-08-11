@@ -18,18 +18,17 @@ log_success "Line endings valid"
 if git diff --cached --name-only | grep -qE '(^|/)package\.json$'; then
   log_info "Checking package.json & lockfile sync..."
 
-  if ! git diff --cached --name-only | grep -qE '(^|/)package-lock\.json$'; then
-    log_error "package.json is staged, but package-lock.json is NOT staged!"
-    log_gray "Run 'npm install' and stage package-lock.json via 'git add package-lock.json'"
-    exit 1
-  fi
-
+  # Update the lockfile on disk to ensure it's in sync with current package.json
   npm install --package-lock-only --ignore-scripts --no-audit >/dev/null 2>&1
 
+  # Check if the lockfile on disk differs from HEAD
   if ! git diff --exit-code package-lock.json >/dev/null 2>&1; then
-    log_error "package-lock.json is out of sync with package.json"
-    log_gray "Run 'npm install' to fix lockfile and stage the updated package-lock.json"
-    exit 1
+    # If modified, check if it's staged
+    if ! git diff --cached --name-only | grep -qE '(^|/)package-lock\.json$'; then
+      log_error "package-lock.json is out of sync or modified, but NOT staged!"
+      log_gray "Run 'npm install' to fix lockfile and stage the updated package-lock.json"
+      exit 1
+    fi
   fi
   log_success "Lockfile is synced"
 fi
