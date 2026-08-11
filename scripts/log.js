@@ -5,7 +5,7 @@ const colors = {
   red: '\x1b[31m',
   gray: '\x1b[90m',
   reset: '\x1b[0m',
-  bold: '\x1b[1m'
+  bold: '\x1b[1m',
 };
 
 const args = process.argv.slice(2);
