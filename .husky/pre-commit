@@ -1,18 +1,11 @@
 #!/bin/sh
 set -e
 
-BOLD="\033[1m"
-GREEN="\033[0;32m"
-YELLOW="\033[0;33m"
-RED="\033[0;31m"
-BLUE="\033[0;36m"
-GRAY="\033[0;90m"
-NC="\033[0m"
-
-log_info()    { echo "${BLUE}ℹ${NC} $1"; }
-log_success() { echo "${GREEN}✔${NC} $1"; }
-log_warn()    { echo "${YELLOW}⚠${NC} $1"; }
-log_error()   { echo "${RED}✖ $1${NC}"; }
+log_info()    { node scripts/log.js info "$1"; }
+log_success() { node scripts/log.js success "$1"; }
+log_error()   { node scripts/log.js error "$1"; }
+log_gray()    { node scripts/log.js gray "$1"; }
+log_bold_success() { node scripts/log.js bold-success "$1"; }
 
 log_info "Validating line endings..."
 node scripts/validate-eol.js >/dev/null 2>&1 || {
@@ -27,7 +20,7 @@ if git diff --cached --name-only | grep -qE '(^|/)package\.json$'; then
 
   if ! git diff --cached --name-only | grep -qE '(^|/)package-lock\.json$'; then
     log_error "package.json is staged, but package-lock.json is NOT staged!"
-    echo "  ${GRAY}Run 'npm install' and stage package-lock.json via 'git add package-lock.json'${NC}"
+    log_gray "Run 'npm install' and stage package-lock.json via 'git add package-lock.json'"
     exit 1
   fi
 
@@ -35,7 +28,7 @@ if git diff --cached --name-only | grep -qE '(^|/)package\.json$'; then
 
   if ! git diff --exit-code package-lock.json >/dev/null 2>&1; then
     log_error "package-lock.json is out of sync with package.json"
-    echo "  ${GRAY}Run 'npm install' to fix lockfile and stage the updated package-lock.json${NC}"
+    log_gray "Run 'npm install' to fix lockfile and stage the updated package-lock.json"
     exit 1
   fi
   log_success "Lockfile is synced"
@@ -60,4 +53,4 @@ else
   npx --no-install lint-staged --concurrent false
 fi
 
-echo "${GREEN}${BOLD}✔ All pre-commit checks passed successfully!${NC}\n"
+log_bold_success "All pre-commit checks passed successfully!"
