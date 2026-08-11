@@ -3,6 +3,7 @@
 ## Architecture Overview
 
 ### Backend Dockerfile (`backend/Dockerfile`)
+
 - **Multi-Stage Build**:
   - `deps`: Installs production & build dependencies using BuildKit package caches (`--mount=type=cache`).
   - `builder`: Compiles TypeScript source files and generates Prisma Client.
@@ -13,6 +14,7 @@
   - Direct `$PATH` exposure (`/app/backend/node_modules/.bin:/app/node_modules/.bin`).
 
 ### Frontend Dockerfile (`frontend/Dockerfile`)
+
 - **Multi-Stage Build**:
   - `builder`: Builds Vite/React bundle with npm layer caching.
   - `production`: High-performance `nginx:1.27-alpine` web server.
@@ -24,7 +26,7 @@
 ## Performance Metrics
 
 | Image / Target | Cold Build | Warm (Cached) Build | Image Size |
-|----------------|------------|---------------------|------------|
+| -------------- | ---------- | ------------------- | ---------- |
 | Backend Image  | ~2-3 min   | ~1.2 sec            | ~180MB     |
 | Frontend Image | ~1.5 min   | ~1.2 sec            | ~30MB      |
 

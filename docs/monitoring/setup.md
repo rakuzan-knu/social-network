@@ -3,11 +3,12 @@
 ## Overview
 
 Complete open-source monitoring stack featuring:
+
 - **Prometheus**: Metrics collection & storage
 - **Grafana**: Visualization & dashboards
 - **Alertmanager**: Alert management
 - **PostgreSQL Exporter**: Database metrics
-- **Redis Exporter**: Cache metrics  
+- **Redis Exporter**: Cache metrics
 - **Automated Backups**: Daily PostgreSQL backups with metrics
 
 ## Architecture
@@ -39,13 +40,13 @@ docker compose -f docker-compose.prod.yml up -d prometheus grafana postgres-expo
 
 ### 2. Access Services
 
-| Service | URL | Credentials |
-|---------|-----|-------------|
-| **Grafana** | http://localhost:3001 | admin:admin |
-| **Prometheus** | http://localhost:9090 | - |
-| **Backend Metrics** | http://localhost:3000/metrics | - |
-| **PostgreSQL Exporter** | http://localhost:9187/metrics | - |
-| **Redis Exporter** | http://localhost:9121/metrics | - |
+| Service                 | URL                           | Credentials |
+| ----------------------- | ----------------------------- | ----------- |
+| **Grafana**             | http://localhost:3001         | admin:admin |
+| **Prometheus**          | http://localhost:9090         | -           |
+| **Backend Metrics**     | http://localhost:3000/metrics | -           |
+| **PostgreSQL Exporter** | http://localhost:9187/metrics | -           |
+| **Redis Exporter**      | http://localhost:9121/metrics | -           |
 
 ### 3. Verify Metrics Collection
 
@@ -66,6 +67,7 @@ curl http://localhost:9121/metrics
 ## Metrics Collected
 
 ### Backend Metrics (`backend/src/metrics/`)
+
 - `http_request_duration_seconds` — Request latency histogram
 - `http_requests_total` — Total request count
 - `http_requests_errors_total` — Error count
@@ -74,11 +76,13 @@ curl http://localhost:9121/metrics
 - `redis_operation_duration_seconds` — Command latency
 
 ### Database Metrics (PostgreSQL Exporter)
+
 - `pg_stat_activity_count` — Active connections
 - `pg_cache_blks_hit` — Cache hit ratio
 - `pg_table_size_bytes` — Table sizes
 
 ### Redis Metrics (Redis Exporter)
+
 - `redis_memory_used_bytes` — Memory usage
 - `redis_connected_clients` — Client connections
 - `redis_ops_per_sec` — Operations/second

@@ -107,8 +107,10 @@
     "node-releases": "2.0.53",
     "prettier": "^3.5.3",
     "readdirp": "5.1.1",
+    "redent": "^4.0.0",
     "semantic-release": "^24.2.3",
     "signal-exit": "4.1.0",
+    "strip-literal": "^2.1.1",
     "tapable": "2.3.3",
     "zod-validation-error": "5.0.0"
   },

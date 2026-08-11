@@ -22,17 +22,17 @@
       "datasource": "Prometheus",
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "palette-classic"},
+          "color": { "mode": "palette-classic" },
           "custom": {},
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
       "id": 1,
       "options": {
-        "legend": {"calcs": [], "displayMode": "list", "placement": "bottom"},
-        "tooltip": {"mode": "single"}
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
       },
       "pluginVersion": "8.0.0",
       "targets": [
@@ -48,13 +48,13 @@
       "datasource": "Prometheus",
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "thresholds"},
+          "color": { "mode": "thresholds" },
           "mappings": [],
           "unit": "reqps"
         },
         "overrides": []
       },
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
       "id": 2,
       "options": {
         "colorMode": "background",
@@ -83,17 +83,17 @@
       "datasource": "Prometheus",
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "palette-classic"},
+          "color": { "mode": "palette-classic" },
           "custom": {},
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
       "id": 3,
       "options": {
-        "legend": {"calcs": [], "displayMode": "list", "placement": "bottom"},
-        "tooltip": {"mode": "single"}
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
       },
       "pluginVersion": "8.0.0",
       "targets": [
@@ -109,17 +109,17 @@
       "datasource": "Prometheus",
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "palette-classic"},
+          "color": { "mode": "palette-classic" },
           "custom": {},
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
       "id": 4,
       "options": {
-        "legend": {"calcs": [], "displayMode": "list", "placement": "bottom"},
-        "tooltip": {"mode": "single"}
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
       },
       "pluginVersion": "8.0.0",
       "targets": [
@@ -135,17 +135,17 @@
       "datasource": "Prometheus",
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "palette-classic"},
+          "color": { "mode": "palette-classic" },
           "custom": {},
           "unit": "s"
         },
         "overrides": []
       },
-      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
       "id": 5,
       "options": {
-        "legend": {"calcs": [], "displayMode": "list", "placement": "bottom"},
-        "tooltip": {"mode": "single"}
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
       },
       "pluginVersion": "8.0.0",
       "targets": [
@@ -161,17 +161,17 @@
       "datasource": "Prometheus",
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "palette-classic"},
+          "color": { "mode": "palette-classic" },
           "custom": {},
           "unit": "percentunit"
         },
         "overrides": []
       },
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
       "id": 6,
       "options": {
-        "legend": {"calcs": [], "displayMode": "list", "placement": "bottom"},
-        "tooltip": {"mode": "single"}
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
       },
       "pluginVersion": "8.0.0",
       "targets": [

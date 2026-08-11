@@ -9,19 +9,19 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     command:
-      - "postgres"
-      - "-c"
-      - "shared_buffers=128MB"
-      - "-c"
-      - "work_mem=8MB"
-      - "-c"
-      - "effective_cache_size=384MB"
-      - "-c"
-      - "max_connections=100"
-      - "-c"
-      - "random_page_cost=1.1"
-      - "-c"
-      - "wal_buffers=16MB"
+      - 'postgres'
+      - '-c'
+      - 'shared_buffers=128MB'
+      - '-c'
+      - 'work_mem=8MB'
+      - '-c'
+      - 'effective_cache_size=384MB'
+      - '-c'
+      - 'max_connections=100'
+      - '-c'
+      - 'random_page_cost=1.1'
+      - '-c'
+      - 'wal_buffers=16MB'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
