@@ -29,6 +29,18 @@ export class PostsMediaService {
       'http://localhost:9000';
   }
 
+  private isValidUploadedFile(file: unknown): file is Express.Multer.File {
+    if (!file || typeof file !== 'object') {
+      return false;
+    }
+    const candidate = file as Partial<Express.Multer.File>;
+    return (
+      Buffer.isBuffer(candidate.buffer) &&
+      candidate.buffer.length > 0 &&
+      typeof candidate.mimetype === 'string'
+    );
+  }
+
   private detectMimeType(buffer: Buffer): { type: MediaType; mime: string; ext: string } {
     if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
       return { type: MediaType.IMAGE, mime: 'image/jpeg', ext: 'jpg' };
@@ -69,6 +81,10 @@ export class PostsMediaService {
   }
 
   async processUploadedFile(file: Express.Multer.File, order: number): Promise<ProcessedMedia> {
+    if (!this.isValidUploadedFile(file)) {
+      throw new BadRequestException('Invalid media file');
+    }
+
     const { type, ext } = this.detectMimeType(file.buffer);
 
     // Enforce size limits: 10MB images, 100MB videos
@@ -113,15 +129,18 @@ export class PostsMediaService {
   }
 
   async processUploadedFiles(files: Express.Multer.File[]): Promise<ProcessedMedia[]> {
+    if (!Array.isArray(files)) {
+      throw new BadRequestException('Invalid media files payload');
+    }
+
     if (files.length > 5) {
       throw new BadRequestException('Maximum 5 media files allowed per post');
     }
 
-    const results: ProcessedMedia[] = [];
-    for (let i = 0; i < files.length; i++) {
-      const processed = await this.processUploadedFile(files[i], i);
-      results.push(processed);
+    if (!files.every((file) => this.isValidUploadedFile(file))) {
+      throw new BadRequestException('Invalid media file payload');
     }
-    return results;
+
+    return Promise.all(files.map((file, i) => this.processUploadedFile(file, i)));
   }
 }
