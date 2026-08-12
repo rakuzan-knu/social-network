@@ -4,28 +4,33 @@ on:
   schedule:
     - cron: '0 3 * * *'
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
 
-permissions:
-  contents: read
-  security-events: write
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: read-all
 
 jobs:
   npm-audit:
     name: npm audit — ${{ matrix.workspace }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
         workspace: [backend, frontend]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: '22'
+          node-version-file: '.nvmrc'
 
       - name: Run npm audit (Lockfile only)
         run: |
@@ -68,7 +73,7 @@ jobs:
 
       - name: Upload audit report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: npm-audit-${{ matrix.workspace }}
           path: ${{ matrix.workspace }}/audit-report.json
@@ -77,14 +82,18 @@ jobs:
   trivy-fs:
     name: Trivy — Filesystem Deep Scan
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Cache Trivy DB
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/trivy
-          key: ${{ runner.os }}-trivy-${{ github.run_id }}
+          key: ${{ runner.os }}-trivy-${{ hashFiles('.github/workflows/security.yml') }}
           restore-keys: |
             ${{ runner.os }}-trivy-
 
@@ -98,7 +107,7 @@ jobs:
           severity: 'CRITICAL,HIGH'
           exit-code: '0'
 
-      - uses: github/codeql-action/upload-sarif@v3
+      - uses: github/codeql-action/upload-sarif@v4
         if: always() && steps.trivy_fs_step.outcome == 'success'
         with:
           sarif_file: trivy-fs.sarif
@@ -107,13 +116,16 @@ jobs:
   gitleaks:
     name: Gitleaks — Incremental Secret Scanner
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Run Gitleaks Action
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}

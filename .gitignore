@@ -19,7 +19,7 @@ pids
 lib-cov
 
 # Coverage directory used by tools like istanbul
-coverage
+coverage/
 *.lcov
 
 # nyc test coverage
@@ -36,6 +36,9 @@ bower_components
 
 # Compiled binary addons (https://nodejs.org/api/addons.html)
 build/Release
+build/
+
+.next/
 
 # Dependency directories
 node_modules/
@@ -158,5 +161,12 @@ frontend/storybook-static/
 # Lighthouse
 .lighthouseci/
 
-# Semantic release
-CHANGELOG.md
+.agents/
+.antigravityignore
+GEMINI.md
+
+*.svg
+
+graphify-out/cache/
+graphify-out/20*
+graphify-out/
