@@ -21,6 +21,7 @@ import { BannersModule } from './banners/banners.module';
 import { MessengerModule } from './messenger/messenger.module';
 import { SessionsModule } from './sessions/sessions.module';
 import { MetricsModule } from './metrics/metrics.module';
+import { PollModule } from './poll/poll.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { MetricsModule } from './metrics/metrics.module';
     BannersModule,
     MessengerModule,
     SessionsModule,
+    PollModule,
   ],
   controllers: [],
   providers: [

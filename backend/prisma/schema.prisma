@@ -42,6 +42,8 @@ model User {
   privacyExceptions        PrivacyException[]        @relation("PrivacyOwner")
   privacyTargetedBy        PrivacyException[]        @relation("PrivacyTarget")
   sessions                 Session[]
+  polls Poll[] @relation("CreatedPolls")
+  votes Vote[]
 }
 
 model Post {
@@ -55,6 +57,7 @@ model Post {
   authorId String
   likes    Like[]
   comments Comment[]
+  poll     Poll?
 }
 
 model Like {
@@ -393,4 +396,54 @@ model Session {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+model Poll {
+  id          String    @id @default(uuid())
+  title       String    @db.VarChar(255)
+  description String?   @db.Text
+  isMultiple  Boolean   @default(false) @map("is_multiple")
+  isActive    Boolean   @default(true) @map("is_active")
+  expiresAt   DateTime? @map("expires_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  options PollOption[]
+  votes   Vote[]
+
+  authorId String @map("author_id")
+  author   User   @relation("CreatedPolls", fields: [authorId], references: [id], onDelete: Cascade)
+
+  postId String @unique @map("post_id")
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([authorId])
+  @@map("polls")
+}
+
+model PollOption {
+  id         String @id @default(uuid())
+  pollId     String @map("poll_id")
+  optionText String @map("option_text") @db.VarChar(255)
+  votesCount Int    @default(0) @map("votes_count")
+  sortOrder  Int    @default(0) @map("sort_order")
+
+  poll  Poll   @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  votes Vote[]
+
+  @@index([pollId])
+  @@map("poll_options")
+}
+
+model Vote {
+  id        String   @id @default(uuid())
+  pollId    String   @map("poll_id")
+  optionId  String   @map("option_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  poll   Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  option PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([pollId, userId], name: "unique_user_vote_per_poll")
+  @@index([pollId, userId])
+  @@map("votes")
 }
