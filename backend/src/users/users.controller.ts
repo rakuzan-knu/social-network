@@ -20,6 +20,7 @@ import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 import { UpdateUserDto } from './dto/update-users.dto';
 import { DeleteAccountDto } from './dto/delete-account.dto';
 import { UserProfileDto } from './dto/user-profile.dto';
+import { SetUserAliasDto } from './dto/set-user-alias.dto';
 import { UsersService } from './users.service';
 import { PostsService } from '../posts/posts.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -106,6 +107,30 @@ export class UsersController {
   @ApiResponse({ status: 200, description: 'User unblocked successfully' })
   unblockUser(@Param('id') targetId: string, @CurrentUser() user: RequestUser) {
     return this.usersService.unblockUser(user.id, targetId);
+  }
+
+  @Post(':id/alias')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Set private custom alias for a user' })
+  @ApiResponse({ status: 200, description: 'Alias set successfully' })
+  setUserAlias(
+    @Param('id') targetId: string,
+    @Body() dto: SetUserAliasDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.usersService.setUserAlias(user.id, targetId, dto.alias);
+  }
+
+  @Delete(':id/alias')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Delete private custom alias for a user' })
+  @ApiResponse({ status: 200, description: 'Alias deleted successfully' })
+  deleteUserAlias(@Param('id') targetId: string, @CurrentUser() user: RequestUser) {
+    return this.usersService.deleteUserAlias(user.id, targetId);
   }
 
   @Get(':id')

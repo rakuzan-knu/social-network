@@ -46,6 +46,16 @@ export class CreatePostDto {
 
   @ApiPropertyOptional({ type: [MediaDto], description: 'Optional media items' })
   @IsOptional()
+  @Transform(({ value }: { value: unknown }) => {
+    if (typeof value === 'string') {
+      try {
+        return JSON.parse(value) as unknown;
+      } catch {
+        return value;
+      }
+    }
+    return value;
+  })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => MediaDto)

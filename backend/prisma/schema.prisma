@@ -46,6 +46,8 @@ model User {
   votes Vote[]
   reposts Repost[]
   savedPosts SavedPost[]
+  aliasesCreated UserAlias[] @relation("AliasOwner")
+  aliasesTargeted UserAlias[] @relation("AliasTarget")
 }
 
 model Post {
@@ -192,6 +194,7 @@ model ConversationParticipant {
   mutedUntil     DateTime?
   leftAt         DateTime?
   archivedAt     DateTime?
+  pinnedAt       DateTime?
   lastReadAt     DateTime        @default(now())
   joinedAt       DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
@@ -510,3 +513,20 @@ model Vote {
   @@index([pollId, userId])
   @@map("votes")
 }
+
+model UserAlias {
+  id        String   @id @default(uuid())
+  ownerId   String
+  targetId  String
+  alias     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner  User @relation("AliasOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  target User @relation("AliasTarget", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerId, targetId])
+  @@index([ownerId])
+  @@map("user_aliases")
+}
+

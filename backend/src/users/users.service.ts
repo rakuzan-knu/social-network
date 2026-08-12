@@ -116,7 +116,40 @@ export class UsersService {
 
     const raw = await this.getRawProfile(id);
     const ctx = await this.visibility.loadContext([id], viewerId);
-    return this.applyPrivacy(raw, viewerId, ctx);
+    const profile = this.applyPrivacy(raw, viewerId, ctx);
+
+    if (viewerId && viewerId !== id) {
+      const aliasRecord = await this.prisma.userAlias.findUnique({
+        where: { ownerId_targetId: { ownerId: viewerId, targetId: id } },
+      });
+      if (aliasRecord) {
+        profile.alias = aliasRecord.alias;
+      }
+    }
+
+    return profile;
+  }
+
+  async setUserAlias(ownerId: string, targetId: string, alias: string): Promise<{ success: true }> {
+    if (ownerId === targetId) {
+      throw new BadRequestException('Cannot set alias for yourself');
+    }
+    const target = await this.usersRepository.findById(targetId);
+    if (!target) throw new NotFoundException('User not found');
+
+    await this.prisma.userAlias.upsert({
+      where: { ownerId_targetId: { ownerId, targetId } },
+      create: { ownerId, targetId, alias: alias.trim() },
+      update: { alias: alias.trim() },
+    });
+    return { success: true };
+  }
+
+  async deleteUserAlias(ownerId: string, targetId: string): Promise<{ success: true }> {
+    await this.prisma.userAlias.deleteMany({
+      where: { ownerId, targetId },
+    });
+    return { success: true };
   }
 
   async getProfileByUsername(username: string, viewerId: string | null): Promise<UserProfileDto> {
