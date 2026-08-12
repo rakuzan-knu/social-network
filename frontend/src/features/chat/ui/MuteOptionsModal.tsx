@@ -2,11 +2,7 @@ import React, { useState } from 'react';
 import { X } from 'lucide-react';
 import Modal from '../../../shared/ui/Modal';
 import { MuteLevel } from '../../../entities/chat/model/types';
-
-interface MuteOption {
-  value: MuteLevel;
-  label: string;
-}
+import { MuteOption } from '../model/chatUiTypes';
 
 const OPTIONS: MuteOption[] = [
   { value: 'MESSAGES', label: 'Mute message notifications' },

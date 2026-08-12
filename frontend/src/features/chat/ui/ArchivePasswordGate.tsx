@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, Eye, EyeOff, ShieldCheck } from 'lucide-react';
+import { Lock, Eye, EyeOff, ShieldCheck, Loader2 } from 'lucide-react';
 import { useArchivePasswordStore } from '../model/useArchivePasswordStore';
 
 interface ArchivePasswordGateProps {
@@ -17,13 +17,14 @@ export default function ArchivePasswordGate({ onUnlock }: ArchivePasswordGatePro
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shakeKey, setShakeKey] = useState(0);
+  const [busy, setBusy] = useState(false);
 
   const fail = (message: string) => {
     setError(message);
     setShakeKey((k) => k + 1);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -36,15 +37,29 @@ export default function ArchivePasswordGate({ onUnlock }: ArchivePasswordGatePro
         fail('Passwords do not match.');
         return;
       }
-      setPassword(password);
-      onUnlock();
+      setBusy(true);
+      try {
+        await setPassword(password);
+        onUnlock();
+      } catch {
+        fail('Could not set the password on this device.');
+      } finally {
+        setBusy(false);
+      }
       return;
     }
 
-    if (verify(password)) {
-      onUnlock();
-    } else {
-      fail('Incorrect password. Try again.');
+    setBusy(true);
+    try {
+      if (await verify(password)) {
+        onUnlock();
+      } else {
+        fail('Incorrect password. Try again.');
+      }
+    } catch {
+      fail('Could not verify the password on this device.');
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -119,16 +134,24 @@ export default function ArchivePasswordGate({ onUnlock }: ArchivePasswordGatePro
 
         <button
           type="submit"
-          className="w-full h-11 mt-5 rounded-full text-sm font-semibold bg-white text-black hover:bg-white/90 transition-all active:scale-[0.98]"
+          disabled={busy}
+          className="w-full h-11 mt-5 rounded-full text-sm font-semibold bg-white text-black hover:bg-white/90 transition-all active:scale-[0.98] disabled:opacity-40 flex items-center justify-center gap-2"
         >
-          {isCreating ? 'Set password & unlock' : 'Unlock'}
+          {busy ? (
+            <Loader2 size={16} className="animate-spin" />
+          ) : isCreating ? (
+            'Set password & unlock'
+          ) : (
+            'Unlock'
+          )}
         </button>
 
         {!isCreating && (
           <button
             type="button"
             onClick={handleReset}
-            className="w-full mt-3 text-xs text-gray-500 hover:text-gray-300 transition-colors"
+            disabled={busy}
+            className="w-full mt-3 text-xs text-gray-500 hover:text-gray-300 transition-colors disabled:opacity-40"
           >
             Forgot password? Reset it
           </button>

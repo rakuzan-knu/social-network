@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { X, ChevronLeft, ChevronRight, Download, MessageSquare } from 'lucide-react';
-import { MediaItem } from '@/features/chat/lib/extractChatMedia';
+import { MediaItem } from '../model/chatMediaTypes';
 
 interface MediaLightboxProps {
   items: MediaItem[];

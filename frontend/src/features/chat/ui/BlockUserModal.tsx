@@ -7,13 +7,7 @@ import { useConversations } from '../model/useConversations';
 import { useBlockedUsers } from '../model/useBlockedUsers';
 import { useBlockUser } from '../model/useConversationMutations';
 import { useAuthStore } from '@/shared/model/useAuthStore';
-
-interface BlockCandidate {
-  id: string;
-  username: string;
-  displayName: string | null;
-  avatar: string | null;
-}
+import { BlockCandidate } from '../model/chatUiTypes';
 
 interface BlockUserModalProps {
   onClose: () => void;

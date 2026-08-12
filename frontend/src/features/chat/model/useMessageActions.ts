@@ -7,22 +7,12 @@ import { chatApi } from '../api/chatApi';
 import {
   AttachmentView,
   ConversationView,
+  InfiniteMessagesData,
   MessageView,
+  OutgoingAttachment,
   PaginatedMessages,
 } from '../../../entities/chat/model/types';
-
-interface InfiniteMessagesData {
-  pages: PaginatedMessages[];
-  pageParams: unknown[];
-}
-
-interface AckResponse<T = unknown> {
-  status: 'ok' | 'error';
-  error?: string;
-  message?: T;
-  messages?: T[];
-  deletedForAll?: boolean;
-}
+import { AckResponse } from './chatSocketTypes';
 
 function emitWithAck<T = unknown>(
   socket: ReturnType<typeof useChatSocket>,
@@ -38,14 +28,6 @@ function emitWithAck<T = unknown>(
       resolve(res);
     });
   });
-}
-
-export interface OutgoingAttachment {
-  type: string;
-  url: string;
-  fileName?: string;
-  mimeType?: string;
-  size?: number;
 }
 
 export function useMessageActions(conversationId: string | null) {

@@ -1,16 +1,17 @@
 import React, { useMemo, useState } from 'react';
 import { X, Image as ImageIcon, FileText, Link as LinkIcon, Play } from 'lucide-react';
-import { MessageView } from '../../entities/chat/model/types';
-import Modal from './Modal';
+import { MessageView } from '../../../entities/chat/model/types';
+import Modal from '@/shared/ui/Modal';
 import {
   colorForHostname,
   extractFileItems,
   extractLinkItems,
   extractMediaItems,
   groupByMonth,
-} from '@/features/chat/lib/extractChatMedia';
+} from '../lib/extractChatMedia';
 import { formatFileSize } from '@/shared/lib/attachmentLimits';
 import MediaLightbox from './MediaLightbox';
+import EmptyState from '@/shared/ui/EmptyState';
 
 type Tab = 'media' | 'files' | 'links';
 
@@ -245,25 +246,5 @@ export default function MediaFilesLinksModal({
         />
       )}
     </>
-  );
-}
-
-function EmptyState({
-  icon,
-  title,
-  subtitle,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  subtitle: string;
-}) {
-  return (
-    <div className="flex flex-col items-center text-center py-14 px-6">
-      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center mb-4 animate-popIn">
-        {icon}
-      </div>
-      <p className="text-base font-semibold text-white mb-1">{title}</p>
-      <p className="text-sm text-gray-500">{subtitle}</p>
-    </div>
   );
 }

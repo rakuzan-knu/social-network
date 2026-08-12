@@ -23,6 +23,14 @@ export interface AttachmentView {
   thumbnailUrl: string | null;
 }
 
+export interface OutgoingAttachment {
+  type: string;
+  url: string;
+  fileName?: string;
+  mimeType?: string;
+  size?: number;
+}
+
 export interface ReactionSummary {
   emoji: string;
   count: number;
@@ -86,4 +94,9 @@ export interface PaginatedMessages {
   data: MessageView[];
   hasMore: boolean;
   nextCursor: string | null;
+}
+
+export interface InfiniteMessagesData {
+  pages: PaginatedMessages[];
+  pageParams: unknown[];
 }

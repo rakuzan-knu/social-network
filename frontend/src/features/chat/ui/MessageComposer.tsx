@@ -1,12 +1,13 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { X, Mic, FileImage as FileIcon } from 'lucide-react';
 import { MessageView } from '../../../entities/chat/model/types';
-import { useMessageActions, OutgoingAttachment } from '../model/useMessageActions';
+import { useMessageActions } from '../model/useMessageActions';
+import { OutgoingAttachment } from '../../../entities/chat/model/types';
 import { StagedFile } from '@/shared/model/useStagedAttachments';
 import { MAX_ATTACHMENTS_PER_MESSAGE } from '@/shared/lib/attachmentLimits';
 import ReplyPreview from './ReplyPreview';
-import { AddEmojiButton } from '../../posts/ui/AddEmojiButton';
-import { AddGifButton } from '../../posts/ui/AddGifButton';
+import { AddEmojiButton } from '@/shared/ui/AddEmojiButton';
+import { AddGifButton } from '@/shared/ui/AddGifButton';
 import PollComposer from './PollComposer';
 import AttachMenu from '@/shared/ui/AttachMenu';
 import ImageEditorModal from '@/shared/ui/ImageEditorModal';

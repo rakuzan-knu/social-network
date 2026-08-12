@@ -1,20 +1,5 @@
-import { AttachmentView, MessageView } from '../../../entities/chat/model/types';
-
-export interface MediaItem {
-  message: MessageView;
-  attachment: AttachmentView;
-}
-
-export interface LinkItem {
-  message: MessageView;
-  url: string;
-  hostname: string;
-}
-
-export interface GroupedSection<T> {
-  label: string;
-  items: T[];
-}
+import { MessageView } from '../../../entities/chat/model/types';
+import { MediaItem, LinkItem, GroupedSection } from '../model/chatMediaTypes';
 
 const URL_REGEX = /https?:\/\/[^\s<>"')\]]+/gi;
 

@@ -1,3 +1,5 @@
+import type { AutoDeletePeriod } from '@/entities/profile/model/types';
+
 export type Visibility = 'EVERYBODY' | 'CONTACTS' | 'NOBODY';
 
 export type PrivacyDimension =
@@ -13,12 +15,6 @@ export type PrivacyDimension =
   | 'GROUP_INVITES';
 
 export type ExceptionMode = 'ALLOW' | 'DENY';
-
-export type AutoDeletePeriod = 'OFF' | 'DAY' | 'WEEK' | 'MONTH' | 'QUARTER';
-
-export type FollowStatusView = 'none' | 'pending' | 'following';
-
-export type LastSeenGranularity = 'RECENTLY' | 'WITHIN_WEEK' | 'WITHIN_MONTH' | 'LONG_AGO';
 
 export interface PrivacyVisibilitySettings {
   lastSeen: Visibility;

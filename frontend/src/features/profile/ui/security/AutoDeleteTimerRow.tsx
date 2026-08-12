@@ -5,7 +5,7 @@ import RadioGroup from '@/shared/ui/RadioGroup';
 import SettingsRow from '@/shared/ui/SettingsRow';
 import SlideOverPanel from '@/shared/ui/SlideOverPanel';
 import { usePrivacy, useUpdatePrivacy } from '../../model/usePrivacy';
-import type { AutoDeletePeriod } from '../../model/privacyTypes';
+import type { AutoDeletePeriod } from '@/entities/profile/model/types';
 
 const OPTIONS: { value: AutoDeletePeriod; label: string; description?: string }[] = [
   { value: 'OFF', label: 'Disabled', description: 'Messages are saved forever.' },

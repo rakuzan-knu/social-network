@@ -1,8 +1,10 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import { MessageView, UserSnapshot } from '../../../entities/chat/model/types';
 import { groupMessagesByDate } from '../lib/groupMessagesByDate';
 import MessageBubble from './MessageBubble';
 import TypingIndicatorBubble from '@/shared/ui/TypingIndicatorBubble';
+import { OlderMessagesSkeleton, MessageThreadSkeleton } from './MessageListSkeletons';
 
 interface MessageListProps {
   messages: MessageView[];
@@ -26,6 +28,26 @@ interface MessageListProps {
   onHighlightHandled?: () => void;
 }
 
+type Row =
+  | { type: 'separator'; key: string; label: string }
+  | { type: 'message'; key: string; message: MessageView; showAvatar: boolean };
+
+const START_INDEX = 100000;
+
+function buildRows(messages: MessageView[]): Row[] {
+  const groups = groupMessagesByDate(messages);
+  const rows: Row[] = [];
+  groups.forEach((group, groupIndex) => {
+    rows.push({ type: 'separator', key: `sep-${groupIndex}-${group.label}`, label: group.label });
+    group.messages.forEach((message, index) => {
+      const prev = group.messages[index - 1];
+      const showAvatar = !prev || prev.sender.id !== message.sender.id;
+      rows.push({ type: 'message', key: message.id, message, showAvatar });
+    });
+  });
+  return rows;
+}
+
 export default function MessageList({
   messages,
   currentUserId,
@@ -47,164 +69,107 @@ export default function MessageList({
   highlightMessageId,
   onHighlightHandled,
 }: MessageListProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const prevScrollHeightRef = useRef(0);
-  const prevMessageCountRef = useRef(0);
-  const messageRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const virtuosoRef = useRef<VirtuosoHandle>(null);
+  const prevRowsRef = useRef<Row[]>([]);
+  const [firstItemIndex, setFirstItemIndex] = useState(START_INDEX);
 
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container || highlightMessageId) return;
+  const rows = useMemo(() => buildRows(messages), [messages]);
 
-    const grew = messages.length > prevMessageCountRef.current;
-    const wasNearBottom =
-      container.scrollHeight - container.scrollTop - container.clientHeight < 200;
-
-    if (grew && wasNearBottom) {
-      container.scrollTop = container.scrollHeight;
+  useLayoutEffect(() => {
+    const prevRows = prevRowsRef.current;
+    if (prevRows.length > 0 && rows.length > prevRows.length) {
+      const prevFirstKey = prevRows[0].key;
+      const prependedCount = rows.findIndex((r) => r.key === prevFirstKey);
+      if (prependedCount > 0) {
+        setFirstItemIndex((idx) => idx - prependedCount);
+      }
     }
-    prevMessageCountRef.current = messages.length;
-  }, [messages, typingParticipants.length, highlightMessageId]);
-
-  const handleScroll = () => {
-    const container = containerRef.current;
-    if (!container || !hasMore || isFetchingMore) return;
-
-    if (container.scrollTop < 100) {
-      prevScrollHeightRef.current = container.scrollHeight;
-      onLoadMore();
-    }
-  };
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container || !prevScrollHeightRef.current) return;
-    container.scrollTop = container.scrollHeight - prevScrollHeightRef.current;
-    prevScrollHeightRef.current = 0;
-  }, [messages]);
+    prevRowsRef.current = rows;
+  }, [rows]);
 
   useEffect(() => {
     if (!highlightMessageId) return;
-    const el = messageRefs.current[highlightMessageId];
-    if (!el) return;
-
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const relativeIndex = rows.findIndex(
+      (r) => r.type === 'message' && r.message.id === highlightMessageId,
+    );
+    if (relativeIndex === -1) return;
+    virtuosoRef.current?.scrollToIndex({
+      index: firstItemIndex + relativeIndex,
+      align: 'center',
+      behavior: 'smooth',
+    });
     const timeout = setTimeout(() => onHighlightHandled?.(), 1700);
     return () => clearTimeout(timeout);
-  }, [highlightMessageId, messages, onHighlightHandled]);
+  }, [highlightMessageId, rows, firstItemIndex, onHighlightHandled]);
 
-  const groups = groupMessagesByDate(messages);
+  const handleStartReached = () => {
+    if (!hasMore || isFetchingMore) return;
+    onLoadMore();
+  };
 
   if (isLoading) {
     return (
-      <div ref={containerRef} className="flex-1 overflow-y-auto py-4">
+      <div className="flex-1 overflow-y-auto py-4">
         <MessageThreadSkeleton />
       </div>
     );
   }
 
   return (
-    <div ref={containerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto py-4">
-      {isFetchingMore && <OlderMessagesSkeleton />}
+    <Virtuoso
+      ref={virtuosoRef}
+      className="flex-1 py-4"
+      data={rows}
+      firstItemIndex={firstItemIndex}
+      initialTopMostItemIndex={Math.max(rows.length - 1, 0)}
+      alignToBottom
+      followOutput="auto"
+      startReached={handleStartReached}
+      components={{
+        Header: () => (isFetchingMore ? <OlderMessagesSkeleton /> : null),
+        Footer: () => <TypingIndicatorBubble typists={typingParticipants} isGroup={isGroup} />,
+      }}
+      itemContent={(_index, row) => {
+        if (row.type === 'separator') {
+          return (
+            <div className="flex items-center gap-3 px-4 my-3">
+              <div className="flex-1 h-px bg-white/5" />
+              <span className="text-[11px] font-medium text-gray-500 whitespace-nowrap">
+                {row.label}
+              </span>
+              <div className="flex-1 h-px bg-white/5" />
+            </div>
+          );
+        }
 
-      {groups.map((group) => (
-        <div key={group.label}>
-          <div className="flex items-center gap-3 px-4 my-3">
-            <div className="flex-1 h-px bg-white/5" />
-            <span className="text-[11px] font-medium text-gray-500 whitespace-nowrap">
-              {group.label}
-            </span>
-            <div className="flex-1 h-px bg-white/5" />
+        const { message, showAvatar } = row;
+        const isOwnMessage = message.sender.id === currentUserId;
+        const isReadByOther = otherParticipantId
+          ? message.readBy.includes(otherParticipantId)
+          : false;
+
+        return (
+          <div
+            className={`rounded-2xl ${highlightMessageId === message.id ? 'animate-jumpHighlight' : ''}`}
+          >
+            <MessageBubble
+              message={message}
+              isOwnMessage={isOwnMessage}
+              showAvatar={showAvatar}
+              isReadByOther={isReadByOther}
+              currentUserId={currentUserId}
+              onReply={onReply}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              onForward={onForward}
+              onTogglePin={onTogglePin}
+              onReport={onReport}
+              onReact={onReact}
+              onUnreact={onUnreact}
+            />
           </div>
-
-          {group.messages.map((message, index) => {
-            const isOwnMessage = message.sender.id === currentUserId;
-            const prev = group.messages[index - 1];
-            const showAvatar = !prev || prev.sender.id !== message.sender.id;
-            const isReadByOther = otherParticipantId
-              ? message.readBy.includes(otherParticipantId)
-              : false;
-
-            return (
-              <div
-                key={message.id}
-                ref={(el) => {
-                  messageRefs.current[message.id] = el;
-                }}
-                className={`rounded-2xl ${highlightMessageId === message.id ? 'animate-jumpHighlight' : ''}`}
-              >
-                <MessageBubble
-                  message={message}
-                  isOwnMessage={isOwnMessage}
-                  showAvatar={showAvatar}
-                  isReadByOther={isReadByOther}
-                  currentUserId={currentUserId}
-                  onReply={onReply}
-                  onEdit={onEdit}
-                  onDelete={onDelete}
-                  onForward={onForward}
-                  onTogglePin={onTogglePin}
-                  onReport={onReport}
-                  onReact={onReact}
-                  onUnreact={onUnreact}
-                />
-              </div>
-            );
-          })}
-        </div>
-      ))}
-
-      <TypingIndicatorBubble typists={typingParticipants} isGroup={isGroup} />
-    </div>
-  );
-}
-
-function SkeletonBone({ className = '' }: { className?: string }) {
-  return <div className={`skeleton-shimmer ${className}`} />;
-}
-
-function SkeletonMessage({
-  own = false,
-  withMedia = false,
-}: {
-  own?: boolean;
-  withMedia?: boolean;
-}) {
-  return (
-    <div className={`flex items-end gap-2 px-4 py-1 ${own ? 'justify-end' : 'justify-start'}`}>
-      {!own && <SkeletonBone className="h-8 w-8 flex-shrink-0 rounded-full" />}
-      <div className={`flex max-w-[70%] flex-col gap-1 ${own ? 'items-end' : 'items-start'}`}>
-        {withMedia && <SkeletonBone className="h-44 w-[260px] max-w-[62vw] rounded-2xl" />}
-        <SkeletonBone className={`h-10 rounded-2xl ${own ? 'w-52' : 'w-64 max-w-[64vw]'}`} />
-        <SkeletonBone className="h-2.5 w-12 rounded-md" />
-      </div>
-      {own && <div className="w-8 flex-shrink-0" />}
-    </div>
-  );
-}
-
-function OlderMessagesSkeleton() {
-  return (
-    <div className="pb-2" role="status" aria-label="Loading older messages">
-      <SkeletonMessage />
-      <SkeletonMessage own />
-    </div>
-  );
-}
-
-function MessageThreadSkeleton() {
-  return (
-    <div className="flex flex-col justify-end gap-1" role="status" aria-label="Loading messages">
-      <div className="flex items-center gap-3 px-4 my-3">
-        <div className="flex-1 h-px bg-white/5" />
-        <SkeletonBone className="h-3 w-16 rounded-md" />
-        <div className="flex-1 h-px bg-white/5" />
-      </div>
-      <SkeletonMessage withMedia />
-      <SkeletonMessage own />
-      <SkeletonMessage />
-      <SkeletonMessage own withMedia />
-      <SkeletonMessage />
-    </div>
+        );
+      }}
+    />
   );
 }

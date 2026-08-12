@@ -1,8 +1,8 @@
-import type {
-  AutoDeletePeriod,
-  FollowStatusView,
-  LastSeenGranularity,
-} from '@/features/profile/model/privacyTypes';
+export type AutoDeletePeriod = 'OFF' | 'DAY' | 'WEEK' | 'MONTH' | 'QUARTER';
+
+export type FollowStatusView = 'none' | 'pending' | 'following';
+
+export type LastSeenGranularity = 'RECENTLY' | 'WITHIN_WEEK' | 'WITHIN_MONTH' | 'LONG_AGO';
 
 export interface UserProfile {
   id: string;

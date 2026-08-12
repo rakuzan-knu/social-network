@@ -1,12 +1,4 @@
-import React, {
-  lazy,
-  Suspense,
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from 'react';
+import React, { lazy, Suspense, useEffect, useState } from 'react';
 import {
   FlipHorizontal,
   RotateCw,
@@ -20,46 +12,12 @@ import {
   Pipette,
 } from 'lucide-react';
 import type { Theme, EmojiStyle } from 'emoji-picker-react';
-import { flipPointX, rotatePoint90, Point } from '../lib/imageEditorGeometry';
+import { useUndoRedoStack } from '../model/useUndoRedoStack';
+import { useCanvasEditor } from './imageEditor/useCanvasEditor';
+import { DrawTool, Snapshot, ToolMode } from './imageEditor/types';
+import TextDraftOverlay from './imageEditor/TextDraftOverlay';
 
 const EmojiPicker = lazy(() => import('emoji-picker-react'));
-
-type ToolMode = 'draw' | 'sticker' | 'text';
-type DrawTool = 'pencil' | 'marker' | 'eraser';
-
-interface Stroke {
-  id: string;
-  tool: DrawTool;
-  color: string;
-  size: number;
-  points: Point[];
-}
-
-interface StickerItem {
-  id: string;
-  emoji: string;
-  x: number;
-  y: number;
-  fontSize: number;
-}
-
-interface TextItem {
-  id: string;
-  text: string;
-  x: number;
-  y: number;
-  color: string;
-  fontSize: number;
-}
-
-interface Snapshot {
-  baseImageSrc: string;
-  baseWidth: number;
-  baseHeight: number;
-  strokes: Stroke[];
-  stickers: StickerItem[];
-  texts: TextItem[];
-}
 
 const COLORS = [
   '#ef4444',
@@ -79,12 +37,8 @@ interface ImageEditorModalProps {
 }
 
 export default function ImageEditorModal({ file, onCancel, onSave }: ImageEditorModalProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const baseImageRef = useRef<HTMLImageElement | null>(null);
-
-  const [current, setCurrent] = useState<Snapshot | null>(null);
-  const [undoStack, setUndoStack] = useState<Snapshot[]>([]);
-  const [redoStack, setRedoStack] = useState<Snapshot[]>([]);
+  const { current, setCurrent, commit, undo, redo, canUndo, canRedo } =
+    useUndoRedoStack<Snapshot>();
 
   const [toolMode, setToolMode] = useState<ToolMode>('draw');
   const [drawTool, setDrawTool] = useState<DrawTool>('pencil');
@@ -96,12 +50,24 @@ export default function ImageEditorModal({ file, onCancel, onSave }: ImageEditor
 
   const [textDraft, setTextDraft] = useState<{ x: number; y: number; value: string } | null>(null);
 
-  const isDrawingRef = useRef(false);
-  const currentStrokeRef = useRef<Stroke | null>(null);
-  const draggingStickerId = useRef<string | null>(null);
-  const draggingTextId = useRef<string | null>(null);
-  const [dragPreview, setDragPreview] = useState<{ id: string; x: number; y: number } | null>(null);
-  const [liveStroke, setLiveStroke] = useState<Stroke | null>(null);
+  const {
+    canvasRef,
+    handlePointerDown,
+    handlePointerMove,
+    handlePointerUp,
+    handleMirror,
+    handleRotate,
+  } = useCanvasEditor({
+    current,
+    commit,
+    toolMode,
+    drawTool,
+    color,
+    size,
+    pendingSticker,
+    setPendingSticker,
+    setTextDraft,
+  });
 
   useEffect(() => {
     const url = URL.createObjectURL(file);
@@ -118,314 +84,7 @@ export default function ImageEditorModal({ file, onCancel, onSave }: ImageEditor
     };
     img.src = url;
     return () => URL.revokeObjectURL(url);
-  }, [file]);
-
-  const redraw = useCallback(() => {
-    const canvas = canvasRef.current;
-    const img = baseImageRef.current;
-    if (!canvas || !img || !current) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    canvas.width = current.baseWidth;
-    canvas.height = current.baseHeight;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(img, 0, 0, current.baseWidth, current.baseHeight);
-
-    const allStrokes = liveStroke ? [...current.strokes, liveStroke] : current.strokes;
-    for (const stroke of allStrokes) {
-      if (stroke.points.length < 2) continue;
-      ctx.save();
-      ctx.globalCompositeOperation = stroke.tool === 'eraser' ? 'destination-out' : 'source-over';
-      ctx.globalAlpha = stroke.tool === 'marker' ? 0.55 : 1;
-      ctx.strokeStyle = stroke.color;
-      ctx.lineWidth = stroke.size;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.beginPath();
-      ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
-      for (const point of stroke.points.slice(1)) ctx.lineTo(point.x, point.y);
-      ctx.stroke();
-      ctx.restore();
-    }
-
-    for (const sticker of current.stickers) {
-      const pos = dragPreview?.id === sticker.id ? dragPreview : sticker;
-      ctx.save();
-      ctx.font = `${sticker.fontSize}px sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(sticker.emoji, pos.x, pos.y);
-      ctx.restore();
-    }
-
-    for (const text of current.texts) {
-      const pos = dragPreview?.id === text.id ? dragPreview : text;
-      ctx.save();
-      ctx.font = `${text.fontSize}px sans-serif`;
-      ctx.fillStyle = text.color;
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'top';
-      text.text
-        .split('\n')
-        .forEach((line, i) => ctx.fillText(line, pos.x, pos.y + i * text.fontSize * 1.2));
-      ctx.restore();
-    }
-  }, [current, liveStroke, dragPreview]);
-
-  useEffect(() => {
-    const baseImageSrc = current?.baseImageSrc;
-    if (!baseImageSrc) return;
-    const img = new Image();
-    img.onload = () => {
-      baseImageRef.current = img;
-      redraw();
-    };
-    img.src = baseImageSrc;
-  }, [current?.baseImageSrc, redraw]);
-
-  useLayoutEffect(() => {
-    redraw();
-  }, [redraw]);
-
-  const commit = (next: Snapshot) => {
-    if (current) setUndoStack((prev) => [...prev, current]);
-    setRedoStack([]);
-    setCurrent(next);
-  };
-
-  const undo = useCallback(() => {
-    setUndoStack((prevUndo) => {
-      if (prevUndo.length === 0) return prevUndo;
-      const last = prevUndo[prevUndo.length - 1];
-      setCurrent((curr) => {
-        if (curr) setRedoStack((r) => [...r, curr]);
-        return last;
-      });
-      return prevUndo.slice(0, -1);
-    });
-  }, []);
-
-  const redo = useCallback(() => {
-    setRedoStack((prevRedo) => {
-      if (prevRedo.length === 0) return prevRedo;
-      const last = prevRedo[prevRedo.length - 1];
-      setCurrent((curr) => {
-        if (curr) setUndoStack((u) => [...u, curr]);
-        return last;
-      });
-      return prevRedo.slice(0, -1);
-    });
-  }, []);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const isMod = e.ctrlKey || e.metaKey;
-      if (!isMod) return;
-      if (e.key.toLowerCase() === 'z' && e.shiftKey) {
-        e.preventDefault();
-        redo();
-      } else if (e.key.toLowerCase() === 'z') {
-        e.preventDefault();
-        undo();
-      } else if (e.key.toLowerCase() === 'y') {
-        e.preventDefault();
-        redo();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo]);
-
-  const getImagePoint = (e: React.PointerEvent<HTMLCanvasElement>): Point => {
-    const canvas = canvasRef.current!;
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
-  };
-
-  const getDisplayScale = () => {
-    const canvas = canvasRef.current!;
-    const rect = canvas.getBoundingClientRect();
-    return canvas.width / rect.width;
-  };
-
-  const findStickerAt = (point: Point) =>
-    current?.stickers.find((s) => Math.hypot(s.x - point.x, s.y - point.y) < s.fontSize * 0.7);
-
-  const findTextAt = (point: Point) =>
-    current?.texts.find(
-      (t) =>
-        point.x >= t.x - 4 &&
-        point.x <= t.x + t.fontSize * 8 &&
-        point.y >= t.y - 4 &&
-        point.y <= t.y + t.fontSize * 1.4,
-    );
-
-  const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!current) return;
-    const point = getImagePoint(e);
-
-    if (toolMode === 'draw') {
-      isDrawingRef.current = true;
-      const stroke: Stroke = {
-        id: crypto.randomUUID(),
-        tool: drawTool,
-        color,
-        size: size * getDisplayScale(),
-        points: [point],
-      };
-      currentStrokeRef.current = stroke;
-      setLiveStroke(stroke);
-      return;
-    }
-
-    if (toolMode === 'sticker') {
-      const hit = findStickerAt(point);
-      if (hit) {
-        draggingStickerId.current = hit.id;
-      } else if (pendingSticker) {
-        commit({
-          ...current,
-          stickers: [
-            ...current.stickers,
-            {
-              id: crypto.randomUUID(),
-              emoji: pendingSticker,
-              x: point.x,
-              y: point.y,
-              fontSize: size * 4 * getDisplayScale(),
-            },
-          ],
-        });
-        setPendingSticker(null);
-      }
-      return;
-    }
-
-    if (toolMode === 'text') {
-      const hit = findTextAt(point);
-      if (hit) {
-        draggingTextId.current = hit.id;
-      } else {
-        setTextDraft({ x: point.x, y: point.y, value: '' });
-      }
-    }
-  };
-
-  const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!current) return;
-
-    if (isDrawingRef.current && currentStrokeRef.current) {
-      const point = getImagePoint(e);
-      currentStrokeRef.current = {
-        ...currentStrokeRef.current,
-        points: [...currentStrokeRef.current.points, point],
-      };
-      setLiveStroke(currentStrokeRef.current);
-      return;
-    }
-
-    if (draggingStickerId.current) {
-      const point = getImagePoint(e);
-      setDragPreview({ id: draggingStickerId.current, x: point.x, y: point.y });
-      return;
-    }
-
-    if (draggingTextId.current) {
-      const point = getImagePoint(e);
-      setDragPreview({ id: draggingTextId.current, x: point.x, y: point.y });
-    }
-  };
-
-  const handlePointerUp = () => {
-    if (!current) return;
-
-    if (isDrawingRef.current && currentStrokeRef.current) {
-      isDrawingRef.current = false;
-      const stroke = currentStrokeRef.current;
-      currentStrokeRef.current = null;
-      setLiveStroke(null);
-      if (stroke.points.length > 1) commit({ ...current, strokes: [...current.strokes, stroke] });
-      return;
-    }
-
-    if (draggingStickerId.current && dragPreview) {
-      const id = draggingStickerId.current;
-      commit({
-        ...current,
-        stickers: current.stickers.map((s) =>
-          s.id === id ? { ...s, x: dragPreview.x, y: dragPreview.y } : s,
-        ),
-      });
-      draggingStickerId.current = null;
-      setDragPreview(null);
-      return;
-    }
-
-    if (draggingTextId.current && dragPreview) {
-      const id = draggingTextId.current;
-      commit({
-        ...current,
-        texts: current.texts.map((t) =>
-          t.id === id ? { ...t, x: dragPreview.x, y: dragPreview.y } : t,
-        ),
-      });
-      draggingTextId.current = null;
-      setDragPreview(null);
-    }
-  };
-
-  const applyBaseTransform = (
-    transform: (ctx: CanvasRenderingContext2D, newW: number, newH: number) => void,
-    newW: number,
-    newH: number,
-    pointTransform: (p: Point) => Point,
-  ) => {
-    if (!current || !baseImageRef.current) return;
-    const off = document.createElement('canvas');
-    off.width = newW;
-    off.height = newH;
-    const ctx = off.getContext('2d')!;
-    transform(ctx, newW, newH);
-    ctx.drawImage(baseImageRef.current, 0, 0, current.baseWidth, current.baseHeight);
-
-    commit({
-      baseImageSrc: off.toDataURL(),
-      baseWidth: newW,
-      baseHeight: newH,
-      strokes: current.strokes.map((s) => ({ ...s, points: s.points.map(pointTransform) })),
-      stickers: current.stickers.map((s) => ({ ...s, ...pointTransform(s) })),
-      texts: current.texts.map((t) => ({ ...t, ...pointTransform(t) })),
-    });
-  };
-
-  const handleMirror = () => {
-    if (!current) return;
-    applyBaseTransform(
-      (ctx, w) => {
-        ctx.translate(w, 0);
-        ctx.scale(-1, 1);
-      },
-      current.baseWidth,
-      current.baseHeight,
-      (p) => flipPointX(p, current.baseWidth),
-    );
-  };
-
-  const handleRotate = () => {
-    if (!current) return;
-    applyBaseTransform(
-      (ctx, w) => {
-        ctx.translate(w, 0);
-        ctx.rotate(Math.PI / 2);
-      },
-      current.baseHeight,
-      current.baseWidth,
-      (p) => rotatePoint90(p, current.baseWidth, current.baseHeight),
-    );
-  };
+  }, [file, setCurrent]);
 
   const commitTextDraft = () => {
     if (!textDraft || !current) {
@@ -539,14 +198,14 @@ export default function ImageEditorModal({ file, onCancel, onSave }: ImageEditor
           <div className="flex items-center gap-3 px-6 pt-4">
             <button
               onClick={undo}
-              disabled={undoStack.length === 0}
+              disabled={!canUndo}
               className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
             >
               <Undo2 size={18} />
             </button>
             <button
               onClick={redo}
-              disabled={redoStack.length === 0}
+              disabled={!canRedo}
               className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
             >
               <Redo2 size={18} />
@@ -701,66 +360,5 @@ export default function ImageEditorModal({ file, onCancel, onSave }: ImageEditor
         </div>
       </div>
     </div>
-  );
-}
-
-function TextDraftOverlay({
-  canvasRef,
-  draft,
-  color,
-  fontSize,
-  onChange,
-  onCommit,
-}: {
-  canvasRef: React.RefObject<HTMLCanvasElement | null>;
-  draft: { x: number; y: number; value: string };
-  color: string;
-  fontSize: number;
-  onChange: (value: string) => void;
-  onCommit: () => void;
-}) {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const [screenPos, setScreenPos] = useState({ left: 0, top: 0, scale: 1 });
-
-  useLayoutEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const canvasRect = canvas.getBoundingClientRect();
-    const parentRect = canvas.parentElement!.getBoundingClientRect();
-    const scale = canvasRect.width / canvas.width;
-    setScreenPos({
-      left: canvasRect.left - parentRect.left + draft.x * scale,
-      top: canvasRect.top - parentRect.top + draft.y * scale,
-      scale,
-    });
-  }, [canvasRef, draft.x, draft.y]);
-
-  useEffect(() => {
-    textareaRef.current?.focus();
-  }, []);
-
-  return (
-    <textarea
-      ref={textareaRef}
-      value={draft.value}
-      onChange={(e) => onChange(e.target.value)}
-      onBlur={onCommit}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-          e.preventDefault();
-          onCommit();
-        }
-      }}
-      style={{
-        position: 'absolute',
-        left: screenPos.left,
-        top: screenPos.top,
-        color,
-        fontSize: fontSize * screenPos.scale,
-        minWidth: 40,
-      }}
-      className="bg-transparent border border-dashed border-white/40 rounded px-1 outline-none resize-none leading-tight"
-      rows={1}
-    />
   );
 }

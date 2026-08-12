@@ -6,26 +6,13 @@ import {
   Bell,
   BellOff,
   Search,
-  ChevronDown,
   ChevronRight,
-  Pin,
-  Image as ImageIcon,
-  FileText,
-  Link as LinkIcon,
   Palette,
   Pencil,
-  ShieldQuestion,
-  Eye,
-  ShieldAlert,
-  Ban,
-  Flag,
   Archive,
   Trash2,
   Users,
   LogOut,
-  Crown,
-  ShieldCheck,
-  UserPlus,
 } from 'lucide-react';
 import Avatar from '../../../shared/ui/Avatar';
 import GroupAvatarCollage from '../../../shared/ui/GroupAvatarCollage';
@@ -37,11 +24,15 @@ import { ConversationDisplay } from '../lib/getConversationDisplay';
 import NicknamesModal from './NicknamesModal';
 import PinnedMessagesModal from './PinnedMessagesModal';
 import MuteOptionsModal from './MuteOptionsModal';
-import MediaFilesLinksModal from '@/shared/ui/MediaFilesLinksModal';
+import MediaFilesLinksModal from './MediaFilesLinksModal';
 import EditGroupModal from './EditGroupModal';
 import GroupParticipantsModal from './GroupParticipantsModal';
 import AddMembersModal from './AddMembersModal';
 import GroupMemberDetailView from './GroupMemberDetailView';
+import GroupMembersSection from './details/GroupMembersSection';
+import ChatInfoSection from './details/ChatInfoSection';
+import PrivacySupportSection from './details/PrivacySupportSection';
+import { SectionButton } from './details/SectionButton';
 import { useMessageActions } from '../model/useMessageActions';
 import {
   useArchiveConversation,
@@ -61,63 +52,7 @@ interface ConversationDetailsPanelProps {
   onJumpToMessage: (messageId: string) => void;
 }
 
-function SectionButton({
-  icon,
-  label,
-  sublabel,
-  danger,
-  onClick,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  sublabel?: string;
-  danger?: boolean;
-  onClick?: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors ${
-        danger ? 'text-red-400 hover:bg-red-500/10' : 'text-gray-200 hover:bg-white/5'
-      }`}
-    >
-      <span className="flex-shrink-0">{icon}</span>
-      <span className="flex-1 min-w-0">
-        <span className="block text-sm font-medium">{label}</span>
-        {sublabel && <span className="block text-xs text-gray-500">{sublabel}</span>}
-      </span>
-    </button>
-  );
-}
-
-function ExpandableSection({
-  label,
-  isOpen,
-  onToggle,
-  children,
-}: {
-  label: string;
-  isOpen: boolean;
-  onToggle: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <div>
-      <button
-        onClick={onToggle}
-        className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left text-gray-200 hover:bg-white/5 transition-colors"
-      >
-        <span className="text-sm font-semibold">{label}</span>
-        {isOpen ? (
-          <ChevronDown size={16} className="text-gray-500" />
-        ) : (
-          <ChevronRight size={16} className="text-gray-500" />
-        )}
-      </button>
-      {isOpen && <div className="flex flex-col gap-0.5 pl-1 pb-1">{children}</div>}
-    </div>
-  );
-}
+type DetailsModal = 'nicknames' | 'pinned' | 'mute' | 'editGroup' | 'participants' | 'addMembers';
 
 export default function ConversationDetailsPanel({
   conversation,
@@ -144,12 +79,7 @@ export default function ConversationDetailsPanel({
 
   const [isInfoOpen, setInfoOpen] = useState(true);
   const [isPrivacyOpen, setPrivacyOpen] = useState(false);
-  const [isNicknamesModalOpen, setNicknamesModalOpen] = useState(false);
-  const [isPinnedModalOpen, setPinnedModalOpen] = useState(false);
-  const [isMuteModalOpen, setMuteModalOpen] = useState(false);
-  const [isEditGroupModalOpen, setEditGroupModalOpen] = useState(false);
-  const [isParticipantsModalOpen, setParticipantsModalOpen] = useState(false);
-  const [isAddMembersModalOpen, setAddMembersModalOpen] = useState(false);
+  const [activeModal, setActiveModal] = useState<DetailsModal | null>(null);
   const [viewedMemberId, setViewedMemberId] = useState<string | null>(null);
   const [galleryTab, setGalleryTab] = useState<'media' | 'files' | 'links' | null>(null);
   const [isClosing, setIsClosing] = useState(false);
@@ -185,13 +115,13 @@ export default function ConversationDetailsPanel({
     if (isMuted) {
       muteConversation.mutate({ conversationId: conversation.id, muteLevel: 'NONE' });
     } else {
-      setMuteModalOpen(true);
+      setActiveModal('mute');
     }
   };
 
   const handleConfirmMute = (muteLevel: MuteLevel) => {
     muteConversation.mutate({ conversationId: conversation.id, muteLevel });
-    setMuteModalOpen(false);
+    setActiveModal(null);
   };
 
   const handleLeaveGroup = () => {
@@ -286,7 +216,7 @@ export default function ConversationDetailsPanel({
           )}
           {isGroup && (
             <button
-              onClick={() => setParticipantsModalOpen(true)}
+              onClick={() => setActiveModal('participants')}
               className="flex flex-col items-center gap-1.5 px-4 py-2 rounded-2xl text-gray-300 hover:bg-white/5 transition-colors"
             >
               <span className="w-9 h-9 flex items-center justify-center rounded-full bg-white/10">
@@ -316,59 +246,12 @@ export default function ConversationDetailsPanel({
         </div>
 
         {isGroup && (
-          <>
-            <div className="h-px bg-white/5 my-2" />
-            <div className="flex items-center justify-between px-3 pt-1 pb-1">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
-                {conversation.participants.length} participants
-              </p>
-              <button
-                onClick={() => setAddMembersModalOpen(true)}
-                title="Add more users"
-                className="w-6 h-6 flex items-center justify-center rounded-full text-gray-400 hover:bg-white/10 hover:text-white transition-colors"
-              >
-                <UserPlus size={14} />
-              </button>
-            </div>
-            <div className="flex flex-col gap-0.5 max-h-40 overflow-y-auto custom-scrollbar mb-1">
-              {conversation.participants.slice(0, 5).map((p) => {
-                const name = p.nickname ?? p.user.displayName ?? p.user.username;
-                return (
-                  <button
-                    key={p.userId}
-                    onClick={() => setViewedMemberId(p.userId)}
-                    className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-white/5 transition-colors text-left"
-                  >
-                    <div className="relative">
-                      <Avatar size="sm" src={p.user.avatar} />
-                      <OnlineStatusIndicator userId={p.userId} variant="dot" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-white truncate">{name}</p>
-                    </div>
-                    {(p.role === 'OWNER' || p.role === 'ADMIN') && (
-                      <span className="flex items-center gap-1 text-[11px] text-gray-500 flex-shrink-0">
-                        {p.role === 'OWNER' ? (
-                          <Crown size={12} className="text-yellow-500" />
-                        ) : (
-                          <ShieldCheck size={12} className="text-blue-400" />
-                        )}
-                        {p.role === 'OWNER' ? 'Owner' : 'Admin'}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-              {conversation.participants.length > 5 && (
-                <button
-                  onClick={() => setParticipantsModalOpen(true)}
-                  className="text-left px-3 py-2 text-xs font-medium text-blue-400 hover:text-blue-300 transition-colors"
-                >
-                  View all {conversation.participants.length} participants
-                </button>
-              )}
-            </div>
-          </>
+          <GroupMembersSection
+            conversation={conversation}
+            onAddMembers={() => setActiveModal('addMembers')}
+            onSelectMember={(userId) => setViewedMemberId(userId)}
+            onViewAll={() => setActiveModal('participants')}
+          />
         )}
 
         <div className="h-px bg-white/5 my-2" />
@@ -377,36 +260,16 @@ export default function ConversationDetailsPanel({
           Chat settings
         </p>
 
-        <ExpandableSection
-          label="Chat info"
+        <ChatInfoSection
           isOpen={isInfoOpen}
           onToggle={() => setInfoOpen((v) => !v)}
-        >
-          <SectionButton
-            icon={<Pin size={17} />}
-            label="Pinned messages"
-            sublabel={`${pinnedCount}`}
-            onClick={() => setPinnedModalOpen(true)}
-          />
-          <SectionButton
-            icon={<ImageIcon size={17} />}
-            label="Media"
-            sublabel={`${mediaCount} loaded`}
-            onClick={() => setGalleryTab('media')}
-          />
-          <SectionButton
-            icon={<FileText size={17} />}
-            label="Files"
-            sublabel={`${fileCount} loaded`}
-            onClick={() => setGalleryTab('files')}
-          />
-          <SectionButton
-            icon={<LinkIcon size={17} />}
-            label="Links"
-            sublabel={`${linkCount} loaded`}
-            onClick={() => setGalleryTab('links')}
-          />
-        </ExpandableSection>
+          pinnedCount={pinnedCount}
+          mediaCount={mediaCount}
+          fileCount={fileCount}
+          linkCount={linkCount}
+          onOpenPinned={() => setActiveModal('pinned')}
+          onOpenGallery={(tab) => setGalleryTab(tab)}
+        />
 
         <button className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left text-gray-200 hover:bg-white/5 transition-colors">
           <span className="flex items-center gap-3 text-sm font-medium">
@@ -417,7 +280,7 @@ export default function ConversationDetailsPanel({
 
         {isGroup ? (
           <button
-            onClick={() => setEditGroupModalOpen(true)}
+            onClick={() => setActiveModal('editGroup')}
             className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left text-gray-200 hover:bg-white/5 transition-colors"
           >
             <span className="flex items-center gap-3 text-sm font-medium">
@@ -427,7 +290,7 @@ export default function ConversationDetailsPanel({
           </button>
         ) : (
           <button
-            onClick={() => setNicknamesModalOpen(true)}
+            onClick={() => setActiveModal('nicknames')}
             className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left text-gray-200 hover:bg-white/5 transition-colors"
           >
             <span className="flex items-center gap-3 text-sm font-medium">
@@ -443,37 +306,16 @@ export default function ConversationDetailsPanel({
           Privacy &amp; support
         </p>
 
-        <ExpandableSection
-          label="Privacy and support"
+        <PrivacySupportSection
           isOpen={isPrivacyOpen}
           onToggle={() => setPrivacyOpen((v) => !v)}
-        >
-          <SectionButton
-            icon={isMuted ? <Bell size={17} /> : <BellOff size={17} />}
-            label={isMuted ? 'Unmute notifications' : 'Mute notifications'}
-            onClick={handleToggleMute}
-          />
-          <SectionButton icon={<ShieldQuestion size={17} />} label="Message permissions" />
-          <SectionButton icon={<Eye size={17} />} label="Read receipts" sublabel="On" />
-          <SectionButton icon={<ShieldAlert size={17} />} label="Restrict" />
-          {!isGroup && otherUserId && (
-            <SectionButton
-              icon={<Ban size={17} />}
-              label="Block"
-              danger
-              onClick={() => blockUser.mutate(otherUserId)}
-            />
-          )}
-          {!isGroup && otherUserId && (
-            <SectionButton
-              icon={<Flag size={17} />}
-              label="Report"
-              sublabel="Leave feedback and report this conversation"
-              danger
-              onClick={() => reportUser.mutate({ userId: otherUserId, category: 'OTHER' })}
-            />
-          )}
-        </ExpandableSection>
+          isMuted={isMuted}
+          onToggleMute={handleToggleMute}
+          isGroup={isGroup}
+          otherUserId={otherUserId}
+          onBlock={(userId) => blockUser.mutate(userId)}
+          onReport={(userId) => reportUser.mutate({ userId, category: 'OTHER' })}
+        />
 
         <div className="h-px bg-white/5 my-2" />
 
@@ -502,24 +344,24 @@ export default function ConversationDetailsPanel({
         )}
       </div>
 
-      {isNicknamesModalOpen && (
-        <NicknamesModal conversation={conversation} onClose={() => setNicknamesModalOpen(false)} />
+      {activeModal === 'nicknames' && (
+        <NicknamesModal conversation={conversation} onClose={() => setActiveModal(null)} />
       )}
 
-      {isPinnedModalOpen && (
+      {activeModal === 'pinned' && (
         <PinnedMessagesModal
           pinnedMessages={conversation.pinnedMessages}
-          onClose={() => setPinnedModalOpen(false)}
+          onClose={() => setActiveModal(null)}
           onJumpToMessage={(messageId) => {
-            setPinnedModalOpen(false);
+            setActiveModal(null);
             onJumpToMessage(messageId);
           }}
           onUnpin={(messageId) => messageActions.unpinMessage(messageId).catch(() => {})}
         />
       )}
 
-      {isMuteModalOpen && (
-        <MuteOptionsModal onClose={() => setMuteModalOpen(false)} onConfirm={handleConfirmMute} />
+      {activeModal === 'mute' && (
+        <MuteOptionsModal onClose={() => setActiveModal(null)} onConfirm={handleConfirmMute} />
       )}
 
       {galleryTab && (
@@ -531,31 +373,28 @@ export default function ConversationDetailsPanel({
         />
       )}
 
-      {isEditGroupModalOpen && (
+      {activeModal === 'editGroup' && (
         <EditGroupModal
           conversation={conversation}
-          onClose={() => setEditGroupModalOpen(false)}
-          onOpenParticipants={() => {
-            setEditGroupModalOpen(false);
-            setParticipantsModalOpen(true);
-          }}
+          onClose={() => setActiveModal(null)}
+          onOpenParticipants={() => setActiveModal('participants')}
         />
       )}
 
-      {isParticipantsModalOpen && (
+      {activeModal === 'participants' && (
         <GroupParticipantsModal
           conversation={conversation}
           currentUserId={currentUserId}
-          onClose={() => setParticipantsModalOpen(false)}
+          onClose={() => setActiveModal(null)}
           onSelectMember={(userId) => setViewedMemberId(userId)}
         />
       )}
 
-      {isAddMembersModalOpen && (
+      {activeModal === 'addMembers' && (
         <AddMembersModal
           conversationId={conversation.id}
           existingMemberIds={conversation.participants.map((p) => p.userId)}
-          onClose={() => setAddMembersModalOpen(false)}
+          onClose={() => setActiveModal(null)}
         />
       )}
     </div>

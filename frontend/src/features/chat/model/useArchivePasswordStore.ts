@@ -1,54 +1,56 @@
 import { create } from 'zustand';
+import {
+  derivePassword,
+  verifyPassword,
+  type DerivedPassword,
+} from '@/shared/lib/derivePasswordHash';
 
 const STORAGE_KEY = 'eternal-archive-password';
 
-function hashPassword(plain: string): string {
-  let hash = 5381;
-  for (let i = 0; i < plain.length; i += 1) {
-    hash = (hash * 33) ^ plain.charCodeAt(i);
-  }
-  return (hash >>> 0).toString(36);
-}
-
-function loadHash(): string | null {
+function loadStored(): DerivedPassword | null {
   if (typeof window === 'undefined') return null;
   try {
-    return localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as DerivedPassword;
+    if (parsed?.salt && parsed?.hash && parsed?.algo) return parsed;
+    return null;
   } catch {
     return null;
   }
 }
 
-function saveHash(hash: string | null) {
+function saveStored(value: DerivedPassword | null) {
   if (typeof window === 'undefined') return;
   try {
-    if (hash === null) localStorage.removeItem(STORAGE_KEY);
-    else localStorage.setItem(STORAGE_KEY, hash);
+    if (value === null) localStorage.removeItem(STORAGE_KEY);
+    else localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
   } catch {
     // ignore write failures (private mode, quota, etc.)
   }
 }
 
 interface ArchivePasswordState {
-  passwordHash: string | null;
-  setPassword: (plain: string) => void;
-  verify: (plain: string) => boolean;
+  passwordHash: DerivedPassword | null;
+  setPassword: (plain: string) => Promise<void>;
+  verify: (plain: string) => Promise<boolean>;
   resetPassword: () => void;
 }
 
 export const useArchivePasswordStore = create<ArchivePasswordState>((set, get) => ({
-  passwordHash: loadHash(),
-  setPassword: (plain) => {
-    const passwordHash = hashPassword(plain);
-    saveHash(passwordHash);
+  passwordHash: loadStored(),
+  setPassword: async (plain) => {
+    const passwordHash = await derivePassword(plain);
+    saveStored(passwordHash);
     set({ passwordHash });
   },
-  verify: (plain) => {
+  verify: async (plain) => {
     const { passwordHash } = get();
-    return passwordHash !== null && hashPassword(plain) === passwordHash;
+    if (!passwordHash) return false;
+    return verifyPassword(plain, passwordHash);
   },
   resetPassword: () => {
-    saveHash(null);
+    saveStored(null);
     set({ passwordHash: null });
   },
 }));
