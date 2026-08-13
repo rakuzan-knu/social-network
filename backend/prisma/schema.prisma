@@ -47,9 +47,13 @@ model User {
   privacyExceptions        PrivacyException[]        @relation("PrivacyOwner")
   privacyTargetedBy        PrivacyException[]        @relation("PrivacyTarget")
   sessions                 Session[]
-  polls Poll[] @relation("CreatedPolls")
-  votes Vote[]
-  badges UserBadge[]
+  polls                    Poll[]                    @relation("CreatedPolls")
+  votes                    Vote[]
+  badges                   UserBadge[]
+  reposts                  Repost[]
+  savedPosts               SavedPost[]
+  aliasesCreated           UserAlias[]               @relation("AliasOwner")
+  aliasesTargeted          UserAlias[]               @relation("AliasTarget")
 }
 
 model UserBadge {
@@ -71,11 +75,13 @@ model Post {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  author   User      @relation(fields: [authorId], references: [id])
-  authorId String
-  likes    Like[]
-  comments Comment[]
-  poll     Poll?
+  author     User        @relation(fields: [authorId], references: [id])
+  authorId   String
+  likes      Like[]
+  comments   Comment[]
+  poll       Poll?
+  reposts    Repost[]
+  savedPosts SavedPost[]
 }
 
 model Like {
@@ -466,4 +472,44 @@ model Vote {
   @@unique([pollId, userId], name: "unique_user_vote_per_poll")
   @@index([pollId, userId])
   @@map("votes")
+}
+
+model Repost {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+}
+
+model SavedPost {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+}
+
+model UserAlias {
+  id        String   @id @default(uuid())
+  ownerId   String
+  targetId  String
+  alias     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner  User @relation("AliasOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  target User @relation("AliasTarget", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerId, targetId])
+  @@index([ownerId])
+  @@map("user_aliases")
 }
