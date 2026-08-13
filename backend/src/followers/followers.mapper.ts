@@ -1,8 +1,8 @@
-import type { PublicUserEntity } from './types/followers.types';
+import type { PublicUserEntity, PublicUserSummary } from './types/followers.types';
 import type { UserProfileDto } from '../users/dto/user-profile.dto';
 
 export function toUserProfileDto(
-  user: PublicUserEntity,
+  user: PublicUserEntity | PublicUserSummary,
   isFollowing: boolean = false,
 ): UserProfileDto {
   const badgeList = Array.isArray(user.badges)
