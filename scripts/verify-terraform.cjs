@@ -28,11 +28,6 @@ function verifyTerraformHCL() {
       message: 'main.tf must specify Vercel required provider',
     },
     {
-      file: 'cloudflare.tf',
-      assertion: (content) => content.includes('cloudflare_record') && content.includes('proxied'),
-      message: 'cloudflare.tf must define free proxy DNS records',
-    },
-    {
       file: 'budget.tf',
       assertion: (content) => content.includes('free_tier_limits') && content.includes('Free Tier'),
       message: 'budget.tf must declare $0 Zero-Cost Free Tier infrastructure budget policy',

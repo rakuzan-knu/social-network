@@ -34,9 +34,6 @@ jobs:
     env:
       VERCEL_API_TOKEN: ${{ secrets.VERCEL_TOKEN || 'dummy_token' }}
       TF_VAR_vercel_api_token: ${{ secrets.VERCEL_TOKEN || 'dummy_token' }}
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CLOUDFLARE_TOKEN || 'dummy_cloudflare_token' }}
-      TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CLOUDFLARE_TOKEN || 'dummy_cloudflare_token' }}
-      TF_VAR_cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID || 'dummy_zone_id' }}
 
     steps:
       - name: Checkout code
