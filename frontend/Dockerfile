@@ -15,7 +15,7 @@ COPY . .
 ENV NODE_ENV=production
 RUN npm run build
 
-FROM nginx:1.27-alpine AS production
+FROM nginx:1.31-alpine AS production
 
 RUN --mount=type=cache,target=/var/cache/apk \
     apk add --no-cache curl
