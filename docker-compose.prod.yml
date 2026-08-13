@@ -116,11 +116,19 @@ services:
     networks:
       - internal
     healthcheck:
-      test: ['CMD', 'wget', '-qO-', 'http://localhost:3000/health']
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:3000/health/ready']
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 30s
+    read_only: true
+    security_opt:
+      - 'no-new-privileges:true'
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:exec
+      - /tmp/uploads
     logging: *default-logging
     deploy:
       replicas: 2
@@ -196,6 +204,15 @@ services:
     networks:
       - internal
       - public
+    read_only: true
+    security_opt:
+      - 'no-new-privileges:true'
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp
+      - /var/cache/nginx
+      - /var/run
     logging: *default-logging
     deploy:
       resources:
@@ -343,6 +360,44 @@ services:
           cpus: '0.25'
           memory: 256M
 
+  tempo:
+    profiles: ['monitoring']
+    image: grafana/tempo:latest
+    restart: unless-stopped
+    command: ['-config.file=/etc/tempo.yaml']
+    volumes:
+      - tempo_data:/tmp/tempo
+    ports:
+      - '3200:3200'
+      - '4317:4317'
+    networks:
+      - internal
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+
+  otel-collector:
+    profiles: ['monitoring']
+    image: otel/opentelemetry-collector-contrib:latest
+    restart: unless-stopped
+    command: ['--config=/etc/otel-collector-config.yaml']
+    volumes:
+      - ./monitoring/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    ports:
+      - '4318:4318'
+      - '8889:8889'
+    networks:
+      - internal
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+
   backup-service:
     build:
       context: .
@@ -411,6 +466,8 @@ volumes:
   backup_data:
     driver: local
   loki_data:
+    driver: local
+  tempo_data:
     driver: local
 
 networks:

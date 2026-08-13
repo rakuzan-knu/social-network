@@ -37,7 +37,7 @@ jobs:
           cache: 'npm'
 
       - name: Install root deps
-        run: npm ci --fetch-retries=5 --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=120000
+        run: npm ci --ignore-scripts --fetch-retries=5 --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=120000
 
       - name: Build monorepo
         working-directory: ./

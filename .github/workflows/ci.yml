@@ -90,7 +90,7 @@ jobs:
           cache: 'npm'
 
       - name: Install root deps
-        run: npm ci --fetch-retries=5 --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=120000
+        run: npm ci --ignore-scripts --fetch-retries=5 --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=120000
 
       - name: Validate PR commits
         run: |
@@ -138,7 +138,7 @@ jobs:
       - name: Install & Generate (On Cache Miss)
         if: steps.monorepo-cache.outputs.cache-hit != 'true'
         run: |
-          npm ci --fetch-retries=5 --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=120000
+          npm ci --ignore-scripts --fetch-retries=5 --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=120000
           cd backend && npx prisma generate
 
   format-check:

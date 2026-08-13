@@ -58,6 +58,18 @@ if pg_dump -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" --no-password
   # Get file count after cleanup
   NEW_COUNT=$(find "${BACKUP_DIR}" -maxdepth 1 \( -name "backup_*.sql.gz" -o -name "backup_*.sql.gz.enc" \) -type f | wc -l)
   log "Cleaned up old backups. Total backups: $NEW_COUNT (removed $((OLD_COUNT - NEW_COUNT)))"
+
+  # Optional Cross-Region Replication to S3/GCS
+  if [ -n "${BACKUP_S3_BUCKET}" ]; then
+    log "Replicating backups to Cross-Region Storage: ${BACKUP_S3_BUCKET}..."
+    if command -v rclone &> /dev/null; then
+      rclone sync "${BACKUP_DIR}" "${BACKUP_S3_BUCKET}" --fast-list || log "⚠️ rclone replication warning"
+    elif command -v aws &> /dev/null; then
+      aws s3 sync "${BACKUP_DIR}" "${BACKUP_S3_BUCKET}" --delete || log "⚠️ AWS S3 sync warning"
+    else
+      log "ℹ️ Neither rclone nor aws CLI found. Skipping remote bucket sync."
+    fi
+  fi
   
   # Output metrics for Prometheus
   echo "# HELP backup_success_time_seconds Timestamp of last successful backup"

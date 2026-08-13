@@ -4,7 +4,7 @@ import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import type { App } from 'supertest/types';
-import { AppModule } from '../src/app.module';
+import { AppModule } from './../src/app.module';
 
 describe('Posts (e2e)', () => {
   let app: INestApplication<App>;
@@ -27,8 +27,9 @@ describe('Posts (e2e)', () => {
 
   it('GET /posts returns feed array or empty pagination', async () => {
     const res = await request(app.getHttpServer()).get('/posts').expect(200);
-    expect(res.body).toHaveProperty('data');
-    expect(Array.isArray(res.body.data)).toBe(true);
+    const body = res.body as { data: unknown[] };
+    expect(body).toHaveProperty('data');
+    expect(Array.isArray(body.data)).toBe(true);
   });
 
   it('GET /posts/:id returns 404 for non-existent post', async () => {

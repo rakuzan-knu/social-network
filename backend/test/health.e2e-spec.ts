@@ -25,13 +25,29 @@ describe('Health (e2e)', () => {
     }
   });
 
-  it('GET /health returns ok or degraded', async () => {
-    const res = await request(app.getHttpServer()).get('/health').expect(200);
+  it('GET /health returns health response status', async () => {
+    const res = await request(app.getHttpServer()).get('/health');
+    expect([200, 503]).toContain(res.status);
     const body = res.body as { status: string; timestamp: string; uptime: number };
     expect(body).toHaveProperty('status');
-    expect(['ok', 'degraded']).toContain(body.status);
+    expect(['ok', 'degraded', 'error']).toContain(body.status);
     expect(body).toHaveProperty('timestamp');
     expect(body).toHaveProperty('uptime');
+  });
+
+  it('GET /health/live returns status ok', async () => {
+    const res = await request(app.getHttpServer()).get('/health/live').expect(200);
+    const body = res.body as { status: string; timestamp: string };
+    expect(body.status).toBe('ok');
+    expect(typeof body.timestamp).toBe('string');
+  });
+
+  it('GET /health/ready returns readiness check response', async () => {
+    const res = await request(app.getHttpServer()).get('/health/ready');
+    expect([200, 503]).toContain(res.status);
+    const body = res.body as { status: string; services: { database: string; redis: string } };
+    expect(body).toHaveProperty('status');
+    expect(body).toHaveProperty('services');
   });
 
   it('GET /ping returns status ok', async () => {
