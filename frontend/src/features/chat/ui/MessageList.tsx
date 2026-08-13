@@ -129,7 +129,7 @@ export default function MessageList({
         Header: () => (isFetchingMore ? <OlderMessagesSkeleton /> : null),
         Footer: () => <TypingIndicatorBubble typists={typingParticipants} isGroup={isGroup} />,
       }}
-      itemContent={(_index, row) => {
+      itemContent={(_index: number, row: Row) => {
         if (row.type === 'separator') {
           return (
             <div className="flex items-center gap-3 px-4 my-3">

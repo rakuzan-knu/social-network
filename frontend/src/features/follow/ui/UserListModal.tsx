@@ -3,6 +3,7 @@ import { Search, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Avatar from '@/shared/ui/Avatar';
 import { FollowButton } from './FollowButton';
+import { UserNameWithBadges } from '@/entities/profile/ui/UserNameWithBadges';
 import { useAuthStore } from '@/shared/model/useAuthStore';
 import { useRemoveFollowerMutation } from '../model/useRemoveFollowerMutation';
 import { useFollowList } from '../model/useFollowList';
@@ -80,9 +81,19 @@ export function UserListModal({ userId, mode, isOwnProfile, onClose }: UserListM
                 <Link to={`/${u.username}`} onClick={onClose}>
                   <Avatar size="md" src={u.avatar} />
                 </Link>
-                <Link to={`/${u.username}`} onClick={onClose} className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-white truncate">{u.username}</p>
-                  <p className="text-xs text-gray-500 truncate">{u.displayName}</p>
+                <Link
+                  to={`/${u.username}`}
+                  onClick={onClose}
+                  className="flex-1 min-w-0 flex flex-col gap-0.5"
+                >
+                  <UserNameWithBadges
+                    displayName={u.displayName}
+                    username={u.username}
+                    isVerified={u.isVerified}
+                    primaryBadge={u.primaryBadge}
+                    size="sm"
+                  />
+                  <p className="text-xs text-gray-500 truncate">@{u.username}</p>
                 </Link>
 
                 {u.id === myUserId ? null : mode === 'followers' && isOwnProfile ? (

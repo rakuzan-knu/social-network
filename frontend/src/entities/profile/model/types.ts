@@ -21,6 +21,15 @@ export interface UserProfile {
   followersCount?: number;
   followingCount?: number;
   isPrivate?: boolean;
+  isVerified?: boolean;
+  primaryBadge?: string | null;
+  badges?: string[];
+  subscriptionMonths?: number;
+  subscriptionDate?: string;
+  prCount?: number;
+  reportCount?: number;
+  githubUsername?: string | null;
+  mergedPrsCount?: number;
   followStatus?: FollowStatusView;
   lastSeen?: string | LastSeenGranularity | null;
   autoDeletePeriod?: AutoDeletePeriod;

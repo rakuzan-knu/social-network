@@ -6,6 +6,8 @@ export interface FollowUserSummary {
   displayName?: string | null;
   avatar?: string | null;
   isFollowing: boolean;
+  isVerified?: boolean;
+  primaryBadge?: string | null;
 }
 export interface FollowListPage {
   items: FollowUserSummary[];

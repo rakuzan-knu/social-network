@@ -25,6 +25,8 @@ export interface PostType {
   handle: string;
   text: string;
   createdAt: string;
+  isVerified?: boolean;
+  primaryBadge?: string | null;
   type?: 'repost' | string;
   repostedBy?: string;
   media?: PostMedia[];

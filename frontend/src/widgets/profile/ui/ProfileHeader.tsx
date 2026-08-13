@@ -4,6 +4,9 @@ import Avatar from '../../../shared/ui/Avatar';
 import Banner from '../../../shared/ui/Banner';
 import { FollowButton } from '@/features/follow/ui/FollowButton';
 import { UserListModal } from '@/features/follow/ui/UserListModal';
+import { UserNameWithBadges } from '@/entities/profile/ui/UserNameWithBadges';
+import BadgeList from '@/features/profile/ui/BadgeList';
+import { getBadgeById, Badge } from '@/entities/profile/model/badges';
 
 interface ProfileHeaderProps {
   userId: string;
@@ -16,6 +19,9 @@ interface ProfileHeaderProps {
   createdAt?: string;
   isOwnProfile: boolean;
   isFollowing?: boolean;
+  isVerified?: boolean;
+  primaryBadge?: string | null;
+  badges?: string[];
   followersCount?: number;
   followingCount?: number;
   onEditClick: () => void;
@@ -32,11 +38,19 @@ export default function ProfileHeader({
   createdAt,
   isOwnProfile,
   isFollowing,
+  isVerified = false,
+  primaryBadge = null,
+  badges = [],
   followersCount = 0,
   followingCount = 0,
   onEditClick,
 }: ProfileHeaderProps) {
   const [openList, setOpenList] = useState<'followers' | 'following' | null>(null);
+
+  const mappedBadges: Badge[] =
+    badges && badges.length > 0
+      ? (badges.map((bId) => getBadgeById(bId)).filter(Boolean) as Badge[])
+      : [];
 
   return (
     <div className="w-full relative">
@@ -64,9 +78,18 @@ export default function ProfileHeader({
           )}
         </div>
 
-        <div className="mt-4 flex flex-col gap-1">
-          <h2 className="text-2xl font-bold text-white tracking-wide">{displayName || username}</h2>
-          <p className="text-sm text-gray-400 font-medium">@{username}</p>
+        <div className="mt-4 flex flex-col gap-1.5">
+          <UserNameWithBadges
+            displayName={displayName}
+            username={username}
+            isVerified={isVerified}
+            primaryBadge={primaryBadge}
+            size="lg"
+          />
+          <div className="flex items-center gap-2">
+            <p className="text-sm text-gray-400 font-medium">@{username}</p>
+            {mappedBadges.length > 0 && <BadgeList badges={mappedBadges} />}
+          </div>
         </div>
 
         <p className="text-sm text-gray-300 mt-3 leading-relaxed whitespace-pre-wrap">
@@ -75,31 +98,38 @@ export default function ProfileHeader({
         </p>
 
         <div className="flex items-center gap-2 text-xs text-gray-500 mt-4 font-medium">
-          <Calendar size={14} />{' '}
-          <span>Register: {createdAt ? new Date(createdAt).toLocaleDateString() : 'Unknown'}</span>
+          <Calendar size={14} />
+          <span>
+            Joined{' '}
+            {createdAt
+              ? new Date(createdAt).toLocaleDateString('en-US', {
+                  month: 'short',
+                  year: 'numeric',
+                })
+              : 'recently'}
+          </span>
         </div>
 
-        <div className="flex gap-6 mt-4 text-sm text-gray-300 border-t border-white/[0.03] pt-4">
+        <div className="flex items-center gap-6 mt-4 text-xs font-semibold">
           <button
-            type="button"
-            className="cursor-pointer hover:underline"
-            onClick={() => setOpenList('followers')}
-          >
-            <strong className="text-white font-semibold">{followersCount.toLocaleString()}</strong>{' '}
-            followers
-          </button>
-          <button
-            type="button"
-            className="cursor-pointer hover:underline"
             onClick={() => setOpenList('following')}
+            className="hover:underline text-gray-300 flex items-center gap-1"
           >
-            <strong className="text-white font-semibold">{followingCount.toLocaleString()}</strong>{' '}
-            following
+            <span className="text-white font-bold">{followingCount}</span>
+            <span className="text-gray-500 font-normal">Following</span>
+          </button>
+
+          <button
+            onClick={() => setOpenList('followers')}
+            className="hover:underline text-gray-300 flex items-center gap-1"
+          >
+            <span className="text-white font-bold">{followersCount}</span>
+            <span className="text-gray-500 font-normal">Followers</span>
           </button>
         </div>
       </div>
 
-      {openList && (
+      {openList !== null && (
         <UserListModal
           userId={userId}
           mode={openList}

@@ -117,6 +117,9 @@ export default function ProfilePage() {
           createdAt={user.createdAt}
           isOwnProfile={isOwnProfile}
           isFollowing={user.isFollowing}
+          isVerified={user.isVerified}
+          primaryBadge={user.primaryBadge}
+          badges={user.badges}
           followersCount={user.followersCount}
           followingCount={user.followingCount}
           onEditClick={openEditProfile}

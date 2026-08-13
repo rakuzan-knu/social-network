@@ -13,4 +13,14 @@ export const userApi = {
     api
       .get<{ isAvailable: boolean }>(`/auth/check-username`, { params: { username } })
       .then((res) => res.data),
+
+  updatePrimaryBadge: (badgeId: string | null) =>
+    api.patch<UserProfile>('/users/primary-badge', { badgeId }).then((res) => res.data),
+
+  syncGithub: () =>
+    api
+      .post<{ mergedPrsCount: number; githubUsername: string | null }>('/users/sync-github')
+      .then((res) => res.data),
+
+  unlinkGithub: () => api.delete<{ success: boolean }>('/auth/github').then((res) => res.data),
 };

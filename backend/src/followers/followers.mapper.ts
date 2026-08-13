@@ -5,6 +5,10 @@ export function toUserProfileDto(
   user: PublicUserEntity,
   isFollowing: boolean = false,
 ): UserProfileDto {
+  const badgeList = Array.isArray(user.badges)
+    ? user.badges.map((b: { badgeId: string } | string) => (typeof b === 'string' ? b : b.badgeId))
+    : [];
+
   return {
     id: user.id,
     username: user.username,
@@ -12,6 +16,11 @@ export function toUserProfileDto(
     avatar: user.avatar,
     bio: user.bio,
     isPrivate: user.isPrivate,
+    isVerified: user.isVerified ?? false,
+    primaryBadge: user.primaryBadge ?? null,
+    badges: badgeList,
+    githubUsername: user.githubUsername ?? null,
+    mergedPrsCount: user.mergedPrsCount ?? 0,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
     isFollowing,

@@ -13,6 +13,7 @@ import { PollVotersModal } from '@/entities/post/ui/PollVotersModal';
 import { useUIStore, PostType } from '@/shared/model/useUIStore';
 import { useLikeMutation } from '@/features/posts/model/useLikeMutation';
 import { formatRelativeTime } from '@/shared/lib/formatRelativeTime';
+import { UserNameWithBadges } from '@/entities/profile/ui/UserNameWithBadges';
 
 interface PostCardProps {
   post: PostType;
@@ -40,11 +41,14 @@ export function PostCard({ post, queryKey }: PostCardProps) {
         <div className="flex flex-col flex-1 gap-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
-              <Link
-                to={`/profile/${post.handle}`}
-                className="font-bold text-white text-sm truncate hover:underline"
-              >
-                {post.author}
+              <Link to={`/profile/${post.handle}`} className="hover:underline">
+                <UserNameWithBadges
+                  displayName={post.author}
+                  username={post.handle}
+                  isVerified={post.isVerified}
+                  primaryBadge={post.primaryBadge}
+                  size="sm"
+                />
               </Link>
               <span className="text-xs text-gray-500 shrink-0">
                 @{post.handle} • {formatRelativeTime(post.createdAt)}
