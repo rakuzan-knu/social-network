@@ -104,14 +104,25 @@ NestJS HTTP server and WebSocket Gateway accept requests from Vercel preview/pro
 
 ---
 
-## 5. 🤖 GitHub Actions CD Pipeline Secrets
+## 5. 🤖 GitHub Actions CD Pipeline Secrets & GitOps Secrets
 
-To enable automated deployments on push to `main`, set the following secrets in GitHub Repository Settings (**Settings > Secrets and variables > Actions**):
+To enable automated deployments, secret synchronization, and backup encryption on push to `main`, set the following secrets in GitHub Repository Settings (**Settings > Secrets and variables > Actions**):
 
-| Secret Name              | Description                | Source                                            |
-| :----------------------- | :------------------------- | :------------------------------------------------ |
-| `VERCEL_TOKEN`           | Vercel API Access Token    | Vercel Account Settings > Tokens                  |
-| `VERCEL_ORG_ID`          | Vercel Organization ID     | `.vercel/project.json` or Vercel Team Settings    |
-| `VERCEL_PROJECT_ID`      | Vercel Project ID          | `.vercel/project.json` or Vercel Project Settings |
-| `RENDER_DEPLOY_HOOK_URL` | Render Deploy Hook URL     | Render Service > Settings > Deploy Hook           |
-| `VITE_API_URL`           | Production Backend API URL | `https://<your-render-app>.onrender.com/api`      |
+| Secret Name              | Description                              | Source                                            |
+| :----------------------- | :--------------------------------------- | :------------------------------------------------ |
+| `VERCEL_TOKEN`           | Vercel API Access Token                  | Vercel Account Settings > Tokens                  |
+| `VERCEL_ORG_ID`          | Vercel Organization ID                   | `.vercel/project.json` or Vercel Team Settings    |
+| `VERCEL_PROJECT_ID`      | Vercel Project ID                        | `.vercel/project.json` or Vercel Project Settings |
+| `RENDER_DEPLOY_HOOK_URL` | Render Deploy Hook URL                   | Render Service > Settings > Deploy Hook           |
+| `RENDER_SERVICE_ID`      | Render Web Service ID                    | Render Dashboard > Service Settings               |
+| `RENDER_API_KEY`         | Render REST API User/Account Token       | Render Account Settings > API Keys                |
+| `BACKUP_ENCRYPTION_KEY`  | AES-256-CBC PBKDF2 Secret Encryption Key | Managed KMS / Cryptographic Vault                 |
+| `VITE_API_URL`           | Production Backend API URL               | `https://<your-render-app>.onrender.com/api`      |
+
+### 🔐 GitOps Secret Management Flow (`scripts/sync-render-secrets.sh`)
+
+Rather than manually setting environment variables via the Render UI dashboard (which causes secret drift and lacks auditability), secrets are managed via GitOps:
+
+1. Production secret values (`DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `CORS_ORIGIN`) are stored in GitHub Repository Secrets or Vault.
+2. `.github/workflows/deploy-backend-render.yml` invokes `scripts/sync-render-secrets.sh`.
+3. Secrets are synchronized programmatically via the Render REST API (`PUT /services/{serviceId}/env-vars`).

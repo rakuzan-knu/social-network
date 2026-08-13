@@ -10,8 +10,26 @@ Currently deployed on **Render (Backend)** + **Vercel (Frontend)**:
 
 - **Single Point of Failure (SPOF)**: Single cloud availability zone (Frankfurt region).
 - **Service Interruption Risk**: Render free instances sleep after 15 minutes of inactivity (mitigated via UptimeRobot keep-alive).
-- **RTO Target**: 2 Hours (Manual failover).
-- **RPO Target**: 24 Hours (Daily backup dumps).
+- **RTO Target**: < 15 Minutes (Verified via automated CI restore drill `scripts/verify-backup.sh`).
+- **RPO Target**: 24 Hours (Daily encrypted backup dumps `.sql.gz.enc`).
+
+---
+
+## 🔒 Backup Security & Empirical Restore Testing (DR Validation)
+
+### 1. Encryption at Rest (`scripts/backup-db.sh`)
+
+- All database backups are encrypted at rest using **AES-256-CBC** with PBKDF2 key derivation (100,000 iterations).
+- Backup files are stored as `backup_${DB_NAME}_${TIMESTAMP}.sql.gz.enc`. Plaintext dumps are never written to disk volume unencrypted.
+- Cryptographic key is provided via `BACKUP_ENCRYPTION_KEY`.
+
+### 2. Automated Daily Restore Drill (`.github/workflows/backup-restore-test.yml`)
+
+- Executes on a daily schedule (`cron: '0 3 * * *'`) and on PRs modifying backup/restore scripts.
+- Boots an isolated PostgreSQL database container in CI.
+- Seeds test schema & data records, runs `scripts/backup-db.sh`, then executes `scripts/verify-backup.sh`.
+- Decrypts the encrypted dump in-memory, restores into a temporary test database, and validates table counts and row integrity.
+- Measures and records exact RTO (Recovery Time Objective) in seconds to continuously prove recovery readiness.
 
 ---
 

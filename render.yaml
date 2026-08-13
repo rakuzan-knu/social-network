@@ -22,3 +22,7 @@ services:
         sync: false
       - key: JWT_SECRET
         sync: false
+    # Secrets synced automatically via GitOps script scripts/sync-render-secrets.sh
+    # or optional Environment Group binding:
+    # envVarGroups:
+    #   - name: social-network-production-secrets
