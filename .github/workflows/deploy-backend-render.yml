@@ -19,11 +19,11 @@ jobs:
     name: Trigger Render Deploy Hook
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    env:
-      RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
     steps:
       - name: Trigger Render Deployment
-        if: secrets.RENDER_DEPLOY_HOOK_URL != ''
+        if: ${{ secrets.RENDER_DEPLOY_HOOK_URL != '' }}
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
         run: |
           echo "Triggering deployment on Render..."
           curl -s -X POST "$RENDER_DEPLOY_HOOK_URL"
