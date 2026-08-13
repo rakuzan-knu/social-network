@@ -14,6 +14,9 @@ concurrency:
   group: deploy-backend-render-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+
 jobs:
   deploy:
     name: Trigger Render Deploy Hook
@@ -21,9 +24,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Trigger Render Deployment
-        if: ${{ secrets.RENDER_DEPLOY_HOOK_URL != '' }}
-        env:
-          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        if: env.RENDER_DEPLOY_HOOK_URL != ''
         run: |
           echo "Triggering deployment on Render..."
           curl -s -X POST "$RENDER_DEPLOY_HOOK_URL"
