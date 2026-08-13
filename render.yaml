@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: social-network-backend
+    env: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    plan: free
+    region: frankfurt
+    healthCheckPath: /ping
+    autoDeploy: true
+    envVars:
+      - key: PORT
+        value: '3000'
+      - key: NODE_ENV
+        value: 'production'
+      - key: CORS_ORIGIN
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false

@@ -1,5 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { SkipThrottle } from '@nestjs/throttler';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 
@@ -14,14 +15,14 @@ interface HealthStatus {
 }
 
 @ApiTags('health')
-@Controller('health')
+@Controller()
 export class HealthController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
   ) {}
 
-  @Get()
+  @Get('health')
   @ApiOperation({ summary: 'Service health check' })
   @ApiResponse({ status: 200, description: 'Service is healthy' })
   @ApiResponse({ status: 503, description: 'Service is unhealthy' })
@@ -41,7 +42,20 @@ export class HealthController {
     };
   }
 
-  @Get('debug-sentry')
+  @SkipThrottle()
+  @Get('ping')
+  @Get('api/ping')
+  @Get('health/ping')
+  @ApiOperation({ summary: 'Lightweight keep-alive ping for monitoring' })
+  @ApiResponse({ status: 200, description: 'Ping successful' })
+  ping(): { status: string; timestamp: string } {
+    return {
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  @Get('health/debug-sentry')
   @ApiOperation({ summary: 'Trigger Sentry test error' })
   @ApiResponse({ status: 500, description: 'Internal Server Error (Sentry Test)' })
   debugSentry(): void {
