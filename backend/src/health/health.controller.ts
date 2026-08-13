@@ -10,8 +10,7 @@ import { HealthService } from './health.service';
 export class HealthController {
   constructor(private readonly healthService: HealthService) {}
 
-  @Get('health')
-  @Get('api/health')
+  @Get(['health', 'api/health'])
   @ApiOperation({ summary: 'Deep health check (database + redis connectivity)' })
   @ApiResponse({ status: 200, description: 'Service is healthy', type: HealthResponseDto })
   @ApiResponse({
@@ -28,16 +27,14 @@ export class HealthController {
   }
 
   @SkipThrottle()
-  @Get('health/live')
-  @Get('api/health/live')
+  @Get(['health/live', 'api/health/live'])
   @ApiOperation({ summary: 'Liveness probe (process is responsive)' })
   @ApiResponse({ status: 200, description: 'Service process is live', type: PingResponseDto })
   getLiveness(): PingResponseDto {
     return this.healthService.getLiveness();
   }
 
-  @Get('health/ready')
-  @Get('api/health/ready')
+  @Get(['health/ready', 'api/health/ready'])
   @ApiOperation({ summary: 'Readiness probe (verifies DB & Redis)' })
   @ApiResponse({
     status: 200,
@@ -58,9 +55,7 @@ export class HealthController {
   }
 
   @SkipThrottle()
-  @Get('ping')
-  @Get('api/ping')
-  @Get('health/ping')
+  @Get(['ping', 'api/ping', 'health/ping'])
   @ApiOperation({ summary: 'Lightweight keep-alive ping for monitoring' })
   @ApiResponse({ status: 200, description: 'Ping successful', type: PingResponseDto })
   ping(): PingResponseDto {
