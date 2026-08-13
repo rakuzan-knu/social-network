@@ -147,6 +147,8 @@ jobs:
         uses: trufflesecurity/trufflehog@96b593f460badf7a3da2ad3487e0e4986243ef03 # main
         with:
           path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
           extra_args: --debug --only-verified
 
   k8s-policy-check:
