@@ -23,7 +23,7 @@ jobs:
       RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
     steps:
       - name: Trigger Render Deployment
-        if: env.RENDER_DEPLOY_HOOK_URL != ''
+        if: secrets.RENDER_DEPLOY_HOOK_URL != ''
         run: |
           echo "Triggering deployment on Render..."
           curl -s -X POST "$RENDER_DEPLOY_HOOK_URL"

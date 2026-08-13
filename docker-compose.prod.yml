@@ -204,6 +204,7 @@ services:
           memory: 128M
 
   prometheus:
+    profiles: ['monitoring']
     image: prom/prometheus:latest
     restart: unless-stopped
     command:
@@ -226,6 +227,7 @@ services:
           memory: 512M
 
   grafana:
+    profiles: ['monitoring']
     image: grafana/grafana:latest
     restart: unless-stopped
     environment:
@@ -250,6 +252,7 @@ services:
           memory: 256M
 
   postgres-exporter:
+    profiles: ['monitoring']
     image: prometheuscommunity/postgres-exporter:latest
     restart: unless-stopped
     environment:
@@ -266,6 +269,7 @@ services:
           memory: 64M
 
   redis-exporter:
+    profiles: ['monitoring']
     image: oliver006/redis_exporter:latest
     restart: unless-stopped
     environment:
@@ -282,6 +286,7 @@ services:
           memory: 64M
 
   nginx-exporter:
+    profiles: ['monitoring']
     image: nginx/nginx-prometheus-exporter:1.1.0
     restart: unless-stopped
     command:
@@ -301,6 +306,7 @@ services:
           memory: 64M
 
   alertmanager:
+    profiles: ['monitoring']
     image: prom/alertmanager:v0.27.0
     restart: unless-stopped
     command:
@@ -320,6 +326,7 @@ services:
           memory: 64M
 
   loki:
+    profiles: ['monitoring']
     image: grafana/loki:3.0.0
     restart: unless-stopped
     command: -config.file=/etc/loki/local-config.yaml
@@ -370,6 +377,7 @@ services:
           memory: 256M
 
   backup-exporter:
+    profiles: ['monitoring']
     image: alpine:latest
     restart: unless-stopped
     command: >
