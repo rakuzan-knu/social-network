@@ -19,11 +19,20 @@ updates:
     groups:
       production-dependencies:
         dependency-type: production
+        update-types:
+          - "minor"
+          - "patch"
       dev-dependencies:
         dependency-type: development
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
+        update-types:
+          - "minor"
+          - "patch"
+      major-dependencies:
+        patterns:
+          - "*"
+        update-types:
+          - "major"
+
 
   - package-ecosystem: github-actions
     directories:

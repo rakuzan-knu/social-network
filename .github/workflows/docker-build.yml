@@ -102,6 +102,19 @@ jobs:
           done
           cosign sign --yes ${images}
 
+      - name: Verify image signature and SLSA provenance
+        if: github.event_name != 'pull_request'
+        env:
+          DIGEST: ${{ steps.build-push.outputs.digest }}
+        run: |
+          image="${REGISTRY}/${IMAGE_NAME}-${{ matrix.service }}@${DIGEST}"
+          echo "Verifying image signature and provenance attestation for ${image}..."
+          cosign verify \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            --certificate-identity-regexp "^https://github.com/${{ github.repository_owner }}/.*" \
+            "${image}"
+
+
   test:
     needs: build
     runs-on: ubuntu-latest

@@ -342,6 +342,97 @@ jobs:
         working-directory: backend
         run: npm run test:e2e -- test/${{ matrix.module }}.e2e-spec.ts --forceExit --passWithNoTests
 
+  backend-contract-test:
+    name: Backend — API Contract Verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [changes, setup]
+    if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.ci == 'true'
+    permissions:
+      contents: read
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: social_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U user -d social_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://user:password@localhost:5432/social_test
+      REDIS_URL: redis://localhost:6379
+      JWT_ACCESS_SECRET: ci-test-access-secret-at-least-32-chars-long
+      JWT_ACCESS_TTL: 15m
+      JWT_REFRESH_SECRET: ci-test-refresh-secret-at-least-32-chars-long
+      JWT_REFRESH_TTL: 7d
+      CORS_ORIGIN: http://localhost:5173
+      PORT: 3000
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: '.nvmrc'
+
+      - name: Restore Monorepo Dependencies
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            node_modules
+            backend/node_modules
+            frontend/node_modules
+            ~/.cache/prisma
+            ~/.cache/node-gyp
+          key: ${{ needs.setup.outputs.cache-key }}
+          fail-on-cache-miss: true
+
+      - name: Run migrations
+        working-directory: backend
+        run: npx prisma migrate deploy
+
+      - name: Start backend server in background
+        working-directory: backend
+        run: npm run start &
+        env:
+          NODE_ENV: test
+
+      - name: Wait for server & run contract test
+        run: |
+          npx wait-on http://localhost:3000/api/health -t 30000
+          node scripts/verify-api-contract.js
+
+  dependency-review:
+    name: Dependency Review — Security & Compliance
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+      - name: Dependency Review Action
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+
   frontend-lint:
     name: Frontend — Lint & Typecheck
     runs-on: ubuntu-latest
@@ -577,6 +668,8 @@ jobs:
       - backend-lint
       - backend-test
       - backend-e2e
+      - backend-contract-test
+      - dependency-review
       - frontend-lint
       - frontend-test
       - frontend-prod-assessment
