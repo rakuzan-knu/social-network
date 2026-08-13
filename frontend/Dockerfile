@@ -1,4 +1,4 @@
-FROM node:24-alpine AS builder
+FROM node:26-alpine AS builder
 
 RUN --mount=type=cache,target=/var/cache/apk \
     apk add --no-cache libc6-compat
