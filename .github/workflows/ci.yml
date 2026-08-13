@@ -646,7 +646,7 @@ jobs:
 
       - name: Run Trivy vulnerability scanner
         id: trivy_scanner
-        uses: aquasecurity/trivy-action@0.30.0
+        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947b394f2dd8c87dbb0 # 0.29.0
         with:
           image-ref: social-network-${{ matrix.service }}:ci-${{ github.sha }}
           format: sarif
