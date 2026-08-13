@@ -52,6 +52,18 @@ export const authHandlers = [
     return new HttpResponse(null, { status: 204 });
   }),
 
+  http.post('*/auth/find-account', async () => {
+    return HttpResponse.json({
+      id: 'user-1',
+      name: 'Alex Kovalenko',
+      role: 'User',
+      emoji: '👑',
+      src: null,
+      maskedEmail: 'u***@example.com',
+      maskedPhone: '+380 •• ••• •• 99',
+    });
+  }),
+
   http.get(`${API_URL}/users/me`, () => {
     return HttpResponse.json({
       id: 'user-1',

@@ -138,7 +138,7 @@ describe('CreatePost', () => {
     await user.click(screen.getByTitle('Додати GIF'));
     expect(screen.getAllByRole('img', { name: 'gif' }).length).toBeGreaterThan(0);
 
-    await user.click(screen.getByTitle('Додати емодзі'));
+    await user.click(screen.getByTitle('Add Emoji'));
 
     expect(screen.queryAllByRole('img', { name: 'gif' })).toHaveLength(0);
     expect(await screen.findByTestId('mock-emoji-picker')).toBeInTheDocument();
@@ -148,7 +148,7 @@ describe('CreatePost', () => {
     renderCreatePost();
     const user = userEvent.setup();
 
-    await user.click(screen.getByTitle('Додати емодзі'));
+    await user.click(screen.getByTitle('Add Emoji'));
     await user.click(await screen.findByTestId('mock-emoji-picker'));
 
     expect(getTextarea()).toHaveValue('😀');

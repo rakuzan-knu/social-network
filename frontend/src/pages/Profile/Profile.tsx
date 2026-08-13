@@ -34,7 +34,8 @@ export default function ProfilePage() {
   const { username } = useParams();
   const { userId: myUserId } = useAuthStore();
 
-  const { data: user, isLoading, error } = useUserByUsername(username);
+  const effectiveUsername = username || 'my_profile';
+  const { data: user, isLoading, error } = useUserByUsername(effectiveUsername);
 
   const [activeTab, setActiveTab] = useState<'posts' | 'reposts'>('posts');
   const openEditProfile = useUIStore((state) => state.openEditProfile);

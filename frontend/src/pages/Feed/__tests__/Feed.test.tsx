@@ -1,25 +1,18 @@
-import { render, screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import FeedPage from '../Feed';
 import { useAuthStore } from '../../../shared/model/useAuthStore';
 import { resetUIStore } from '../../../test/resetUIStore';
+import { renderWithProviders } from '../../../test/renderWithProviders';
+import { server } from '../../../test/mocks/server';
+import { http, HttpResponse } from 'msw';
 
 vi.mock('emoji-picker-react', () => ({
   default: () => <div data-testid="mock-emoji-picker" />,
   Theme: { DARK: 'dark' },
   EmojiStyle: { APPLE: 'apple' },
 }));
-
-function renderFeed() {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <FeedPage />
-    </QueryClientProvider>,
-  );
-}
 
 describe('FeedPage', () => {
   beforeEach(() => {
@@ -32,46 +25,47 @@ describe('FeedPage', () => {
     vi.restoreAllMocks();
   });
 
-  it('renders the create-post composer', () => {
-    renderFeed();
+  it('renders the create-post composer', async () => {
+    renderWithProviders(<FeedPage />);
 
     expect(screen.getByPlaceholderText('Що нового?')).toBeInTheDocument();
   });
 
-  it('renders the empty-feed placeholder', () => {
-    renderFeed();
+  it('renders the feed with posts', async () => {
+    renderWithProviders(<FeedPage />);
 
-    expect(screen.getByText('Тут поки що нічого немає...')).toBeInTheDocument();
+    expect(await screen.findByText('Thats fire!')).toBeInTheDocument();
+    expect(await screen.findByText('Eternal CEO is here!')).toBeInTheDocument();
   });
 
-  it('does not render the comment modal by default', () => {
-    renderFeed();
+  it('renders the empty-feed placeholder when there are no posts', async () => {
+    server.use(
+      http.get('http://localhost:3000/api/posts', () =>
+        HttpResponse.json({ posts: [], nextCursor: null }),
+      ),
+    );
 
-    expect(screen.queryByText('Немає коментарів')).not.toBeInTheDocument();
+    renderWithProviders(<FeedPage />);
+
+    expect(await screen.findByText("There's nothing here yet...")).toBeInTheDocument();
   });
 
-  it('logs the new post payload and clears the composer on submit', async () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+  it('submits a new post and clears the composer', async () => {
     const user = userEvent.setup();
-    renderFeed();
+    renderWithProviders(<FeedPage />);
 
     await user.type(screen.getByPlaceholderText('Що нового?'), 'Hello feed');
     await user.click(screen.getByText('Опублікувати'));
 
-    expect(consoleSpy).toHaveBeenCalledWith(
-      'Новий пост готовий до відправки:',
-      expect.objectContaining({ text: 'Hello feed' }),
-    );
-    expect(screen.getByPlaceholderText('Що нового?')).toHaveValue('');
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Що нового?')).toHaveValue('');
+    });
   });
 
-  it('does not log anything when publishing an empty post', async () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-    const user = userEvent.setup();
-    renderFeed();
+  it('does not publish an empty post', async () => {
+    renderWithProviders(<FeedPage />);
 
-    await user.click(screen.getByText('Опублікувати'));
-
-    expect(consoleSpy).not.toHaveBeenCalled();
+    const publishBtn = screen.getByText('Опублікувати');
+    expect(publishBtn).toBeDisabled();
   });
 });

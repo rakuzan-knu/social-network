@@ -47,7 +47,14 @@ export const profileHandlers = [
     HttpResponse.json({ data: [], meta: { nextCursor: null, hasNextPage: false } }),
   ),
 
-  http.get(`${API_URL}/auth/sessions`, () => HttpResponse.json([])),
+  http.get(`${API_URL}/users/by-username/:username`, ({ params }) => {
+    const username = params.username as string;
+    return HttpResponse.json({
+      ...profile,
+      username,
+      displayName: username === 'kolya_dev' ? 'Kolya' : profile.displayName,
+    });
+  }),
 
   http.get(`${API_URL}/users/:id`, () => HttpResponse.json(profile)),
 
