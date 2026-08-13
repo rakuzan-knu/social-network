@@ -16,6 +16,9 @@ concurrency:
   group: backup-restore-test-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   backup-restore-drill:
     name: Execute Encrypted Backup & Restore Test Drill

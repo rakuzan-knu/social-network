@@ -43,13 +43,13 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup HashiCorp Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
         with:
           terraform_version: '1.7.0'
 
       - name: Configure AWS OIDC Credentials (Optional Cloud Backend)
         if: env.AWS_ROLE_ARN != ''
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@4fc4975a852c8cd99761e2de1f4ba73402e44dd9 # v4.0.3
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION != '' && env.AWS_REGION || 'us-east-1' }}

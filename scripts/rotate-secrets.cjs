@@ -43,15 +43,27 @@ function rotateSecrets() {
 
   // Update .env.example if missing keys
   const envExamplePath = path.join(__dirname, '..', '.env.example');
-  if (fs.existsSync(envExamplePath)) {
+  try {
     let content = fs.readFileSync(envExamplePath, 'utf8');
+    let updated = false;
     for (const key of Object.keys(newSecrets)) {
       if (!content.includes(key)) {
         content += `\n${key}=your_${key.toLowerCase()}_value`;
+        updated = true;
       }
     }
-    fs.writeFileSync(envExamplePath, content, 'utf8');
-    console.log('  ✓ Updated .env.example key references.');
+    if (updated) {
+      fs.writeFileSync(envExamplePath, content, 'utf8');
+      console.log('  ✓ Updated .env.example key references.');
+    }
+  } catch (err) {
+    if (err.code !== 'ENOENT') {
+      const safeErrorMessage = String(err && err.message ? err.message : err).replace(
+        /[\r\n]/g,
+        '',
+      );
+      console.warn(`  ⚠️ Could not update .env.example: ${safeErrorMessage}`);
+    }
   }
 
   // Sync to Render API if credentials exist
@@ -86,8 +98,9 @@ function rotateSecrets() {
           if (res.statusCode >= 200 && res.statusCode < 300) {
             console.log('✅ Secrets successfully rotated and synchronized to Render API!');
           } else {
+            const safeBody = String(body).replace(/[\r\n]/g, '');
             console.error(
-              `❌ Render API secret rotation sync failed (HTTP ${res.statusCode}): ${body}`,
+              `❌ Render API secret rotation sync failed (HTTP ${res.statusCode}): ${safeBody}`,
             );
             process.exit(1);
           }
@@ -96,7 +109,11 @@ function rotateSecrets() {
     );
 
     req.on('error', (err) => {
-      console.error(`❌ Error communicating with Render API: ${err.message}`);
+      const safeErrorMessage = String(err && err.message ? err.message : err).replace(
+        /[\r\n]/g,
+        '',
+      );
+      console.error(`❌ Error communicating with Render API: ${safeErrorMessage}`);
       process.exit(1);
     });
 

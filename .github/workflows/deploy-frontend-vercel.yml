@@ -14,6 +14,9 @@ concurrency:
   group: deploy-frontend-vercel-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   deploy:
     name: Vercel — Deploy Production
@@ -40,7 +43,7 @@ jobs:
       - name: Deploy to Vercel (Staged Preview)
         id: vercel_stage
         if: env.VERCEL_TOKEN != ''
-        uses: amondnet/vercel-action@v25
+        uses: amondnet/vercel-action@16e87c0a08142b0d0d33b76aeaf20823c381b9b9 # v25.0.0
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
@@ -58,7 +61,7 @@ jobs:
 
       - name: Promote Deployment to Production Apex
         if: env.VERCEL_TOKEN != ''
-        uses: amondnet/vercel-action@v25
+        uses: amondnet/vercel-action@16e87c0a08142b0d0d33b76aeaf20823c381b9b9 # v25.0.0
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
