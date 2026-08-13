@@ -1,5 +1,5 @@
 # Stage 1: Dependencies
-FROM node:24-alpine AS deps
+FROM node:26-alpine AS deps
 
 RUN --mount=type=cache,target=/var/cache/apk \
     apk add --no-cache libc6-compat build-base python3 openssl
@@ -22,7 +22,7 @@ RUN --mount=type=cache,target=/root/.npm \
 RUN npm run db:generate --workspace=backend
 
 # Stage 2: Builder
-FROM node:24-alpine AS builder
+FROM node:26-alpine AS builder
 WORKDIR /app
 
 COPY --from=deps /app ./
@@ -33,7 +33,7 @@ COPY frontend ./frontend
 RUN npm run build --workspace=backend
 
 # Stage 3: Production
-FROM node:24-alpine AS production
+FROM node:26-alpine AS production
 
 RUN --mount=type=cache,target=/var/cache/apk \
     apk add --no-cache tini openssl libc6-compat
