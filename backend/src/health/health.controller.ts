@@ -11,6 +11,7 @@ export class HealthController {
   constructor(private readonly healthService: HealthService) {}
 
   @Get('health')
+  @Get('api/health')
   @ApiOperation({ summary: 'Deep health check (database + redis connectivity)' })
   @ApiResponse({ status: 200, description: 'Service is healthy', type: HealthResponseDto })
   @ApiResponse({
@@ -28,6 +29,7 @@ export class HealthController {
 
   @SkipThrottle()
   @Get('health/live')
+  @Get('api/health/live')
   @ApiOperation({ summary: 'Liveness probe (process is responsive)' })
   @ApiResponse({ status: 200, description: 'Service process is live', type: PingResponseDto })
   getLiveness(): PingResponseDto {
@@ -35,6 +37,7 @@ export class HealthController {
   }
 
   @Get('health/ready')
+  @Get('api/health/ready')
   @ApiOperation({ summary: 'Readiness probe (verifies DB & Redis)' })
   @ApiResponse({
     status: 200,

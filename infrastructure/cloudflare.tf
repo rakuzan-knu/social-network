@@ -60,9 +60,9 @@ resource "cloudflare_load_balancer" "api_load_balancer" {
   fallback_pool_id = cloudflare_load_balancer_pool.secondary_eu_pool.id
   default_pool_ids = [
     cloudflare_load_balancer_pool.primary_us_pool.id,
-    cloudflare_load_balancer_pool.secondary_eu_pool.id
+    cloudflare_load_balancer_pool.secondary_eu_pool.id,
   ]
-  description      = "Active-Passive DNS Failover LB routing to US primary and EU secondary on outage"
-  proxied          = true
-  steering_policy  = "off" # Active-Passive Pool Ordering
+  description     = "Active-Passive DNS Failover LB routing to US primary and EU secondary on outage"
+  proxied         = true
+  steering_policy = "off" # Active-Passive Pool Ordering
 }

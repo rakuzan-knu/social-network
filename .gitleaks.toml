@@ -19,7 +19,6 @@ regexes = [
   '''postgresql://user:pass@localhost:5432/db''',
 ]
 
-[rules]
 [[rules]]
 id = "generic-api-key"
 description = "Generic API Key Leak Detection"
