@@ -34,6 +34,9 @@ jobs:
     env:
       VERCEL_API_TOKEN: ${{ secrets.VERCEL_TOKEN || 'dummy_token' }}
       TF_VAR_vercel_api_token: ${{ secrets.VERCEL_TOKEN || 'dummy_token' }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CLOUDFLARE_TOKEN || 'dummy_cloudflare_token' }}
+      TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CLOUDFLARE_TOKEN || 'dummy_cloudflare_token' }}
+      TF_VAR_cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID || 'dummy_zone_id' }}
 
     steps:
       - name: Checkout code
@@ -58,7 +61,16 @@ jobs:
 
       - name: Terraform Plan
         id: plan
-        run: terraform plan -no-color -out=tfplan
+        run: |
+          set +e
+          PLAN_OUT=$(terraform plan -no-color -out=tfplan 2>&1)
+          PLAN_EXIT_CODE=$?
+          {
+            echo "PLAN_OUT<<EOF"
+            echo "$PLAN_OUT"
+            echo "EOF"
+          } >> $GITHUB_ENV
+          exit $PLAN_EXIT_CODE
         continue-on-error: true
 
       - name: Post Plan Summary to PR

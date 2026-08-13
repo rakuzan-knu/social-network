@@ -68,7 +68,7 @@ describe('PollCreator', () => {
       />,
     );
 
-    await user.click(screen.getByRole('button'));
+    await user.click(screen.getAllByRole('button')[0]);
 
     expect(onClose).toHaveBeenCalledTimes(1);
   });
@@ -124,6 +124,6 @@ describe('PollCreator', () => {
       />,
     );
 
-    expect(screen.getAllByRole('button')).toHaveLength(1);
+    expect(screen.getAllByRole('button')).toHaveLength(2);
   });
 });

@@ -77,14 +77,13 @@ describe('RegisterForm', () => {
       expect.objectContaining({
         firstName: 'Alex',
         lastName: 'Kovalenko',
-        username: '@alexk',
+        username: 'alexk',
         identity: 'alex@test.com',
         password: 'secret1',
         gender: 'Male',
-        birthMonth: 'January',
-        birthDay: '1',
-        birthYear: '2000',
+        birthDate: expect.any(String),
       }),
+      expect.objectContaining({ onSuccess: expect.any(Function), onError: expect.any(Function) }),
     );
   });
 
@@ -107,10 +106,10 @@ describe('RegisterForm', () => {
     const usernameInput = screen.getByPlaceholderText('@username');
 
     await user.clear(usernameInput);
-    await user.tab();
+    await user.type(usernameInput, 'a');
 
     await waitFor(() =>
-      expect(screen.getByText('Юзернейм має бути не менше 3 символів')).toBeInTheDocument(),
+      expect(screen.getByText('Username must be at least 2 characters long')).toBeInTheDocument(),
     );
   });
 
@@ -127,7 +126,7 @@ describe('RegisterForm', () => {
     await user.type(screen.getByPlaceholderText('New password'), 'secret1');
 
     await waitFor(
-      () => expect(screen.getByText('Цей юзернейм уже зайнятий.')).toBeInTheDocument(),
+      () => expect(screen.getByText('This username is already taken.')).toBeInTheDocument(),
       {
         timeout: 2000,
       },

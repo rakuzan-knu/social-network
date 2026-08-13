@@ -157,6 +157,7 @@ export default function EditProfileModal() {
     register,
     handleSubmit,
     control,
+    reset,
     formState: { errors },
   } = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
@@ -169,6 +170,19 @@ export default function EditProfileModal() {
       notifSound: false,
     },
   });
+
+  useEffect(() => {
+    if (currentUser) {
+      reset({
+        bio: currentUser.bio || '',
+        displayName: currentUser.displayName || '',
+        username: currentUser.username || '',
+        onlineStatus: true,
+        notifMain: true,
+        notifSound: false,
+      });
+    }
+  }, [currentUser, reset]);
 
   const usernameValue = useWatch({ control, name: 'username' });
   const debouncedUsername = useDebounce(usernameValue, 400);
@@ -252,7 +266,7 @@ export default function EditProfileModal() {
         const targetRect = targetEl.getBoundingClientRect();
         const scrollOffset =
           targetRect.top - containerRect.top + rightPanelRef.current.scrollTop - 20;
-        rightPanelRef.current.scrollTo({ top: Math.max(0, scrollOffset), behavior: 'smooth' });
+        rightPanelRef.current.scrollTo?.({ top: Math.max(0, scrollOffset), behavior: 'smooth' });
       }
       updateIndicatorPosition();
     }, 60);
@@ -270,7 +284,7 @@ export default function EditProfileModal() {
         setActiveSection(firstSubId);
         setTimeout(() => {
           if (rightPanelRef.current) {
-            rightPanelRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+            rightPanelRef.current.scrollTo?.({ top: 0, behavior: 'smooth' });
           }
         }, 50);
       }
