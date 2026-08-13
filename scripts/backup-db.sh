@@ -31,8 +31,14 @@ log "Host: $DB_HOST:$DB_PORT"
 
 # Perform backup
 if pg_dump -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" --no-password | gzip > "${BACKUP_FILE}"; then
+  # Test gzip integrity
+  if ! gzip -t "${BACKUP_FILE}" 2>/dev/null; then
+    log "❌ Backup file integrity check failed! Archive is corrupted."
+    rm -f "${BACKUP_FILE}"
+    exit 1
+  fi
   BACKUP_SIZE=$(du -h "${BACKUP_FILE}" | cut -f1)
-  log "✅ Backup completed successfully: $BACKUP_FILE ($BACKUP_SIZE)"
+  log "✅ Backup completed & verified successfully: $BACKUP_FILE ($BACKUP_SIZE)"
   
   # Get file count before cleanup
   OLD_COUNT=$(find "${BACKUP_DIR}" -maxdepth 1 -name "backup_*.sql.gz" -type f | wc -l)

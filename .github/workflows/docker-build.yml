@@ -26,6 +26,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write
     strategy:
       matrix:
         include:
@@ -40,6 +41,10 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install Cosign
+        if: github.event_name != 'pull_request'
+        uses: sigstore/cosign-installer@v3.8.0
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
@@ -69,6 +74,7 @@ jobs:
             type=sha,prefix={{branch}}-
 
       - name: Build and push ${{ matrix.service }} image
+        id: build-push
         uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5.4.0
         with:
           context: ${{ matrix.context }}
@@ -81,8 +87,20 @@ jobs:
           build-args: |
             BUILDKIT_INLINE_CACHE=1
             VITE_API_URL=${{ secrets.VITE_API_URL || 'https://api.example.com' }}
-          provenance: false
-          sbom: false
+          provenance: true
+          sbom: true
+
+      - name: Sign container image with Cosign
+        if: github.event_name != 'pull_request'
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+          DIGEST: ${{ steps.build-push.outputs.digest }}
+        run: |
+          images=""
+          for tag in ${TAGS}; do
+            images="${images} ${tag}@${DIGEST}"
+          done
+          cosign sign --yes ${images}
 
   test:
     needs: build
@@ -132,9 +150,6 @@ jobs:
       contents: read
       security-events: write
     if: github.event_name != 'pull_request'
-    permissions:
-      contents: read
-      security-events: write
     
     strategy:
       matrix:

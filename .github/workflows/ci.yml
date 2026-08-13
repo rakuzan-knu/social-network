@@ -199,7 +199,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: backend/.eslintcache
-          key: ${{ runner.os }}-backend-eslint-${{ github.ref }}
+          key: ${{ runner.os }}-backend-eslint-${{ hashFiles('backend/src/**/*.ts', 'backend/eslint.config.mjs') }}
           restore-keys: |
             ${{ runner.os }}-backend-eslint-
 
@@ -363,7 +363,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: frontend/.eslintcache
-          key: ${{ runner.os }}-frontend-eslint-${{ github.ref }}
+          key: ${{ runner.os }}-frontend-eslint-${{ hashFiles('frontend/src/**/*.ts', 'frontend/src/**/*.tsx', 'frontend/eslint.config.js') }}
           restore-keys: |
             ${{ runner.os }}-frontend-eslint-
 
@@ -465,6 +465,7 @@ jobs:
           build-script: "npm run build"
 
       - name: Run Lighthouse CI
+        if: contains(github.event.pull_request.labels.*.name, 'lighthouse') || github.event_name == 'push'
         uses: treosh/lighthouse-ci-action@v12
         with:
           configPath: '.lighthouserc.json'
