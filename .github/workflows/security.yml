@@ -98,10 +98,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-trivy-
 
-      - name: Setup Trivy CLI
-        uses: aquasecurity/setup-trivy@15d3126938a4d46cfb677a28e8d89a2444c107be # v0.2.1
-        with:
-          version: 'latest'
+      - name: Install Trivy CLI
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
 
       - name: Run Trivy Filesystem Scan
         id: trivy_fs_step
@@ -148,8 +147,6 @@ jobs:
         uses: trufflesecurity/trufflehog@96b593f460badf7a3da2ad3487e0e4986243ef03 # main
         with:
           path: ./
-          base: ${{ github.event.repository.default_branch }}
-          head: HEAD
           extra_args: --debug --only-verified
 
   k8s-policy-check:
