@@ -12,6 +12,7 @@ export default defineConfig({
     },
   },
   build: {
+    chunkSizeWarningLimit: 1000,
     sourcemap: 'hidden',
     rollupOptions: {
       output: {
@@ -32,6 +33,9 @@ export default defineConfig({
             }
             if (normalizedId.includes('/@tanstack/') || normalizedId.includes('/zustand/')) {
               return 'vendor-state';
+            }
+            if (normalizedId.includes('/@sentry/')) {
+              return 'vendor-sentry';
             }
             if (
               normalizedId.includes('/node_modules/react/') ||
