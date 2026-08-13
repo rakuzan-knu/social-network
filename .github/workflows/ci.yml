@@ -413,17 +413,19 @@ jobs:
         working-directory: backend
         run: npm run build
 
-      - name: Start backend server in background
+      - name: Start backend server & run OpenAPI and Pact contract tests
         working-directory: backend
-        run: npm run start:prod &
+        run: |
+          npm run start:prod &
+          SERVER_PID=$!
+          # Use /live endpoint — pure liveness probe, always 200 when the HTTP server is up
+          # regardless of DB/Redis connectivity. Actual contract tests verify /api/health.
+          npx wait-on http://localhost:3000/api/health/live --timeout 60000 --interval 1000
+          node ../scripts/verify-api-contract.js
+          node ../scripts/verify-pact-contracts.cjs
+          kill $SERVER_PID || true
         env:
           NODE_ENV: test
-
-      - name: Wait for server & run OpenAPI and Pact contract tests
-        run: |
-          npx wait-on http://localhost:3000/api/health -t 30000
-          node scripts/verify-api-contract.js
-          node scripts/verify-pact-contracts.cjs
 
   k8s-policy-check:
     name: Kubernetes Policy-as-Code Guardrails Check
@@ -582,6 +584,12 @@ jobs:
         env:
           VITE_API_URL: http://localhost:3000
 
+      - name: Enforce bundle size budget
+        # Use .cjs extension — forces CJS loader regardless of root package.json "type":"module".
+        # Eliminates Cannot find module error that occurs when preactjs/compressed-size-action
+        # changes the module resolution context.
+        run: node scripts/check-bundle-size.cjs
+
       - name: Check bundle size changes
         uses: preactjs/compressed-size-action@v3
         with:
@@ -589,9 +597,6 @@ jobs:
           pattern: 'frontend/dist/**/*.{js,css}'
           strip-hash: "\\b\\w{8}\\."
           build-script: "npm run build"
-
-      - name: Enforce bundle size budget
-        run: node scripts/check-bundle-size.js
 
       - name: Run Lighthouse CI
         if: contains(github.event.pull_request.labels.*.name, 'lighthouse') || github.event_name == 'push'

@@ -34,7 +34,7 @@
     "docker:clean": "docker compose -f docker-compose.dev.yml down -v --remove-orphans && docker compose -f docker-compose.prod.yml down -v --remove-orphans",
     "docker:prune": "docker system prune -f && docker volume prune -f",
     "lhci": "lhci autorun",
-    "check:bundle": "node scripts/check-bundle-size.js",
+    "check:bundle": "node scripts/check-bundle-size.cjs",
     "validate:eol": "node scripts/validate-eol.js",
     "validate:env": "node scripts/check-env.js",
     "clean": "node scripts/clean.js",
