@@ -71,15 +71,13 @@ export class GithubController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'GitHub repository webhook endpoint for pull_request events' })
   async handleWebhook(
-    @Headers('x-hub-signature-256') signature: string,
+    @Headers('x-hub-signature-256') signature: string | undefined,
     @Body() body: Record<string, unknown>,
   ): Promise<{ handled: boolean; message: string }> {
-    if (signature) {
-      const rawBodyString = JSON.stringify(body);
-      const isValid = this.githubService.verifySignature(rawBodyString, signature);
-      if (!isValid) {
-        throw new UnauthorizedException('Invalid GitHub Webhook HMAC Signature');
-      }
+    const rawBodyString = JSON.stringify(body);
+    const isValid = this.githubService.verifySignature(rawBodyString, signature);
+    if (!isValid) {
+      throw new UnauthorizedException('Invalid GitHub Webhook HMAC Signature');
     }
 
     return this.githubService.handleWebhookPayload(body);

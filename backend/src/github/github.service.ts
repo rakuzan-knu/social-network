@@ -51,9 +51,16 @@ export class GithubService {
   getAuthorizationUrl(req: Request, res: Response): void {
     const state = crypto.randomBytes(32).toString('hex');
 
+    const forwardedProtoHeader = req.headers['x-forwarded-proto'];
+    const forwardedProto = Array.isArray(forwardedProtoHeader)
+      ? forwardedProtoHeader[0]
+      : forwardedProtoHeader?.split(',')[0];
+    const isSecureRequest =
+      req.secure || forwardedProto?.trim() === 'https' || process.env.NODE_ENV === 'production';
+
     res.cookie('github_oauth_state', state, {
       httpOnly: true,
-      secure: false,
+      secure: isSecureRequest,
       sameSite: 'lax',
       maxAge: 10 * 60 * 1000,
     });
@@ -287,7 +294,11 @@ export class GithubService {
   }
 
   verifySignature(rawBody: string | Buffer, signatureHeader?: string): boolean {
-    if (!signatureHeader || !this.webhookSecret) {
+    if (!this.webhookSecret) {
+      return process.env.NODE_ENV !== 'production';
+    }
+
+    if (!signatureHeader) {
       return false;
     }
 
@@ -295,7 +306,9 @@ export class GithubService {
     const expectedSignature = `sha256=${hmac.update(rawBody).digest('hex')}`;
 
     try {
-      return crypto.timingSafeEqual(Buffer.from(signatureHeader), Buffer.from(expectedSignature));
+      const a = Buffer.from(signatureHeader);
+      const b = Buffer.from(expectedSignature);
+      return a.length === b.length && crypto.timingSafeEqual(a, b);
     } catch {
       return false;
     }
