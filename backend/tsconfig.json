@@ -12,8 +12,9 @@
     "target": "es2022",
     "sourceMap": true,
     "outDir": "./dist",
-    "rootDir": "..",
+    "rootDir": "src",
     "incremental": true,
+    "tsBuildInfoFile": "./dist/.tsbuildinfo",
     "skipLibCheck": true,
     "strictNullChecks": true,
     "forceConsistentCasingInFileNames": true,
@@ -25,5 +26,5 @@
       "*": ["./*"]
     }
   },
-  "include": ["src/**/*", "test/**/*"]
+  "include": ["src/**/*"]
 }
