@@ -98,7 +98,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-trivy-
 
-      - uses: aquasecurity/trivy-action@v0.36.0
+      - uses: aquasecurity/trivy-action@0.30.0
         id: trivy_fs_step
         with:
           scan-type: fs
@@ -147,8 +147,6 @@ jobs:
         uses: trufflesecurity/trufflehog@96b593f460badf7a3da2ad3487e0e4986243ef03 # main
         with:
           path: ./
-          base: ${{ github.event.repository.default_branch }}
-          head: HEAD
           extra_args: --debug --only-verified
 
   k8s-policy-check:
