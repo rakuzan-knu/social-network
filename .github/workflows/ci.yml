@@ -421,7 +421,7 @@ jobs:
           # Use /live endpoint — pure liveness probe, always 200 when the HTTP server is up
           # regardless of DB/Redis connectivity. Actual contract tests verify /api/health.
           npx wait-on http://localhost:3000/api/health/live --timeout 60000 --interval 1000
-          node ../scripts/verify-api-contract.js
+          node ../scripts/verify-api-contract.cjs
           node ../scripts/verify-pact-contracts.cjs
           kill $SERVER_PID || true
         env:

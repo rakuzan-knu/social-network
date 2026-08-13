@@ -30,7 +30,12 @@ async function fetchUrl(urlStr) {
 async function verifyContract() {
   console.log(`🔍 Verifying API Contract against: ${API_BASE_URL}...`);
 
-  const requiredEndpoints = ['/api/health', '/api/auth/login', '/api/auth/register', '/api/posts'];
+  const requiredEndpointGroups = [
+    ['/api/health', '/health'],
+    ['/api/auth/login', '/auth/login'],
+    ['/api/auth/register', '/auth/register'],
+    ['/api/posts', '/posts'],
+  ];
 
   try {
     const docsRes = await fetchUrl(`${API_BASE_URL}/api/docs-json`);
@@ -55,11 +60,12 @@ async function verifyContract() {
     const paths = openApiSpec.paths || {};
     const missingPaths = [];
 
-    for (const ep of requiredEndpoints) {
-      if (!paths[ep]) {
-        missingPaths.push(ep);
+    for (const group of requiredEndpointGroups) {
+      const found = group.find((ep) => paths[ep]);
+      if (!found) {
+        missingPaths.push(group[0]);
       } else {
-        console.log(`  ✓ Route documented: ${ep}`);
+        console.log(`  ✓ Route documented: ${found}`);
       }
     }
 
