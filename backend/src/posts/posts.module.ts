@@ -4,9 +4,12 @@ import { PostsService } from './posts.service';
 import { PostsController } from './posts.controller';
 import { PostsMediaService } from './posts-media.service';
 import { postsS3Provider } from './s3-provider';
+import { PrismaModule } from '../prisma/prisma.module';
+import { MessengerModule } from '../messenger/messenger.module';
 import { POSTS_REPOSITORY } from './interfaces/posts-repository.interface';
 
 @Module({
+  imports: [PrismaModule, MessengerModule],
   controllers: [PostsController],
   providers: [
     postsS3Provider,

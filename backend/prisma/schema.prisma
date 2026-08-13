@@ -69,10 +69,11 @@ model UserBadge {
 }
 
 model Post {
-  id        String   @id @default(uuid())
-  content   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String      @id @default(uuid())
+  content     String
+  sharesCount Int         @default(0)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
   author     User        @relation(fields: [authorId], references: [id])
   authorId   String

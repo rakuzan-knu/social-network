@@ -18,6 +18,7 @@ export interface UserProfile {
   createdAt: string;
   isOwnProfile: boolean;
   isFollowing?: boolean;
+  followsYou?: boolean;
   followersCount?: number;
   followingCount?: number;
   isPrivate?: boolean;

@@ -417,7 +417,7 @@ export class MessengerGateway implements OnGatewayInit, OnGatewayConnection, OnG
     }
   }
 
-  private emitToUser(userId: string, event: string, payload: unknown): void {
+  emitToUser(userId: string, event: string, payload: unknown): void {
     const socketIds = this.onlineUsers.get(userId);
     if (!socketIds) return;
     for (const socketId of socketIds) {

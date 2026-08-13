@@ -3,6 +3,7 @@ import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
 
 import Sidebar from '../widgets/sidebar/ui/Sidebar';
 import EditProfileModal from '../features/profile/ui/EditProfileModal';
+import { ShareModal } from '../features/posts/ui/ShareModal';
 import DeviceLockGate from '../features/profile/ui/security/DeviceLockGate';
 import MessageToastViewport from '../features/chat/ui/MessageToastViewport';
 
@@ -65,6 +66,7 @@ export default function App() {
         {!isMessengerRoute && <Sidebar />}
 
         <EditProfileModal />
+        <ShareModal />
         {!isMessengerRoute && <MessageToastViewport />}
 
         <main

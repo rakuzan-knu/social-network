@@ -9,10 +9,14 @@ export const userApi = {
 
   getMe: () => api.get<UserProfile>('/users/me').then((res) => res.data),
 
-  checkUsername: (username: string) =>
-    api
-      .get<{ isAvailable: boolean }>(`/auth/check-username`, { params: { username } })
-      .then((res) => res.data),
+  checkUsername: (username: string) => {
+    const cleanUsername = username.replace(/^@+/, '').trim();
+    return api
+      .get<{ isAvailable: boolean }>(`/auth/check-username`, {
+        params: { username: cleanUsername },
+      })
+      .then((res) => res.data);
+  },
 
   updatePrimaryBadge: (badgeId: string | null) =>
     api.patch<UserProfile>('/users/primary-badge', { badgeId }).then((res) => res.data),

@@ -40,6 +40,7 @@ import { useUploadAvatar } from '../../../shared/model/useUploadAvatar';
 import { useUploadBanner } from '../../../shared/model/useUploadBanner';
 import { useCurrentUser } from '@/entities/profile/model/useCurrentUser';
 import { userApi } from '@/entities/profile/api/userApi';
+import { apiClient } from '@/shared/api/httpClient';
 import { useDebounce } from '@/shared/lib/useDebounce';
 import { useMessageToastStore } from '../../../shared/model/useMessageToastStore';
 import Avatar from '../../../shared/ui/Avatar';
@@ -48,6 +49,19 @@ import SecurityTab from './security/SecurityTab';
 import PrivacyTab from './privacy/PrivacyTab';
 import NotificationsTab from './notifications/NotificationsTab';
 import BadgeSettingsSection from './BadgeSettingsSection';
+
+function addProfileToast(title: string, body: string) {
+  useMessageToastStore.getState().addToast({
+    id: `toast-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+    conversationId: '',
+    messageId: '',
+    title,
+    body,
+    avatar: null,
+    memberAvatars: [],
+    isGroup: false,
+  });
+}
 
 interface SubSection {
   id: string;
@@ -306,29 +320,16 @@ export default function EditProfileModal() {
     window.location.href = '/api/auth/github';
   };
 
-  const addToast = (title: string, body: string) => {
-    useMessageToastStore.getState().addToast({
-      id: `toast-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-      conversationId: '',
-      messageId: '',
-      title,
-      body,
-      avatar: null,
-      memberAvatars: [],
-      isGroup: false,
-    });
-  };
-
   const handleSyncGitHub = async () => {
     if (!currentUser?.id) return;
     try {
       setIsSyncing(true);
       const res = await userApi.syncGithub();
       queryClient.invalidateQueries({ queryKey: [USER_KEY] });
-      addToast('PRs Synced', `Total merged PRs: ${res.mergedPrsCount}`);
+      addProfileToast('PRs Synced', `Total merged PRs: ${res.mergedPrsCount}`);
     } catch (err: unknown) {
       console.error('Sync error:', err);
-      addToast('Sync Rate Limited', 'Please try again in a few minutes.');
+      addProfileToast('Sync Rate Limited', 'Please try again in a few minutes.');
     } finally {
       setIsSyncing(false);
     }
@@ -339,7 +340,7 @@ export default function EditProfileModal() {
     try {
       await userApi.unlinkGithub();
       queryClient.invalidateQueries({ queryKey: [USER_KEY] });
-      addToast('GitHub Unlinked', 'Your GitHub account has been disconnected.');
+      addProfileToast('GitHub Unlinked', 'Your GitHub account has been disconnected.');
     } catch (err: unknown) {
       console.error('Unlink error:', err);
     }
@@ -351,7 +352,7 @@ export default function EditProfileModal() {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       if (file.size > 5 * 1024 * 1024) {
-        addToast('File too large', 'Avatar must be less than 5MB');
+        addProfileToast('File too large', 'Avatar must be less than 5MB');
         return;
       }
       setAvatarFile(file);
@@ -367,7 +368,7 @@ export default function EditProfileModal() {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       if (file.size > 10 * 1024 * 1024) {
-        addToast('File too large', 'Banner must be less than 10MB');
+        addProfileToast('File too large', 'Banner must be less than 10MB');
         return;
       }
       setBannerFile(file);
@@ -421,25 +422,12 @@ export default function EditProfileModal() {
         });
       }
 
-      const token = localStorage.getItem('accessToken');
-
-      const response = await fetch(`/api/users/${currentUser.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          username: data.username,
-          displayName: data.displayName,
-          bio: data.bio,
-          bannerPosition: bannerPos,
-        }),
+      await apiClient.patch(`/users/${currentUser.id}`, {
+        username: data.username,
+        displayName: data.displayName,
+        bio: data.bio,
+        bannerPosition: bannerPos,
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to update profile text data');
-      }
 
       queryClient.invalidateQueries({ queryKey: [USER_KEY] });
       if (data.username !== currentUser.username) {
@@ -448,8 +436,17 @@ export default function EditProfileModal() {
       closeEditProfile();
       setAvatarFile(null);
       setBannerFile(null);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Saving error:', error);
+      const err = error as { response?: { data?: { message?: string | string[] } } };
+      const serverMsg = err?.response?.data?.message;
+      if (typeof serverMsg === 'string') {
+        addProfileToast('Profile Update', serverMsg);
+      } else if (Array.isArray(serverMsg)) {
+        addProfileToast('Profile Update', serverMsg.join(', '));
+      } else {
+        addProfileToast('Profile Update Error', 'Failed to update profile.');
+      }
     }
   };
 

@@ -6,6 +6,7 @@ export interface FollowUserSummary {
   displayName?: string | null;
   avatar?: string | null;
   isFollowing: boolean;
+  followsYou?: boolean;
   isVerified?: boolean;
   primaryBadge?: string | null;
 }

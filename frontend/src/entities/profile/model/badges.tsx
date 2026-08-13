@@ -27,13 +27,13 @@ export const BADGE_DICTIONARY: Badge[] = [
   {
     id: 'DEVELOPER',
     name: 'Developer',
-    description: 'One of the platform creators',
+    description: 'One of the platform Developers',
     icon: <DeveloperBadge className="w-6 h-6" />,
   },
   {
     id: 'BETA_TESTER',
     name: 'Beta Tester',
-    description: 'Participated in closed beta testing',
+    description: 'Participated in platform Beta-test',
     icon: <BetaTesterBadge className="w-6 h-6" />,
   },
   {
@@ -51,19 +51,19 @@ export const BADGE_DICTIONARY: Badge[] = [
   {
     id: 'PREMIUM',
     name: 'Premium',
-    description: 'Active premium subscription',
+    description: 'Active Premium Subscription',
     icon: <PremiumBadge className="w-6 h-6" />,
   },
   {
     id: 'CONTRIBUTOR',
     name: 'Contributor',
-    description: 'Made significant contributions to development',
+    description: 'Made significant contributions to the platform',
     icon: <ContributorBadge className="w-6 h-6" />,
   },
   {
     id: 'PARTNER',
     name: 'Partner',
-    description: 'Special partner status',
+    description: 'Official Partner status',
     icon: <PartnerBadge className="w-6 h-6" />,
   },
 ];

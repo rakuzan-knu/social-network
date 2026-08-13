@@ -35,7 +35,9 @@ export interface PostType {
   comments?: number;
   reposts?: number;
   likes?: number;
+  sharesCount?: number;
   isLiked?: boolean;
+  isReposted?: boolean;
   isSaved?: boolean;
   isFollowing?: boolean;
   isOwner?: boolean;

@@ -16,15 +16,30 @@ interface ProfileHeaderProps {
   avatar?: string | null;
   banner?: string | null;
   bannerPosition?: number;
-  createdAt?: string;
+  createdAt?: string | Date | null;
   isOwnProfile: boolean;
   isFollowing?: boolean;
+  followsYou?: boolean;
   isVerified?: boolean;
   primaryBadge?: string | null;
   badges?: string[];
   followersCount?: number;
   followingCount?: number;
   onEditClick: () => void;
+}
+
+function formatJoinedDate(createdAt?: string | Date | null): string {
+  if (!createdAt) return 'recently';
+  try {
+    const d = new Date(createdAt);
+    if (isNaN(d.getTime())) return 'recently';
+    return d.toLocaleDateString('en-US', {
+      month: 'long',
+      year: 'numeric',
+    });
+  } catch {
+    return 'recently';
+  }
 }
 
 export default function ProfileHeader({
@@ -38,6 +53,7 @@ export default function ProfileHeader({
   createdAt,
   isOwnProfile,
   isFollowing,
+  followsYou = false,
   isVerified = false,
   primaryBadge = null,
   badges = [],
@@ -88,6 +104,11 @@ export default function ProfileHeader({
           />
           <div className="flex items-center gap-2">
             <p className="text-sm text-gray-400 font-medium">@{username}</p>
+            {!isOwnProfile && followsYou && (
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-white/10 text-gray-300 border border-white/5 tracking-tight">
+                Follows You
+              </span>
+            )}
             {mappedBadges.length > 0 && <BadgeList badges={mappedBadges} />}
           </div>
         </div>
@@ -97,17 +118,9 @@ export default function ProfileHeader({
             'There is no bio yet. You can add a bio to your profile to let others know more about you.'}
         </p>
 
-        <div className="flex items-center gap-2 text-xs text-gray-500 mt-4 font-medium">
-          <Calendar size={14} />
-          <span>
-            Joined{' '}
-            {createdAt
-              ? new Date(createdAt).toLocaleDateString('en-US', {
-                  month: 'short',
-                  year: 'numeric',
-                })
-              : 'recently'}
-          </span>
+        <div className="flex items-center gap-2 text-xs text-gray-400 mt-4 font-medium">
+          <Calendar size={14} className="text-gray-500" />
+          <span>Joined {formatJoinedDate(createdAt)}</span>
         </div>
 
         <div className="flex items-center gap-6 mt-4 text-xs font-semibold">

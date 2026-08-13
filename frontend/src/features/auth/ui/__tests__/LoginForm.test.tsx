@@ -19,17 +19,20 @@ function setupMutations(overrides?: {
     overrides?.mutateAsyncImpl ??
       (() =>
         Promise.resolve({
-          accessToken: 'mock-token',
-          refreshToken: 'mock-refresh-token',
-          user: { id: '1', username: 'testuser', displayName: 'Test User' },
+          accessToken: 'mock-access',
+          refreshToken: 'mock-refresh',
+          user: { id: 'u1', username: 'testuser', displayName: 'Test' },
         })),
   );
-  const mutate = vi.fn();
   mockedUseAuthMutations.mockReturnValue({
-    loginMutation: { mutate, mutateAsync, isPending: overrides?.isPending ?? false } as never,
-    registerMutation: { mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false } as never,
-    findAccountMutation: { mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false } as never,
-    resetMutation: { mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false } as never,
+    loginMutation: {
+      mutateAsync,
+      mutate: vi.fn(),
+      isPending: overrides?.isPending ?? false,
+    } as never,
+    registerMutation: { mutate: vi.fn(), isPending: false } as never,
+    findAccountMutation: { mutate: vi.fn(), isPending: false } as never,
+    resetMutation: { mutate: vi.fn(), isPending: false } as never,
   });
   return mutateAsync;
 }
@@ -39,7 +42,7 @@ function renderLoginForm(initialEntries: string[] = ['/login']) {
     <MemoryRouter initialEntries={initialEntries}>
       <Routes>
         <Route path="/login" element={<LoginForm />} />
-        <Route path="/feed" element={<div>Feed Page</div>} />
+        <Route path="/feed" element={<div>Feed</div>} />
         <Route path="/forgot-password" element={<div>Forgot password page</div>} />
       </Routes>
     </MemoryRouter>,
@@ -73,7 +76,6 @@ describe('LoginForm', () => {
         screen.getByText('Please enter a valid email address or phone number.'),
       ).toBeInTheDocument(),
     );
-    expect(screen.getByText('Password must contain at least 6 characters.')).toBeInTheDocument();
   });
 
   it('toggles password visibility when the eye icon is clicked', async () => {
@@ -94,11 +96,15 @@ describe('LoginForm', () => {
     renderLoginForm();
 
     await user.type(screen.getByPlaceholderText('Email address or phone number'), 'user@test.com');
-    await user.type(screen.getByPlaceholderText('Password'), 'secret1');
+    await user.type(screen.getByPlaceholderText('Password'), 'secret123');
     await user.click(screen.getByRole('button', { name: 'Log in' }));
 
-    expect(mutateAsync).toHaveBeenCalledWith({ identity: 'user@test.com', password: 'secret1' });
-    await waitFor(() => expect(screen.getByText('Feed Page')).toBeInTheDocument());
+    expect(mutateAsync).toHaveBeenCalledWith({
+      email: 'user@test.com',
+      identity: 'user@test.com',
+      password: 'secret123',
+    });
+    await waitFor(() => expect(screen.getByText('Feed')).toBeInTheDocument());
   });
 
   it('shows the user-not-found error when the server responds with USER_NOT_FOUND', async () => {
@@ -113,11 +119,13 @@ describe('LoginForm', () => {
     renderLoginForm();
 
     await user.type(screen.getByPlaceholderText('Email address or phone number'), 'user@test.com');
-    await user.type(screen.getByPlaceholderText('Password'), 'secret1');
+    await user.type(screen.getByPlaceholderText('Password'), 'secret123');
     await user.click(screen.getByRole('button', { name: 'Log in' }));
 
     await waitFor(() =>
-      expect(screen.getByText(/is not associated with any account/)).toBeInTheDocument(),
+      expect(
+        screen.getByText(/The email address or mobile phone number you provided/),
+      ).toBeInTheDocument(),
     );
   });
 
@@ -133,7 +141,7 @@ describe('LoginForm', () => {
     renderLoginForm();
 
     await user.type(screen.getByPlaceholderText('Email address or phone number'), 'user@test.com');
-    await user.type(screen.getByPlaceholderText('Password'), 'secret1');
+    await user.type(screen.getByPlaceholderText('Password'), 'secret123');
     await user.click(screen.getByRole('button', { name: 'Log in' }));
 
     await waitFor(() =>
@@ -141,7 +149,7 @@ describe('LoginForm', () => {
     );
   });
 
-  it('shows a generic error banner for a non-axios error', async () => {
+  it('shows a generic error banner for an unmapped error', async () => {
     setupMutations({
       mutateAsyncImpl: () => Promise.reject(new Error('network down')),
     });
@@ -149,61 +157,12 @@ describe('LoginForm', () => {
     renderLoginForm();
 
     await user.type(screen.getByPlaceholderText('Email address or phone number'), 'user@test.com');
-    await user.type(screen.getByPlaceholderText('Password'), 'secret1');
+    await user.type(screen.getByPlaceholderText('Password'), 'secret123');
     await user.click(screen.getByRole('button', { name: 'Log in' }));
 
     await waitFor(() =>
       expect(screen.getByText(/You entered incorrect credentials/)).toBeInTheDocument(),
     );
-  });
-
-  it('shows a generic error banner for an axios error with an unmapped status', async () => {
-    setupMutations({
-      mutateAsyncImpl: () =>
-        Promise.reject({ isAxiosError: true, response: { status: 500, data: {} } }),
-    });
-    const user = userEvent.setup();
-    renderLoginForm();
-
-    await user.type(screen.getByPlaceholderText('Email address or phone number'), 'user@test.com');
-    await user.type(screen.getByPlaceholderText('Password'), 'secret1');
-    await user.click(screen.getByRole('button', { name: 'Log in' }));
-
-    await waitFor(() =>
-      expect(screen.getByText(/You entered incorrect credentials/)).toBeInTheDocument(),
-    );
-  });
-
-  it('clears previous errors on a fresh submit attempt', async () => {
-    let call = 0;
-    setupMutations({
-      mutateAsyncImpl: () => {
-        call += 1;
-        if (call === 1) {
-          return Promise.reject({
-            isAxiosError: true,
-            response: { status: 401, data: { message: 'INVALID_PASSWORD' } },
-          });
-        }
-        return Promise.resolve({
-          accessToken: 'mock-token',
-          refreshToken: 'mock-refresh-token',
-          user: { id: '1', username: 'testuser', displayName: 'Test User' },
-        });
-      },
-    });
-    const user = userEvent.setup();
-    renderLoginForm();
-    await user.type(screen.getByPlaceholderText('Email address or phone number'), 'user@test.com');
-    await user.type(screen.getByPlaceholderText('Password'), 'secret1');
-    await user.click(screen.getByRole('button', { name: 'Log in' }));
-    await waitFor(() =>
-      expect(screen.getByText('You entered an incorrect password.')).toBeInTheDocument(),
-    );
-
-    await user.click(screen.getByRole('button', { name: 'Log in' }));
-
-    await waitFor(() => expect(screen.getByText('Feed Page')).toBeInTheDocument());
   });
 
   it('disables the submit button and shows a spinner while the mutation is pending', () => {

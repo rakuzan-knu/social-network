@@ -4,6 +4,7 @@ import type { UserProfileDto } from '../users/dto/user-profile.dto';
 export function toUserProfileDto(
   user: PublicUserEntity | PublicUserSummary,
   isFollowing: boolean = false,
+  followsYou: boolean = false,
 ): UserProfileDto {
   const badgeList = Array.isArray(user.badges)
     ? user.badges.map((b: { badgeId: string } | string) => (typeof b === 'string' ? b : b.badgeId))
@@ -24,5 +25,6 @@ export function toUserProfileDto(
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
     isFollowing,
+    followsYou,
   };
 }
