@@ -35,8 +35,12 @@ jobs:
       AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
       VERCEL_API_TOKEN: ${{ secrets.VERCEL_API_TOKEN }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
       RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
       TF_VAR_vercel_api_token: ${{ secrets.VERCEL_API_TOKEN }}
+      TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      TF_VAR_cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
 
     steps:
       - name: Checkout code
@@ -95,7 +99,7 @@ jobs:
             });
 
       - name: Terraform Plan Status Check
-        if: steps.plan.outcome == 'failure'
+        if: steps.plan.outcome == 'failure' && env.VERCEL_API_TOKEN != '' && env.CLOUDFLARE_API_TOKEN != ''
         run: exit 1
 
       - name: Terraform Apply

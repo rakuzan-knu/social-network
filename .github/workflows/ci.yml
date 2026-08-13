@@ -403,13 +403,19 @@ jobs:
           key: ${{ needs.setup.outputs.cache-key }}
           fail-on-cache-miss: true
 
-      - name: Run migrations
+      - name: Run migrations & generate Prisma client
         working-directory: backend
-        run: npx prisma migrate deploy
+        run: |
+          npx prisma migrate deploy
+          npx prisma generate
+
+      - name: Build backend
+        working-directory: backend
+        run: npm run build
 
       - name: Start backend server in background
         working-directory: backend
-        run: npm run start &
+        run: npm run start:prod &
         env:
           NODE_ENV: test
 
@@ -585,7 +591,7 @@ jobs:
           build-script: "npm run build"
 
       - name: Enforce bundle size budget
-        run: npm run check:bundle
+        run: node scripts/check-bundle-size.js
 
       - name: Run Lighthouse CI
         if: contains(github.event.pull_request.labels.*.name, 'lighthouse') || github.event_name == 'push'
