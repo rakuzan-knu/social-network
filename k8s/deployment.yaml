@@ -51,11 +51,11 @@ spec:
                 name: backend-secrets
           resources:
             requests:
-              cpu: 250m
-              memory: 256Mi
+              cpu: 50m
+              memory: 128Mi
             limits:
-              cpu: 1000m
-              memory: 512Mi
+              cpu: 500m
+              memory: 256Mi
           livenessProbe:
             httpGet:
               path: /health/live
@@ -125,11 +125,11 @@ spec:
               name: http
           resources:
             requests:
-              cpu: 100m
-              memory: 64Mi
+              cpu: 10m
+              memory: 16Mi
             limits:
-              cpu: 500m
-              memory: 128Mi
+              cpu: 100m
+              memory: 32Mi
           livenessProbe:
             httpGet:
               path: /health
