@@ -57,6 +57,9 @@ jobs:
       - name: Terraform Format Check
         run: terraform fmt -check
 
+      - name: Run Infrastructure Unit Test Suite
+        run: node ../scripts/verify-terraform.cjs
+
       - name: Terraform Init
         run: terraform init
 

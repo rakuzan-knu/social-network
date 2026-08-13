@@ -419,6 +419,22 @@ jobs:
           node scripts/verify-api-contract.js
           node scripts/verify-pact-contracts.cjs
 
+  k8s-policy-check:
+    name: Kubernetes Policy-as-Code Guardrails Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: '.nvmrc'
+
+      - name: Run K8s Policy-as-Code verification script
+        run: node scripts/verify-k8s-policies.cjs
+
   dependency-review:
     name: Dependency Review — Security & Compliance
     runs-on: ubuntu-latest
@@ -670,6 +686,7 @@ jobs:
       - backend-test
       - backend-e2e
       - backend-contract-test
+      - k8s-policy-check
       - dependency-review
       - frontend-lint
       - frontend-test
