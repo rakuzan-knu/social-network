@@ -22,7 +22,7 @@ export function useGitHubPRCount(githubUsername?: string) {
         const mergedPRs = data.filter((pr: GitHubPullRequest) => pr.merged_at !== null);
 
         if (!githubUsername) {
-          return mergedPRs.length;
+          return 0;
         }
 
         return mergedPRs.filter(

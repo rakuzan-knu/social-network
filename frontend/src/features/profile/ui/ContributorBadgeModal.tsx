@@ -26,7 +26,9 @@ export const ContributorBadgeModal: React.FC<ContributorBadgeModalProps> = ({
   if (!isOpen) return null;
 
   const githubPRs = liveGitHubPRs ?? 0;
-  const currentPRs = currentUser?.prCount ?? (prCount > 0 ? prCount : githubPRs);
+  const currentPRs = githubUser
+    ? (currentUser?.mergedPrsCount ?? (prCount > 0 ? prCount : githubPRs))
+    : 0;
   const currentReports = currentUser?.reportCount ?? reportCount;
   const totalContributions = currentPRs + currentReports;
 

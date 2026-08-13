@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -19,7 +19,6 @@ import {
   Search,
   ChevronDown,
   Lock,
-  Star,
   Users,
   Moon,
   Smartphone,
@@ -28,10 +27,9 @@ import {
   Volume2,
   LogOut,
   Link as LinkIcon,
-  Plus,
   Unlink,
-  ExternalLink,
-  RotateCw,
+  RefreshCw,
+  ShieldCheck,
 } from 'lucide-react';
 import { useUIStore } from '../../../shared/model/useUIStore';
 import { useAuthStore } from '../../../shared/model/useAuthStore';
@@ -59,9 +57,51 @@ interface SubSection {
 interface MainTab {
   id: string;
   label: string;
-  icon: React.ElementType;
   subsections: SubSection[];
 }
+
+const TABS_CONFIG: MainTab[] = [
+  {
+    id: 'account',
+    label: 'Account',
+    subsections: [
+      { id: 'sec-account-info', label: 'Account Information' },
+      { id: 'sec-badges', label: 'Profile Badges' },
+      { id: 'sec-integrations', label: 'Integrations' },
+      { id: 'sec-reputation', label: 'Account Reputation' },
+      { id: 'sec-family', label: 'Family Center' },
+    ],
+  },
+  {
+    id: 'appearance',
+    label: 'Appearance',
+    subsections: [
+      { id: 'sec-theme', label: 'Color Theme' },
+      { id: 'sec-interface', label: 'Font Size & Layout' },
+    ],
+  },
+  {
+    id: 'security',
+    label: 'Security',
+    subsections: [
+      { id: 'sec-security', label: 'Password & Security' },
+      { id: 'sec-autodelete', label: 'Account Auto-Deletion' },
+    ],
+  },
+  {
+    id: 'privacy',
+    label: 'Privacy',
+    subsections: [
+      { id: 'sec-privacy-opts', label: 'Profile Privacy' },
+      { id: 'sec-blacklist', label: 'Blocked Users' },
+    ],
+  },
+  {
+    id: 'notifications',
+    label: 'Notifications',
+    subsections: [{ id: 'sec-notifs', label: 'Sound & Push Notifications' }],
+  },
+];
 
 export default function EditProfileModal() {
   const { isEditProfileOpen, closeEditProfile } = useUIStore();
@@ -78,10 +118,6 @@ export default function EditProfileModal() {
   });
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
-
-  const [isAddIntegrationModalOpen, setIsAddIntegrationModalOpen] = useState(false);
-  const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
-  const [githubInputUser, setGithubInputUser] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
 
   const navigate = useNavigate();
@@ -120,7 +156,6 @@ export default function EditProfileModal() {
   const {
     register,
     handleSubmit,
-    reset,
     control,
     formState: { errors },
   } = useForm<ProfileFormValues>({
@@ -155,106 +190,13 @@ export default function EditProfileModal() {
     const activeEl = itemRefs.current[activeSection];
     const containerEl = accordionRefs.current[activeTab];
     if (activeEl && containerEl) {
-      const activeRect = activeEl.getBoundingClientRect();
-      const containerRect = containerEl.getBoundingClientRect();
-      const top = activeRect.top - containerRect.top;
-      const height = activeRect.height;
+      const top = activeEl.offsetTop;
+      const height = activeEl.offsetHeight;
       if (height > 0) {
         setIndicatorStyle({ top, height });
       }
     }
   }, [activeSection, activeTab]);
-
-  useEffect(() => {
-    if (currentUser) {
-      reset({
-        username: currentUser.username || '',
-        bio: currentUser.bio || '',
-        displayName: currentUser.displayName || '',
-        onlineStatus: true,
-        notifMain: true,
-        notifSound: false,
-      });
-      if (currentUser.githubUsername) {
-        const t = setTimeout(() => setGithubInputUser(currentUser.githubUsername!), 0);
-        return () => clearTimeout(t);
-      }
-    }
-  }, [currentUser, reset]);
-
-  useEffect(() => {
-    if (isEditProfileOpen) {
-      const t = setTimeout(() => {
-        setActiveTab('account');
-        setActiveSection('sec-account-info');
-        setSearchQuery('');
-        setExpandedTabs({
-          account: true,
-          appearance: false,
-          security: false,
-          privacy: false,
-          notifications: false,
-        });
-        setIsLogoutModalOpen(false);
-        setIsMoreMenuOpen(false);
-        setIsAddIntegrationModalOpen(false);
-        setSelectedPlatform(null);
-        updateIndicatorPosition();
-      }, 0);
-      return () => clearTimeout(t);
-    }
-  }, [isEditProfileOpen, updateIndicatorPosition]);
-
-  const tabsConfig: MainTab[] = useMemo(
-    () => [
-      {
-        id: 'account',
-        label: 'Account',
-        icon: UserIcon,
-        subsections: [
-          { id: 'sec-account-info', label: 'Account Information' },
-          { id: 'sec-badges', label: 'Profile Badges' },
-          { id: 'sec-integrations', label: 'Integrations' },
-          { id: 'sec-reputation', label: 'Account Reputation' },
-          { id: 'sec-family', label: 'Family Center' },
-        ],
-      },
-      {
-        id: 'appearance',
-        label: 'Appearance',
-        icon: Palette,
-        subsections: [
-          { id: 'sec-theme', label: 'Color Theme' },
-          { id: 'sec-interface', label: 'Font Size & Layout' },
-        ],
-      },
-      {
-        id: 'security',
-        label: 'Security',
-        icon: Shield,
-        subsections: [
-          { id: 'sec-security', label: 'Password & Security' },
-          { id: 'sec-autodelete', label: 'Account Auto-Deletion' },
-        ],
-      },
-      {
-        id: 'privacy',
-        label: 'Privacy',
-        icon: Hand,
-        subsections: [
-          { id: 'sec-privacy-opts', label: 'Profile Privacy' },
-          { id: 'sec-blacklist', label: 'Blocked Users' },
-        ],
-      },
-      {
-        id: 'notifications',
-        label: 'Notifications',
-        icon: Bell,
-        subsections: [{ id: 'sec-notifs', label: 'Sound & Push Notifications' }],
-      },
-    ],
-    [],
-  );
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -277,14 +219,17 @@ export default function EditProfileModal() {
     const sectionElements = container.querySelectorAll<HTMLElement>('[id^="sec-"]');
 
     let currentSectionId = activeSection;
-    let minDiff = Infinity;
+    let minDistance = Infinity;
 
     sectionElements.forEach((el) => {
       const rect = el.getBoundingClientRect();
-      const diff = Math.abs(rect.top - containerTop);
-      if (diff < minDiff && rect.bottom > containerTop + 40) {
-        minDiff = diff;
-        currentSectionId = el.id;
+      const topOffset = rect.top - containerTop;
+      if (topOffset <= 150 && rect.bottom > containerTop + 30) {
+        const distance = Math.abs(topOffset);
+        if (distance < minDistance) {
+          minDistance = distance;
+          currentSectionId = el.id;
+        }
       }
     });
 
@@ -307,43 +252,33 @@ export default function EditProfileModal() {
         const targetRect = targetEl.getBoundingClientRect();
         const scrollOffset =
           targetRect.top - containerRect.top + rightPanelRef.current.scrollTop - 20;
-        rightPanelRef.current.scrollTo({ top: scrollOffset, behavior: 'smooth' });
+        rightPanelRef.current.scrollTo({ top: Math.max(0, scrollOffset), behavior: 'smooth' });
       }
       updateIndicatorPosition();
-    }, 50);
+    }, 60);
   };
 
   const toggleTabExpanded = (tabId: string) => {
     const nextState = !expandedTabs[tabId];
     setExpandedTabs((prev) => ({ ...prev, [tabId]: nextState }));
-    setActiveTab(tabId);
 
-    const tabConfig = tabsConfig.find((t) => t.id === tabId);
-    if (tabConfig && tabConfig.subsections.length > 0) {
-      const firstSubId = tabConfig.subsections[0].id;
-      setActiveSection(firstSubId);
-      setTimeout(() => {
-        if (rightPanelRef.current) {
-          rightPanelRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-      }, 50);
+    if (nextState) {
+      setActiveTab(tabId);
+      const tabConfig = TABS_CONFIG.find((t) => t.id === tabId);
+      if (tabConfig && tabConfig.subsections.length > 0) {
+        const firstSubId = tabConfig.subsections[0].id;
+        setActiveSection(firstSubId);
+        setTimeout(() => {
+          if (rightPanelRef.current) {
+            rightPanelRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+          }
+        }, 50);
+      }
     }
 
     setTimeout(() => {
-      const accordionEl = accordionRefs.current[tabId];
-      const navEl = subNavRef.current;
-      if (accordionEl && navEl) {
-        const accordionBottom = accordionEl.offsetTop + accordionEl.offsetHeight;
-        const navVisibleBottom = navEl.scrollTop + navEl.clientHeight;
-        if (accordionBottom > navVisibleBottom) {
-          navEl.scrollTo({
-            top: accordionBottom - navEl.clientHeight + 24,
-            behavior: 'smooth',
-          });
-        }
-      }
       updateIndicatorPosition();
-    }, 150);
+    }, 100);
   };
 
   const handleConfirmLogout = () => {
@@ -353,153 +288,72 @@ export default function EditProfileModal() {
     navigate('/login', { replace: true });
   };
 
-  const addToast = useMessageToastStore.getState().addToast;
+  const handleConnectGithubOAuth = () => {
+    window.location.href = '/api/auth/github';
+  };
 
-  const handleLinkGitHub = async () => {
-    if (!githubInputUser.trim()) return;
-    await queryClient.invalidateQueries({ queryKey: [USER_KEY] });
-    setIsAddIntegrationModalOpen(false);
-    setSelectedPlatform(null);
-    addToast({
-      id: `gh-link-${Date.now()}`,
+  const addToast = (title: string, body: string) => {
+    useMessageToastStore.getState().addToast({
+      id: `toast-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       conversationId: '',
       messageId: '',
-      title: 'GitHub Connected',
-      body: `Successfully linked @${githubInputUser.trim()}. Your Pull Requests will now automatically sync for Contributor badges.`,
+      title,
+      body,
       avatar: null,
       memberAvatars: [],
       isGroup: false,
     });
   };
 
-  const handleConnectGithubOAuth = () => {
-    const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-    window.location.href = `${backendUrl}/api/auth/github`;
-  };
-
   const handleSyncGitHub = async () => {
-    setIsSyncing(true);
+    if (!currentUser?.id) return;
     try {
+      setIsSyncing(true);
       const res = await userApi.syncGithub();
-      await queryClient.invalidateQueries({ queryKey: [USER_KEY] });
-      addToast({
-        id: `gh-sync-${Date.now()}`,
-        conversationId: '',
-        messageId: '',
-        title: 'GitHub Synced',
-        body: `Synced ${res.mergedPrsCount} merged Pull Request(s) for @${res.githubUsername || 'user'}.`,
-        avatar: null,
-        memberAvatars: [],
-        isGroup: false,
-      });
+      queryClient.invalidateQueries({ queryKey: [USER_KEY] });
+      addToast('PRs Synced', `Total merged PRs: ${res.mergedPrsCount}`);
     } catch (err: unknown) {
-      const errorObj = err as { response?: { data?: { message?: string } } };
-      const msg =
-        errorObj?.response?.data?.message || 'PR Sync rate limited. Please try again in 5 minutes.';
-      addToast({
-        id: `gh-sync-err-${Date.now()}`,
-        conversationId: '',
-        messageId: '',
-        title: 'Sync Rate Limited',
-        body: msg,
-        avatar: null,
-        memberAvatars: [],
-        isGroup: false,
-      });
+      console.error('Sync error:', err);
+      addToast('Sync Rate Limited', 'Please try again in a few minutes.');
     } finally {
       setIsSyncing(false);
     }
   };
 
   const handleUnlinkGitHub = async () => {
+    if (!currentUser?.id) return;
     try {
       await userApi.unlinkGithub();
-      setGithubInputUser('');
-      await queryClient.invalidateQueries({ queryKey: [USER_KEY] });
-      addToast({
-        id: `gh-unlink-${Date.now()}`,
-        conversationId: '',
-        messageId: '',
-        title: 'GitHub Unlinked',
-        body: 'Your GitHub account has been disconnected.',
-        avatar: null,
-        memberAvatars: [],
-        isGroup: false,
-      });
+      queryClient.invalidateQueries({ queryKey: [USER_KEY] });
+      addToast('GitHub Unlinked', 'Your GitHub account has been disconnected.');
     } catch (err: unknown) {
-      console.error('Error unlinking GitHub:', err);
+      console.error('Unlink error:', err);
     }
   };
 
   if (!isEditProfileOpen) return null;
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (!file.type.startsWith('image/')) {
-        addToast({
-          id: `error-${Date.now()}`,
-          conversationId: '',
-          messageId: '',
-          title: 'Avatar upload error',
-          body: 'Only image and GIF files are allowed.',
-          avatar: null,
-          memberAvatars: [],
-          isGroup: false,
-        });
-        e.target.value = '';
-        return;
-      }
-      if (file.size > 10 * 1024 * 1024) {
-        addToast({
-          id: `error-${Date.now()}`,
-          conversationId: '',
-          messageId: '',
-          title: 'Avatar upload error',
-          body: 'Avatar file size exceeds the maximum limit of 10 MB.',
-          avatar: null,
-          memberAvatars: [],
-          isGroup: false,
-        });
-        e.target.value = '';
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      if (file.size > 5 * 1024 * 1024) {
+        addToast('File too large', 'Avatar must be less than 5MB');
         return;
       }
       setAvatarFile(file);
       const reader = new FileReader();
-      reader.onloadend = () => setLocalAvatarPreview(reader.result as string);
+      reader.onloadend = () => {
+        setLocalAvatarPreview(reader.result as string);
+      };
       reader.readAsDataURL(file);
     }
   };
 
   const handleBannerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (!file.type.startsWith('image/')) {
-        addToast({
-          id: `error-${Date.now()}`,
-          conversationId: '',
-          messageId: '',
-          title: 'Banner upload error',
-          body: 'Only image and GIF files are allowed.',
-          avatar: null,
-          memberAvatars: [],
-          isGroup: false,
-        });
-        e.target.value = '';
-        return;
-      }
-      if (file.size > 20 * 1024 * 1024) {
-        addToast({
-          id: `error-${Date.now()}`,
-          conversationId: '',
-          messageId: '',
-          title: 'Banner upload error',
-          body: 'Profile banner size exceeds maximum limit of 20 MB.',
-          avatar: null,
-          memberAvatars: [],
-          isGroup: false,
-        });
-        e.target.value = '';
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      if (file.size > 10 * 1024 * 1024) {
+        addToast('File too large', 'Banner must be less than 10MB');
         return;
       }
       setBannerFile(file);
@@ -594,19 +448,25 @@ export default function EditProfileModal() {
     setLocalBannerPos(null);
   };
 
-  const filteredTabs = tabsConfig
-    .map((tab) => {
-      const matchingSubsections = tab.subsections.filter(
-        (sub) =>
-          sub.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          tab.label.toLowerCase().includes(searchQuery.toLowerCase()),
-      );
-      return { ...tab, subsections: matchingSubsections };
-    })
-    .filter(
-      (tab) =>
-        tab.label.toLowerCase().includes(searchQuery.toLowerCase()) || tab.subsections.length > 0,
+  const TAB_ICONS: Record<string, React.ElementType> = {
+    account: UserIcon,
+    appearance: Palette,
+    security: Shield,
+    privacy: Hand,
+    notifications: Bell,
+  };
+
+  const filteredTabs = TABS_CONFIG.map((tab) => {
+    const matchingSubsections = tab.subsections.filter(
+      (sub) =>
+        sub.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        tab.label.toLowerCase().includes(searchQuery.toLowerCase()),
     );
+    return { ...tab, subsections: matchingSubsections };
+  }).filter(
+    (tab) =>
+      tab.label.toLowerCase().includes(searchQuery.toLowerCase()) || tab.subsections.length > 0,
+  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-md animate-fadeIn">
@@ -660,7 +520,7 @@ export default function EditProfileModal() {
           >
             <nav className="flex flex-col gap-2">
               {filteredTabs.map((tab) => {
-                const Icon = tab.icon;
+                const Icon = TAB_ICONS[tab.id] || UserIcon;
                 const isExpanded = expandedTabs[tab.id] || searchQuery.length > 0;
                 const isTabActive = activeTab === tab.id;
 
@@ -1015,24 +875,15 @@ export default function EditProfileModal() {
                     id="sec-integrations"
                     className="pt-6 border-t border-white/[0.06] flex flex-col gap-5"
                   >
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div>
-                        <h3 className="text-xl font-bold flex items-center gap-2">
-                          <LinkIcon size={20} className="text-emerald-400" />
-                          Integrations
-                        </h3>
-                        <p className="text-xs text-gray-400 mt-1 leading-relaxed">
-                          Connect third-party accounts (such as GitHub) to track Pull Requests in
-                          our repository and sync activity badges.
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setIsAddIntegrationModalOpen(true)}
-                        className="bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] text-white px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition shrink-0 whitespace-nowrap self-start sm:self-auto"
-                      >
-                        <Plus size={15} /> Add Integration
-                      </button>
+                    <div>
+                      <h3 className="text-xl font-bold flex items-center gap-2">
+                        <LinkIcon size={20} className="text-emerald-400" />
+                        Integrations
+                      </h3>
+                      <p className="text-xs text-gray-400 mt-1 leading-relaxed">
+                        Connect third-party accounts (such as GitHub) to track Pull Requests in our
+                        repository and sync activity badges.
+                      </p>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
@@ -1048,36 +899,34 @@ export default function EditProfileModal() {
                             {currentUser?.githubUsername ? (
                               <div className="flex flex-col min-w-0">
                                 <span className="text-emerald-400 text-xs font-semibold flex items-center gap-1 truncate">
-                                  <Check size={12} className="shrink-0" /> @
-                                  {currentUser.githubUsername}
+                                  <Check size={13} /> @{currentUser.githubUsername}
                                 </span>
                                 <span className="text-[11px] text-gray-400 truncate">
-                                  {currentUser?.mergedPrsCount ?? 0} Merged PRs
+                                  {currentUser.mergedPrsCount ?? 0} PRs merged
                                 </span>
                               </div>
                             ) : (
-                              <span className="text-gray-500 text-xs truncate">Not connected</span>
+                              <span className="text-xs text-gray-500 truncate">Not connected</span>
                             )}
                           </div>
                         </div>
 
                         {currentUser?.githubUsername ? (
-                          <div className="flex items-center gap-1.5 shrink-0">
+                          <div className="flex items-center gap-2 shrink-0">
                             <button
                               type="button"
                               onClick={handleSyncGitHub}
                               disabled={isSyncing}
-                              className="px-2.5 py-1.5 text-xs text-cyan-300 hover:text-white bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 rounded-xl transition flex items-center gap-1 whitespace-nowrap font-medium"
-                              title="Sync PRs (Rate limited: 1 req / 5 min)"
+                              className="bg-white/[0.06] hover:bg-white/[0.12] text-white px-3 py-1.5 rounded-xl border border-white/[0.08] transition text-xs font-semibold flex items-center gap-1.5 disabled:opacity-40"
+                              title="Sync PR Count"
                             >
-                              <RotateCw size={13} className={isSyncing ? 'animate-spin' : ''} />
-                              <span className="hidden sm:inline">Sync</span>
+                              <RefreshCw size={13} className={isSyncing ? 'animate-spin' : ''} />
+                              Sync
                             </button>
-
                             <button
                               type="button"
                               onClick={handleUnlinkGitHub}
-                              className="text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 px-2.5 py-1.5 rounded-xl border border-red-500/20 transition flex items-center gap-1 shrink-0 whitespace-nowrap font-medium"
+                              className="bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/30 px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shrink-0 whitespace-nowrap shadow-sm"
                             >
                               <Unlink size={13} /> Unlink
                             </button>
@@ -1086,9 +935,9 @@ export default function EditProfileModal() {
                           <button
                             type="button"
                             onClick={handleConnectGithubOAuth}
-                            className="text-xs text-white bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-xl font-semibold transition shrink-0 whitespace-nowrap flex items-center gap-1.5"
+                            className="bg-[#2da44e] hover:bg-[#2c974b] text-white font-bold px-4 py-1.5 rounded-xl text-xs transition shrink-0 whitespace-nowrap shadow-md flex items-center gap-1.5"
                           >
-                            <ExternalLink size={13} /> Connect
+                            Connect
                           </button>
                         )}
                       </div>
@@ -1097,12 +946,12 @@ export default function EditProfileModal() {
 
                   <div id="sec-reputation" className="pt-6 border-t border-white/[0.06]">
                     <h3 className="text-xl font-bold border-b border-white/[0.06] pb-3 flex items-center gap-2">
-                      <Star size={20} className="text-yellow-400" />
+                      <ShieldCheck size={20} className="text-purple-400" />
                       Account Reputation
                     </h3>
                     <p className="text-sm text-gray-400 leading-relaxed mt-2">
-                      Your account standing is clean. No warnings, strikes, or restrictions
-                      detected.
+                      Your reputation score determines trust levels, verified checkmark eligibility,
+                      and community badges.
                     </p>
                   </div>
 
@@ -1211,132 +1060,6 @@ export default function EditProfileModal() {
           </SettingsPanelHost>
         </div>
       </form>
-
-      {isAddIntegrationModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fadeIn">
-          <div className="relative w-full max-w-md bg-[#121215] border border-white/[0.12] rounded-3xl p-6 shadow-2xl flex flex-col gap-5 text-white animate-zoomIn">
-            <button
-              type="button"
-              onClick={() => {
-                setIsAddIntegrationModalOpen(false);
-                setSelectedPlatform(null);
-              }}
-              className="absolute top-4 right-4 text-gray-400 hover:text-white p-1 rounded-full hover:bg-white/10 transition"
-            >
-              <X size={18} />
-            </button>
-
-            {selectedPlatform === 'github' ? (
-              <div className="flex flex-col items-center text-center gap-5 pt-2">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-400 font-bold">
-                    App
-                  </div>
-                  <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0">
-                    <Check size={14} />
-                  </div>
-                  <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white">
-                    <svg className="w-7 h-7 fill-current" viewBox="0 0 24 24">
-                      <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
-                    </svg>
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <h4 className="text-xl font-bold">Authorize GitHub Account</h4>
-                  <p className="text-xs text-gray-400 leading-relaxed">
-                    Link your GitHub account to automatically track merged Pull Requests in our
-                    repository.
-                  </p>
-                </div>
-
-                <div className="w-full text-left space-y-1.5">
-                  <label className="block text-xs font-semibold text-gray-300">
-                    GitHub Username
-                  </label>
-                  <input
-                    type="text"
-                    value={githubInputUser}
-                    onChange={(e) => setGithubInputUser(e.target.value)}
-                    placeholder="e.g. AyateAgh"
-                    className="w-full bg-white/[0.04] border border-white/[0.1] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500 transition"
-                  />
-                </div>
-
-                <div className="flex items-center justify-end gap-3 w-full pt-3 border-t border-white/[0.06]">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedPlatform(null)}
-                    className="px-4 py-2 rounded-xl text-xs font-semibold text-gray-400 hover:text-white transition"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleLinkGitHub}
-                    disabled={!githubInputUser.trim()}
-                    className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-bold px-5 py-2.5 rounded-xl text-xs transition shadow-lg flex items-center gap-1.5"
-                  >
-                    <Check size={15} /> Authorize & Link
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-4">
-                <div className="flex flex-col gap-1">
-                  <h4 className="text-xl font-bold">Add Integration</h4>
-                  <p className="text-xs text-gray-400">
-                    Select a platform to link your account to your social profile.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-4 gap-3 py-2">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedPlatform('github')}
-                    className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/[0.04] hover:bg-white/[0.1] border border-white/[0.08] hover:border-emerald-500/50 transition group"
-                  >
-                    <svg
-                      className="w-8 h-8 fill-current text-white group-hover:scale-110 transition-transform"
-                      viewBox="0 0 24 24"
-                    >
-                      <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
-                    </svg>
-                    <span className="text-[11px] font-semibold text-gray-300 mt-1.5">GitHub</span>
-                  </button>
-
-                  {['Steam', 'Spotify', 'Reddit', 'Twitch', 'YouTube', 'Discord', 'Xbox'].map(
-                    (plat) => (
-                      <button
-                        key={plat}
-                        type="button"
-                        onClick={() => {
-                          addToast({
-                            id: `plat-soon-${plat}`,
-                            conversationId: '',
-                            messageId: '',
-                            title: `${plat} Integration`,
-                            body: `${plat} integration coming soon in future updates.`,
-                            avatar: null,
-                            memberAvatars: [],
-                            isGroup: false,
-                          });
-                        }}
-                        className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/[0.02] hover:bg-white/[0.06] border border-white/[0.06] opacity-60 hover:opacity-100 transition"
-                      >
-                        <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-xs font-bold text-gray-300">
-                          {plat[0]}
-                        </div>
-                        <span className="text-[11px] font-medium text-gray-400 mt-1.5">{plat}</span>
-                      </button>
-                    ),
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {isLogoutModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fadeIn">
