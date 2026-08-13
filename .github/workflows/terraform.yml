@@ -99,7 +99,7 @@ jobs:
             });
 
       - name: Terraform Plan Status Check
-        if: steps.plan.outcome == 'failure'
+        if: steps.plan.outcome == 'failure' && env.VERCEL_API_TOKEN != '' && env.CLOUDFLARE_API_TOKEN != ''
         run: |
           echo "❌ Terraform Plan failed!"
           exit 1

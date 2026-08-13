@@ -644,15 +644,15 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
 
+      - name: Setup Trivy CLI
+        uses: aquasecurity/setup-trivy@15d3126938a4d46cfb677a28e8d89a2444c107be # v0.2.1
+        with:
+          version: 'latest'
+
       - name: Run Trivy vulnerability scanner
         id: trivy_scanner
-        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947b394f2dd8c87dbb0 # 0.29.0
-        with:
-          image-ref: social-network-${{ matrix.service }}:ci-${{ github.sha }}
-          format: sarif
-          output: trivy-${{ matrix.service }}.sarif
-          severity: 'CRITICAL,HIGH'
-          exit-code: '0'
+        run: |
+          trivy image social-network-${{ matrix.service }}:ci-${{ github.sha }} --severity CRITICAL,HIGH --format sarif -o trivy-${{ matrix.service }}.sarif --exit-code 0
 
       - name: Upload Trivy SARIF report
         if: always() && steps.trivy_scanner.outcome == 'success'
