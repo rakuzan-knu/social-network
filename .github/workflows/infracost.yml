@@ -27,10 +27,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Infracost
-        uses: infracost/actions/setup@e9d6e6cd65e168e76b0de50ff9957d2fe8bb1832 # v3.0.0
+        uses: infracost/actions/setup@fb736a8f219195d6efdca58682069b16fe1bc280 # v3.0.0
         with:
           api-key: ${{ secrets.INFRACOST_API_KEY }}
 
