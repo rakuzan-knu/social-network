@@ -9,11 +9,27 @@ terraform {
       source  = "render-oss/render"
       version = "~> 1.0"
     }
+    cloudflare = {
+      source  = "cloudflare/cloudflare"
+      version = "~> 4.0"
+    }
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
   }
 }
 
 provider "vercel" {
   api_token = var.vercel_api_token
+}
+
+provider "cloudflare" {
+  api_token = var.cloudflare_api_token
+}
+
+provider "aws" {
+  region = var.aws_region
 }
 
 resource "vercel_project" "social_network_frontend" {

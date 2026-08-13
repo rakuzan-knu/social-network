@@ -413,10 +413,11 @@ jobs:
         env:
           NODE_ENV: test
 
-      - name: Wait for server & run contract test
+      - name: Wait for server & run OpenAPI and Pact contract tests
         run: |
           npx wait-on http://localhost:3000/api/health -t 30000
           node scripts/verify-api-contract.js
+          node scripts/verify-pact-contracts.cjs
 
   dependency-review:
     name: Dependency Review — Security & Compliance

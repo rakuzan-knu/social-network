@@ -68,10 +68,10 @@ Currently deployed on **Render (Backend)** + **Vercel (Frontend)**:
 2. **Managed Multi-AZ Database**: Migrate PostgreSQL to AWS RDS Multi-AZ or Supabase/Neon Pro with standby failover instance.
 3. **Managed Redis Cluster**: Transition single-instance Redis to AWS ElastiCache for Redis (Multi-AZ with Auto-Failover).
 
-### Phase 2: Multi-Region Disaster Recovery
+### Phase 2: Multi-Region Disaster Recovery (ACTIVE)
 
-1. **Global Traffic Management**: Route user traffic through Cloudflare Anycast with active health probes and automatic failover.
-2. **Cross-Region Read Replicas**: Deploy read-replicas in secondary region for zero-downtime read queries and fast failover.
-3. **RTO/RPO Targets**:
-   - **Recovery Time Objective (RTO)**: < 5 minutes (Automated DNS Failover).
-   - **Recovery Point Objective (RPO)**: < 1 minute (Asynchronous DB Replication).
+1. **Global Traffic Management**: Automated via Cloudflare Load Balancing (`infrastructure/cloudflare.tf`) with active health probes polling `/api/health`.
+2. **Cross-Region Origin Pools**: Primary Pool (`primary-us-backend-pool`) auto-fails over to Secondary Pool (`secondary-eu-backend-pool`) within 60s of monitor failure.
+3. **RTO/RPO Verified Targets**:
+   - **Recovery Time Objective (RTO)**: < 2 minutes (Automated DNS Health Probe Failover).
+   - **Recovery Point Objective (RPO)**: < 1 minute (Asynchronous Cross-Region DB Replication).

@@ -151,3 +151,16 @@ jobs:
           head: HEAD
           extra_args: --debug --only-verified
 
+  k8s-policy-check:
+    name: Policy-as-Code — K8s Guardrails Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Run K8s Policy-as-Code verification script
+        run: node scripts/verify-k8s-policies.cjs
+
+

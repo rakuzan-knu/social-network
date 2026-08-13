@@ -1,68 +1,73 @@
-# 🗄️ Database Migration & Rollback Strategy
+# 🗄️ Database Migration Strategy: Expand / Contract Pattern
 
-This document outlines the database migration guidelines, safe schema deployment strategies, and rollback protocols for the Social Network platform using Prisma and PostgreSQL.
+This document describes the zero-downtime database migration strategy for the platform using **Prisma** and PostgreSQL.
 
 ---
 
-## 📐 Zero-Downtime Migration Pattern (Expand-Contract)
+## 🛑 Problem Statement
 
-To avoid breaking running application instances during deployment, all database migrations must adhere to the **Expand-Contract (Parallel Change)** pattern.
+Running `npx prisma migrate deploy` synchronously during container boot can block deployments or cause downtime if a migration contains breaking DDL operations (e.g. dropping columns, renaming tables, or adding `NOT NULL` columns without default values) while previous application instances are still processing live traffic.
+
+To achieve continuous deployment with zero downtime, all database schema updates must follow the **Expand / Contract (Parallel Run)** design pattern and be backwards-compatible with active application instances.
+
+---
+
+## 🔄 The 3-Phase Expand / Contract Lifecycle
 
 ```
-Phase 1: Expand (Non-breaking addition)
-  ├── Add new column/table without constraints
-  └── Application writes to both old and new columns
-
-Phase 2: Transition & Backfill
-  ├── Backfill legacy records to new columns
-  └── Read traffic migrates to new columns
-
-Phase 3: Contract (Deprecate legacy schema)
-  └── Drop old columns/tables in subsequent release
+    Phase 1: EXPAND              Phase 2: DUAL-WRITE / MIGRATE           Phase 3: CONTRACT
++-----------------------+        +---------------------------+        +-----------------------+
+|  Add new DB columns   |  --->  |  App reads/writes both    |  --->  | Remove old columns    |
+|  (Nullable / Defaults)|        |  Backfill background data |        |  & cleanup legacy DB  |
++-----------------------+        +---------------------------+        +-----------------------+
 ```
 
-### Mandatory Rules
+### Phase 1: Expand (Non-Breaking Additions)
 
-1. **Never rename columns directly**: Add the new column, sync data, then drop the old column in a later deployment.
-2. **Make new columns optional (`NULL`) initially**: Adding `NOT NULL` columns without default values breaks existing insertions.
-3. **Never drop tables/columns in the same PR as feature launch**: Ensure older instances have completely wound down before contracting schema.
+- Add new tables, columns, or indexes as **nullable** or with a **`DEFAULT` value**.
+- **Rule**: Never remove or rename an existing table/column in Phase 1.
+- **Rule**: Never add a `NOT NULL` constraint without a `DEFAULT` value.
+- Application code continues using old schema fields or starts accepting optional new fields.
 
----
+### Phase 2: Transition & Dual-Write (Feature Flag Gated)
 
-## 🔄 Emergency Rollback Strategy
+- Deploy application code that handles both old and new schema representation.
+- Gate feature transitions behind environment variables / feature flags (e.g. `ENABLE_NEW_SCHEMA_V2=true`).
+- Run background backfill scripts if historical data needs to be populated into new fields.
 
-Prisma uses forward-only migration tracks (`npx prisma migrate deploy`). In case of critical production incidents requiring schema reversal:
+### Phase 3: Contract (Deprecation & Cleanup)
 
-### Rollback Workflow
-
-1. **Generate Down SQL**:
-   Run the automated rollback helper to compute target SQL differences:
-   ```bash
-   bash ./scripts/rollback-migration.sh
-   ```
-2. **Inspect Preview SQL**:
-   Verify generated `rollback_preview.sql` for data loss risks.
-
-3. **Execute Safe Reverse Script**:
-   Apply reversal SQL against the target database:
-
-   ```bash
-   npx prisma db execute --file rollback_preview.sql --schema=backend/prisma/schema.prisma
-   ```
-
-4. **Mark Migration State in Prisma**:
-   If a migration needs to be marked as rolled back in `_prisma_migrations`:
-   ```bash
-   npx prisma migrate resolve --rolled-back "<migration_name>"
-   ```
+- Once 100% of traffic is served by code using the new schema, deploy a final cleanup migration.
+- Remove old deprecated columns/tables safely without interrupting service.
 
 ---
 
-## 🧪 Backup Restoration Drills
+## 🛡️ Static Migration Linting (`scripts/validate-prisma-migrations.js`)
 
-Quarterly backup verification drills are executed using `scripts/verify-backup.sh`.
+Before any migration is applied in CI/CD, all migration `.sql` files are scanned for illegal breaking DDL patterns:
 
 ```bash
-# Run automated restore drill
-bash scripts/verify-backup.sh /path/to/backup.sql.gz
+node scripts/validate-prisma-migrations.js
+```
+
+### Prohibited Operations in Migration SQL:
+
+1. `DROP COLUMN` -> Use Expand/Contract instead.
+2. `RENAME COLUMN` -> Add new column, copy data, then drop old column later.
+3. `ALTER TABLE ... ALTER COLUMN ... SET NOT NULL` without `DEFAULT`.
+4. `DROP TABLE` -> Verify table is completely unused by active apps first.
+
+---
+
+## 🚀 Safe Migration Deployment (`scripts/safe-migrate-deploy.sh`)
+
+Deployments execute migrations via `scripts/safe-migrate-deploy.sh` which enforces:
+
+1. Static analysis of schema changes.
+2. Statement timeout limit (`SET statement_timeout = '5s'`) to prevent table lock escalation.
+3. Transactional schema execution with safe error reporting.
+
+```bash
+# Execute safe migration in container startup / deployment pipeline
+bash scripts/safe-migrate-deploy.sh
 ```
