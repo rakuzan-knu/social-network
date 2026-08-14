@@ -283,7 +283,8 @@ export class UsersService {
   }
 
   async searchUsers(query: string, viewerId?: string | null): Promise<UserProfileDto[]> {
-    const term = (query || '').trim().toLowerCase().slice(0, MAX_SEARCH_TERM_LENGTH);
+    const rawQuery = typeof query === 'string' ? query : '';
+    const term = rawQuery.trim().toLowerCase().slice(0, MAX_SEARCH_TERM_LENGTH);
     if (!term) return [];
 
     const blockedIds = viewerId
@@ -365,7 +366,8 @@ export class UsersService {
     query: string,
     viewerId?: string | null,
   ): Promise<UserProfileDto[]> {
-    const term = (query || '').trim().toLowerCase().slice(0, MAX_SEARCH_TERM_LENGTH);
+    const rawQuery = typeof query === 'string' ? query : '';
+    const term = rawQuery.trim().toLowerCase().slice(0, MAX_SEARCH_TERM_LENGTH);
 
     const blockedIds = viewerId
       ? await this.prisma.userBlock
@@ -576,8 +578,8 @@ export class UsersService {
   }
 
   private levenshtein(a: string, b: string): number {
-    const str1 = a.slice(0, MAX_SEARCH_TERM_LENGTH);
-    const str2 = b.slice(0, MAX_SEARCH_TERM_LENGTH);
+    const str1 = (typeof a === 'string' ? a : '').slice(0, MAX_SEARCH_TERM_LENGTH);
+    const str2 = (typeof b === 'string' ? b : '').slice(0, MAX_SEARCH_TERM_LENGTH);
     const m = str1.length;
     const n = str2.length;
     if (m === 0) return n;

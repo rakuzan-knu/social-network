@@ -80,8 +80,9 @@ export class PostsController {
     @Query() query?: GetPostsQueryDto,
     @CurrentUser() user?: RequestUser,
   ) {
+    const safeQuery = typeof q === 'string' ? q : '';
     return this.postsService.searchPosts(
-      q || '',
+      safeQuery,
       query?.limit ?? 10,
       query?.after,
       user?.id,

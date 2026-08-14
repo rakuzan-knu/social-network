@@ -47,7 +47,8 @@ export class UsersController {
     @Query('q') q: string,
     @CurrentUser() viewer?: RequestUser,
   ): Promise<UserProfileDto[]> {
-    return this.usersService.searchUsers(q || '', viewer?.id ?? null);
+    const safeQuery = typeof q === 'string' ? q : '';
+    return this.usersService.searchUsers(safeQuery, viewer?.id ?? null);
   }
 
   @Get('mention-suggestions')
@@ -62,7 +63,8 @@ export class UsersController {
     @Query('q') q: string,
     @CurrentUser() viewer?: RequestUser,
   ): Promise<UserProfileDto[]> {
-    return this.usersService.searchMentionSuggestions(q || '', viewer?.id ?? null);
+    const safeQuery = typeof q === 'string' ? q : '';
+    return this.usersService.searchMentionSuggestions(safeQuery, viewer?.id ?? null);
   }
 
   @Get('top')
