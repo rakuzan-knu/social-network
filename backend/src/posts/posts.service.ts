@@ -119,16 +119,22 @@ export class PostsService {
     // Check mentions in content and emit notifications
     try {
       const rawMatches: string[] = dto.content.match(/@([a-zA-Z0-9._]{1,32})/g) ?? [];
+      const trailingPunct = new Set(['.', '_', ',', '!', '?', ':', ';']);
       const cleanUsernames = Array.from(
         new Set(
           rawMatches
-            .map((m: string): string =>
-              m
-                .slice(1)
-                .replace(/^[._]+/, '')
-                .replace(/[._,!?:]+$/, '')
-                .toLowerCase(),
-            )
+            .map((m: string): string => {
+              const handle = m.startsWith('@') ? m.slice(1) : m;
+              let start = 0;
+              while (start < handle.length && (handle[start] === '.' || handle[start] === '_')) {
+                start++;
+              }
+              let end = handle.length - 1;
+              while (end >= start && trailingPunct.has(handle[end])) {
+                end--;
+              }
+              return handle.slice(start, end + 1).toLowerCase();
+            })
             .filter((u: string) => u.length >= 2 && u.length <= 30),
         ),
       );
