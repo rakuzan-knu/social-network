@@ -107,7 +107,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: release
-    if: needs.release.outputs.new-release-published == 'true'
+    if: needs.release.outputs.new-release-published == 'true' && secrets.SENTRY_AUTH_TOKEN != '' && secrets.SENTRY_ORG != '' && secrets.SENTRY_PROJECT != ''
     permissions:
       contents: read
     env:
@@ -116,7 +116,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Download frontend artifact
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v4
         with:
           name: frontend-dist
           path: frontend/dist/
