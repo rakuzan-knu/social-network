@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { LikesRepository } from './likes.repository';
 import { LikesService } from './likes.service';
 import { LikesController } from './likes.controller';
@@ -8,7 +8,7 @@ import { MessengerModule } from '../messenger/messenger.module';
 import { LIKES_REPOSITORY } from './interfaces/likes-repository.interface';
 
 @Module({
-  imports: [PostsModule, PrismaModule, MessengerModule],
+  imports: [forwardRef(() => PostsModule), PrismaModule, forwardRef(() => MessengerModule)],
   controllers: [LikesController],
   providers: [
     LikesService,

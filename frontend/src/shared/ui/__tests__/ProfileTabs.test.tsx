@@ -7,15 +7,15 @@ describe('ProfileTabs', () => {
   it('marks the "posts" tab as active when activeTab is "posts"', () => {
     render(<ProfileTabs activeTab="posts" setActiveTab={vi.fn()} />);
 
-    expect(screen.getByText('Posts')).toHaveClass('text-white');
-    expect(screen.getByText('Reposts')).toHaveClass('text-gray-500');
+    expect(screen.getByRole('button', { name: /^posts$/i })).toHaveClass('text-white');
+    expect(screen.getByRole('button', { name: /^reposts$/i })).toHaveClass('text-gray-500');
   });
 
   it('marks the "reposts" tab as active when activeTab is "reposts"', () => {
     render(<ProfileTabs activeTab="reposts" setActiveTab={vi.fn()} />);
 
-    expect(screen.getByText('Reposts')).toHaveClass('text-white');
-    expect(screen.getByText('Posts')).toHaveClass('text-gray-500');
+    expect(screen.getByRole('button', { name: /^reposts$/i })).toHaveClass('text-white');
+    expect(screen.getByRole('button', { name: /^posts$/i })).toHaveClass('text-gray-500');
   });
 
   it('calls setActiveTab("reposts") when the reposts tab is clicked', async () => {
@@ -23,7 +23,7 @@ describe('ProfileTabs', () => {
     const user = userEvent.setup();
     render(<ProfileTabs activeTab="posts" setActiveTab={setActiveTab} />);
 
-    await user.click(screen.getByText('Reposts'));
+    await user.click(screen.getByRole('button', { name: /^reposts$/i }));
 
     expect(setActiveTab).toHaveBeenCalledTimes(1);
     expect(setActiveTab).toHaveBeenCalledWith('reposts');
@@ -34,7 +34,7 @@ describe('ProfileTabs', () => {
     const user = userEvent.setup();
     render(<ProfileTabs activeTab="reposts" setActiveTab={setActiveTab} />);
 
-    await user.click(screen.getByText('Posts'));
+    await user.click(screen.getByRole('button', { name: /^posts$/i }));
 
     expect(setActiveTab).toHaveBeenCalledWith('posts');
   });
@@ -43,7 +43,7 @@ describe('ProfileTabs', () => {
     const setActiveTab = vi.fn();
     const user = userEvent.setup();
     render(<ProfileTabs activeTab="posts" setActiveTab={setActiveTab} />);
-    const repostsTab = screen.getByText('Reposts');
+    const repostsTab = screen.getByRole('button', { name: /^reposts$/i });
 
     await user.click(repostsTab);
     await user.click(repostsTab);

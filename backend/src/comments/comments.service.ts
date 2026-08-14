@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, forwardRef } from '@nestjs/common';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { COMMENTS_REPOSITORY } from './interfaces/comments-repository.interface';
 import type { ICommentsRepository } from './interfaces/comments-repository.interface';
@@ -15,6 +15,7 @@ export class CommentsService {
     @Inject(COMMENTS_REPOSITORY)
     private readonly commentsRepository: ICommentsRepository,
     private readonly prisma: PrismaService,
+    @Inject(forwardRef(() => MessengerGateway))
     private readonly gateway: MessengerGateway,
   ) {}
 

@@ -4,6 +4,7 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  forwardRef,
 } from '@nestjs/common';
 import { FollowStatus, Prisma } from '@prisma/client';
 import { FOLLOWERS_REPOSITORY } from './interfaces/followers-repository.interface';
@@ -27,6 +28,7 @@ export class FollowersService {
     private readonly followersRepository: IFollowersRepository,
     private readonly redis: RedisService,
     private readonly prisma: PrismaService,
+    @Inject(forwardRef(() => MessengerGateway))
     private readonly gateway: MessengerGateway,
   ) {}
 

@@ -74,12 +74,12 @@ describe('ProfilePage', () => {
     const user = userEvent.setup();
     renderProfile();
 
-    expect(await screen.findByPlaceholderText('Що нового?')).toBeInTheDocument();
+    expect(await screen.findByPlaceholderText("What's new?")).toBeInTheDocument();
 
     const repostsTab = await screen.findByText('Reposts');
     await user.click(repostsTab);
 
-    expect(screen.queryByPlaceholderText('Що нового?')).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("What's new?")).not.toBeInTheDocument();
   });
 
   it('calls openEditProfile when the edit button is clicked', async () => {
@@ -96,12 +96,12 @@ describe('ProfilePage', () => {
     const user = userEvent.setup();
     renderProfile();
 
-    const composer = await screen.findByPlaceholderText('Що нового?');
+    const composer = await screen.findByPlaceholderText("What's new?");
     await user.type(composer, 'From my profile');
-    await user.click(screen.getByText('Опублікувати'));
+    await user.click(screen.getByText('Publish'));
 
     await waitFor(() => {
-      expect(screen.getByPlaceholderText('Що нового?')).toHaveValue('');
+      expect(screen.getByPlaceholderText("What's new?")).toHaveValue('');
     });
   });
 

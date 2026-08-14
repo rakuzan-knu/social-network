@@ -1,4 +1,10 @@
-import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Inject,
+  Injectable,
+  NotFoundException,
+  forwardRef,
+} from '@nestjs/common';
 import { CreatePostDto } from './dto/create-post.dto';
 import { EditPostDto } from './dto/edit-post.dto';
 import { PostResponseDto } from './dto/post-response.dto';
@@ -24,6 +30,7 @@ export class PostsService {
     private readonly mediaService: PostsMediaService,
     private readonly redis: RedisService,
     private readonly prisma: PrismaService,
+    @Inject(forwardRef(() => MessengerGateway))
     private readonly gateway: MessengerGateway,
   ) {}
 

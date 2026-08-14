@@ -1,4 +1,10 @@
-import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Inject,
+  Injectable,
+  NotFoundException,
+  forwardRef,
+} from '@nestjs/common';
 import { LIKES_REPOSITORY } from './interfaces/likes-repository.interface';
 import type { ILikesRepository } from './interfaces/likes-repository.interface';
 import { POSTS_REPOSITORY } from '../posts/interfaces/posts-repository.interface';
@@ -13,9 +19,10 @@ export class LikesService {
   constructor(
     @Inject(LIKES_REPOSITORY)
     private readonly likesRepository: ILikesRepository,
-    @Inject(POSTS_REPOSITORY)
+    @Inject(forwardRef(() => POSTS_REPOSITORY))
     private readonly postsRepository: IPostRepository,
     private readonly prisma: PrismaService,
+    @Inject(forwardRef(() => MessengerGateway))
     private readonly gateway: MessengerGateway,
   ) {}
 

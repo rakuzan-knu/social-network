@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { PostsRepository } from './posts.repository';
 import { PostsService } from './posts.service';
 import { PostsController } from './posts.controller';
@@ -9,7 +9,7 @@ import { MessengerModule } from '../messenger/messenger.module';
 import { POSTS_REPOSITORY } from './interfaces/posts-repository.interface';
 
 @Module({
-  imports: [PrismaModule, MessengerModule],
+  imports: [PrismaModule, forwardRef(() => MessengerModule)],
   controllers: [PostsController],
   providers: [
     postsS3Provider,

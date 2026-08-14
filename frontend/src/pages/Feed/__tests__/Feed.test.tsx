@@ -12,6 +12,8 @@ vi.mock('emoji-picker-react', () => ({
   default: () => <div data-testid="mock-emoji-picker" />,
   Theme: { DARK: 'dark' },
   EmojiStyle: { APPLE: 'apple' },
+  Categories: {},
+  SuggestionMode: {},
 }));
 
 describe('FeedPage', () => {
@@ -28,7 +30,7 @@ describe('FeedPage', () => {
   it('renders the create-post composer', async () => {
     renderWithProviders(<FeedPage />);
 
-    expect(screen.getByPlaceholderText('Що нового?')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("What's new?")).toBeInTheDocument();
   });
 
   it('renders the feed with posts', async () => {
@@ -54,18 +56,18 @@ describe('FeedPage', () => {
     const user = userEvent.setup();
     renderWithProviders(<FeedPage />);
 
-    await user.type(screen.getByPlaceholderText('Що нового?'), 'Hello feed');
-    await user.click(screen.getByText('Опублікувати'));
+    await user.type(screen.getByPlaceholderText("What's new?"), 'Hello feed');
+    await user.click(screen.getByText('Publish'));
 
     await waitFor(() => {
-      expect(screen.getByPlaceholderText('Що нового?')).toHaveValue('');
+      expect(screen.getByPlaceholderText("What's new?")).toHaveValue('');
     });
   });
 
   it('does not publish an empty post', async () => {
     renderWithProviders(<FeedPage />);
 
-    const publishBtn = screen.getByText('Опублікувати');
+    const publishBtn = screen.getByText('Publish');
     expect(publishBtn).toBeDisabled();
   });
 });
