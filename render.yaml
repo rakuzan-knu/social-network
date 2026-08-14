@@ -45,16 +45,6 @@ services:
         value: 'avatars'
       - key: MINIO_PUBLIC_URL
         sync: false
-      - key: GITHUB_CLIENT_ID
-        sync: false
-      - key: GITHUB_CLIENT_SECRET
-        sync: false
-      - key: GITHUB_CALLBACK_URL
-        sync: false
-      - key: GITHUB_SYSTEM_TOKEN
-        sync: false
-      - key: GITHUB_WEBHOOK_SECRET
-        sync: false
     # Secrets synced automatically via GitOps script scripts/sync-render-secrets.sh
     # or optional Environment Group binding:
     # envVarGroups:

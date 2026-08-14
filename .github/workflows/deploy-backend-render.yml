@@ -73,11 +73,6 @@ jobs:
           MINIO_SECRET_KEY: ${{ secrets.MINIO_SECRET_KEY }}
           MINIO_BUCKET: ${{ secrets.MINIO_BUCKET || 'avatars' }}
           MINIO_PUBLIC_URL: ${{ secrets.MINIO_PUBLIC_URL }}
-          GITHUB_CLIENT_ID: ${{ secrets.GITHUB_CLIENT_ID }}
-          GITHUB_CLIENT_SECRET: ${{ secrets.GITHUB_CLIENT_SECRET }}
-          GITHUB_CALLBACK_URL: ${{ secrets.GITHUB_CALLBACK_URL }}
-          GITHUB_SYSTEM_TOKEN: ${{ secrets.GITHUB_SYSTEM_TOKEN }}
-          GITHUB_WEBHOOK_SECRET: ${{ secrets.GITHUB_WEBHOOK_SECRET }}
         run: |
           chmod +x scripts/sync-render-secrets.sh
           ./scripts/sync-render-secrets.sh
