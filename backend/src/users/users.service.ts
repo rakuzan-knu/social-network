@@ -20,6 +20,8 @@ import type { VisibilityContext } from './privacy/visibility.resolver';
 import { toLastSeenGranularity } from './privacy/last-seen.util';
 import { PrismaService } from '../prisma/prisma.service';
 
+const MAX_SEARCH_TERM_LENGTH = 64;
+
 type RawProfile = {
   id: string;
   username: string;
@@ -281,7 +283,7 @@ export class UsersService {
   }
 
   async searchUsers(query: string, viewerId?: string | null): Promise<UserProfileDto[]> {
-    const term = (query || '').trim().toLowerCase();
+    const term = (query || '').trim().toLowerCase().slice(0, MAX_SEARCH_TERM_LENGTH);
     if (!term) return [];
 
     const blockedIds = viewerId
@@ -363,7 +365,7 @@ export class UsersService {
     query: string,
     viewerId?: string | null,
   ): Promise<UserProfileDto[]> {
-    const term = (query || '').trim().toLowerCase();
+    const term = (query || '').trim().toLowerCase().slice(0, MAX_SEARCH_TERM_LENGTH);
 
     const blockedIds = viewerId
       ? await this.prisma.userBlock
@@ -574,23 +576,29 @@ export class UsersService {
   }
 
   private levenshtein(a: string, b: string): number {
-    const m = a.length;
-    const n = b.length;
-    const dp: number[][] = Array.from({ length: m + 1 }, () => Array<number>(n + 1).fill(0));
+    const str1 = a.slice(0, MAX_SEARCH_TERM_LENGTH);
+    const str2 = b.slice(0, MAX_SEARCH_TERM_LENGTH);
+    const m = str1.length;
+    const n = str2.length;
+    if (m === 0) return n;
+    if (n === 0) return m;
 
-    for (let i = 0; i <= m; i++) dp[i][0] = i;
-    for (let j = 0; j <= n; j++) dp[0][j] = j;
+    let prevRow: number[] = Array.from({ length: n + 1 }, (_, i) => i);
+    const currRow: number[] = new Array<number>(n + 1).fill(0);
 
     for (let i = 1; i <= m; i++) {
+      currRow[0] = i;
       for (let j = 1; j <= n; j++) {
-        if (a[i - 1] === b[j - 1]) {
-          dp[i][j] = dp[i - 1][j - 1];
-        } else {
-          dp[i][j] = 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
-        }
+        const cost = str1[i - 1] === str2[j - 1] ? 0 : 1;
+        currRow[j] = Math.min(
+          currRow[j - 1] + 1, // insertion
+          prevRow[j] + 1, // deletion
+          prevRow[j - 1] + cost, // substitution
+        );
       }
+      prevRow = [...currRow];
     }
-    return dp[m][n];
+    return prevRow[n];
   }
 
   async getTopFollowedUsers(limit = 5, viewerId?: string | null): Promise<UserProfileDto[]> {

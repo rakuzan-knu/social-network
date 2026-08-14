@@ -67,7 +67,8 @@ export class CommentsService {
             .map((m: string): string =>
               m
                 .slice(1)
-                .replace(/^[._]+|[._,!?:]+$/g, '')
+                .replace(/^[._]+/, '')
+                .replace(/[._,!?:]+$/, '')
                 .toLowerCase(),
             )
             .filter((u: string) => u.length >= 2 && u.length <= 30),
