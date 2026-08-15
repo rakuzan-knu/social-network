@@ -87,6 +87,7 @@
   },
   "overrides": {
     "vite": "$vite",
-    "uuid": "^11.1.1"
+    "uuid": "^11.1.1",
+    "brace-expansion": "^5.0.9"
   }
 }

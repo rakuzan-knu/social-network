@@ -1,3 +1,4 @@
+# Stage 1: Builder
 FROM node:24-alpine AS builder
 
 RUN --mount=type=cache,target=/var/cache/apk \
@@ -5,17 +6,25 @@ RUN --mount=type=cache,target=/var/cache/apk \
 
 WORKDIR /app
 
-COPY package.json ./
+# Copy package files and workspace config
+COPY pnpm-lock.yaml package.json pnpm-workspace.yaml ./
+COPY frontend/package.json ./frontend/
+COPY backend/package.json ./backend/
+
+# Copy source code needed for build
 COPY tsconfig.base.json ./
 COPY backend ./backend
 COPY frontend ./frontend
 
+# Install dependencies
 RUN --mount=type=cache,target=/root/.npm \
-    npm install --no-audit --no-fund
+    npm install --no-audit --no-fund --workspaces
 
+# Build frontend
 ENV NODE_ENV=production
 RUN npm run build --workspace=frontend
 
+# Stage 2: Production (Nginx)
 FROM nginx:1.27-alpine AS production
 
 RUN --mount=type=cache,target=/var/cache/apk \

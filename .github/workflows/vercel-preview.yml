@@ -29,13 +29,11 @@ jobs:
     env:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v7.6.0
 
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.5.2
+      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f220e449e15b0b1c4e1 # v4.0.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v7.0.0
         with:
           node-version-file: '.nvmrc'
           cache: 'pnpm'

@@ -4,10 +4,6 @@
   "license": "AGPL-3.0",
   "type": "module",
   "packageManager": "pnpm@10.5.2",
-  "workspaces": [
-    "backend",
-    "frontend"
-  ],
   "scripts": {
     "postinstall": "node scripts/postinstall.js",
     "dev:backend": "pnpm --filter backend start:dev",
@@ -86,5 +82,8 @@
     "node": ">=24.0.0",
     "pnpm": ">=10.0.0",
     "npm": ">=10.0.0"
+  },
+  "overrides": {
+    "brace-expansion": "^5.0.9"
   }
 }
