@@ -13,3 +13,8 @@ onlyBuiltDependencies:
   - 'nx'
   - 'prisma'
   - 'unrs-resolver'
+
+overrides:
+  js-yaml: '>=5.2.2'
+  uuid: ^11.1.1
+  multer: ^2.2.0

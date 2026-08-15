@@ -34,7 +34,7 @@ jobs:
             context: .
             file: ./backend/Dockerfile
           - service: frontend
-            context: ./frontend
+            context: .
             file: ./frontend/Dockerfile
       max-parallel: 2
     

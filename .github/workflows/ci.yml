@@ -21,9 +21,9 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v7.6.0
+      - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v7.0.0
+      - uses: actions/setup-node@v4
         with:
           node-version-file: '.nvmrc'
 
@@ -38,13 +38,13 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f220e449e15b0b1c4e1 # v4.0.0
+      - uses: pnpm/action-setup@v4
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v7.0.0
+      - uses: actions/setup-node@v4
         with:
           node-version-file: '.nvmrc'
           cache: 'pnpm'
@@ -68,13 +68,13 @@ jobs:
     outputs:
       cache-key: ${{ steps.cache-key-gen.outputs.key }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f220e449e15b0b1c4e1 # v4.0.0
+      - uses: pnpm/action-setup@v4
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v7.0.0
+      - uses: actions/setup-node@v4
         with:
           node-version-file: '.nvmrc'
           cache: 'pnpm'
@@ -86,7 +86,7 @@ jobs:
 
       - name: Cache Node Modules & Prisma
         id: monorepo-cache
-        uses: actions/cache@04a0d5f1c1a5c1c1a5c1a5c1a5c1a5c1a5c1a5c1a # v6.0.0
+        uses: actions/cache@v4
         with:
           path: |
             node_modules
@@ -109,14 +109,17 @@ jobs:
     permissions:
       contents: read
 steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v7.6.0
+      - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f220e449e15b0b1c4e1 # v4.0.0
+      - uses: pnpm/action-setup@v4
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v7.0.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
 
       - name: Restore Monorepo Dependencies
-        uses: actions/cache@04a0d5f1c1a5c1c1a5c1a5c1a5c1a5c1a5c1a5c1a # v6.0.0
+        uses: actions/cache@v4
         with:
           path: |
             node_modules
@@ -142,17 +145,17 @@ steps:
       matrix:
         shard: [1, 2, 3]
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v7.6.0
+      - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f220e449e15b0b1c4e1 # v4.0.0
+      - uses: pnpm/action-setup@v4
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v7.0.0
+      - uses: actions/setup-node@v4
         with:
           node-version-file: '.nvmrc'
           cache: 'pnpm'
 
       - name: Restore Monorepo Dependencies
-        uses: actions/cache@04a0d5f1c1a5c1c1a5c1a5c1a5c1a5c1a5c1a5c1a # v6.0.0
+        uses: actions/cache@v4
         with:
           path: |
             node_modules
@@ -168,7 +171,7 @@ steps:
 
       - name: Upload coverage
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: backend-coverage-shard-${{ matrix.shard }}
           path: backend/coverage/
@@ -226,18 +229,19 @@ steps:
       MINIO_PUBLIC_URL: http://localhost:9000
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
 
       - uses: pnpm/action-setup@v4
         with:
           version: 10.5.2
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@v4
         with:
           node-version-file: '.nvmrc'
+          cache: 'pnpm'
 
       - name: Restore Monorepo Dependencies
-        uses: actions/cache/restore@v6
+        uses: actions/cache@v4
         with:
           path: |
             node_modules
@@ -298,14 +302,17 @@ steps:
       PORT: 3000
 
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v7.6.0
+      - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f220e449e15b0b1c4e1 # v4.0.0
+      - uses: pnpm/action-setup@v4
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v7.0.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
 
       - name: Restore Monorepo Dependencies
-        uses: actions/cache@04a0d5f1c1a5c1c1a5c1a5c1a5c1a5c1a5c1a5c1a # v6.0.0
+        uses: actions/cache@v4
         with:
           path: |
             node_modules
@@ -345,14 +352,17 @@ steps:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v7.6.0
+      - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f220e449e15b0b1c4e1 # v4.0.0
+      - uses: pnpm/action-setup@v4
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v7.0.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
 
       - name: Restore Monorepo Dependencies
-        uses: actions/cache@04a0d5f1c1a5c1c1a5c1a5c1a5c1a5c1a5c1a5c1a # v6.0.0
+        uses: actions/cache@v4
         with:
           path: |
             node_modules
@@ -368,7 +378,7 @@ steps:
 
       - name: Upload coverage
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: frontend-coverage
           path: frontend/coverage/
@@ -384,14 +394,17 @@ steps:
       contents: read
       pull-requests: write
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v7.6.0
+      - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f220e449e15b0b1c4e1 # v4.0.0
+      - uses: pnpm/action-setup@v4
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v7.0.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
 
       - name: Restore Monorepo Dependencies
-        uses: actions/cache@04a0d5f1c1a5c1c1a5c1a5c1a5c1a5c1a5c1a5c1a # v6.0.0
+        uses: actions/cache@v4
         with:
           path: |
             node_modules
@@ -425,9 +438,9 @@ steps:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v7.6.0
+      - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v7.0.0
+      - uses: actions/setup-node@v4
         with:
           node-version-file: '.nvmrc'
 
@@ -443,9 +456,9 @@ steps:
       contents: read
       pull-requests: write
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v7.6.0
+      - uses: actions/checkout@v4
       - name: Dependency Review Action
-        uses: actions/dependency-review-action@c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4 # v4.5.0
+        uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: high
 
@@ -467,16 +480,16 @@ steps:
             context: .
             file: frontend/Dockerfile
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v7.6.0
+      - uses: actions/checkout@v4
 
       - name: Install Cosign
-        uses: sigstore/cosign-installer@d0e3c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4 # v3.8.1
+        uses: sigstore/cosign-installer@v3
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@b5ca8454c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4 # v4.0.0
+        uses: docker/setup-buildx-action@v3
 
       - name: Build image
-        uses: docker/build-push-action@b5ca8454c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4 # v7.0.0
+        uses: docker/build-push-action@v5
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.file }}
@@ -501,7 +514,7 @@ steps:
           fi
 
       - name: Upload SBOM and Cosign Signature Artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: sbom-${{ matrix.service }}-provenance
           path: |
@@ -516,7 +529,7 @@ steps:
 
       - name: Upload Trivy SARIF report
         if: always() && steps.trivy_scanner.outcome == 'success'
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-${{ matrix.service }}.sarif
           category: trivy-${{ matrix.service }}-image

@@ -27,16 +27,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version-file: '.nvmrc'
-          cache: 'npm'
+          cache: 'pnpm'
 
       - name: Install root deps
-        run: npm ci --ignore-scripts --fetch-retries=5 --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=120000
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Build Frontend
-        run: npm run build --workspace=frontend
+        run: pnpm --filter frontend build
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL || 'https://social-network-backend.onrender.com/api' }}
 
