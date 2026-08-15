@@ -26,6 +26,7 @@ FROM node:24-alpine AS builder
 WORKDIR /app
 
 COPY --from=deps /app ./
+COPY tsconfig.base.json* nx.json* ./
 COPY scripts ./scripts
 COPY backend ./backend
 COPY frontend ./frontend

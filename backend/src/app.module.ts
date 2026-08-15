@@ -25,6 +25,10 @@ import { PollModule } from './poll/poll.module';
 import { GithubModule } from './github/github.module';
 import { OpenGraphModule } from './opengraph/opengraph.module';
 
+import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware';
+import { MetricsMiddleware } from './metrics/metrics.middleware';
+import type { MiddlewareConsumer, NestModule } from '@nestjs/common';
+
 @Module({
   imports: [
     SentryModule.forRoot(),
@@ -67,4 +71,8 @@ import { OpenGraphModule } from './opengraph/opengraph.module';
     },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(CorrelationIdMiddleware, MetricsMiddleware).forRoutes('*');
+  }
+}

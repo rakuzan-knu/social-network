@@ -620,6 +620,7 @@ jobs:
     permissions:
       contents: read
       security-events: write
+      id-token: write
     strategy:
       matrix:
         include:
@@ -631,6 +632,9 @@ jobs:
             file: frontend/Dockerfile
     steps:
       - uses: actions/checkout@v7
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3.8.1
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -649,6 +653,26 @@ jobs:
       - name: Install Trivy CLI
         run: |
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+
+      - name: Generate CycloneDX SBOM
+        run: |
+          trivy image --format cyclonedx --output sbom-${{ matrix.service }}.cdx.json social-network-${{ matrix.service }}:ci-${{ github.sha }}
+
+      - name: Sign SBOM & Provenance with Cosign
+        run: |
+          # Keyless signing of SBOM when GitHub OIDC token is present
+          if [ -n "$ACTIONS_ID_TOKEN_REQUEST_URL" ]; then
+            cosign sign-blob --yes --bundle cosign-${{ matrix.service }}-sbom.bundle sbom-${{ matrix.service }}.cdx.json || true
+          fi
+
+      - name: Upload SBOM and Cosign Signature Artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: sbom-${{ matrix.service }}-provenance
+          path: |
+            sbom-${{ matrix.service }}.cdx.json
+            cosign-${{ matrix.service }}-sbom.bundle
+          retention-days: 14
 
       - name: Run Trivy vulnerability scanner
         id: trivy_scanner
