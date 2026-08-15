@@ -7,7 +7,6 @@
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
     "moduleResolution": "Node16",
-    "baseUrl": ".",
     "paths": {
       "@backend/*": ["backend/src/*", "apps/backend/src/*"],
       "@frontend/*": ["frontend/src/*", "apps/frontend/src/*"],
