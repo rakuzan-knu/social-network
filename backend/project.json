@@ -1,6 +1,6 @@
 {
   "name": "backend",
-  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "$schema": "https://json.schemastore.org/project.json",
   "sourceRoot": "backend/src",
   "projectType": "application",
   "targets": {
