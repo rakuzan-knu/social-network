@@ -45,6 +45,8 @@ export interface ParticipantView extends Omit<
   BackendParticipantView,
   'joinedAt' | 'mutedUntil' | 'role'
 > {
+  userId: string;
+  user: UserSnapshot;
   role: ParticipantRole;
   mutedUntil: string | null;
   joinedAt: string;

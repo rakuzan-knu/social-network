@@ -161,6 +161,7 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version-file: '.nvmrc'
+          cache: 'pnpm'
 
       - name: Restore Monorepo Dependencies
         uses: actions/cache/restore@v6
@@ -175,7 +176,7 @@ jobs:
 
       - name: Unit tests + coverage
         working-directory: backend
-        run: pnpm test:cov -- --ci --shard=${{ matrix.shard }}/3 --forceExit --passWithNoTests --detectOpenHandles
+        run: pnpm exec jest --coverage --ci --shard=${{ matrix.shard }}/3 --forceExit --passWithNoTests --detectOpenHandles
 
       - name: Upload coverage
         if: always()
@@ -264,7 +265,7 @@ jobs:
 
       - name: Run E2E tests (${{ matrix.module }})
         working-directory: backend
-        run: pnpm test:e2e -- test/${{ matrix.module }}.e2e-spec.ts --forceExit --passWithNoTests
+        run: pnpm exec jest --config ./test/jest-e2e.json --runInBand --forceExit --detectOpenHandles --testTimeout=30000 test/${{ matrix.module }}.e2e-spec.ts
 
   backend-contract-test:
     name: Backend — API Contract Verification
@@ -383,7 +384,7 @@ jobs:
 
       - name: Unit tests + coverage
         working-directory: frontend
-        run: pnpm test:cov -- --passWithNoTests --reporter=default --reporter=github-actions --coverage.thresholds.lines=0 --coverage.thresholds.statements=0 --coverage.thresholds.functions=0 --coverage.thresholds.branches=0
+        run: pnpm exec vitest run --coverage --reporter=default --reporter=github-actions --coverage.thresholds.lines=0 --coverage.thresholds.statements=0 --coverage.thresholds.functions=0 --coverage.thresholds.branches=0
 
       - name: Upload coverage
         if: always()

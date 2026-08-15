@@ -6,14 +6,15 @@ RUN --mount=type=cache,target=/var/cache/apk \
 WORKDIR /app
 
 COPY package.json ./
+COPY tsconfig.base.json ./
+COPY backend ./backend
+COPY frontend ./frontend
 
 RUN --mount=type=cache,target=/root/.npm \
     npm install --no-audit --no-fund
 
-COPY . .
-
 ENV NODE_ENV=production
-RUN npm run build
+RUN npm run build --workspace=frontend
 
 FROM nginx:1.27-alpine AS production
 
@@ -22,8 +23,8 @@ RUN --mount=type=cache,target=/var/cache/apk \
 
 RUN rm -rf /usr/share/nginx/html/*
 
-COPY --from=builder /app/dist /usr/share/nginx/html
-COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=builder /app/frontend/dist /usr/share/nginx/html
+COPY frontend/docker/nginx.conf /etc/nginx/conf.d/default.conf
 
 RUN chown -R nginx:nginx /usr/share/nginx/html \
     && chown -R nginx:nginx /var/cache/nginx \

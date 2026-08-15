@@ -31,20 +31,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.5.2
+
       - uses: actions/setup-node@v4
         with:
           node-version-file: '.nvmrc'
-          cache: 'npm'
+          cache: 'pnpm'
 
       - name: Install root deps
-        run: npm ci --ignore-scripts --fetch-retries=5 --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=120000
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Generate Prisma Client
-        run: npm run db:generate -w backend
+        run: pnpm --filter backend exec prisma generate
 
       - name: Build monorepo
         working-directory: ./
-        run: npm run build
+        run: pnpm run build
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL_PREVIEW || 'https://api.socialnetwork.dev' }}
 
