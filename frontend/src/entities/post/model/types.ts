@@ -60,3 +60,15 @@ export interface PostType extends Omit<Partial<PostResponseDto>, 'id' | 'media' 
   isOwner?: boolean;
   commentList?: import('../../comment/model/types').CommentType[];
 }
+
+export interface PollVoter {
+  id: string;
+  username: string;
+  displayName?: string;
+  avatar?: string | null;
+}
+
+export interface PollVoterGroup {
+  optionId: string;
+  voters: PollVoter[];
+}

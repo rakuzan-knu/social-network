@@ -1,6 +1,6 @@
 {
   "name": "frontend",
-  "$schema": "https://json.schemastore.org/project.json",
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "frontend/src",
   "projectType": "application",
   "targets": {

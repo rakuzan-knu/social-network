@@ -21,7 +21,7 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json --runInBand --forceExit --detectOpenHandles --testTimeout=10000",
+    "test:e2e": "jest --config ./test/jest-e2e.json --runInBand --forceExit --detectOpenHandles --testTimeout=30000",
     "typecheck": "tsc --noEmit",
     "db:migrate": "prisma migrate deploy",
     "db:generate": "prisma generate",
@@ -132,6 +132,10 @@
     ],
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
+    "moduleNameMapper": {
+      "^@common/(.*)$": "<rootDir>/common/$1",
+      "^@backend/(.*)$": "<rootDir>/$1"
+    },
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },

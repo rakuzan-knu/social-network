@@ -198,7 +198,7 @@ export function SuggestedUsersCarousel({
           onMouseLeave={handleMouseUpOrLeave}
           className="flex items-stretch gap-3 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden scroll-smooth px-1 py-1"
         >
-          {users.map((user) => (
+          {users.map((user: FollowUserSummary) => (
             <SuggestedCreatorCard
               key={user.id}
               user={user}

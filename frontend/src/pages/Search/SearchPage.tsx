@@ -557,7 +557,7 @@ export default function SearchPage() {
                 <span className="text-white font-bold text-sm">Trending Hashtags</span>
               </div>
               <div className="flex flex-wrap gap-2">
-                {trendingHashtags.map((h) => (
+                {trendingHashtags.map((h: HashtagItem) => (
                   <button
                     key={h.tag}
                     type="button"
@@ -582,7 +582,7 @@ export default function SearchPage() {
                 </div>
               </div>
               <div className="flex flex-col divide-y divide-white/[0.03]">
-                {suggestedUsers.map((u) => (
+                {suggestedUsers.map((u: SearchUserItem) => (
                   <div
                     key={u.id}
                     onClick={() => handleUserClick(u)}
@@ -641,7 +641,7 @@ export default function SearchPage() {
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-                    {topUsers.map((u) => (
+                    {topUsers.map((u: SearchUserItem) => (
                       <div
                         key={u.id}
                         onClick={() => handleUserClick(u)}
@@ -725,7 +725,7 @@ export default function SearchPage() {
                         </button>
                       </div>
                       <div className="divide-y divide-white/[0.03]">
-                        {searchUsers.slice(0, 3).map((u) => (
+                        {searchUsers.slice(0, 3).map((u: SearchUserItem) => (
                           <div
                             key={u.id}
                             onClick={() => handleUserClick(u)}
@@ -768,7 +768,7 @@ export default function SearchPage() {
                     <div className="flex flex-col gap-2">
                       <span className="text-white font-bold text-sm">Hashtags</span>
                       <div className="flex flex-wrap gap-2">
-                        {searchHashtags.map((h) => (
+                        {searchHashtags.map((h: HashtagItem) => (
                           <button
                             key={h.tag}
                             type="button"
@@ -856,7 +856,7 @@ export default function SearchPage() {
                     </div>
                   ) : (
                     <div className="divide-y divide-white/[0.03]">
-                      {searchUsers.map((u) => (
+                      {searchUsers.map((u: SearchUserItem) => (
                         <div
                           key={u.id}
                           onClick={() => handleUserClick(u)}
@@ -937,7 +937,7 @@ export default function SearchPage() {
                     </div>
                   ) : (
                     <div className="divide-y divide-white/[0.03]">
-                      {searchHashtags.map((h) => (
+                      {searchHashtags.map((h: HashtagItem) => (
                         <div
                           key={h.tag}
                           onClick={() => handleHashtagClick(h.tag)}

@@ -42,8 +42,10 @@ export function useDismissSuggestedUser() {
         queryKey: ['suggestedUsers'],
       });
 
-      queryClient.setQueriesData<FollowUserSummary[]>({ queryKey: ['suggestedUsers'] }, (old) =>
-        old ? old.filter((user) => user.id !== targetId) : [],
+      queryClient.setQueriesData<FollowUserSummary[]>(
+        { queryKey: ['suggestedUsers'] },
+        (old: FollowUserSummary[] | undefined) =>
+          old ? old.filter((user: FollowUserSummary) => user.id !== targetId) : [],
       );
 
       return { previousQueries };
