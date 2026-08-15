@@ -47,10 +47,9 @@
     "@types/ua-parser-js": "0.7.39",
     "argon2": "^0.45.1",
     "bullmq": "^5.81.3",
-    "class-transformer": "0.5.1",
-    "class-validator": "0.15.1",
     "dotenv": "17.4.2",
     "geoip-lite": "2.0.3",
+    "helmet": "^8.0.0",
     "import-in-the-middle": "^1.14.1",
     "ioredis": "^5.11.1",
     "iterare": "^1.2.1",
@@ -74,7 +73,9 @@
     "streamsearch": "^1.1.0",
     "ua-parser-js": "2.0.10",
     "uid": "^2.0.2",
-    "validator": "^13.12.0"
+    "validator": "^13.12.0",
+    "zod": "^3.24.2",
+    "zod-validation-error": "^3.4.0"
   },
   "overrides": {
     "multer": "^2.2.0",

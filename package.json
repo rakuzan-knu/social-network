@@ -62,6 +62,7 @@
     "conventional-changelog-conventionalcommits": "^8.0.0",
     "eslint": "9.39.5",
     "husky": "^9.1.7",
+    "lint-staged": "^15.4.3",
     "nx": "^23.1.1",
     "prettier": "^3.5.3",
     "semantic-release": "^24.2.3",
@@ -78,6 +79,8 @@
     "msw": true,
     "msgpackr-extract": true,
     "unrs-resolver": true,
+    "@swc/core": true,
+    "nx": true,
     "@scarf/scarf": false
   },
   "engines": {

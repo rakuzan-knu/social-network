@@ -1,21 +1,95 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import type { PostMedia } from '@prisma/client';
-import { MediaType } from '@prisma/client';
+import { z } from 'zod';
+import { MediaType, ReportCategory, type PostMedia } from '@prisma/client';
+
+export const mediaSchema = z.object({
+  type: z.nativeEnum(MediaType),
+  url: z.string().url(),
+  poster: z.string().url().optional(),
+  order: z.number().int().optional(),
+});
+export type MediaDto = z.infer<typeof mediaSchema>;
+
+export const createPostSchema = z.object({
+  content: z
+    .string()
+    .transform((val) => val.trim())
+    .optional(),
+  media: z
+    .preprocess((val) => {
+      if (typeof val === 'string') {
+        try {
+          return JSON.parse(val);
+        } catch {
+          return val;
+        }
+      }
+      return val;
+    }, z.array(mediaSchema))
+    .optional(),
+  gifUrls: z
+    .preprocess((val) => {
+      if (typeof val === 'string') {
+        try {
+          const parsed: unknown = JSON.parse(val);
+          return Array.isArray(parsed) ? (parsed as string[]) : [val];
+        } catch {
+          return [val];
+        }
+      }
+      return val;
+    }, z.array(z.string()))
+    .optional(),
+  poll: z
+    .preprocess((val) => {
+      if (typeof val === 'string') {
+        try {
+          const parsed: unknown = JSON.parse(val);
+          return Array.isArray(parsed) ? (parsed as string[]) : [val];
+        } catch {
+          return [val];
+        }
+      }
+      return val;
+    }, z.array(z.string()))
+    .optional(),
+});
+export type CreatePostDto = z.infer<typeof createPostSchema>;
+
+export const editPostSchema = z.object({
+  content: z
+    .string()
+    .min(1)
+    .transform((val) => val.trim())
+    .optional(),
+  image: z.string().url().optional(),
+});
+export type EditPostDto = z.infer<typeof editPostSchema>;
+
+export const getPostsQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  after: z.string().optional(),
+});
+export type GetPostsQueryDto = z.infer<typeof getPostsQuerySchema>;
+
+export const searchPostsSchema = z.object({
+  q: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  after: z.string().optional(),
+  mediaOnly: z.preprocess((val) => val === 'true' || val === true, z.boolean()).optional(),
+});
+export type SearchPostsDto = z.infer<typeof searchPostsSchema>;
+
+export const reportPostSchema = z.object({
+  category: z.nativeEnum(ReportCategory),
+  details: z.string().max(1000).optional(),
+});
+export type ReportPostDto = z.infer<typeof reportPostSchema>;
 
 export class PostMediaResponseDto {
-  @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440000' })
   id!: string;
-
-  @ApiProperty({ enum: MediaType, example: MediaType.IMAGE })
   type!: MediaType;
-
-  @ApiProperty({ example: 'https://cdn.example.com/image.jpg' })
   url!: string;
-
-  @ApiPropertyOptional({ example: 'https://cdn.example.com/poster.jpg' })
   poster!: string | null;
-
-  @ApiProperty({ example: 0 })
   order!: number;
 
   static fromPrisma(this: void, media: PostMedia): PostMediaResponseDto {
@@ -30,39 +104,19 @@ export class PostMediaResponseDto {
 }
 
 export class PostPollOptionDto {
-  @ApiProperty({ example: 'opt-1' })
   id!: string;
-
-  @ApiProperty({ example: 'Option A' })
   text!: string;
-
-  @ApiProperty({ example: 0 })
   votesCount!: number;
 }
 
 export class PostPollDto {
-  @ApiProperty({ example: 'poll-1' })
   id!: string;
-
-  @ApiProperty({ example: 'Poll Title' })
   title!: string;
-
-  @ApiPropertyOptional({ example: null })
   description?: string | null;
-
-  @ApiProperty({ example: false })
   isMultiple!: boolean;
-
-  @ApiProperty({ example: true })
   isActive!: boolean;
-
-  @ApiProperty({ example: 0 })
   totalVotes!: number;
-
-  @ApiPropertyOptional({ example: null })
   myVoteOptionId!: string | null;
-
-  @ApiProperty({ type: [PostPollOptionDto] })
   options!: PostPollOptionDto[];
 }
 
@@ -109,94 +163,30 @@ export type PostWithRelations = {
 };
 
 export class PostResponseDto {
-  @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440000' })
   id!: string;
-
-  @ApiProperty({ example: 'Hello world!' })
   content!: string;
-
-  @ApiProperty({ example: 'Hello world!' })
   text!: string;
-
-  @ApiProperty({ type: [PostMediaResponseDto] })
   media!: PostMediaResponseDto[];
-
-  @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440000' })
   authorId!: string;
-
-  @ApiProperty({ example: 'Ayate' })
   author!: string;
-
-  @ApiProperty({ example: 'ayate' })
   handle!: string;
-
-  @ApiPropertyOptional({ example: 'https://cdn.example.com/avatar.jpg' })
   avatar!: string | null;
-
-  @ApiProperty({ example: false })
   isVerified!: boolean;
-
-  @ApiPropertyOptional({ example: null })
   primaryBadge!: string | null;
-
-  @ApiProperty({ example: '2026-01-01T00:00:00.000Z' })
   createdAt!: string;
-
-  @ApiProperty({ example: '2026-01-01T00:00:00.000Z' })
   updatedAt!: string;
-
-  @ApiProperty({
-    example: false,
-    description: "Whether the requesting user follows this post's author.",
-  })
   isFollowing!: boolean;
-
-  @ApiProperty({
-    example: false,
-    description: 'Whether the requesting user saved/bookmarked this post.',
-  })
   isSaved!: boolean;
-
-  @ApiProperty({
-    example: false,
-    description: 'Whether the requesting user reposted this post.',
-  })
   isReposted!: boolean;
-
-  @ApiProperty({
-    example: false,
-    description: 'Whether the requesting user liked this post.',
-  })
   isLiked!: boolean;
-
-  @ApiProperty({
-    example: false,
-    description: 'Whether the requesting user is the owner of this post.',
-  })
   isOwner!: boolean;
-
-  @ApiProperty({ example: 0 })
   likesCount!: number;
-
-  @ApiProperty({ example: 0 })
   likes!: number;
-
-  @ApiProperty({ example: 0 })
   repostsCount!: number;
-
-  @ApiProperty({ example: 0 })
   reposts!: number;
-
-  @ApiProperty({ example: 0 })
   sharesCount!: number;
-
-  @ApiProperty({ example: 0 })
   commentsCount!: number;
-
-  @ApiProperty({ example: 0 })
   comments!: number;
-
-  @ApiPropertyOptional({ type: PostPollDto, nullable: true })
   poll?: PostPollDto | null;
 
   static fromPrisma(this: void, post: PostWithRelations): PostResponseDto {
@@ -213,7 +203,7 @@ export class PostResponseDto {
       pollDto = {
         id: post.poll.id,
         title: post.poll.title,
-        description: post.poll.description,
+        description: post.poll.description ?? null,
         isMultiple: post.poll.isMultiple,
         isActive: post.poll.isActive,
         totalVotes,
@@ -233,10 +223,10 @@ export class PostResponseDto {
       media: post.media ? post.media.map((m) => PostMediaResponseDto.fromPrisma(m)) : [],
       authorId: post.authorId,
       author: displayName,
-      handle: handle,
-      avatar: avatar,
-      isVerified: isVerified,
-      primaryBadge: primaryBadge,
+      handle,
+      avatar,
+      isVerified,
+      primaryBadge,
       createdAt: post.createdAt.toISOString(),
       updatedAt: post.updatedAt.toISOString(),
       isFollowing: post.isFollowing ?? false,

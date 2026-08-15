@@ -1,5 +1,21 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { z } from 'zod';
 import type { Comment } from '@prisma/client';
+
+export const createCommentSchema = z.object({
+  text: z
+    .string()
+    .min(1)
+    .max(1000)
+    .transform((val) => val.trim()),
+  parentId: z.string().optional(),
+});
+export type CreateCommentDto = z.infer<typeof createCommentSchema>;
+
+export const getCommentsQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  after: z.string().optional(),
+});
+export type GetCommentsQueryDto = z.infer<typeof getCommentsQuerySchema>;
 
 export type CommentWithUser = Comment & {
   user?: {
@@ -13,37 +29,16 @@ export type CommentWithUser = Comment & {
 };
 
 export class CommentResponseDto {
-  @ApiProperty({ example: 'clxxxxxxxxxxxxxxxxxxxxxxxx' })
   id!: string;
-
-  @ApiProperty({ example: 'Great post!' })
   text!: string;
-
-  @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440000' })
   postId!: string;
-
-  @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440000' })
   userId!: string;
-
-  @ApiProperty({ example: 'Ayate' })
   author!: string;
-
-  @ApiProperty({ example: 'ayate' })
   handle!: string;
-
-  @ApiPropertyOptional({ example: 'https://cdn.example.com/avatar.jpg' })
   avatar!: string | null;
-
-  @ApiProperty({ example: false })
   isVerified!: boolean;
-
-  @ApiPropertyOptional({ example: null })
   primaryBadge!: string | null;
-
-  @ApiPropertyOptional({ example: 'clxxxxxxxxxxxxxxxxxxxxxxxx' })
   parentId!: string | null;
-
-  @ApiProperty({ example: '2026-01-01T00:00:00.000Z' })
   createdAt!: string;
 
   static fromPrisma(this: void, comment: CommentWithUser): CommentResponseDto {

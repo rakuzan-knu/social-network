@@ -10,7 +10,10 @@
     "baseUrl": ".",
     "paths": {
       "@backend/*": ["backend/src/*", "apps/backend/src/*"],
-      "@frontend/*": ["frontend/src/*", "apps/frontend/src/*"]
+      "@frontend/*": ["frontend/src/*", "apps/frontend/src/*"],
+      "@common/*": ["backend/src/common/*", "backend/src/common/*/index.ts"],
+      "@common/prisma": ["backend/src/common/prisma/index.ts"],
+      "@common/contracts": ["backend/src/common/contracts/index.ts"]
     }
   }
 }

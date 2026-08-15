@@ -23,9 +23,13 @@
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
     "types": ["jest", "node", "multer"],
+    "baseUrl": ".",
     "paths": {
       "@backend/*": ["./src/*"],
-      "@common/*": ["./src/common/*"]
+      "@common/*": ["./src/common/*", "./src/common/*/index.ts"],
+      "@common/prisma": ["./src/common/prisma/index.ts"],
+      "@common/contracts": ["./src/common/contracts/index.ts"],
+      "@common/pagination": ["./src/common/pagination/index.ts"]
     }
   },
   "include": ["src/**/*", "test/**/*"]

@@ -22,17 +22,17 @@ import { VisibilityResolver } from '../../users/privacy/visibility.resolver';
 import { PrivacyDimension } from '@prisma/client';
 import { WsValidationFilter } from '../filters/ws-validation.filter';
 import {
-  SendMessageDto,
-  EditMessageDto,
-  DeleteMessageDto,
-  ForwardMessageDto,
-  ReactToMessageDto,
-  TogglePinMessageDto,
-  ConversationIdDto,
-  MarkReadDto,
-  GetOnlineStatusDto,
-  GatewayResumeDto,
-} from '../dto/message.dto';
+  type SendMessageDto,
+  type EditMessageDto,
+  type DeleteMessageDto,
+  type ForwardMessageDto,
+  type ReactToMessageDto,
+  type TogglePinMessageDto,
+  type ConversationIdDto,
+  type MarkReadDto,
+  type GetOnlineStatusDto,
+  type GatewayResumeDto,
+} from '@common/contracts';
 
 interface AuthenticatedSocket extends Socket {
   userId: string;
