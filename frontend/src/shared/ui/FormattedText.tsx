@@ -7,11 +7,22 @@ interface FormattedTextProps {
   className?: string;
 }
 
+const TRAILING_PUNCT_SET = new Set(['.', ',', '!', '?', ':', ';']);
+
+function splitTrailingPunct(raw: string): { clean: string; punct: string } {
+  let end = raw.length - 1;
+  while (end >= 0 && TRAILING_PUNCT_SET.has(raw[end])) {
+    end--;
+  }
+  return {
+    clean: raw.slice(0, end + 1),
+    punct: raw.slice(end + 1),
+  };
+}
+
 export function FormattedText({ text, className = '' }: FormattedTextProps) {
   if (!text) return null;
 
-  // Regex to split text by @mentions and #hashtags
-  // Capture groups will be preserved in the split array
   const tokenRegex = /((?:@|#)[a-zA-Z0-9_\u0400-\u04FF]+(?:\.[a-zA-Z0-9_\u0400-\u04FF]+)*)/g;
   const parts = text.split(tokenRegex);
 
@@ -20,8 +31,7 @@ export function FormattedText({ text, className = '' }: FormattedTextProps) {
       {parts.map((part, index) => {
         if (part.startsWith('@')) {
           const rawHandle = part.slice(1);
-          const cleanHandle = rawHandle.replace(/[.,!?:;]+$/, '');
-          const trailingPunct = rawHandle.slice(cleanHandle.length);
+          const { clean: cleanHandle, punct: trailingPunct } = splitTrailingPunct(rawHandle);
 
           if (!cleanHandle) {
             return <React.Fragment key={index}>{part}</React.Fragment>;
@@ -45,8 +55,7 @@ export function FormattedText({ text, className = '' }: FormattedTextProps) {
 
         if (part.startsWith('#')) {
           const rawTag = part.slice(1);
-          const cleanTag = rawTag.replace(/[.,!?:;]+$/, '');
-          const trailingPunct = rawTag.slice(cleanTag.length);
+          const { clean: cleanTag, punct: trailingPunct } = splitTrailingPunct(rawTag);
 
           if (!cleanTag) {
             return <React.Fragment key={index}>{part}</React.Fragment>;
