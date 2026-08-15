@@ -18,6 +18,10 @@ const MAX_BUFFER_BYTES = 512 * 1024; // 512 KB max limit (stops memory OOM)
 const MAX_REDIRECT_HOPS = 3;
 const ALLOWED_PORTS = new Set([80, 443, 8080, 8443]);
 
+// Strict URL regex validator that CodeQL recognizes as an SSRF sanitizer guard
+const SAFE_URL_REGEX =
+  /^https?:\/\/(?!(?:localhost|127\.|10\.|192\.168\.|172\.(?:1[6-9]|2[0-9]|3[01])\.|169\.254\.|0\.|100\.(?:6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.|22[4-9]\.|23[0-9]\.|24[0-9]\.|25[0-5]\.))[a-zA-Z0-9][-a-zA-Z0-9]*(?:\.[a-zA-Z0-9][-a-zA-Z0-9]*)+(?::(?:80|443|8080|8443))?(?:\/[^\s]*)?$/i;
+
 export function isPrivateIPv4(ip: string): boolean {
   const parts = ip.split('.').map((p) => parseInt(p, 10));
   if (parts.length !== 4 || parts.some((p) => isNaN(p) || p < 0 || p > 255)) {
@@ -118,6 +122,36 @@ export function isPrivateOrForbiddenIp(ip: string): boolean {
   return true; // Not a valid IP -> treat as forbidden
 }
 
+export function isSafeHostname(hostname: string): boolean {
+  if (!hostname || typeof hostname !== 'string') return false;
+  const lower = hostname.toLowerCase().trim();
+
+  if (
+    lower === 'localhost' ||
+    lower.endsWith('.localhost') ||
+    lower.endsWith('.local') ||
+    lower.endsWith('.internal') ||
+    lower.endsWith('.lan') ||
+    lower.endsWith('.home') ||
+    lower.endsWith('.corp') ||
+    lower.endsWith('.arpa') ||
+    lower.endsWith('.invalid') ||
+    lower.endsWith('.test') ||
+    lower.endsWith('.example')
+  ) {
+    return false;
+  }
+
+  if (net.isIP(lower)) {
+    return !isPrivateOrForbiddenIp(lower);
+  }
+
+  // Verify valid FQDN structure
+  return /^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/.test(
+    lower,
+  );
+}
+
 @Injectable()
 export class OpenGraphService {
   private readonly logger = new Logger(OpenGraphService.name);
@@ -125,49 +159,65 @@ export class OpenGraphService {
   constructor(private readonly redisService: RedisService) {}
 
   /**
-   * SSRF Protection: Validates URL protocol, ports, user credentials, hostname, and all resolved IPs.
+   * Synchronous URL Sanitizer & Validator (recognized as CodeQL SSRF sanitizer guard).
+   * Verifies protocol, credentials, port, hostname allowlist/regex and returns a clean URL string.
    */
-  async validateUrlForSsrf(parsedUrl: URL): Promise<boolean> {
+  sanitizeUrl(rawUrl: string): string | null {
+    if (!rawUrl || typeof rawUrl !== 'string') {
+      return null;
+    }
+
+    const trimmed = rawUrl.trim();
+    if (!SAFE_URL_REGEX.test(trimmed)) {
+      return null;
+    }
+
+    let parsed: URL;
+    try {
+      parsed = new URL(trimmed);
+    } catch {
+      return null;
+    }
+
     // 1. Strict Protocol Check
-    if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
-      return false;
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return null;
     }
 
     // 2. Reject credentials in URL (e.g. http://user:pass@host)
-    if (parsedUrl.username || parsedUrl.password) {
-      return false;
+    if (parsed.username || parsed.password) {
+      return null;
     }
 
     // 3. Port Whitelisting (Default 80/443 or safe web ports)
-    if (parsedUrl.port) {
-      const port = parseInt(parsedUrl.port, 10);
+    if (parsed.port) {
+      const port = parseInt(parsed.port, 10);
       if (isNaN(port) || !ALLOWED_PORTS.has(port)) {
-        return false;
+        return null;
       }
     }
 
-    const hostname = parsedUrl.hostname.toLowerCase().trim();
-    if (!hostname) return false;
-
-    // 4. Block local/internal hostnames
-    if (
-      hostname === 'localhost' ||
-      hostname.endsWith('.localhost') ||
-      hostname.endsWith('.local') ||
-      hostname.endsWith('.internal') ||
-      hostname.endsWith('.lan') ||
-      hostname.endsWith('.home') ||
-      hostname.endsWith('.corp')
-    ) {
-      return false;
+    // 4. Hostname validation
+    if (!isSafeHostname(parsed.hostname)) {
+      return null;
     }
 
-    // 5. If hostname is directly an IP literal
+    const safeScheme = parsed.protocol === 'https:' ? 'https:' : 'http:';
+    const safeHost = parsed.hostname.toLowerCase();
+    const safePort = parsed.port ? `:${parsed.port}` : '';
+    const safePath = parsed.pathname + parsed.search;
+
+    return `${safeScheme}//${safeHost}${safePort}${safePath}`;
+  }
+
+  /**
+   * DNS Pinning & Resolution: Verify EVERY resolved IP address.
+   */
+  async validateDnsResolution(hostname: string): Promise<boolean> {
     if (net.isIP(hostname)) {
       return !isPrivateOrForbiddenIp(hostname);
     }
 
-    // 6. DNS Pinning & Resolution: Verify EVERY resolved IP address
     try {
       const addresses = await dns.promises.lookup(hostname, { all: true, verbatim: true });
       if (!addresses || addresses.length === 0) {
@@ -180,7 +230,6 @@ export class OpenGraphService {
         }
       }
     } catch {
-      // DNS resolution failed -> unsafe/dead domain
       return false;
     }
 
@@ -200,21 +249,19 @@ export class OpenGraphService {
   }
 
   async extractMetadata(targetUrl: string): Promise<OpenGraphMetadata | null> {
-    if (!targetUrl || typeof targetUrl !== 'string') return null;
-
-    let parsedUrl: URL;
-    try {
-      parsedUrl = new URL(targetUrl.trim());
-    } catch {
+    // 1. Sanitize and validate input URL through recognized SSRF sanitizer
+    const sanitizedInitialUrl = this.sanitizeUrl(targetUrl);
+    if (!sanitizedInitialUrl) {
       return null;
     }
 
-    const isInitialSafe = await this.validateUrlForSsrf(parsedUrl);
-    if (!isInitialSafe) {
+    const parsedInitial = new URL(sanitizedInitialUrl);
+    const isInitialDnsSafe = await this.validateDnsResolution(parsedInitial.hostname);
+    if (!isInitialDnsSafe) {
       return null;
     }
 
-    const cacheKey = `og:preview:${parsedUrl.href}`;
+    const cacheKey = `og:preview:${sanitizedInitialUrl}`;
     try {
       const cached = await this.redisService.get(cacheKey);
       if (cached) {
@@ -229,15 +276,22 @@ export class OpenGraphService {
     }
 
     try {
-      let currentUrl = parsedUrl;
+      let currentUrlString: string = sanitizedInitialUrl;
       let redirectCount = 0;
       let response: Response | null = null;
 
       // Safe fetch loop with manual redirect verification to prevent SSRF via 302
       while (redirectCount <= MAX_REDIRECT_HOPS) {
-        const isSafe = await this.validateUrlForSsrf(currentUrl);
-        if (!isSafe) {
-          await this.setNegativeCache(cacheKey, parsedUrl.href);
+        const sanitizedHopUrl = this.sanitizeUrl(currentUrlString);
+        if (!sanitizedHopUrl) {
+          await this.setNegativeCache(cacheKey, sanitizedInitialUrl);
+          return null;
+        }
+
+        const hopParsed = new URL(sanitizedHopUrl);
+        const isHopDnsSafe = await this.validateDnsResolution(hopParsed.hostname);
+        if (!isHopDnsSafe) {
+          await this.setNegativeCache(cacheKey, sanitizedInitialUrl);
           return null;
         }
 
@@ -245,7 +299,7 @@ export class OpenGraphService {
         const timeoutId = setTimeout(() => controller.abort(), 4000);
 
         try {
-          response = await fetch(currentUrl.href, {
+          response = await fetch(sanitizedHopUrl, {
             signal: controller.signal,
             redirect: 'manual', // Prevent automatic following to private addresses
             headers: {
@@ -262,20 +316,21 @@ export class OpenGraphService {
         if ([301, 302, 303, 307, 308].includes(response.status)) {
           const location = response.headers.get('location');
           if (!location) {
-            await this.setNegativeCache(cacheKey, parsedUrl.href);
+            await this.setNegativeCache(cacheKey, sanitizedInitialUrl);
             return null;
           }
 
           redirectCount++;
           if (redirectCount > MAX_REDIRECT_HOPS) {
-            await this.setNegativeCache(cacheKey, parsedUrl.href);
+            await this.setNegativeCache(cacheKey, sanitizedInitialUrl);
             return null;
           }
 
           try {
-            currentUrl = new URL(location, currentUrl.href);
+            const nextUrl = new URL(location, sanitizedHopUrl).href;
+            currentUrlString = nextUrl;
           } catch {
-            await this.setNegativeCache(cacheKey, parsedUrl.href);
+            await this.setNegativeCache(cacheKey, sanitizedInitialUrl);
             return null;
           }
           continue;
@@ -285,7 +340,7 @@ export class OpenGraphService {
       }
 
       if (!response || !response.ok) {
-        await this.setNegativeCache(cacheKey, parsedUrl.href);
+        await this.setNegativeCache(cacheKey, sanitizedInitialUrl);
         return null;
       }
 
@@ -297,7 +352,7 @@ export class OpenGraphService {
         } catch {
           // Stream cancel cleanup
         }
-        await this.setNegativeCache(cacheKey, parsedUrl.href);
+        await this.setNegativeCache(cacheKey, sanitizedInitialUrl);
         return null;
       }
 
@@ -325,6 +380,8 @@ export class OpenGraphService {
         const rawText = await response.text();
         html = rawText.slice(0, MAX_BUFFER_BYTES);
       }
+
+      const currentParsed = new URL(currentUrlString);
 
       const title =
         this.extractMetaContent(html, /property=["']og:title["']\s+content=["']([^"']+)["']/i) ||
@@ -354,7 +411,7 @@ export class OpenGraphService {
 
       if (image && !image.startsWith('http://') && !image.startsWith('https://')) {
         try {
-          image = new URL(image, currentUrl.href).href;
+          image = new URL(image, currentParsed.href).href;
         } catch {
           image = null;
         }
@@ -369,7 +426,7 @@ export class OpenGraphService {
           html,
           /content=["']([^"']+)["']\s+property=["']og:site_name["']/i,
         ) ||
-        currentUrl.hostname.replace(/^www\./, '');
+        currentParsed.hostname.replace(/^www\./, '');
 
       let favicon =
         this.extractMetaContent(
@@ -383,21 +440,21 @@ export class OpenGraphService {
 
       if (favicon && !favicon.startsWith('http://') && !favicon.startsWith('https://')) {
         try {
-          favicon = new URL(favicon, currentUrl.href).href;
+          favicon = new URL(favicon, currentParsed.href).href;
         } catch {
-          favicon = `${currentUrl.origin}/favicon.ico`;
+          favicon = `${currentParsed.origin}/favicon.ico`;
         }
       } else if (!favicon) {
-        favicon = `${currentUrl.origin}/favicon.ico`;
+        favicon = `${currentParsed.origin}/favicon.ico`;
       }
 
       if (!title && !description && !image) {
-        await this.setNegativeCache(cacheKey, parsedUrl.href);
+        await this.setNegativeCache(cacheKey, sanitizedInitialUrl);
         return null;
       }
 
       const result: OpenGraphMetadata = {
-        url: parsedUrl.href,
+        url: sanitizedInitialUrl,
         siteName: siteName ? this.cleanHtmlEntities(siteName) : null,
         title: title ? this.cleanHtmlEntities(title) : null,
         description: description ? this.cleanHtmlEntities(description) : null,
@@ -411,7 +468,7 @@ export class OpenGraphService {
       return result;
     } catch (err) {
       this.logger.debug(`Failed to fetch OG metadata for ${targetUrl}: ${(err as Error).message}`);
-      await this.setNegativeCache(cacheKey, parsedUrl.href);
+      await this.setNegativeCache(cacheKey, sanitizedInitialUrl);
       return null;
     }
   }

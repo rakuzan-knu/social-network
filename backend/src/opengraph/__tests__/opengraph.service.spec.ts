@@ -83,6 +83,22 @@ describe('OpenGraphService - SSRF & Sanitization Security', () => {
       expect(isPrivateOrForbiddenIp('not-an-ip')).toBe(true);
       expect(isPrivateOrForbiddenIp('999.999.999.999')).toBe(true);
     });
+
+    it('sanitizes and validates valid public URLs', () => {
+      expect(service.sanitizeUrl('https://example.com/article?id=123')).toBe(
+        'https://example.com/article?id=123',
+      );
+      expect(service.sanitizeUrl('http://github.com/profile')).toBe('http://github.com/profile');
+    });
+
+    it('rejects forbidden or unsafe URLs in sanitizeUrl', () => {
+      expect(service.sanitizeUrl('http://localhost:3000')).toBeNull();
+      expect(service.sanitizeUrl('http://127.0.0.1:6379')).toBeNull();
+      expect(service.sanitizeUrl('http://169.254.169.254/latest/meta-data/')).toBeNull();
+      expect(service.sanitizeUrl('http://user:pass@example.com/')).toBeNull();
+      expect(service.sanitizeUrl('ftp://example.com/')).toBeNull();
+      expect(service.sanitizeUrl('javascript:alert(1)')).toBeNull();
+    });
   });
 
   describe('SSRF Protection in validateUrlForSsrf', () => {
