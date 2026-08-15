@@ -31,7 +31,7 @@ export function OnlineFriendsSidebar() {
   const [isOfflineExpanded, setIsOfflineExpanded] = useState(false);
 
   const { data: friends, isLoading: isFriendsLoading } = useFriends();
-  const { data: suggestedUsers, isLoading: isSuggestedLoading } = useSuggestedUsers(5);
+  const { data: suggestedUsers = [], isLoading: isSuggestedLoading } = useSuggestedUsers(5);
   const dismissMutation = useDismissSuggestedUser();
   const { data: conversations } = useConversations();
   const onlineUserIds = usePresenceStore((s) => s.onlineUserIds);

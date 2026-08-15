@@ -8,7 +8,7 @@ export function useSuggestedUsers(limit = 5) {
 
   return useQuery<FollowUserSummary[]>({
     queryKey: ['suggestedUsers', limit],
-    queryFn: async () => {
+    queryFn: async (): Promise<FollowUserSummary[]> => {
       const res = await api.get<FollowUserSummary[]>(`/users/suggested?limit=${limit}`);
       const list = Array.isArray(res.data) ? res.data : [];
       return list.map((u) => ({

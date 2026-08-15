@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { MediaType, ReportCategory, type PostMedia } from '@prisma/client';
+export { MediaType, ReportCategory };
 
 export const mediaSchema = z.object({
   type: z.nativeEnum(MediaType),

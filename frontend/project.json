@@ -8,25 +8,29 @@
       "executor": "nx:run-commands",
       "outputs": ["{workspaceRoot}/frontend/dist"],
       "options": {
-        "command": "npm run build -w frontend"
+        "command": "pnpm build",
+        "cwd": "frontend"
       }
     },
     "lint": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "npm run lint -w frontend"
+        "command": "pnpm lint",
+        "cwd": "frontend"
       }
     },
     "typecheck": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "npm run typecheck -w frontend"
+        "command": "pnpm typecheck",
+        "cwd": "frontend"
       }
     },
     "serve": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "npm run dev -w frontend"
+        "command": "pnpm dev",
+        "cwd": "frontend"
       }
     }
   }

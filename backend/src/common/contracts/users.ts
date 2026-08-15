@@ -193,6 +193,8 @@ export class CreateUserDto {
   }
 }
 
+export { AutoDeletePeriod, ExceptionMode, PrivacyDimension, Visibility };
+
 export class PrivacyExceptionUserDto {
   id!: string;
   username!: string;

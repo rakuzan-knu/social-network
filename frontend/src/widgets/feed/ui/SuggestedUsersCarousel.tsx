@@ -29,7 +29,7 @@ export function SuggestedUsersCarousel({
   limit = 8,
   onEmpty,
 }: SuggestedUsersCarouselProps) {
-  const { data: users, isLoading } = useSuggestedUsers(limit);
+  const { data: users = [], isLoading } = useSuggestedUsers(limit);
   const dismissMutation = useDismissSuggestedUser();
 
   const scrollRef = useRef<HTMLDivElement>(null);

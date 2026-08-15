@@ -8,25 +8,29 @@
       "executor": "nx:run-commands",
       "outputs": ["{workspaceRoot}/backend/dist"],
       "options": {
-        "command": "npm run build -w backend"
+        "command": "pnpm build",
+        "cwd": "backend"
       }
     },
     "lint": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "npm run lint -w backend"
+        "command": "pnpm lint",
+        "cwd": "backend"
       }
     },
     "typecheck": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "npm run typecheck -w backend"
+        "command": "pnpm typecheck",
+        "cwd": "backend"
       }
     },
     "serve": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "npm run start:dev -w backend"
+        "command": "pnpm start:dev",
+        "cwd": "backend"
       }
     }
   }

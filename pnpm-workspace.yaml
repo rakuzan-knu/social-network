@@ -1,4 +1,15 @@
 packages:
   - 'backend'
   - 'frontend'
-  - 'apps/*'
+
+onlyBuiltDependencies:
+  - '@prisma/client'
+  - '@prisma/engines'
+  - '@swc/core'
+  - 'argon2'
+  - 'esbuild'
+  - 'msgpackr-extract'
+  - 'msw'
+  - 'nx'
+  - 'prisma'
+  - 'unrs-resolver'

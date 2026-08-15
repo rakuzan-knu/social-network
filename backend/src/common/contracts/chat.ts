@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { AttachmentType, MessageType, MuteLevel } from '@prisma/client';
+export { AttachmentType, MessageType, MuteLevel };
 
 export const conversationIdSchema = z.object({
   conversationId: z.string().uuid(),

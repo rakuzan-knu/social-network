@@ -21,7 +21,7 @@ import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import Avatar from '@/shared/ui/Avatar';
 import { apiClient as api } from '@/shared/api/httpClient';
 import { postsApi } from '@/entities/post/api/postsApi';
-import { PostType } from '@/entities/post/model/types';
+import { PostType, PostMedia } from '@/entities/post/model/types';
 import { useUIStore } from '@/shared/model/useUIStore';
 import { CommentModal } from '@/features/comment/ui/CommentModal';
 import { PostCard } from '@/widgets/post/ui/PostCard';
@@ -75,10 +75,11 @@ function GridMediaSkeleton({ count = 9 }: { count?: number }) {
 function GridMediaCard({ post, onClick }: { post: PostType; onClick: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const playPromiseRef = useRef<Promise<void> | null>(null);
-  const mediaItem =
-    post.media?.[0] ?? (post.image ? { type: 'image' as const, url: post.image } : null);
+  const mediaItem: PostMedia | null =
+    post.media?.[0] ?? (post.image ? { type: 'image', url: post.image } : null);
   const isVideo =
     mediaItem?.type === 'video' ||
+    mediaItem?.type === 'VIDEO' ||
     Boolean(mediaItem?.url && mediaItem.url.match(/\.(mp4|webm|mov)(\?.*)?$/i));
   const hasMediaUrl = Boolean(mediaItem?.url);
 
@@ -129,7 +130,7 @@ function GridMediaCard({ post, onClick }: { post: PostType; onClick: () => void 
           <video
             ref={videoRef}
             src={mediaItem?.url}
-            poster={mediaItem?.poster}
+            poster={mediaItem?.poster ?? undefined}
             className="w-full h-full object-cover"
             muted
             playsInline

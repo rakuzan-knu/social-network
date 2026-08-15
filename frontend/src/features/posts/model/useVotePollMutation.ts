@@ -24,7 +24,7 @@ export function useVotePollMutation(postId: string | number, queryKey: unknown[]
                   myVoteOptionId: optionId,
                   totalVotes: p.poll.totalVotes + 1,
                   options: p.poll.options.map((o) =>
-                    o.id === optionId ? { ...o, votes: o.votes + 1 } : o,
+                    o.id === optionId ? { ...o, votes: (o.votes ?? o.votesCount ?? 0) + 1 } : o,
                   ),
                 },
               };

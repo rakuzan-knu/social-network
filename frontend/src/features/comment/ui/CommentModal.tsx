@@ -45,11 +45,9 @@ export function CommentModal() {
   if (!isCommentModalOpen || !activePostForComments) return null;
 
   const commentsList = commentPage?.comments ?? activePostForComments.commentList ?? [];
-  const media =
+  const media: import('@/entities/post/model/types').PostMedia[] =
     activePostForComments.media ??
-    (activePostForComments.image
-      ? [{ type: 'image' as const, url: activePostForComments.image }]
-      : []);
+    (activePostForComments.image ? [{ type: 'image', url: activePostForComments.image }] : []);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-fadeIn">
