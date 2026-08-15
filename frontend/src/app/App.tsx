@@ -150,6 +150,15 @@ export default function App() {
               />
 
               <Route
+                path="/explore"
+                element={
+                  <CenteredPage>
+                    <SearchPage />
+                  </CenteredPage>
+                }
+              />
+
+              <Route
                 path="/reels"
                 element={
                   <CenteredPage>
