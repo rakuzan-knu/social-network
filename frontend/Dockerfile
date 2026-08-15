@@ -4,6 +4,8 @@ FROM node:24-alpine AS builder
 RUN --mount=type=cache,target=/var/cache/apk \
     apk add --no-cache libc6-compat
 
+RUN corepack enable && corepack prepare pnpm@10.5.2 --activate
+
 WORKDIR /app
 
 # Copy package files and workspace config
@@ -17,12 +19,12 @@ COPY backend ./backend
 COPY frontend ./frontend
 
 # Install dependencies
-RUN --mount=type=cache,target=/root/.npm \
-    npm install --no-audit --no-fund --workspaces
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile
 
 # Build frontend
 ENV NODE_ENV=production
-RUN npm run build --workspace=frontend
+RUN pnpm --filter frontend build
 
 # Stage 2: Production (Nginx)
 FROM nginx:1.27-alpine AS production

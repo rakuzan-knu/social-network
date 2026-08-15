@@ -38,17 +38,19 @@ jobs:
           persist-credentials: true
           token: ${{ secrets.RELEASE_PAT || (steps.app-token.outputs.token != '' && steps.app-token.outputs.token || secrets.GITHUB_TOKEN) }}
 
+      - uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2 # v4.0.0
+
       - uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
         with:
           node-version-file: '.nvmrc'
-          cache: 'npm'
+          cache: 'pnpm'
 
       - name: Install root deps
-        run: npm ci --ignore-scripts --fetch-retries=5 --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=120000
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Build frontend (with source maps)
         working-directory: frontend
-        run: npm run build
+        run: pnpm build
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
           VITE_SENTRY_DSN: ${{ secrets.SENTRY_DSN }}

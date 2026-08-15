@@ -427,7 +427,7 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           pattern: 'frontend/dist/**/*.{js,css}'
           strip-hash: "\\b\\w{8}\\."
-          build-script: "pnpm run build"
+          build-script: "build"
 
   k8s-policy-check:
     name: Kubernetes Policy-as-Code Guardrails Check
