@@ -34,10 +34,11 @@
     "validate:eol": "node scripts/validate-eol.js",
     "fix:eol": "node scripts/validate-eol.js --fix",
     "validate:env": "node scripts/check-env.js",
+    "validate:actions": "node scripts/verify-actions-pinned.cjs",
     "clean": "node scripts/clean.js",
     "clean:prune": "node scripts/clean.js --prune",
     "format:check": "prettier --check . --ignore-unknown --no-error-on-unmatched-pattern",
-    "validate": "npm run validate:eol && npm run validate:env && npm run typecheck && npm run lint"
+    "validate": "npm run validate:eol && npm run validate:env && npm run validate:actions && npm run typecheck && npm run lint"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.8.1",
