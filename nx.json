@@ -1,5 +1,4 @@
 {
-  "$schema": "https://nx.dev/schemas/nx-schema.json",
   "namedInputs": {
     "default": ["{projectRoot}/**/*", "sharedGlobals"],
     "production": [

@@ -1,6 +1,5 @@
 {
   "name": "frontend",
-  "$schema": "https://nx.dev/schemas/project-schema.json",
   "sourceRoot": "frontend/src",
   "projectType": "application",
   "targets": {
