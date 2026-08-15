@@ -38,7 +38,7 @@
     "clean": "node scripts/clean.js",
     "clean:prune": "node scripts/clean.js --prune",
     "format:check": "prettier --check . --ignore-unknown --no-error-on-unmatched-pattern",
-    "validate": "npm run validate:eol && npm run validate:env && npm run validate:actions && npm run typecheck && npm run lint"
+    "validate": "pnpm validate:eol && pnpm validate:env && pnpm validate:actions && pnpm typecheck && pnpm lint"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.8.1",
