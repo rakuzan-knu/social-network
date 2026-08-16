@@ -26,7 +26,8 @@
     "test:mutation": "stryker run",
     "test:contract": "vitest run --config vitest.contract.config.ts",
     "test:ci": "vitest run --config vitest.config.ts --reporter=default --reporter=github-actions",
-    "test:cov:ci": "vitest run --config vitest.config.ts --coverage --reporter=default --reporter=github-actions"
+    "test:cov:ci": "vitest run --config vitest.config.ts --coverage --reporter=default --reporter=github-actions",
+    "test:visual": "chromatic --storybook-build-dir=storybook-static"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
@@ -70,6 +71,7 @@
     "@vitest/coverage-v8": "^3.2.4",
     "@vitest/ui": "^3.2.4",
     "browser-assert": "^1.2.1",
+    "chromatic": "^18.2.0",
     "esbuild": "^0.28.2",
     "eslint": "^9.39.5",
     "eslint-plugin-react-hooks": "^5.2.0",

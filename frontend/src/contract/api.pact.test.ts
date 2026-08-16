@@ -3,7 +3,7 @@ import { describe, it } from 'vitest';
 import { PactV3, MatchersV3 } from '@pact-foundation/pact';
 import path from 'path';
 
-const { like, eachLike, string, integer, boolean, uuid, datetime, nullValue } = MatchersV3;
+const { like, eachLike, string, integer, boolean, uuid, regex, nullValue } = MatchersV3;
 
 /**
  * Consumer-driven contract tests: the frontend (consumer) describes exactly
@@ -21,7 +21,9 @@ const provider = new PactV3({
   dir: path.resolve(__dirname, '../../../backend/pacts'),
 });
 
-const ISO_DATETIME = MatchersV3.ISO8601_DATETIME_WITH_MILLIS_FORMAT;
+/** ISO-8601 with millis; a regex matcher avoids datetime-format skew between pact-js and the verifier. */
+const ISO_DATETIME =
+  '^\\d{4}-[01]\\d-[0-3]\\dT[0-2]\\d:[0-5]\\d:[0-5]\\d\\.\\d+(Z|[+-][0-2]\\d:?[0-5]\\d)$';
 
 /** Public user shape returned by auth (auth.service.ts toPublicUser). */
 const publicUser = {
@@ -31,20 +33,21 @@ const publicUser = {
   displayName: like('Alice Mock'),
 };
 
-/** Post fields consumed by normalizePost (entities/post/api/postsApi.ts). */
+/**
+ * Post fields consumed by normalizePost (entities/post/api/postsApi.ts).
+ * Mirrors PostResponseDto: `author` is the display-name STRING, not an object.
+ */
 const postBody = {
   id: uuid(),
   content: like('Hello from the contract test'),
-  createdAt: datetime(ISO_DATETIME, '2026-01-01T12:00:00.000Z'),
-  author: like({
-    id: uuid(),
-    username: like('alice'),
-    displayName: like('Alice Mock'),
-    avatar: nullValue(),
-  }),
+  createdAt: regex(ISO_DATETIME, '2026-01-01T12:00:00.000Z'),
+  authorId: uuid(),
+  author: like('Alice Mock'),
+  handle: like('alice'),
   media: eachLike({
-    type: like('image'),
+    type: like('IMAGE'),
     url: like('https://cdn.example.com/post.jpg'),
+    order: integer(0),
   }),
   likesCount: integer(12),
   commentsCount: integer(3),
@@ -121,7 +124,7 @@ describe('consumer contract: backend API', () => {
         const response = await fetch(`${mockServer.url}/posts?limit=10`);
         if (!response.ok) throw new Error(`feed failed: ${response.status}`);
         const body = (await response.json()) as {
-          data: { content: string; author: { username: string } }[];
+          data: { content: string; author: string }[];
           meta: { hasNextPage: boolean };
         };
         if (body.data.length === 0 || !body.data[0].content) {
@@ -140,6 +143,8 @@ describe('consumer contract: backend API', () => {
       .withRequest({
         method: 'GET',
         path: '/conversations',
+        // The endpoint is auth-guarded; apiClient attaches the bearer token.
+        headers: { Authorization: 'Bearer pact-access-token' },
       })
       .willRespondWith({
         status: 200,
@@ -158,13 +163,15 @@ describe('consumer contract: backend API', () => {
           lastMessage: like({
             id: uuid(),
             body: like('Hey there'),
-            createdAt: datetime(ISO_DATETIME, '2026-01-01T12:00:00.000Z'),
+            createdAt: regex(ISO_DATETIME, '2026-01-01T12:00:00.000Z'),
           }),
           unreadCount: integer(1),
         }),
       })
       .executeTest(async (mockServer) => {
-        const response = await fetch(`${mockServer.url}/conversations`);
+        const response = await fetch(`${mockServer.url}/conversations`, {
+          headers: { Authorization: 'Bearer pact-access-token' },
+        });
         if (!response.ok) throw new Error(`conversations failed: ${response.status}`);
         const body = (await response.json()) as {
           id: string;
@@ -187,14 +194,16 @@ describe('consumer contract: backend API', () => {
       .willRespondWith({
         status: 200,
         headers: { 'Content-Type': 'application/json' },
+        // Mirrors UserProfileDto (common/contracts/users.ts).
         body: like({
           id: uuid(),
           username: like('alice'),
           displayName: like('Alice Mock'),
+          avatar: nullValue(),
           bio: like('Mocked biography'),
-          followersCount: integer(42),
-          followingCount: integer(17),
-          createdAt: datetime(ISO_DATETIME, '2026-01-01T12:00:00.000Z'),
+          isPrivate: boolean(false),
+          isVerified: boolean(false),
+          createdAt: regex(ISO_DATETIME, '2026-01-01T12:00:00.000Z'),
         }),
       })
       .executeTest(async (mockServer) => {
@@ -202,9 +211,9 @@ describe('consumer contract: backend API', () => {
         if (!response.ok) throw new Error(`profile failed: ${response.status}`);
         const body = (await response.json()) as {
           username: string;
-          followersCount: number;
+          isPrivate: boolean;
         };
-        if (body.username !== 'alice' || typeof body.followersCount !== 'number') {
+        if (body.username !== 'alice' || typeof body.isPrivate !== 'boolean') {
           throw new Error('profile response missing expected fields');
         }
       });
@@ -222,12 +231,14 @@ describe('consumer contract: backend API', () => {
       .willRespondWith({
         status: 200,
         headers: { 'Content-Type': 'application/json' },
+        // searchUsers returns UserProfileDto[] (common/contracts/users.ts).
         body: eachLike({
           id: uuid(),
           username: like('carol'),
           displayName: like('Carol Mock'),
           avatar: nullValue(),
-          followersCount: integer(5),
+          isPrivate: boolean(false),
+          isVerified: boolean(false),
         }),
       })
       .executeTest(async (mockServer) => {

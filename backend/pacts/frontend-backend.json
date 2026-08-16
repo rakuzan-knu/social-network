@@ -11,6 +11,9 @@
         }
       ],
       "request": {
+        "headers": {
+          "Authorization": "Bearer pact-access-token"
+        },
         "method": "GET",
         "path": "/conversations"
       },
@@ -96,8 +99,8 @@
               "combine": "AND",
               "matchers": [
                 {
-                  "format": "^\\d{4}-[01]\\d-[0-3]\\dT[0-2]\\d:[0-5]\\d:[0-5]\\d\\.\\d+([+-][0-2]\\d(:?[0-5]\\d)?|Z)$",
-                  "match": "datetime"
+                  "match": "regex",
+                  "regex": "^\\d{4}-[01]\\d-[0-3]\\dT[0-2]\\d:[0-5]\\d:[0-5]\\d\\.\\d+(Z|[+-][0-2]\\d:?[0-5]\\d)$"
                 }
               ]
             },
@@ -304,20 +307,18 @@
         "body": {
           "data": [
             {
-              "author": {
-                "avatar": null,
-                "displayName": "Alice Mock",
-                "id": "e2490de5-5bd3-43d5-b7c4-526e33f71304",
-                "username": "alice"
-              },
+              "author": "Alice Mock",
+              "authorId": "e2490de5-5bd3-43d5-b7c4-526e33f71304",
               "commentsCount": 3,
               "content": "Hello from the contract test",
               "createdAt": "2026-01-01T12:00:00.000Z",
+              "handle": "alice",
               "id": "e2490de5-5bd3-43d5-b7c4-526e33f71304",
               "likesCount": 12,
               "media": [
                 {
-                  "type": "image",
+                  "order": 0,
+                  "type": "IMAGE",
                   "url": "https://cdn.example.com/post.jpg"
                 }
               ],
@@ -331,7 +332,7 @@
         },
         "generators": {
           "body": {
-            "$.data[*].author.id": {
+            "$.data[*].authorId": {
               "type": "Uuid"
             },
             "$.data[*].id": {
@@ -361,36 +362,12 @@
                 }
               ]
             },
-            "$.data[*].author.avatar": {
-              "combine": "AND",
-              "matchers": [
-                {
-                  "match": "null"
-                }
-              ]
-            },
-            "$.data[*].author.displayName": {
-              "combine": "AND",
-              "matchers": [
-                {
-                  "match": "type"
-                }
-              ]
-            },
-            "$.data[*].author.id": {
+            "$.data[*].authorId": {
               "combine": "AND",
               "matchers": [
                 {
                   "match": "regex",
                   "regex": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
-                }
-              ]
-            },
-            "$.data[*].author.username": {
-              "combine": "AND",
-              "matchers": [
-                {
-                  "match": "type"
                 }
               ]
             },
@@ -414,8 +391,16 @@
               "combine": "AND",
               "matchers": [
                 {
-                  "format": "^\\d{4}-[01]\\d-[0-3]\\dT[0-2]\\d:[0-5]\\d:[0-5]\\d\\.\\d+([+-][0-2]\\d(:?[0-5]\\d)?|Z)$",
-                  "match": "datetime"
+                  "match": "regex",
+                  "regex": "^\\d{4}-[01]\\d-[0-3]\\dT[0-2]\\d:[0-5]\\d:[0-5]\\d\\.\\d+(Z|[+-][0-2]\\d:?[0-5]\\d)$"
+                }
+              ]
+            },
+            "$.data[*].handle": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
                 }
               ]
             },
@@ -442,6 +427,14 @@
                 {
                   "match": "type",
                   "min": 1
+                }
+              ]
+            },
+            "$.data[*].media[*].order": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
                 }
               ]
             },
@@ -509,8 +502,9 @@
           {
             "avatar": null,
             "displayName": "Carol Mock",
-            "followersCount": 5,
             "id": "e2490de5-5bd3-43d5-b7c4-526e33f71304",
+            "isPrivate": false,
+            "isVerified": false,
             "username": "carol"
           }
         ],
@@ -551,20 +545,28 @@
                 }
               ]
             },
-            "$[*].followersCount": {
-              "combine": "AND",
-              "matchers": [
-                {
-                  "match": "integer"
-                }
-              ]
-            },
             "$[*].id": {
               "combine": "AND",
               "matchers": [
                 {
                   "match": "regex",
                   "regex": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+                }
+              ]
+            },
+            "$[*].isPrivate": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$[*].isVerified": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
                 }
               ]
             },
@@ -594,12 +596,13 @@
       },
       "response": {
         "body": {
+          "avatar": null,
           "bio": "Mocked biography",
           "createdAt": "2026-01-01T12:00:00.000Z",
           "displayName": "Alice Mock",
-          "followersCount": 42,
-          "followingCount": 17,
           "id": "e2490de5-5bd3-43d5-b7c4-526e33f71304",
+          "isPrivate": false,
+          "isVerified": false,
           "username": "alice"
         },
         "generators": {
@@ -622,6 +625,14 @@
                 }
               ]
             },
+            "$.avatar": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "null"
+                }
+              ]
+            },
             "$.bio": {
               "combine": "AND",
               "matchers": [
@@ -634,8 +645,8 @@
               "combine": "AND",
               "matchers": [
                 {
-                  "format": "^\\d{4}-[01]\\d-[0-3]\\dT[0-2]\\d:[0-5]\\d:[0-5]\\d\\.\\d+([+-][0-2]\\d(:?[0-5]\\d)?|Z)$",
-                  "match": "datetime"
+                  "match": "regex",
+                  "regex": "^\\d{4}-[01]\\d-[0-3]\\dT[0-2]\\d:[0-5]\\d:[0-5]\\d\\.\\d+(Z|[+-][0-2]\\d:?[0-5]\\d)$"
                 }
               ]
             },
@@ -647,28 +658,28 @@
                 }
               ]
             },
-            "$.followersCount": {
-              "combine": "AND",
-              "matchers": [
-                {
-                  "match": "integer"
-                }
-              ]
-            },
-            "$.followingCount": {
-              "combine": "AND",
-              "matchers": [
-                {
-                  "match": "integer"
-                }
-              ]
-            },
             "$.id": {
               "combine": "AND",
               "matchers": [
                 {
                   "match": "regex",
                   "regex": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+                }
+              ]
+            },
+            "$.isPrivate": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.isVerified": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
                 }
               ]
             },

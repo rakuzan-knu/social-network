@@ -400,6 +400,7 @@ jobs:
           npx wait-on http://localhost:3000/api/health/live --timeout 60000 --interval 1000
           node ../scripts/verify-api-contract.cjs
           node ../scripts/verify-pact-contracts.cjs
+          PACT_PROVIDER_URL=http://localhost:3000 pnpm test:pact:verify
           kill $SERVER_PID || true
         env:
           NODE_ENV: test
