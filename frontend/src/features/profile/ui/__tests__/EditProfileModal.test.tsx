@@ -203,4 +203,23 @@ describe('EditProfileModal', () => {
 
     expect(screen.queryByAltText('Banner')).not.toBeInTheDocument();
   });
+
+  it('switches between settings tabs when tab buttons are clicked', async () => {
+    const user = userEvent.setup();
+    await openAndWaitForProfile();
+
+    const securityTab = screen.getByRole('button', { name: /security/i });
+    await user.click(securityTab);
+    expect(screen.getByRole('heading', { name: /password & security/i })).toBeInTheDocument();
+
+    const privacyTab = screen.getByRole('button', { name: /privacy/i });
+    await user.click(privacyTab);
+    expect(screen.getByRole('heading', { name: /profile privacy/i })).toBeInTheDocument();
+
+    const notificationsTab = screen.getByRole('button', { name: /notifications/i });
+    await user.click(notificationsTab);
+    expect(
+      screen.getByRole('heading', { name: /sound & push notifications/i }),
+    ).toBeInTheDocument();
+  });
 });
