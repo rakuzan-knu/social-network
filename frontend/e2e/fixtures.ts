@@ -1,12 +1,15 @@
 import { test as base, expect, type Page, type Route } from '@playwright/test';
 
 /**
- * Origin of the backend API. Mirrors `apiClient.baseURL` in
- * src/shared/api/httpClient.ts. Mocks are scoped to this origin because loose
- * glob patterns like a bare `/api/` also match Vite dev-server asset URLs
+ * Origin of the backend API. Mirrors the `apiClient.baseURL` normalization in
+ * src/shared/api/httpClient.ts (trailing `/api` and slashes are stripped —
+ * the backend serves its routes at the origin root). Mocks are scoped to this
+ * origin because loose globs also match Vite dev-server asset URLs
  * (e.g. `/src/shared/api/httpClient.ts`) and break module loading.
  */
-const API_BASE = process.env.VITE_API_URL ?? 'http://localhost:3000/api';
+const API_BASE = (process.env.VITE_API_URL ?? 'http://localhost:3000')
+  .replace(/\/api\/?$/, '')
+  .replace(/\/+$/, '');
 
 /**
  * CORS headers: the app is served on :5173 and calls the API cross-origin with

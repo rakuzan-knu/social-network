@@ -20,8 +20,17 @@ export default defineConfig({
   ],
   webServer: {
     command: 'pnpm dev',
+    // Pin the API origin for the test dev server: a developer's .env may point
+    // VITE_API_URL at a deployed backend, but e2e mocks must target a fixed
+    // local origin (mirrored by the API_BASE default in e2e/fixtures.ts).
+    env: {
+      ...process.env,
+      VITE_API_URL: 'http://localhost:3000',
+    },
     url: 'http://localhost:5173',
-    reuseExistingServer: !process.env.CI,
+    // Never reuse an already-running dev server: it may carry a different
+    // VITE_API_URL from the developer's .env, which would dodge the mocks.
+    reuseExistingServer: false,
     timeout: 120_000,
   },
 });
