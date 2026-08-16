@@ -23,7 +23,8 @@
     "check:bundle": "node ../scripts/check-bundle-size.js",
     "storybook": "storybook dev -p 6006",
     "build:storybook": "storybook build",
-    "test:mutation": "stryker run"
+    "test:mutation": "stryker run",
+    "test:contract": "vitest run --config vitest.contract.config.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
@@ -46,6 +47,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
+    "@pact-foundation/pact": "^17.1.2",
     "@playwright/test": "^1.62.1",
     "@storybook/addon-a11y": "^8.6.0",
     "@storybook/addon-essentials": "^8.6.0",
