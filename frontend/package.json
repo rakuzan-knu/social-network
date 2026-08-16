@@ -22,7 +22,8 @@
     "typecheck": "tsc --noEmit",
     "check:bundle": "node ../scripts/check-bundle-size.js",
     "storybook": "storybook dev -p 6006",
-    "build:storybook": "storybook build"
+    "build:storybook": "storybook build",
+    "test:mutation": "stryker run"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
@@ -52,6 +53,8 @@
     "@storybook/react": "^8.6.0",
     "@storybook/react-vite": "^8.6.0",
     "@storybook/test": "^8.6.0",
+    "@stryker-mutator/core": "^10.0.0",
+    "@stryker-mutator/vitest-runner": "^10.0.0",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",

@@ -34,3 +34,10 @@ test-results/
 playwright-report/
 blob-report/
 playwright/.cache/
+
+.stryker-tmp/
+
+# Stryker
+reports/
+.stryker-tmp/
+stryker.log
