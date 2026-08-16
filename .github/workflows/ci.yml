@@ -248,7 +248,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        module: [health, auth, posts, users]
+        module: [health, auth, posts, users, chat]
 
     services:
       postgres:
