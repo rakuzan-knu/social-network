@@ -15,7 +15,7 @@
 const http = require('http');
 const https = require('https');
 
-const DEFAULT_TARGET = 'https://social-network-backend.onrender.com';
+const DEFAULT_TARGET = 'https://social-network-backend-4h47.onrender.com';
 const WARM_UP_TIMEOUT_MS = 150_000;
 const CHECK_TIMEOUT_MS = 30_000;
 

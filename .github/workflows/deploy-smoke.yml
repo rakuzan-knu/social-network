@@ -11,7 +11,7 @@ on:
       target_url:
         description: 'Base URL of the deployed backend'
         required: false
-        default: 'https://social-network-backend.onrender.com'
+        default: 'https://social-network-backend-4h47.onrender.com'
 
 permissions: read-all
 

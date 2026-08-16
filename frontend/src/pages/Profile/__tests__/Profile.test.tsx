@@ -121,7 +121,7 @@ describe('ProfilePage', () => {
 
   it('renders error fallback when profile fails to load', async () => {
     server.use(
-      http.get('*/api/users/by-username/:username', () => {
+      http.get('*/users/by-username/:username', () => {
         return HttpResponse.json({ message: 'User not found' }, { status: 404 });
       }),
     );
