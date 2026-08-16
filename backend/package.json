@@ -27,7 +27,9 @@
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
     "test:mutation": "stryker run",
-    "test:pact:verify": "ts-node -P tsconfig.json test/pact-verify.ts"
+    "test:pact:verify": "ts-node -P tsconfig.json test/pact-verify.ts",
+    "test:ci": "jest --ci --forceExit --passWithNoTests --detectOpenHandles",
+    "test:cov:ci": "jest --coverage --ci --forceExit --passWithNoTests --detectOpenHandles"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1107.0",

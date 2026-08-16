@@ -24,7 +24,9 @@
     "storybook": "storybook dev -p 6006",
     "build:storybook": "storybook build",
     "test:mutation": "stryker run",
-    "test:contract": "vitest run --config vitest.contract.config.ts"
+    "test:contract": "vitest run --config vitest.contract.config.ts",
+    "test:ci": "vitest run --config vitest.config.ts --reporter=default --reporter=github-actions",
+    "test:cov:ci": "vitest run --config vitest.config.ts --coverage --reporter=default --reporter=github-actions"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
