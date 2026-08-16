@@ -1,3 +1,6 @@
+// @vitest-environment jsdom
+// The default test environment is happy-dom, but this suite's userEvent typing
+// into the masked username input does not register under it; jsdom is exact.
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';

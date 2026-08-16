@@ -74,6 +74,7 @@
     "eslint-plugin-react-refresh": "^0.5.3",
     "glob": "^10.4.5",
     "globals": "^17.6.0",
+    "happy-dom": "^20.11.2",
     "jsdoc-type-pratt-parser": "^4.1.0",
     "jsdom": "^26.1.0",
     "lru-cache": "^10.4.3",

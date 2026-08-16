@@ -12,7 +12,7 @@ export default defineConfig({
   },
   test: {
     globals: true,
-    environment: 'jsdom',
+    environment: 'happy-dom',
     setupFiles: ['./src/test/setup.ts'],
     // Contract tests need a real Node environment and run via test:contract;
     // e2e/ specs belong to Playwright, not Vitest.
