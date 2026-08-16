@@ -141,6 +141,9 @@
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
+    "transformIgnorePatterns": [
+      "node_modules/(?!(\\.pnpm/)?(sanitize-html|htmlparser2|domutils|domhandler|dom-serializer|entities|domelementtype))"
+    ],
     "collectCoverageFrom": [
       "**/*.(t|j)s",
       "!**/*.module.ts",
