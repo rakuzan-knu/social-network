@@ -34,6 +34,9 @@ jobs:
       - name: Install deps
         run: pnpm install --frozen-lockfile --ignore-scripts
 
+      - name: Generate Prisma Client
+        run: pnpm --filter backend exec prisma generate
+
       - name: Build Storybook
         run: pnpm --filter frontend run build:storybook
 
@@ -51,7 +54,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: build-storybook
-    if: ${{ secrets.CHROMATIC_TOKEN != '' }}
     permissions:
       contents: read
       pull-requests: write
@@ -77,6 +79,7 @@ jobs:
           path: frontend/storybook-static
 
       - name: Publish to Chromatic
+        if: env.CHROMATIC_PROJECT_TOKEN != ''
         working-directory: frontend
         run: pnpm exec chromatic --storybook-build-dir=storybook-static --exit-once-uploaded
         env:
