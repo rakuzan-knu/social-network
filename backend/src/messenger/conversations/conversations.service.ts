@@ -8,8 +8,11 @@ import {
   forwardRef,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
-import sharp from 'sharp';
+import { S3Client } from '@aws-sdk/client-s3';
+import {
+  optimizeGroupAvatar,
+  uploadToStorageWithFallback,
+} from '../../common/media/image-processor';
 import { UsersService } from '../../users/users.service';
 import { PrismaService } from '@common/prisma';
 import { MessengerGateway } from '../gateway/messenger.gateway';

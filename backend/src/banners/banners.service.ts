@@ -1,11 +1,15 @@
 import { Injectable, Inject, NotFoundException, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
-import sharp from 'sharp';
+import type { S3Client } from '@aws-sdk/client-s3';
 import { BANNER_S3_CLIENT } from './s3-provider';
 import { BANNER_REPOSITORY } from './interfaces/banners-repository.interface';
 import type { IBannerRepository, BannerView } from './interfaces/banners-repository.interface';
 import { RedisService } from '../redis/redis.service';
+import {
+  optimizeBanner,
+  uploadToStorageWithFallback,
+  deleteFromStorage,
+} from '../common/media/image-processor';
 
 @Injectable()
 export class BannersService {
@@ -36,7 +40,11 @@ export class BannersService {
     }
 
     if (user.banner) {
-      await this.deleteObjectByUrl(user.banner).catch(() => {});
+      await deleteFromStorage(this.s3, {
+        url: user.banner,
+        bucket: this.bucket,
+        publicUrl: this.publicUrl,
+      }).catch(() => {});
     }
 
     let uploadBuffer = file.buffer;
@@ -107,7 +115,11 @@ export class BannersService {
     }
 
     if (user.banner) {
-      await this.deleteObjectByUrl(user.banner).catch(() => {});
+      await deleteFromStorage(this.s3, {
+        url: user.banner,
+        bucket: this.bucket,
+        publicUrl: this.publicUrl,
+      }).catch(() => {});
     }
 
     const view = await this.bannerRepository.updateBanner(userId, null);
@@ -118,11 +130,5 @@ export class BannersService {
       // Safe non-blocking cache invalidation
     }
     return view;
-  }
-
-  private async deleteObjectByUrl(url: string): Promise<void> {
-    if (!url || url.startsWith('data:') || !url.startsWith(this.publicUrl)) return;
-    const key = url.replace(`${this.publicUrl}/${this.bucket}/`, '');
-    await this.s3.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key })).catch(() => {});
   }
 }

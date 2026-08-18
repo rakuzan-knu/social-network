@@ -1,10 +1,10 @@
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
-import sharp from 'sharp';
+import type { S3Client } from '@aws-sdk/client-s3';
 import { MediaType } from '@prisma/client';
 import { POSTS_S3_CLIENT } from './s3-provider';
 import { uid } from 'uid';
+import { optimizePostImage, uploadToStorageWithFallback } from '../common/media/image-processor';
 
 export type ProcessedMedia = {
   type: MediaType;
@@ -99,10 +99,9 @@ export class PostsMediaService {
     }
 
     const fileId = uid(16);
-    const key = `posts/${fileId}.${ext}`;
-
     let uploadBuffer = file.buffer;
     let contentType = file.mimetype;
+    let fileExt = ext;
 
     if (type === MediaType.IMAGE) {
       if (ext === 'gif') {
@@ -136,6 +135,22 @@ export class PostsMediaService {
         url = `data:${contentType};base64,${uploadBuffer.toString('base64')}`;
       }
     }
+      // Re-encode all images through Sharp for safety, compression, and privacy
+      const optimized = await optimizePostImage(file.buffer);
+      uploadBuffer = optimized.buffer;
+      contentType = optimized.contentType;
+      fileExt = optimized.ext;
+    }
+
+    const key = `posts/${fileId}.${fileExt}`;
+
+    const url = await uploadToStorageWithFallback(this.s3, {
+      bucket: this.bucket,
+      key,
+      buffer: uploadBuffer,
+      contentType,
+      publicUrl: this.publicUrl,
+    });
 
     return {
       type,

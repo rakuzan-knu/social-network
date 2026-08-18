@@ -1,11 +1,15 @@
 import { Injectable, Inject, NotFoundException, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
-import sharp from 'sharp';
+import type { S3Client } from '@aws-sdk/client-s3';
 import { S3_CLIENT } from './s3-provider';
 import { AVATAR_REPOSITORY } from './interfaces/avatars-repository.interface';
 import type { IAvatarRepository, AvatarView } from './interfaces/avatars-repository.interface';
 import { RedisService } from '../redis/redis.service';
+import {
+  optimizeAvatar,
+  uploadToStorageWithFallback,
+  deleteFromStorage,
+} from '../common/media/image-processor';
 
 @Injectable()
 export class AvatarsService {
@@ -32,7 +36,11 @@ export class AvatarsService {
     }
 
     if (user.avatar) {
-      await this.deleteObjectByUrl(user.avatar).catch(() => {});
+      await deleteFromStorage(this.s3, {
+        url: user.avatar,
+        bucket: this.bucket,
+        publicUrl: this.publicUrl,
+      }).catch(() => {});
     }
 
     let uploadBuffer = file.buffer;
@@ -103,7 +111,11 @@ export class AvatarsService {
     }
 
     if (user.avatar) {
-      await this.deleteObjectByUrl(user.avatar).catch(() => {});
+      await deleteFromStorage(this.s3, {
+        url: user.avatar,
+        bucket: this.bucket,
+        publicUrl: this.publicUrl,
+      }).catch(() => {});
     }
 
     const updated = await this.avatarRepository.updateAvatar(userId, null);
@@ -114,11 +126,5 @@ export class AvatarsService {
       // Safe non-blocking cache invalidation
     }
     return updated;
-  }
-
-  private async deleteObjectByUrl(url: string): Promise<void> {
-    if (!url || url.startsWith('data:') || !url.startsWith(this.publicUrl)) return;
-    const key = url.replace(`${this.publicUrl}/${this.bucket}/`, '');
-    await this.s3.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key })).catch(() => {});
   }
 }
