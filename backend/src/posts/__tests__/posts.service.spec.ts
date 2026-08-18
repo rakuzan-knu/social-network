@@ -1,5 +1,5 @@
 import { ForbiddenException, GoneException, NotFoundException } from '@nestjs/common';
-import { MediaType } from '@prisma/client';
+import { MediaType } from '@common/contracts';
 import { PostsService } from '../posts.service';
 import type { PostsMediaService } from '../posts-media.service';
 import type { RedisService } from '../../redis/redis.service';
