@@ -12,7 +12,7 @@ import type { IPostRepository } from './interfaces/posts-repository.interface';
 import type { Paginated } from '../common/pagination';
 import { paginate } from '../common/pagination';
 import { RedisService } from '../redis/redis.service';
-import { PostsMediaService } from './posts-media.service';
+import { PostsMediaService, type ProcessedMedia } from './posts-media.service';
 import { PrismaService } from '@common/prisma';
 import { MessengerGateway } from '../messenger/gateway/messenger.gateway';
 import { WS_EVENTS } from '../messenger/events/ws-events';
@@ -118,7 +118,7 @@ export class PostsService {
     if (files && files.length > 0) {
       try {
         const processed = await this.mediaService.processUploadedFiles(files);
-        processed.forEach((item) => mediaItems.push(item));
+        processed.forEach((item: ProcessedMedia) => mediaItems.push(item));
       } catch {
         // Fallback: if files exist, don't crash the entire post if upload fails
         // but log and proceed
@@ -649,7 +649,7 @@ export class PostsService {
     totalChunks: number,
     file: Express.Multer.File,
   ) {
-    return this.mediaService.uploadChunk(uploadId, chunkIndex, totalChunks, file);
+    return await this.mediaService.uploadChunk(uploadId, chunkIndex, totalChunks, file);
   }
 
   getChunkStatus(uploadId: string) {

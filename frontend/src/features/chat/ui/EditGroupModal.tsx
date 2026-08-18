@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { X, Users, ShieldCheck, Camera, Loader2 } from 'lucide-react';
 import Avatar from '../../../shared/ui/Avatar';
 import GroupAvatarCollage from '../../../shared/ui/GroupAvatarCollage';
@@ -27,6 +27,15 @@ export default function EditGroupModal({
   const [avatarPreview, setAvatarPreview] = useState<string | null>(conversation.avatar ?? null);
   const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const lastObjectUrlRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (lastObjectUrlRef.current) {
+        URL.revokeObjectURL(lastObjectUrlRef.current);
+      }
+    };
+  }, []);
 
   const updateGroup = useUpdateGroup();
   const queryClient = useQueryClient();
@@ -36,12 +45,26 @@ export default function EditGroupModal({
   ).length;
   const memberCount = conversation.participants.length;
 
+  const safeAvatarPreview =
+    avatarPreview &&
+    (avatarPreview.startsWith('blob:') ||
+      avatarPreview.startsWith('https://') ||
+      avatarPreview.startsWith('http://'))
+      ? avatarPreview
+      : null;
+
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setAvatarFile(file);
-      setAvatarPreview(URL.createObjectURL(file));
+    if (!file) return;
+    if (!file.type.startsWith('image/')) return;
+
+    if (lastObjectUrlRef.current) {
+      URL.revokeObjectURL(lastObjectUrlRef.current);
     }
+    const newUrl = URL.createObjectURL(file);
+    lastObjectUrlRef.current = newUrl;
+    setAvatarFile(file);
+    setAvatarPreview(newUrl);
   };
 
   const handleSave = async (requestClose: () => void) => {
@@ -96,9 +119,9 @@ export default function EditGroupModal({
               className="group relative w-16 h-16 rounded-full overflow-hidden flex-shrink-0 cursor-pointer border-2 border-white/10 hover:border-purple-500/50 shadow-md transition-all duration-300"
               title="Click to change group avatar"
             >
-              {avatarPreview ? (
+              {safeAvatarPreview ? (
                 <img
-                  src={avatarPreview}
+                  src={safeAvatarPreview}
                   alt="Group avatar"
                   className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                 />
