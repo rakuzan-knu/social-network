@@ -382,7 +382,11 @@ describe('PostsService', () => {
       });
 
       const result = await service.pinPost('post-100', 'usr-author-1');
-      expect(mockRedis.set).toHaveBeenCalledWith('user:pinned_post:usr-author-1', 'post-100');
+      expect(mockRedis.set).toHaveBeenCalledWith(
+        'user:pinned_post:usr-author-1',
+        'post-100',
+        expect.any(Number),
+      );
       expect(result.isPinned).toBe(true);
     });
 

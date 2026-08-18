@@ -8,8 +8,11 @@ import {
   forwardRef,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
-import sharp from 'sharp';
+import { S3Client } from '@aws-sdk/client-s3';
+import {
+  optimizeGroupAvatar,
+  uploadToStorageWithFallback,
+} from '../../common/media/image-processor';
 import { UsersService } from '../../users/users.service';
 import { PrismaService } from '@common/prisma';
 import { MessengerGateway } from '../gateway/messenger.gateway';
@@ -619,37 +622,7 @@ export class ConversationsService {
       throw new BadRequestException('Invalid avatar file');
     }
 
-    let uploadBuffer = file.buffer;
-    let contentType = file.mimetype || 'image/jpeg';
-    let extension = file.originalname?.split('.').pop()?.toLowerCase() || 'jpg';
-
-    const isGif =
-      contentType.toLowerCase() === 'image/gif' ||
-      extension === 'gif' ||
-      (file.buffer.length >= 6 && file.buffer.toString('ascii', 0, 3) === 'GIF');
-
-    try {
-      if (isGif) {
-        uploadBuffer = await sharp(file.buffer, { animated: true })
-          .resize(512, 512, { fit: 'cover', withoutEnlargement: true })
-          .gif()
-          .toBuffer();
-        contentType = 'image/gif';
-        extension = 'gif';
-      } else {
-        uploadBuffer = await sharp(file.buffer)
-          .resize(512, 512, { fit: 'cover' })
-          .webp({ quality: 85 })
-          .toBuffer();
-        contentType = 'image/webp';
-        extension = 'webp';
-      }
-    } catch {
-      if (isGif) {
-        contentType = 'image/gif';
-        extension = 'gif';
-      }
-    }
+    const { buffer: processedBuffer, contentType, ext } = await optimizeGroupAvatar(file.buffer);
 
     const bucket = this.configService.get<string>('MINIO_BUCKET_AVATARS', 'avatars');
     const publicUrl =
@@ -657,18 +630,15 @@ export class ConversationsService {
       this.configService.get<string>('S3_PUBLIC_URL') ??
       'http://localhost:9000';
 
-    const key = `group-avatars/${conversationId}.${extension}`;
+    const key = `group-avatars/${conversationId}.${ext}`;
 
-    await this.s3.send(
-      new PutObjectCommand({
-        Bucket: bucket,
-        Key: key,
-        Body: uploadBuffer,
-        ContentType: contentType,
-      }),
-    );
-
-    const avatarUrl = `${publicUrl}/${bucket}/${key}`;
+    const avatarUrl = await uploadToStorageWithFallback(this.s3, {
+      bucket,
+      key,
+      buffer: processedBuffer,
+      contentType,
+      publicUrl,
+    });
 
     await this.prisma.conversation.update({
       where: { id: conversationId },
