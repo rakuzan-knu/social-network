@@ -105,9 +105,18 @@ export class PostsMediaService {
     let contentType = file.mimetype;
 
     if (type === MediaType.IMAGE) {
-      // Re-encode all images through Sharp for safety
-      uploadBuffer = await sharp(file.buffer).webp({ quality: 85 }).toBuffer();
-      contentType = 'image/webp';
+      if (ext === 'gif') {
+        try {
+          uploadBuffer = await sharp(file.buffer, { animated: true }).gif().toBuffer();
+          contentType = 'image/gif';
+        } catch {
+          uploadBuffer = file.buffer;
+          contentType = 'image/gif';
+        }
+      } else {
+        uploadBuffer = await sharp(file.buffer).webp({ quality: 85 }).toBuffer();
+        contentType = 'image/webp';
+      }
     }
 
     let url = `${this.publicUrl}/${this.bucket}/${key}`;

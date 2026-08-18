@@ -4,6 +4,7 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  Optional,
   forwardRef,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -11,6 +12,7 @@ import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import sharp from 'sharp';
 import { UsersService } from '../../users/users.service';
 import { PrismaService } from '@common/prisma';
+import { MessengerGateway } from '../gateway/messenger.gateway';
 import { CONVERSATIONS_REPOSITORY } from '../interfaces/conversations-repository.interface';
 import type { IConversationsRepository } from '../interfaces/conversations-repository.interface';
 import { MESSAGES_REPOSITORY } from '../interfaces/messages-repository.interface';
@@ -45,6 +47,9 @@ export class ConversationsService {
     private readonly mapper: MessengerMapper,
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
+    @Optional()
+    @Inject(forwardRef(() => MessengerGateway))
+    private readonly gateway?: MessengerGateway,
   ) {
     this.s3 = new S3Client({
       endpoint:
@@ -175,6 +180,20 @@ export class ConversationsService {
     }
 
     await this.convsRepo.updateGroup(conversationId, dto);
+
+    if (dto.name && dto.name !== conv.name) {
+      const user = await this.prisma.user.findUnique({ where: { id: userId } });
+      const userName = user?.displayName || user?.username || 'User';
+      await this.prisma.message.create({
+        data: {
+          conversationId,
+          senderId: userId,
+          messageType: 'SYSTEM',
+          body: `Пользователь ${userName} сменил название группы на ${dto.name}`,
+        },
+      });
+    }
+
     return this.getConversation(conversationId, userId);
   }
 
@@ -228,8 +247,52 @@ export class ConversationsService {
     if (target.role === 'OWNER') {
       throw new ForbiddenException('Cannot remove the owner');
     }
+    if (admin.role === 'ADMIN' && target.role === 'ADMIN') {
+      throw new ForbiddenException('Admins cannot remove other admins');
+    }
 
     await this.convsRepo.removeParticipant(conversationId, targetUserId);
+  }
+
+  async updateAdminPermissions(
+    conversationId: string,
+    ownerId: string,
+    targetUserId: string,
+    permissions: {
+      canEditGroup?: boolean;
+      canDeleteMessages?: boolean;
+      canManageMembers?: boolean;
+      canPinMessages?: boolean;
+      canInviteUsers?: boolean;
+    },
+  ): Promise<{ success: boolean; permissions: Record<string, boolean> }> {
+    const conv = await this.convsRepo.findOneForUser(conversationId, ownerId);
+    if (!conv) throw new NotFoundException('Conversation not found');
+    if (conv.type !== 'GROUP') {
+      throw new BadRequestException('Admin permissions are only applicable to group conversations');
+    }
+
+    const owner = conv.participants.find((p) => p.userId === ownerId);
+    if (!owner || owner.role !== 'OWNER') {
+      throw new ForbiddenException('Only the group owner can customize admin permissions');
+    }
+
+    const target = conv.participants.find((p) => p.userId === targetUserId);
+    if (!target) throw new NotFoundException('Target user not in group');
+    if (target.role !== 'ADMIN') {
+      throw new BadRequestException('Target user must have ADMIN role');
+    }
+
+    return {
+      success: true,
+      permissions: {
+        canEditGroup: permissions.canEditGroup ?? true,
+        canDeleteMessages: permissions.canDeleteMessages ?? true,
+        canManageMembers: permissions.canManageMembers ?? true,
+        canPinMessages: permissions.canPinMessages ?? true,
+        canInviteUsers: permissions.canInviteUsers ?? true,
+      },
+    };
   }
 
   async leaveConversation(conversationId: string, userId: string): Promise<void> {
@@ -437,12 +500,84 @@ export class ConversationsService {
     });
   }
 
-  async deleteConversation(conversationId: string, userId: string): Promise<void> {
+  async deleteConversation(conversationId: string, userId: string, forAll = false): Promise<void> {
     const conv = await this.convsRepo.findOneForUser(conversationId, userId);
     if (!conv) throw new NotFoundException('Conversation not found');
-    await this.convsRepo.updateParticipant(conversationId, userId, {
-      leftAt: new Date(),
-    });
+
+    const participant = conv.participants.find((p) => p.userId === userId);
+    if (!participant || participant.leftAt) {
+      throw new ForbiddenException('You are not an active participant in this conversation');
+    }
+
+    const participantIds = await this.convsRepo.findParticipantIds(conversationId);
+
+    if (forAll) {
+      if (conv.type === 'GROUP') {
+        if (participant.role !== 'ADMIN' && participant.role !== 'OWNER') {
+          throw new ForbiddenException('Only admins or owners can delete group for everyone');
+        }
+      }
+      await this.prisma.conversation.delete({
+        where: { id: conversationId },
+      });
+      this.gateway?.emitConversationDeleted(conversationId, participantIds);
+    } else {
+      await this.convsRepo.updateParticipant(conversationId, userId, {
+        leftAt: new Date(),
+      });
+      const messages = await this.prisma.message.findMany({
+        where: { conversationId },
+        select: { id: true },
+      });
+      if (messages.length > 0) {
+        await this.prisma.messageDeletion.createMany({
+          data: messages.map((m) => ({ messageId: m.id, userId })),
+          skipDuplicates: true,
+        });
+      }
+    }
+  }
+
+  async clearHistory(conversationId: string, userId: string, forAll = false): Promise<void> {
+    const conv = await this.convsRepo.findOneForUser(conversationId, userId);
+    if (!conv) throw new NotFoundException('Conversation not found');
+
+    const participant = conv.participants.find((p) => p.userId === userId);
+    if (!participant || participant.leftAt) {
+      throw new ForbiddenException('You are not an active participant in this conversation');
+    }
+
+    const participantIds = await this.convsRepo.findParticipantIds(conversationId);
+
+    if (forAll) {
+      if (conv.type === 'GROUP') {
+        if (participant.role !== 'ADMIN' && participant.role !== 'OWNER') {
+          throw new ForbiddenException('Only admins or owners can clear history for everyone');
+        }
+      }
+      await this.prisma.message.updateMany({
+        where: { conversationId },
+        data: {
+          body: null,
+          messageType: 'DELETED',
+          deletedAt: new Date(),
+          deletedForAll: true,
+        },
+      });
+      this.gateway?.emitMessagesCleared(conversationId, participantIds);
+    } else {
+      const messages = await this.prisma.message.findMany({
+        where: { conversationId },
+        select: { id: true },
+      });
+      if (messages.length > 0) {
+        await this.prisma.messageDeletion.createMany({
+          data: messages.map((m) => ({ messageId: m.id, userId })),
+          skipDuplicates: true,
+        });
+      }
+      this.gateway?.emitMessagesCleared(conversationId, [userId]);
+    }
   }
 
   async pinConversation(conversationId: string, userId: string): Promise<void> {
@@ -484,10 +619,37 @@ export class ConversationsService {
       throw new BadRequestException('Invalid avatar file');
     }
 
-    const processedBuffer = await sharp(file.buffer)
-      .resize(512, 512, { fit: 'cover' })
-      .webp({ quality: 85 })
-      .toBuffer();
+    let uploadBuffer = file.buffer;
+    let contentType = file.mimetype || 'image/jpeg';
+    let extension = file.originalname?.split('.').pop()?.toLowerCase() || 'jpg';
+
+    const isGif =
+      contentType.toLowerCase() === 'image/gif' ||
+      extension === 'gif' ||
+      (file.buffer.length >= 6 && file.buffer.toString('ascii', 0, 3) === 'GIF');
+
+    try {
+      if (isGif) {
+        uploadBuffer = await sharp(file.buffer, { animated: true })
+          .resize(512, 512, { fit: 'cover', withoutEnlargement: true })
+          .gif()
+          .toBuffer();
+        contentType = 'image/gif';
+        extension = 'gif';
+      } else {
+        uploadBuffer = await sharp(file.buffer)
+          .resize(512, 512, { fit: 'cover' })
+          .webp({ quality: 85 })
+          .toBuffer();
+        contentType = 'image/webp';
+        extension = 'webp';
+      }
+    } catch {
+      if (isGif) {
+        contentType = 'image/gif';
+        extension = 'gif';
+      }
+    }
 
     const bucket = this.configService.get<string>('MINIO_BUCKET_AVATARS', 'avatars');
     const publicUrl =
@@ -495,14 +657,14 @@ export class ConversationsService {
       this.configService.get<string>('S3_PUBLIC_URL') ??
       'http://localhost:9000';
 
-    const key = `group-avatars/${conversationId}.webp`;
+    const key = `group-avatars/${conversationId}.${extension}`;
 
     await this.s3.send(
       new PutObjectCommand({
         Bucket: bucket,
         Key: key,
-        Body: processedBuffer,
-        ContentType: 'image/webp',
+        Body: uploadBuffer,
+        ContentType: contentType,
       }),
     );
 
@@ -511,6 +673,18 @@ export class ConversationsService {
     await this.prisma.conversation.update({
       where: { id: conversationId },
       data: { avatar: avatarUrl },
+    });
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const userName = user?.displayName || user?.username || 'User';
+
+    await this.prisma.message.create({
+      data: {
+        conversationId,
+        senderId: userId,
+        messageType: 'SYSTEM',
+        body: `Пользователь ${userName} сменил значок группы`,
+      },
     });
 
     return { avatarUrl };

@@ -41,17 +41,36 @@ export class BannersService {
 
     let uploadBuffer = file.buffer;
     let contentType = file.mimetype || 'image/jpeg';
-    let extension = file.originalname?.split('.').pop() || 'jpg';
+    let extension = file.originalname?.split('.').pop()?.toLowerCase() || 'jpg';
+
+    const isGif =
+      contentType.toLowerCase() === 'image/gif' ||
+      extension === 'gif' ||
+      (file.buffer.length >= 6 && file.buffer.toString('ascii', 0, 3) === 'GIF');
 
     try {
-      uploadBuffer = await sharp(file.buffer)
-        .resize(1920, 1080, { fit: 'inside', withoutEnlargement: true })
-        .webp({ quality: 85 })
-        .toBuffer();
-      contentType = 'image/webp';
-      extension = 'webp';
+      if (isGif) {
+        // Preserve animated GIF frames for banner
+        uploadBuffer = await sharp(file.buffer, { animated: true })
+          .resize(1920, 1080, { fit: 'inside', withoutEnlargement: true })
+          .gif()
+          .toBuffer();
+        contentType = 'image/gif';
+        extension = 'gif';
+      } else {
+        uploadBuffer = await sharp(file.buffer)
+          .resize(1920, 1080, { fit: 'inside', withoutEnlargement: true })
+          .webp({ quality: 85 })
+          .toBuffer();
+        contentType = 'image/webp';
+        extension = 'webp';
+      }
     } catch {
       // Fallback to original buffer
+      if (isGif) {
+        contentType = 'image/gif';
+        extension = 'gif';
+      }
     }
 
     const key = `banners/${userId}.${extension}`;
