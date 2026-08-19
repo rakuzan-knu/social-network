@@ -1,23 +1,15 @@
 import { create } from 'zustand';
 import {
-  derivePassword,
-  verifyPassword,
+  derivePasswordVerifier,
+  verifyPasswordVerifier,
   type DerivedPassword,
 } from '@/shared/lib/derivePasswordHash';
 
-const STORAGE_KEY = 'eternal-device-auth-v1';
-const LEGACY_STORAGE_KEY = 'eternal-device-password';
+const STORAGE_KEY = 'eternal-device-auth-v2';
+const LEGACY_V1_KEY = 'eternal-device-auth-v1';
+const LEGACY_V0_KEY = 'eternal-device-password';
 
-function encryptStorageToken(data: DerivedPassword): string {
-  const json = JSON.stringify(data);
-  const bytes = new TextEncoder().encode(json);
-  const hex = Array.from(bytes)
-    .map((b, i) => (b ^ (0x5c ^ (i % 11))).toString(16).padStart(2, '0'))
-    .join('');
-  return btoa(hex);
-}
-
-function decryptStorageToken(raw: string): DerivedPassword | null {
+function parseLegacyV1Token(raw: string): DerivedPassword | null {
   try {
     const hex = atob(raw);
     const bytes = new Uint8Array(hex.length / 2);
@@ -36,18 +28,30 @@ function decryptStorageToken(raw: string): DerivedPassword | null {
 function loadStored(): DerivedPassword | null {
   if (typeof window === 'undefined') return null;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const decoded = decryptStorageToken(raw);
-      if (decoded) return decoded;
+    const current = localStorage.getItem(STORAGE_KEY);
+    if (current) {
+      const parsed = JSON.parse(current) as DerivedPassword;
+      if (parsed?.salt && parsed?.hash && parsed?.algo) return parsed;
     }
-    // Migration check for legacy unencrypted key
-    const legacy = localStorage.getItem(LEGACY_STORAGE_KEY);
-    if (legacy) {
-      const parsed = JSON.parse(legacy) as DerivedPassword;
+
+    // Migration from v1 obfuscated token format
+    const legacyV1 = localStorage.getItem(LEGACY_V1_KEY);
+    if (legacyV1) {
+      const decoded = parseLegacyV1Token(legacyV1);
+      if (decoded) {
+        saveStored(decoded);
+        localStorage.removeItem(LEGACY_V1_KEY);
+        return decoded;
+      }
+    }
+
+    // Migration from legacy unencrypted key format
+    const legacyV0 = localStorage.getItem(LEGACY_V0_KEY);
+    if (legacyV0) {
+      const parsed = JSON.parse(legacyV0) as DerivedPassword;
       if (parsed?.salt && parsed?.hash && parsed?.algo) {
         saveStored(parsed);
-        localStorage.removeItem(LEGACY_STORAGE_KEY);
+        localStorage.removeItem(LEGACY_V0_KEY);
         return parsed;
       }
     }
@@ -62,10 +66,12 @@ function saveStored(value: DerivedPassword | null) {
   try {
     if (value === null) {
       localStorage.removeItem(STORAGE_KEY);
-      localStorage.removeItem(LEGACY_STORAGE_KEY);
+      localStorage.removeItem(LEGACY_V1_KEY);
+      localStorage.removeItem(LEGACY_V0_KEY);
     } else {
-      const encryptedToken = encryptStorageToken(value);
-      localStorage.setItem(STORAGE_KEY, encryptedToken);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
+      localStorage.removeItem(LEGACY_V1_KEY);
+      localStorage.removeItem(LEGACY_V0_KEY);
     }
   } catch {
     // ignore write failures (private mode, quota, etc.)
@@ -80,6 +86,7 @@ interface DevicePasswordState {
   verify: (plain: string) => Promise<boolean>;
   unlock: () => void;
   disable: () => void;
+  rehydrate: () => void;
 }
 
 export const useDevicePasswordStore = create<DevicePasswordState>((set, get) => ({
@@ -87,14 +94,14 @@ export const useDevicePasswordStore = create<DevicePasswordState>((set, get) => 
   unlocked: false,
   isEnabled: () => get().stored !== null,
   setPassword: async (plain) => {
-    const stored = await derivePassword(plain);
+    const stored = await derivePasswordVerifier(plain);
     saveStored(stored);
     set({ stored, unlocked: true });
   },
   verify: async (plain) => {
     const { stored } = get();
     if (!stored) return false;
-    const ok = await verifyPassword(plain, stored);
+    const ok = await verifyPasswordVerifier(plain, stored);
     if (ok) set({ unlocked: true });
     return ok;
   },
@@ -102,5 +109,8 @@ export const useDevicePasswordStore = create<DevicePasswordState>((set, get) => 
   disable: () => {
     saveStored(null);
     set({ stored: null, unlocked: false });
+  },
+  rehydrate: () => {
+    set({ stored: loadStored() });
   },
 }));
