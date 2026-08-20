@@ -2,9 +2,6 @@ import React, { lazy, Suspense } from 'react';
 import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
 
 import Sidebar from '../widgets/sidebar/ui/Sidebar';
-import EditProfileModal from '../features/profile/ui/EditProfileModal';
-import { ShareModal } from '../features/posts/ui/ShareModal';
-import { CommentModal } from '../features/comment/ui/CommentModal';
 import { UndoHideSnackbar } from '../features/posts/ui/UndoHideSnackbar';
 import { UndoClearHistorySnackbar } from '../features/chat/ui/UndoClearHistorySnackbar';
 import DeviceLockGate from '../features/profile/ui/security/DeviceLockGate';
@@ -13,6 +10,14 @@ import FloatingVideoNotePiP from '../features/chat/ui/FloatingVideoNotePiP';
 
 import { useUIStore } from '../shared/model/useUIStore';
 import { useAuthStore } from '../shared/model/useAuthStore';
+
+const EditProfileModal = lazy(() => import('../features/profile/ui/EditProfileModal'));
+const ShareModal = lazy(() =>
+  import('../features/posts/ui/ShareModal').then((m) => ({ default: m.ShareModal })),
+);
+const CommentModal = lazy(() =>
+  import('../features/comment/ui/CommentModal').then((m) => ({ default: m.CommentModal })),
+);
 
 const FeedPage = lazy(() => import('../pages/Feed/Feed'));
 const ProfilePage = lazy(() => import('../pages/Profile/Profile'));
@@ -95,9 +100,11 @@ export default function App() {
     <DeviceLockGate>
       <div className="relative min-h-screen bg-[#070709] text-white">
         {!isMessengerRoute && <Sidebar />}
-        <EditProfileModal />
-        <ShareModal />
-        <CommentModal />
+        <Suspense fallback={null}>
+          <EditProfileModal />
+          <ShareModal />
+          <CommentModal />
+        </Suspense>
         <UndoHideSnackbar />
         <UndoClearHistorySnackbar />
         <FloatingVideoNotePiP />
