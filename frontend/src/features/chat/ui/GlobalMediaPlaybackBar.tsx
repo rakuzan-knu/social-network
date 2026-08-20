@@ -33,6 +33,7 @@ export default function GlobalMediaPlaybackBar({ onNearQueueEnd }: GlobalMediaPl
   const {
     activeMediaId,
     url,
+    mediaType,
     senderName,
     sentAt,
     currentTime,
@@ -61,10 +62,17 @@ export default function GlobalMediaPlaybackBar({ onNearQueueEnd }: GlobalMediaPl
   const [isSpeedOpen, setIsSpeedOpen] = useState(false);
   const speedMenuRef = useRef<HTMLDivElement | null>(null);
 
-  // Single Master Audio Node Sync
+  // Single Master Audio Node Sync (Audio/Voice only - Video notes use their own HTMLVideoElement)
   useEffect(() => {
     const audio = masterAudioRef.current;
-    if (!audio || !url) return;
+    if (!audio) return;
+
+    if (mediaType === 'video' || !url) {
+      if (!audio.paused) {
+        audio.pause();
+      }
+      return;
+    }
 
     if (audio.src !== url) {
       audio.src = url;
@@ -73,18 +81,18 @@ export default function GlobalMediaPlaybackBar({ onNearQueueEnd }: GlobalMediaPl
         audio.play().catch(() => {});
       }
     }
-  }, [url, isPlaying]);
+  }, [url, mediaType, isPlaying, setIsPlaying]);
 
   useEffect(() => {
     const audio = masterAudioRef.current;
-    if (!audio) return;
+    if (!audio || mediaType === 'video') return;
 
     if (isPlaying && audio.paused) {
       audio.play().catch(() => {});
     } else if (!isPlaying && !audio.paused) {
       audio.pause();
     }
-  }, [isPlaying]);
+  }, [isPlaying, mediaType, setIsPlaying]);
 
   useEffect(() => {
     const audio = masterAudioRef.current;

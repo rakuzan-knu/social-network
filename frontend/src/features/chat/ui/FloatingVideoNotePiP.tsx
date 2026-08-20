@@ -77,7 +77,7 @@ export default function FloatingVideoNotePiP() {
 
   // Determine visibility: active video note, and user is outside the current chat thread
   const isInCurrentChat =
-    location.pathname.startsWith('/chat') &&
+    (location.pathname.startsWith('/chat') || location.pathname.startsWith('/messages')) &&
     Boolean(conversationId && currentViewingChatId === conversationId);
 
   const shouldShow = Boolean(
