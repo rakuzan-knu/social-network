@@ -128,4 +128,72 @@ describe('CommentModal', () => {
       );
     });
   });
+
+  it('submits a reply passing parentId and target userId', async () => {
+    (commentsApi.addComment as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      id: 'c-reply-1',
+      text: '@janedoe Nice!',
+      time: 'just now',
+      handle: 'johndoe',
+      author: 'John Doe',
+      userId: 'usr-1',
+      parentId: 'c-1',
+      replyToUserId: 'usr-jane',
+      likesCount: 0,
+      isLiked: false,
+      replyCount: 0,
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <CommentModal />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Great post!')).toBeInTheDocument();
+    });
+
+    const replyBtn = screen.getByText('Reply');
+    fireEvent.click(replyBtn);
+
+    const textarea = screen.getByPlaceholderText(/Reply to @janedoe.../i);
+    fireEvent.change(textarea, { target: { value: '@janedoe Nice!' } });
+
+    const submitBtn = screen.getByTitle('Send comment');
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(commentsApi.addComment).toHaveBeenCalledWith(
+        'post-123',
+        '@janedoe Nice!',
+        'c-1',
+        undefined,
+        'usr-jane',
+        expect.any(String),
+      );
+    });
+  });
+
+  it('renders error state and allows retry when getComments fails', async () => {
+    (commentsApi.getComments as unknown as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error('Internal server error'),
+    );
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <CommentModal />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Failed to load comments')).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+  });
 });

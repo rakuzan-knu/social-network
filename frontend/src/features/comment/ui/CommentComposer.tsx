@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Send, Image as ImageIcon, X, Loader2 } from 'lucide-react';
 import { AddEmojiButton } from '../../../shared/ui/AddEmojiButton';
 import { MentionAutocomplete } from '../../posts/ui/MentionAutocomplete';
+import { commentsApi } from '../api/commentsApi';
 
 const MAX_COMMENT_LENGTH = 1000;
 
@@ -72,7 +73,9 @@ export function CommentComposer({
     });
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const [uploadedMediaUrl, setUploadedMediaUrl] = useState<string | null>(null);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       if (file.size > 5 * 1024 * 1024) {
@@ -80,12 +83,25 @@ export function CommentComposer({
         return;
       }
       setIsUploadingImage(true);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
+      try {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setImagePreview(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+
+        // Attempt server-side image optimization & upload
+        try {
+          const res = await commentsApi.uploadMedia(file);
+          if (res?.url) {
+            setUploadedMediaUrl(res.url);
+          }
+        } catch {
+          // If server upload endpoint is unreachable, fallback to inline preview
+        }
+      } finally {
         setIsUploadingImage(false);
-      };
-      reader.readAsDataURL(file);
+      }
     }
   };
 
@@ -105,17 +121,27 @@ export function CommentComposer({
         ? crypto.randomUUID()
         : `mut-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
-    await onSubmit(text.trim(), imagePreview || undefined, replyingTo?.commentId, clientMutationId);
+    const finalMediaUrl = uploadedMediaUrl || imagePreview || undefined;
+
+    await onSubmit(text.trim(), finalMediaUrl, replyingTo?.commentId, clientMutationId);
     setText('');
     setImagePreview(null);
+    setUploadedMediaUrl(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
     onCancelReply();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    if (e.key === 'Enter') {
+      if (e.shiftKey) {
+        // Shift+Enter creates a new line (default behavior)
+        return;
+      }
+      // Regular Enter submits the comment
       e.preventDefault();
-      handleSubmit();
+      if (!e.nativeEvent.isComposing) {
+        handleSubmit();
+      }
     }
   };
 
@@ -160,6 +186,7 @@ export function CommentComposer({
               type="button"
               onClick={() => {
                 setImagePreview(null);
+                setUploadedMediaUrl(null);
                 if (fileInputRef.current) fileInputRef.current.value = '';
               }}
               className="absolute top-1 right-1 bg-black/80 hover:bg-red-600 text-white p-1 rounded-full transition-colors cursor-pointer"
@@ -233,7 +260,7 @@ export function CommentComposer({
               </span>
 
               <span className="hidden sm:inline text-[10px] text-gray-500 select-none">
-                Ctrl+Enter
+                Shift+Enter for newline
               </span>
             </div>
           </div>

@@ -14,6 +14,7 @@ import { LinkPreviewCard } from '../../../shared/ui/LinkPreviewCard';
 import TextWithSpoilers from '../../../shared/ui/TextWithSpoilers';
 import { extractFirstUrl } from '../../../shared/lib/urlUtils';
 import { ClusterPosition } from './MessageList';
+import { VideoNoteBubble } from './VideoNoteBubble';
 
 interface MessageBubbleProps {
   message: MessageView;
@@ -157,6 +158,26 @@ export default function MessageBubble({
     );
   }
 
+  const isLeaveMessage =
+    (message as unknown as { messageType?: string }).messageType === 'SYSTEM' &&
+    Boolean(
+      message.body?.includes('left the group') ||
+      message.body?.includes('left the conversation') ||
+      message.body?.includes('покинул(а) группу') ||
+      message.body?.includes('покинул группу') ||
+      message.body?.includes('вышел из группы'),
+    );
+
+  if (isLeaveMessage) {
+    return (
+      <div className="flex justify-center my-2.5 px-4 select-none">
+        <span className="text-center text-xs text-gray-400 font-normal leading-relaxed">
+          {message.body}
+        </span>
+      </div>
+    );
+  }
+
   const isSystem =
     (message as unknown as { messageType?: string }).messageType === 'SYSTEM' ||
     message.body?.startsWith('Пользователь ') ||
@@ -222,6 +243,18 @@ export default function MessageBubble({
     !firstExternalUrl;
 
   const pollData = parseChatPoll(message.body);
+
+  const isSingleVideoNote =
+    !pollData &&
+    !isSoloEmoji &&
+    !message.body &&
+    message.attachments?.length === 1 &&
+    message.attachments[0].type === 'VIDEO' &&
+    (message.attachments[0].fileName?.includes('video_note') ||
+      message.attachments[0].mimeType?.includes('video_note') ||
+      (message.attachments[0].width &&
+        message.attachments[0].height &&
+        message.attachments[0].width === message.attachments[0].height));
 
   const showHoverBar = (isHovered || isPickerOpen || isMenuOpen) && !isSelectionMode;
 
@@ -331,14 +364,32 @@ export default function MessageBubble({
                 <MessageContextMenu
                   message={message}
                   isOwnMessage={isOwnMessage}
-                  align={isOwnMessage ? 'right' : 'left'}
                   onClose={() => setMenuOpen(false)}
-                  onEdit={() => onEdit(message)}
-                  onDelete={() => setDeleteModalOpen(true)}
-                  onForward={() => onForward(message)}
-                  onTogglePin={() => onTogglePin(message)}
-                  onReport={() => onReport(message)}
-                  onSelectMessage={() => onToggleSelect?.(message.id, false)}
+                  onEdit={() => {
+                    setMenuOpen(false);
+                    onEdit(message);
+                  }}
+                  onDelete={() => {
+                    setMenuOpen(false);
+                    setDeleteModalOpen(true);
+                  }}
+                  onForward={() => {
+                    setMenuOpen(false);
+                    onForward(message);
+                  }}
+                  onTogglePin={() => {
+                    setMenuOpen(false);
+                    onTogglePin(message);
+                  }}
+                  onReport={() => {
+                    setMenuOpen(false);
+                    onReport(message);
+                  }}
+                  onSelectMessage={() => {
+                    setMenuOpen(false);
+                    onToggleSelect?.(message.id, false);
+                  }}
+                  align={isOwnMessage ? 'right' : 'left'}
                 />
               )}
             </div>
@@ -352,8 +403,11 @@ export default function MessageBubble({
           </div>
         )}
 
+        {/* Bubble Body with Multi-Selection Click Handling */}
         <div
-          className="max-w-[84%] sm:max-w-[74%] flex flex-col"
+          className={`relative max-w-[85%] sm:max-w-[70%] md:max-w-[60%] select-text transition-all ${
+            isSelectionMode ? 'cursor-pointer' : ''
+          }`}
           style={{ alignItems: isOwnMessage ? 'flex-end' : 'flex-start' }}
           onClick={(e) => {
             if (isSelectionMode) {
@@ -387,6 +441,24 @@ export default function MessageBubble({
                 {formatMessageTime(message.createdAt)}
                 {isOwnMessage && statusIcon}
               </span>
+            </div>
+          ) : isSingleVideoNote ? (
+            /* Circular Telegram-style Video Note without outer box */
+            <div className="relative select-none">
+              <VideoNoteBubble
+                attachment={message.attachments[0]}
+                senderName={
+                  isOwnMessage ? 'You' : message.sender.displayName || message.sender.username
+                }
+                sentAt={formatMessageTime(message.createdAt)}
+                conversationId={message.conversationId}
+              />
+              <div className="absolute bottom-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-white select-none pointer-events-none shadow-md z-10">
+                <span className="text-[10px] font-medium tracking-tight">
+                  {formatMessageTime(message.createdAt)}
+                </span>
+                {isOwnMessage && statusIcon}
+              </div>
             </div>
           ) : (
             /* Dark Liquid Glass Bubble */
@@ -435,22 +507,32 @@ export default function MessageBubble({
                     sentAt={formatMessageTime(message.createdAt)}
                     conversationId={message.conversationId}
                   />
-                  {!message.body && (
-                    <div
-                      className="absolute bottom-1.5 right-1.5 flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-white select-none"
-                      title={statusLabel}
-                    >
-                      <span className="text-[10px] font-normal tracking-tight">
-                        {formatMessageTime(message.createdAt)}
-                      </span>
-                      {isOwnMessage && statusIcon}
-                    </div>
-                  )}
+                  {!message.body &&
+                    !message.attachments.every((a) => a.type === 'AUDIO' || a.type === 'FILE') && (
+                      <div
+                        className="absolute bottom-1.5 right-1.5 flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-white select-none"
+                        title={statusLabel}
+                      >
+                        <span className="text-[10px] font-normal tracking-tight">
+                          {formatMessageTime(message.createdAt)}
+                        </span>
+                        {isOwnMessage && statusIcon}
+                      </div>
+                    )}
+                  {!message.body &&
+                    message.attachments.every((a) => a.type === 'AUDIO' || a.type === 'FILE') && (
+                      <div className="flex items-center justify-end gap-1 mt-1 px-1 select-none text-gray-400">
+                        <span className="text-[10px] font-normal tracking-tight">
+                          {formatMessageTime(message.createdAt)}
+                        </span>
+                        {isOwnMessage && statusIcon}
+                      </div>
+                    )}
                 </div>
               )}
 
               {message.body && (
-                <div className="relative text-[14.5px] leading-[1.38] break-words">
+                <div className="relative text-[14.5px] leading-[1.38] [overflow-wrap:anywhere] [word-break:break-word]">
                   {displayText && (
                     <span className="font-normal text-white">
                       <TextWithSpoilers text={displayText} />
@@ -463,7 +545,7 @@ export default function MessageBubble({
 
                   {firstExternalUrl && <LinkPreviewCard url={firstExternalUrl} />}
 
-                  <span className="inline-flex items-center gap-1 align-baseline float-right ml-2 mt-1 select-none whitespace-nowrap text-gray-400">
+                  <span className="float-right inline-flex items-center gap-1 ml-2.5 mt-0.5 select-none whitespace-nowrap text-gray-400 text-[11px] leading-none">
                     {message.isEdited && (
                       <span className="text-[10px] opacity-75 font-normal">edited</span>
                     )}
@@ -473,7 +555,7 @@ export default function MessageBubble({
 
                     {isOwnMessage && (
                       <span
-                        className="relative group/status inline-flex items-center cursor-default"
+                        className="relative group/status inline-flex items-center cursor-default ml-0.5"
                         title={statusLabel}
                       >
                         {statusIcon}

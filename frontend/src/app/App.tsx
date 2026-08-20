@@ -4,7 +4,9 @@ import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import Sidebar from '../widgets/sidebar/ui/Sidebar';
 import EditProfileModal from '../features/profile/ui/EditProfileModal';
 import { ShareModal } from '../features/posts/ui/ShareModal';
+import { CommentModal } from '../features/comment/ui/CommentModal';
 import { UndoHideSnackbar } from '../features/posts/ui/UndoHideSnackbar';
+import { UndoClearHistorySnackbar } from '../features/chat/ui/UndoClearHistorySnackbar';
 import DeviceLockGate from '../features/profile/ui/security/DeviceLockGate';
 import MessageToastViewport from '../features/chat/ui/MessageToastViewport';
 import FloatingVideoNotePiP from '../features/chat/ui/FloatingVideoNotePiP';
@@ -17,6 +19,11 @@ const ProfilePage = lazy(() => import('../pages/Profile/Profile'));
 const MessengerPage = lazy(() => import('../pages/Chat/Messenger'));
 const StandaloneChatPage = lazy(() => import('../pages/Chat/StandaloneChatPage'));
 const SearchPage = lazy(() => import('../pages/Search/SearchPage'));
+const NotificationsPage = lazy(() =>
+  import('../pages/Notifications/NotificationsPage').then((m) => ({
+    default: m.NotificationsPage,
+  })),
+);
 const LoginPage = lazy(() =>
   import('../pages/Login/LoginPage').then((m) => ({ default: m.LoginPage })),
 );
@@ -31,6 +38,7 @@ const ForgotPasswordPage = lazy(() =>
 
 import { OnlineFriendsSidebar } from '../widgets/sidebar/ui/OnlineFriendsSidebar';
 import { usePresenceSync } from '../features/chat/model/usePresence';
+import { useDynamicTabBadge } from '../shared/lib/useDynamicTabBadge';
 
 function PageFallback() {
   return (
@@ -63,6 +71,7 @@ export default function App() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
   usePresenceSync();
+  useDynamicTabBadge();
 
   if (!isAuthenticated) {
     return (
@@ -88,7 +97,9 @@ export default function App() {
         {!isMessengerRoute && <Sidebar />}
         <EditProfileModal />
         <ShareModal />
+        <CommentModal />
         <UndoHideSnackbar />
+        <UndoClearHistorySnackbar />
         <FloatingVideoNotePiP />
         {!isMessengerRoute && <MessageToastViewport />}
 
@@ -183,9 +194,7 @@ export default function App() {
                 path="/notifications"
                 element={
                   <CenteredPage>
-                    <div className="animate-fadeIn py-20 text-center text-gray-500">
-                      List of your notifications
-                    </div>
+                    <NotificationsPage />
                   </CenteredPage>
                 }
               />

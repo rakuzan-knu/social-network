@@ -101,7 +101,7 @@ export default function MessageComposer({
         ...uploaded,
         type: payload.mode === 'voice' ? 'AUDIO' : 'VIDEO',
         size: payload.file.size,
-        duration: payload.duration,
+        duration: payload.duration ? Math.round(payload.duration) : 0,
         waveform: payload.waveform,
         fileName: payload.file.name,
       };

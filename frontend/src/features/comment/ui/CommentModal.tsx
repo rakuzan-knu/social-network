@@ -22,7 +22,6 @@ import {
   USER_POSTS_KEY,
   SAVED_POSTS_KEY,
 } from '@/shared/api/queryKeys';
-import type { PostType } from '@/entities/post/model/types';
 import type { FeedPage } from '@/entities/post/api/postsApi';
 import type { CommentType } from '@/entities/comment/model/types';
 
@@ -37,6 +36,7 @@ export function CommentModal() {
     commentId: string;
     username: string;
     displayName?: string;
+    userId?: string;
   } | null>(null);
 
   const [reportingComment, setReportingComment] = useState<CommentType | null>(null);
@@ -44,7 +44,7 @@ export function CommentModal() {
   const postId = activePostForComments?.id ? String(activePostForComments.id) : '';
 
   // Infinite Scroll for Root Comments (20 items per page)
-  const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } =
+  const { data, isLoading, isError, refetch, isFetchingNextPage, hasNextPage, fetchNextPage } =
     useInfiniteQuery<CommentListPage>({
       queryKey: [COMMENTS_KEY, postId],
       queryFn: ({ pageParam }) =>
@@ -100,7 +100,7 @@ export function CommentModal() {
         text,
         parentId,
         mediaUrl,
-        replyingTo?.username,
+        replyingTo?.userId,
         clientMutationId,
       );
     },
@@ -388,6 +388,20 @@ export function CommentModal() {
                 <div className="w-6 h-6 animate-spin rounded-full border-2 border-purple-500 border-t-transparent" />
                 <span className="text-xs">Loading comments...</span>
               </div>
+            ) : isError ? (
+              <div className="flex flex-col items-center justify-center py-10 px-4 text-center rounded-2xl bg-red-500/[0.04] border border-red-500/20">
+                <p className="text-red-400 text-xs font-semibold">Failed to load comments</p>
+                <p className="text-gray-500 text-[11px] mt-1">
+                  Please check your connection and try again.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => refetch()}
+                  className="mt-3 px-3 py-1 text-xs font-medium text-purple-300 bg-purple-500/20 hover:bg-purple-500/30 rounded-xl border border-purple-500/30 transition-colors cursor-pointer"
+                >
+                  Retry
+                </button>
+              </div>
             ) : rootComments.length > 0 ? (
               <>
                 {rootComments.map((comment) => (
@@ -401,6 +415,7 @@ export function CommentModal() {
                         commentId: target.id,
                         username: target.handle,
                         displayName: target.author,
+                        userId: target.userId,
                       })
                     }
                     onDelete={(cId) => deleteCommentMutation.mutate(cId)}
