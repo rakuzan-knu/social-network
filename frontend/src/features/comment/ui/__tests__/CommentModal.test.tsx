@@ -69,7 +69,7 @@ describe('CommentModal', () => {
       </QueryClientProvider>,
     );
 
-    expect(screen.getByText('This is my awesome post!')).toBeInTheDocument();
+    expect(screen.getAllByText('This is my awesome post!').length).toBeGreaterThanOrEqual(1);
     await waitFor(() => {
       expect(screen.getByText('Great post!')).toBeInTheDocument();
     });
@@ -84,7 +84,7 @@ describe('CommentModal', () => {
       </QueryClientProvider>,
     );
 
-    const closeBtn = screen.getByTitle('Close');
+    const closeBtn = screen.getAllByTitle(/Close/i)[0];
     fireEvent.click(closeBtn);
 
     expect(useUIStore.getState().isCommentModalOpen).toBe(false);

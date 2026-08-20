@@ -263,7 +263,7 @@ export default function MessageBubble({
       id={`msg-${message.id}`}
       className={`group relative flex items-center gap-2 px-3 sm:px-4 py-0 ${verticalSpacingClass} ${
         isOwnMessage ? 'justify-end' : 'justify-start'
-      }`}
+      } ${showHoverBar ? 'z-20' : 'z-0'}`}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
@@ -549,26 +549,64 @@ export default function MessageBubble({
                     {message.isEdited && (
                       <span className="text-[10px] opacity-75 font-normal">edited</span>
                     )}
-                    <span className="text-[11px] font-normal tracking-tight">
-                      {formatMessageTime(message.createdAt)}
-                    </span>
+                  </>
+                )}
+              </div>
+            )}
 
                     {isOwnMessage && (
                       <span
                         className="relative group/status inline-flex items-center cursor-default ml-0.5"
                         title={statusLabel}
                       >
-                        {statusIcon}
-                        <span className="absolute bottom-full mb-1.5 right-1/2 translate-x-1/2 hidden group-hover/status:flex items-center px-2 py-0.5 rounded-md bg-black/90 text-white text-[10px] font-medium whitespace-nowrap shadow-lg border border-white/10 z-30 pointer-events-none animate-fadeIn">
-                          {statusLabel}
+                        <span className="text-[10px] font-normal tracking-tight">
+                          {formatMessageTime(message.createdAt)}
                         </span>
+                        {isOwnMessage && statusIcon}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {message.body && (
+                  <div className="relative text-[14.5px] leading-[1.38] break-words">
+                    {displayText && (
+                      <span className="font-normal text-white">
+                        <TextWithSpoilers text={displayText} />
                       </span>
                     )}
-                  </span>
-                </div>
-              )}
-            </div>
-          )}
+
+                    {embeddedPostId && (
+                      <PostEmbedCard postId={embeddedPostId} isOwnMessage={isOwnMessage} />
+                    )}
+
+                    {firstExternalUrl && <LinkPreviewCard url={firstExternalUrl} />}
+
+                    <span className="inline-flex items-center gap-1 align-baseline float-right ml-2 mt-1 select-none whitespace-nowrap text-gray-400">
+                      {message.isEdited && (
+                        <span className="text-[10px] opacity-75 font-normal">edited</span>
+                      )}
+                      <span className="text-[11px] font-normal tracking-tight">
+                        {formatMessageTime(message.createdAt)}
+                      </span>
+
+                      {isOwnMessage && (
+                        <span
+                          className="relative group/status inline-flex items-center cursor-default"
+                          title={statusLabel}
+                        >
+                          {statusIcon}
+                          <span className="absolute bottom-full mb-1.5 right-1/2 translate-x-1/2 hidden group-hover/status:flex items-center px-2 py-0.5 rounded-md bg-black/90 text-white text-[10px] font-medium whitespace-nowrap shadow-lg border border-white/10 z-30 pointer-events-none animate-fadeIn">
+                            {statusLabel}
+                          </span>
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           {message.reactions.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-1 px-1">

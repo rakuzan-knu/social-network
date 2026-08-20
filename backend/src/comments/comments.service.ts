@@ -258,12 +258,12 @@ export class CommentsService {
       // Non-blocking notification emission
     }
 
-    return CommentResponseDto.fromPrisma(comment);
+    return CommentResponseDto.fromPrisma(comment, userId, post.authorId);
   }
 
   async deleteComment(commentId: string, userId: string): Promise<CommentResponseDto> {
     const comment = await this.commentsRepository.deleteComment(commentId, userId);
-    return CommentResponseDto.fromPrisma(comment);
+    return CommentResponseDto.fromPrisma(comment, userId);
   }
 
   async getComments(
