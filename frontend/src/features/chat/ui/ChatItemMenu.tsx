@@ -17,7 +17,6 @@ import {
   FolderPlus,
   Eraser,
   AppWindow,
-  Check,
 } from 'lucide-react';
 import DropdownMenu, { DropdownMenuItem } from '../../../shared/ui/DropdownMenu';
 import { ConversationView } from '../../../entities/chat/model/types';
@@ -53,7 +52,6 @@ interface ChatItemMenuProps {
 
 export default function ChatItemMenu({
   conversation,
-  otherUserId,
   otherUsername,
   conversationTitle = 'Chat',
   avatarUrl = null,
