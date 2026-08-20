@@ -143,11 +143,13 @@ export function CommentModal() {
       text,
       mediaUrl,
       parentId,
+      replyToUserId,
       clientMutationId,
     }: {
       text: string;
       mediaUrl?: string;
       parentId?: string;
+      replyToUserId?: string;
       clientMutationId?: string;
     }) => {
       return commentsApi.addComment(
@@ -155,7 +157,7 @@ export function CommentModal() {
         text,
         parentId,
         mediaUrl,
-        replyingTo?.userId,
+        replyToUserId ?? replyingTo?.userId,
         clientMutationId,
       );
     },
@@ -705,42 +707,7 @@ export function CommentModal() {
                   <FormattedText text={activePostForComments.text} />
                 </div>
               </div>
-            ) : isError ? (
-              <div className="flex flex-col items-center justify-center py-10 px-4 text-center rounded-2xl bg-red-500/[0.04] border border-red-500/20">
-                <p className="text-red-400 text-xs font-semibold">Failed to load comments</p>
-                <p className="text-gray-500 text-[11px] mt-1">
-                  Please check your connection and try again.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => refetch()}
-                  className="mt-3 px-3 py-1 text-xs font-medium text-purple-300 bg-purple-500/20 hover:bg-purple-500/30 rounded-xl border border-purple-500/30 transition-colors cursor-pointer"
-                >
-                  Retry
-                </button>
-              </div>
-            ) : rootComments.length > 0 ? (
-              <>
-                {rootComments.map((comment) => (
-                  <CommentThread
-                    key={comment.id}
-                    comment={comment}
-                    postAuthorId={activePostForComments.authorId}
-                    currentUserId={currentUser?.id}
-                    onReply={(target) =>
-                      setReplyingTo({
-                        commentId: target.id,
-                        username: target.handle,
-                        displayName: target.author,
-                        userId: target.userId,
-                      })
-                    }
-                    onDelete={(cId) => deleteCommentMutation.mutate(cId)}
-                    onPin={(cId) => togglePinMutation.mutate(cId)}
-                    onLike={(cId) => toggleLikeMutation.mutate(cId)}
-                    onReport={(c) => setReportingComment(c)}
-                  />
-                ))}
+            </div>
 
             {/* Comments Stream */}
             <div className="space-y-3">
@@ -748,6 +715,20 @@ export function CommentModal() {
                 <div className="flex flex-col items-center justify-center py-12 gap-2 text-gray-500">
                   <div className="w-6 h-6 animate-spin rounded-full border-2 border-purple-500 border-t-transparent" />
                   <span className="text-xs">Loading comments...</span>
+                </div>
+              ) : isError ? (
+                <div className="flex flex-col items-center justify-center py-10 px-4 text-center rounded-2xl bg-red-500/[0.04] border border-red-500/20">
+                  <p className="text-red-400 text-xs font-semibold">Failed to load comments</p>
+                  <p className="text-gray-500 text-[11px] mt-1">
+                    Please check your connection and try again.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => refetch()}
+                    className="mt-3 px-3 py-1 text-xs font-medium text-purple-300 bg-purple-500/20 hover:bg-purple-500/30 rounded-xl border border-purple-500/30 transition-colors cursor-pointer"
+                  >
+                    Retry
+                  </button>
                 </div>
               ) : rootComments.length > 0 ? (
                 <>
@@ -762,6 +743,7 @@ export function CommentModal() {
                           commentId: target.id,
                           username: target.handle,
                           displayName: target.author,
+                          userId: target.userId,
                         })
                       }
                       onDelete={(cId) => deleteCommentMutation.mutate(cId)}
@@ -907,6 +889,7 @@ export function CommentModal() {
                   text,
                   mediaUrl,
                   parentId,
+                  replyToUserId: replyingTo?.userId,
                   clientMutationId,
                 });
               }}
