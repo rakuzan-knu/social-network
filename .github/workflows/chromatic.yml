@@ -1,0 +1,22 @@
+name: Chromatic
+on:
+  push:
+    branches: [main, develop, feat/**]
+  pull_request:
+    types: [opened, synchronize, reopened]
+jobs:
+  chromatic:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 10
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build Storybook
+        run: pnpm -r --filter frontend run build:storybook
+      - name: Publish to Chromatic
+        env:
+          CHROMATIC_PROJECT_TOKEN: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
+        run: pnpm -r --filter frontend exec chromatic --project-token=${{ secrets.CHROMATIC_PROJECT_TOKEN }} --build-script-name=build:storybook --exit-once-uploaded

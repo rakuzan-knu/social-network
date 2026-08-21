@@ -106,4 +106,4 @@ jobs:
         working-directory: frontend
         run: pnpm exec chromatic --storybook-build-dir=storybook-static --exit-once-uploaded
         env:
-          CHROMATIC_PROJECT_TOKEN: ${{ secrets.CHROMATIC_TOKEN }}
+          CHROMATIC_PROJECT_TOKEN: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
