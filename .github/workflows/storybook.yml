@@ -80,7 +80,19 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'pnpm'
 
-      - name: Install deps
+      - name: Cache Node Modules & Prisma
+        id: monorepo-cache
+        uses: actions/cache@d4323d4df104b026a6aa633fdb11d772146be0bf # v4.2.2
+        with:
+          path: |
+            node_modules
+            backend/node_modules
+            frontend/node_modules
+            ~/.cache/prisma
+          key: ${{ runner.os }}-monorepo-pnpm-${{ hashFiles('pnpm-lock.yaml', 'backend/prisma/schema.prisma') }}
+
+      - name: Install (On Cache Miss)
+        if: steps.monorepo-cache.outputs.cache-hit != 'true'
         run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Download Storybook build

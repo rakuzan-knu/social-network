@@ -622,28 +622,16 @@ jobs:
           retry-on-snapshot-warnings: true
           retry-on-snapshot-warnings-timeout: 600
 
-  docker-build:
-    name: Docker — Build, Scan & Cosign (${{ matrix.service }})
+  docker-backend:
+    name: Docker — Build & Scan (Backend)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: [setup, plan]
-    if: >-
-      (matrix.service == 'backend' && (needs.plan.outputs.backend-changed == 'true' || github.event_name != 'pull_request')) ||
-      (matrix.service == 'frontend' && (needs.plan.outputs.frontend-changed == 'true' || github.event_name != 'pull_request'))
+    if: needs.plan.outputs.backend-changed == 'true' || github.event_name != 'pull_request'
     permissions:
       contents: read
       security-events: write
       id-token: write
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - service: backend
-            context: .
-            file: backend/Dockerfile
-          - service: frontend
-            context: .
-            file: frontend/Dockerfile
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
@@ -656,13 +644,13 @@ jobs:
       - name: Build image
         uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6.15.0
         with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.file }}
+          context: .
+          file: backend/Dockerfile
           push: false
           load: true
-          tags: social-network-${{ matrix.service }}:ci-${{ github.sha }}
-          cache-from: type=gha,scope=${{ matrix.service }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+          tags: social-network-backend:ci-${{ github.sha }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
 
       - name: Install Trivy CLI
         run: |
@@ -670,34 +658,99 @@ jobs:
 
       - name: Generate CycloneDX SBOM
         run: |
-          trivy image --format cyclonedx --output sbom-${{ matrix.service }}.cdx.json social-network-${{ matrix.service }}:ci-${{ github.sha }}
+          trivy image --format cyclonedx --output sbom-backend.cdx.json social-network-backend:ci-${{ github.sha }}
 
       - name: Sign SBOM & Provenance with Cosign
         run: |
           if [ -n "$ACTIONS_ID_TOKEN_REQUEST_URL" ]; then
-            cosign sign-blob --yes --bundle cosign-${{ matrix.service }}-sbom.bundle sbom-${{ matrix.service }}.cdx.json || true
+            cosign sign-blob --yes --bundle cosign-backend-sbom.bundle sbom-backend.cdx.json || true
           fi
 
       - name: Upload SBOM and Cosign Signature Artifacts
         uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
-          name: sbom-${{ matrix.service }}-provenance
+          name: sbom-backend-provenance
           path: |
-            sbom-${{ matrix.service }}.cdx.json
-            cosign-${{ matrix.service }}-sbom.bundle
+            sbom-backend.cdx.json
+            cosign-backend-sbom.bundle
           retention-days: 14
 
       - name: Run Trivy vulnerability scanner
         id: trivy_scanner
         run: |
-          trivy image social-network-${{ matrix.service }}:ci-${{ github.sha }} --severity CRITICAL,HIGH --format sarif -o trivy-${{ matrix.service }}.sarif --exit-code 0
+          trivy image social-network-backend:ci-${{ github.sha }} --severity CRITICAL,HIGH --format sarif -o trivy-backend.sarif --exit-code 0
 
       - name: Upload Trivy SARIF report
         if: always() && steps.trivy_scanner.outcome == 'success'
         uses: github/codeql-action/upload-sarif@6bb031afdd8eb862ea3fc1848194185e076637e5 # v3.28.11
         with:
-          sarif_file: trivy-${{ matrix.service }}.sarif
-          category: trivy-${{ matrix.service }}-image
+          sarif_file: trivy-backend.sarif
+          category: trivy-backend-image
+
+  docker-frontend:
+    name: Docker — Build & Scan (Frontend)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [setup, plan]
+    if: needs.plan.outputs.frontend-changed == 'true' || github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      security-events: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@d7d6bc7722e3daa8354c50bcb52f4837da5e9b6a # v3.8.1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
+
+      - name: Build image
+        uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6.15.0
+        with:
+          context: .
+          file: frontend/Dockerfile
+          push: false
+          load: true
+          tags: social-network-frontend:ci-${{ github.sha }}
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+
+      - name: Install Trivy CLI
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+
+      - name: Generate CycloneDX SBOM
+        run: |
+          trivy image --format cyclonedx --output sbom-frontend.cdx.json social-network-frontend:ci-${{ github.sha }}
+
+      - name: Sign SBOM & Provenance with Cosign
+        run: |
+          if [ -n "$ACTIONS_ID_TOKEN_REQUEST_URL" ]; then
+            cosign sign-blob --yes --bundle cosign-frontend-sbom.bundle sbom-frontend.cdx.json || true
+          fi
+
+      - name: Upload SBOM and Cosign Signature Artifacts
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        with:
+          name: sbom-frontend-provenance
+          path: |
+            sbom-frontend.cdx.json
+            cosign-frontend-sbom.bundle
+          retention-days: 14
+
+      - name: Run Trivy vulnerability scanner
+        id: trivy_scanner
+        run: |
+          trivy image social-network-frontend:ci-${{ github.sha }} --severity CRITICAL,HIGH --format sarif -o trivy-frontend.sarif --exit-code 0
+
+      - name: Upload Trivy SARIF report
+        if: always() && steps.trivy_scanner.outcome == 'success'
+        uses: github/codeql-action/upload-sarif@6bb031afdd8eb862ea3fc1848194185e076637e5 # v3.28.11
+        with:
+          sarif_file: trivy-frontend.sarif
+          category: trivy-frontend-image
 
   ci-success:
     name: CI — All checks passed
@@ -717,7 +770,8 @@ jobs:
       - frontend-e2e
       - frontend-contract
       - frontend-prod-assessment
-      - docker-build
+      - docker-backend
+      - docker-frontend
     if: always()
     permissions:
       contents: read
