@@ -1,0 +1,51 @@
+import type { Preview } from '@storybook/react';
+import React from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
+import '../src/index.css';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: false,
+      staleTime: Infinity,
+    },
+  },
+});
+
+const preview: Preview = {
+  parameters: {
+    controls: {
+      matchers: {
+        color: /(background|color)$/i,
+        date: /Date$/i,
+      },
+    },
+    layout: 'centered',
+    backgrounds: {
+      default: 'dark',
+      values: [
+        { name: 'dark', value: '#0b0b0c' },
+        { name: 'light', value: '#ffffff' },
+      ],
+    },
+    a11y: {
+      config: {
+        rules: [{ id: 'color-contrast', enabled: true }],
+      },
+    },
+  },
+  decorators: [
+    (Story) => (
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <div className="text-gray-100 font-sans antialiased">
+            <Story />
+          </div>
+        </MemoryRouter>
+      </QueryClientProvider>
+    ),
+  ],
+};
+
+export default preview;
