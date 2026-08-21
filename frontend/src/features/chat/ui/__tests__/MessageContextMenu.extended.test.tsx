@@ -4,7 +4,7 @@ import MessageContextMenu from '../MessageContextMenu';
 import { renderWithProviders } from '@/test/renderWithProviders';
 
 describe('MessageContextMenu (Extended)', () => {
-  const msg = { id: 'm1', content: 'Context menu msg' };
+  const msg = { id: 'm1', body: 'Context menu msg', attachments: [] };
   it('renders context menu options', () => {
     renderWithProviders(
       <MessageContextMenu

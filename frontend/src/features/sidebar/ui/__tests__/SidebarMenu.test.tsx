@@ -65,6 +65,9 @@ describe('ProfileMenu', () => {
     const logoutBtn = screen.getByText('Log out');
     fireEvent.click(logoutBtn);
 
+    const confirmBtn = screen.getByRole('button', { name: 'Log out' });
+    fireEvent.click(confirmBtn);
+
     await waitFor(() => {
       expect(authApi.logout).toHaveBeenCalled();
       expect(useAuthStore.getState().isAuthenticated).toBe(false);

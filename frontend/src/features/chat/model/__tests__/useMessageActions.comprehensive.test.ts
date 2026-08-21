@@ -1,18 +1,16 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import { useMessageActions } from '../useMessageActions';
 import { CONVERSATION_MESSAGES_KEY } from '@/shared/api/queryKeys';
 import { useAuthStore } from '@/shared/model/useAuthStore';
-import { chatApi } from '../../api/chatApi';
+import { chatApi } from '@/features/chat/api/chatApi';
 import * as socketHookModule from '../useChatSocket';
 
 describe('useMessageActions (Comprehensive Suite)', () => {
   let queryClient: QueryClient;
-  const mockSocket = {
-    emit: vi.fn(),
-  };
+  let mockSocket: { emit: ReturnType<typeof vi.fn> };
 
   const initialMessagesData = {
     pages: [
@@ -39,7 +37,10 @@ describe('useMessageActions (Comprehensive Suite)', () => {
   };
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.restoreAllMocks();
+    mockSocket = {
+      emit: vi.fn(),
+    };
     queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
@@ -47,6 +48,10 @@ describe('useMessageActions (Comprehensive Suite)', () => {
 
     useAuthStore.setState({ userId: 'user-1' });
     vi.spyOn(socketHookModule, 'useChatSocket').mockReturnValue(mockSocket as any);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   const wrapper = ({ children }: { children: React.ReactNode }) =>

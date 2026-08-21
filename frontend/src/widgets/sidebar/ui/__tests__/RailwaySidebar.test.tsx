@@ -1,13 +1,14 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
 import MessengerSidebar from '../RailwaySidebar';
 import { useUIStore } from '@/shared/model/useUIStore';
 import * as useCurrentUserModule from '@/entities/profile/model/useCurrentUser';
 import * as useUnreadMessagesCountModule from '@/features/chat/model/useUnreadMessagesCount';
 import * as usePresenceModule from '@/features/chat/model/usePresence';
+
+import { renderWithProviders } from '../../../../test/renderWithProviders';
 
 vi.mock('@/features/sidebar/ui/SidebarMenu', () => ({
   ProfileMenu: () => <div data-testid="profile-menu">ProfileMenu</div>,
@@ -30,11 +31,7 @@ describe('RailwaySidebar (MessengerSidebar)', () => {
   });
 
   const renderComponent = (path = '/') => {
-    return render(
-      <MemoryRouter initialEntries={[path]}>
-        <MessengerSidebar />
-      </MemoryRouter>,
-    );
+    return renderWithProviders(<MessengerSidebar />, { initialEntries: [path] });
   };
 
   it('renders brand name and all navigation links when expanded', () => {

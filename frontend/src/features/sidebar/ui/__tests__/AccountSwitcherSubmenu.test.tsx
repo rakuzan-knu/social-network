@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { screen, fireEvent } from '@testing-library/react';
 import { AccountSwitcherMenuItem } from '../AccountSwitcherSubmenu';
 import { useAccountsStore } from '@/shared/model/useAccountsStore';
+import { renderWithProviders } from '@/test/renderWithProviders';
 import React from 'react';
 
 describe('AccountSwitcherMenuItem', () => {
@@ -33,7 +34,9 @@ describe('AccountSwitcherMenuItem', () => {
     const onSwitch = vi.fn();
     const onManage = vi.fn();
 
-    render(<AccountSwitcherMenuItem onSwitchAccount={onSwitch} onOpenManageAccounts={onManage} />);
+    renderWithProviders(
+      <AccountSwitcherMenuItem onSwitchAccount={onSwitch} onOpenManageAccounts={onManage} />,
+    );
 
     const trigger = screen.getByRole('button', { name: /change account/i });
     fireEvent.click(trigger);

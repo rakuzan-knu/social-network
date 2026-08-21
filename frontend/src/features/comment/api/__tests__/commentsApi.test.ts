@@ -71,8 +71,8 @@ describe('commentsApi', () => {
       data: { url: 'https://cdn.example.com/img.png' },
     });
     const file = new File(['mock'], 'test.png', { type: 'image/png' });
-    const url = await commentsApi.uploadMedia(file);
-    expect(url).toBe('https://cdn.example.com/img.png');
+    const res = await commentsApi.uploadMedia(file);
+    expect(res).toEqual({ url: 'https://cdn.example.com/img.png' });
     expect(apiClient.post).toHaveBeenCalledWith('/comments/media', expect.any(FormData), {
       headers: { 'Content-Type': 'multipart/form-data' },
     });

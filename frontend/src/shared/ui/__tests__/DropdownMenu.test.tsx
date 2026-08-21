@@ -64,6 +64,7 @@ describe('DropdownMenu', () => {
   });
 
   it('opens submenu on hover and on click, and triggers submenu item onClick', () => {
+    vi.useFakeTimers();
     const onSubItemClick = vi.fn();
     const onClose = vi.fn();
 
@@ -99,5 +100,6 @@ describe('DropdownMenu', () => {
     });
 
     expect(onClose).toHaveBeenCalled();
+    vi.useRealTimers();
   });
 });

@@ -1,5 +1,5 @@
 import { WsException } from '@nestjs/websockets';
-import { ForbiddenException, Logger, NotFoundException } from '@nestjs/common';
+import { Logger, NotFoundException } from '@nestjs/common';
 import type { ArgumentsHost } from '@nestjs/common';
 import { WsValidationFilter } from '../ws-validation.filter';
 

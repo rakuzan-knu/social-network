@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { ManageAccountsModal } from '../ManageAccountsModal';
 import { useAccountsStore } from '@/shared/model/useAccountsStore';
 import { authApi } from '@/features/auth/api/authApi';
 import React from 'react';
+
+import { renderWithProviders } from '@/test/renderWithProviders';
 
 vi.mock('@/features/auth/api/authApi', () => ({
   authApi: {
@@ -42,7 +44,7 @@ describe('ManageAccountsModal', () => {
     const onAdd = vi.fn();
     const onClose = vi.fn();
 
-    render(
+    renderWithProviders(
       <ManageAccountsModal onClose={onClose} onAddAccount={onAdd} onSwitchAccount={onSwitch} />,
     );
 
@@ -61,7 +63,7 @@ describe('ManageAccountsModal', () => {
   it('logs out of a secondary account', async () => {
     vi.mocked(authApi.logout).mockResolvedValue(undefined as never);
 
-    render(
+    renderWithProviders(
       <ManageAccountsModal onClose={vi.fn()} onAddAccount={vi.fn()} onSwitchAccount={vi.fn()} />,
     );
 
