@@ -221,7 +221,7 @@ jobs:
 
       - name: Run affected unit tests
         if: github.event_name == 'pull_request'
-        run: npx nx run-many -t test --affected --base=${{ needs.plan.outputs.base-sha }} --parallel=2
+        run: npx nx run-many -t test --affected --base=${{ needs.plan.outputs.base-sha }} --parallel=1
 
       - name: Run full unit tests with coverage (trunk)
         if: github.event_name != 'pull_request'

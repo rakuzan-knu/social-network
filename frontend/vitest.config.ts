@@ -14,12 +14,11 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
-    pool: 'threads',
+    pool: 'forks',
     poolOptions: {
-      threads: {
-        maxThreads: Math.max(2, Math.floor(os.cpus().length || 4)),
-        minThreads: 2,
-        useAtomics: true,
+      forks: {
+        maxForks: Math.max(2, Math.floor(os.cpus().length || 4)),
+        minForks: 2,
       },
     },
     fileParallelism: true,
