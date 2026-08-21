@@ -1,7 +1,6 @@
 import { configDefaults, defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react-swc';
 import path from 'path';
-import os from 'os';
 
 export default defineConfig({
   plugins: [react()],
@@ -14,15 +13,15 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
-    pool: 'forks',
+    pool: 'vmThreads',
     poolOptions: {
-      forks: {
-        maxForks: Math.max(2, Math.floor(os.cpus().length || 4)),
-        minForks: 2,
+      vmThreads: {
+        maxThreads: 2,
+        minThreads: 1,
       },
     },
     fileParallelism: true,
-    maxConcurrency: 10,
+    maxConcurrency: 6,
     // Contract tests need a real Node environment and run via test:contract;
     // e2e/ specs belong to Playwright, not Vitest.
     exclude: [...configDefaults.exclude, 'src/contract/**', 'e2e/**'],

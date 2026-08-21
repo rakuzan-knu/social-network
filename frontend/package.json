@@ -25,8 +25,8 @@
     "build:storybook": "storybook build",
     "test:mutation": "stryker run",
     "test:contract": "vitest run --config vitest.contract.config.ts",
-    "test:ci": "vitest run --config vitest.config.ts --reporter=default --reporter=github-actions",
-    "test:cov:ci": "vitest run --config vitest.config.ts --coverage --reporter=default --reporter=github-actions",
+    "test:ci": "vitest run --config vitest.config.ts --reporter=github-actions",
+    "test:cov:ci": "vitest run --config vitest.config.ts --coverage --reporter=github-actions",
     "test:visual": "chromatic --storybook-build-dir=storybook-static"
   },
   "dependencies": {
