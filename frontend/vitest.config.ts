@@ -12,16 +12,22 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    setupFiles: ['./src/test/setup.ts'],
-    pool: 'vmThreads',
+    passWithNoTests: true,
+    setupFiles: ['./src/test/polyfills.ts', './src/test/setup.ts'],
+    pool: 'forks',
     poolOptions: {
-      vmThreads: {
-        maxThreads: 2,
-        minThreads: 1,
+      forks: {
+        maxForks: 2,
+        minForks: 1,
       },
     },
     fileParallelism: true,
     maxConcurrency: 6,
+    server: {
+      deps: {
+        inline: ['react-router', 'react-router-dom'],
+      },
+    },
     // Contract tests need a real Node environment and run via test:contract;
     // e2e/ specs belong to Playwright, not Vitest.
     exclude: [...configDefaults.exclude, 'src/contract/**', 'e2e/**'],

@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import React from 'react';
 import CreateFolderButton from './CreateFolderButton';
 
 const meta: Meta<typeof CreateFolderButton> = {

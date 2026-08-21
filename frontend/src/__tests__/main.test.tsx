@@ -20,6 +20,10 @@ vi.mock('@/shared/lib/broadcastSync', () => ({
   initCrossTabSync: mockInitCrossTabSync,
 }));
 
+vi.mock('react-router-dom', () => ({
+  BrowserRouter: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+}));
+
 vi.mock('@/app/App', () => ({
   default: () => <div data-testid="app-root">App Mock</div>,
 }));
