@@ -3,6 +3,11 @@ import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import '../src/index.css';
+// MSW browser worker for mocking API calls in Storybook
+import { worker } from '../src/mocks/browser';
+
+// Start MSW browser worker (non-blocking; stories render after it's ready)
+worker.start({ onUnhandledRequest: 'bypass' });
 
 const queryClient = new QueryClient({
   defaultOptions: {
