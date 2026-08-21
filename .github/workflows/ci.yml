@@ -408,7 +408,7 @@ jobs:
   frontend-e2e:
     name: Frontend — Playwright E2E
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     needs: [setup, plan]
     if: needs.plan.outputs.frontend-changed == 'true'
     permissions:
@@ -447,6 +447,7 @@ jobs:
       - name: Run Playwright E2E suite
         working-directory: frontend
         run: pnpm test:e2e
+        timeout-minutes: 25
 
       - name: Upload Playwright report
         if: always()

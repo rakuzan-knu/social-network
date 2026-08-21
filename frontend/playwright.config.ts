@@ -32,6 +32,7 @@ export default defineConfig({
     env: {
       ...process.env,
       VITE_API_URL: 'http://127.0.0.1:3000',
+      NODE_ENV: 'test',
     },
     url: 'http://127.0.0.1:5173',
     // Never reuse an already-running dev server: it may carry a different
