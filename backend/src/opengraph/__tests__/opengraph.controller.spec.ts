@@ -13,6 +13,7 @@ describe('OpenGraphController', () => {
     description: 'Test Description',
     image: 'https://cdn.com/test.png',
     url: 'https://example.com',
+    type: 'generic',
     siteName: 'Example Site',
     favicon: 'https://example.com/favicon.ico',
   };

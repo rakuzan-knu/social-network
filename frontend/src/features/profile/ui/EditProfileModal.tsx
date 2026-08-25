@@ -49,6 +49,7 @@ import SecurityTab from './security/SecurityTab';
 import PrivacyTab from './privacy/PrivacyTab';
 import NotificationsTab from './notifications/NotificationsTab';
 import BadgeSettingsSection from './BadgeSettingsSection';
+import { ProfileShowcaseSettingsSection } from './ProfileShowcaseSettingsSection';
 import { compressImage } from '@/shared/lib/compressImage';
 
 function addProfileToast(title: string, body: string) {
@@ -82,6 +83,7 @@ const TABS_CONFIG: MainTab[] = [
     subsections: [
       { id: 'sec-account-info', label: 'Account Information' },
       { id: 'sec-badges', label: 'Profile Badges' },
+      { id: 'sec-showcase', label: 'Profile Showcase' },
       { id: 'sec-integrations', label: 'Integrations' },
       { id: 'sec-reputation', label: 'Account Reputation' },
       { id: 'sec-family', label: 'Family Center' },
@@ -963,6 +965,10 @@ export default function EditProfileModal() {
                       bannerPreview={bannerPreview}
                       bannerPos={bannerPos}
                     />
+                  </div>
+
+                  <div id="sec-showcase" className="pt-6 border-t border-white/[0.06]">
+                    <ProfileShowcaseSettingsSection />
                   </div>
 
                   <div
