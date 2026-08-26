@@ -340,18 +340,39 @@ export class OpenGraphService {
    * Safe fetch with SSRF guards, DNS resolution verification, and timeout.
    */
   private async safeFetch(url: string, headers?: Record<string, string>): Promise<Response | null> {
-    const sanitized = this.sanitizeUrl(url);
-    if (!sanitized) return null;
+    if (!url || typeof url !== 'string') return null;
+    const trimmed = url.trim();
+    if (!SAFE_URL_REGEX.test(trimmed)) return null;
 
-    const parsed = new URL(sanitized);
+    let parsed: URL;
+    try {
+      parsed = new URL(trimmed);
+    } catch {
+      return null;
+    }
+
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
+    if (parsed.username || parsed.password) return null;
+    if (!isSafeHostname(parsed.hostname)) return null;
+    if (parsed.port) {
+      const port = parseInt(parsed.port, 10);
+      if (isNaN(port) || !ALLOWED_PORTS.has(port)) return null;
+    }
+
     const isSafe = await this.validateDnsResolution(parsed.hostname);
     if (!isSafe) return null;
+
+    const safeScheme = parsed.protocol === 'https:' ? 'https:' : 'http:';
+    const safeHost = parsed.hostname.toLowerCase();
+    const safePort = parsed.port ? `:${parsed.port}` : '';
+    const safePath = parsed.pathname + parsed.search;
+    const safeTargetUrl = `${safeScheme}//${safeHost}${safePort}${safePath}`;
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
     try {
-      const res = await fetch(sanitized, {
+      const res = await fetch(safeTargetUrl, {
         signal: controller.signal,
         redirect: 'manual',
         headers: {

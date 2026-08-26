@@ -1,6 +1,38 @@
 import { z } from 'zod';
-import { AttachmentType, MessageType, MuteLevel } from '@prisma/client';
-export { AttachmentType, MessageType, MuteLevel };
+export const AttachmentType = {
+  IMAGE: 'IMAGE',
+  VIDEO: 'VIDEO',
+  AUDIO: 'AUDIO',
+  FILE: 'FILE',
+  LINK: 'LINK',
+  GIF: 'GIF',
+} as const;
+export type AttachmentType = (typeof AttachmentType)[keyof typeof AttachmentType];
+
+export const MessageType = {
+  TEXT: 'TEXT',
+  IMAGE: 'IMAGE',
+  VIDEO: 'VIDEO',
+  AUDIO: 'AUDIO',
+  FILE: 'FILE',
+  GIF: 'GIF',
+  STICKER: 'STICKER',
+  LOCATION: 'LOCATION',
+  CALL_LOG: 'CALL_LOG',
+  SYSTEM: 'SYSTEM',
+  DELETED: 'DELETED',
+  THEME_PROPOSAL: 'THEME_PROPOSAL',
+  STORY_REPLY: 'STORY_REPLY',
+} as const;
+export type MessageType = (typeof MessageType)[keyof typeof MessageType];
+
+export const MuteLevel = {
+  NONE: 'NONE',
+  MESSAGES: 'MESSAGES',
+  CALLS: 'CALLS',
+  MESSAGES_AND_CALLS: 'MESSAGES_AND_CALLS',
+} as const;
+export type MuteLevel = (typeof MuteLevel)[keyof typeof MuteLevel];
 
 export const conversationIdSchema = z.object({
   conversationId: z.string().uuid(),

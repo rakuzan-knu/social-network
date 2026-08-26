@@ -19,7 +19,4 @@ export const handlers = [
       avatar: null,
     });
   }),
-
-  // Fallback: return empty 200 for any unmatched request
-  http.all('*', () => HttpResponse.json({})),
 ];
