@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as dns from 'dns';
 import * as net from 'net';
+import sanitizeHtml from 'sanitize-html';
 import { RedisService } from '../redis/redis.service';
 import type { LinkEmbedData, LinkEmbedType } from '@common/contracts';
 
@@ -74,25 +75,36 @@ export function parseYouTubeStartSeconds(urlStr: string): number | undefined {
       parsed.searchParams.get('time_continue') ||
       (parsed.hash.startsWith('#t=') ? parsed.hash.slice(3) : null);
 
-    if (!param) return undefined;
+    if (!param || param.length > 32) return undefined;
 
     // Direct digits e.g. "90" or "90s"
-    if (/^\d+s?$/i.test(param)) {
+    if (/^\d{1,8}s?$/i.test(param)) {
       const sec = parseInt(param, 10);
       return isNaN(sec) || sec <= 0 ? undefined : sec;
     }
 
-    // Time string format e.g. "1h2m3s", "1m30s", "45s", "2h", "10m"
+    // Linear non-backtracking parse for time string format e.g. "1h2m3s", "1m30s", "45s", "2h", "10m"
     let totalSeconds = 0;
-    const hoursMatch = param.match(/(\d+)\s*h/i);
-    const minutesMatch = param.match(/(\d+)\s*m/i);
-    const secondsMatch = param.match(/(\d+)\s*s/i);
+    let matched = false;
 
-    if (hoursMatch) totalSeconds += parseInt(hoursMatch[1], 10) * 3600;
-    if (minutesMatch) totalSeconds += parseInt(minutesMatch[1], 10) * 60;
-    if (secondsMatch) totalSeconds += parseInt(secondsMatch[1], 10);
+    const hoursMatch = param.match(/(\d{1,8})h/i);
+    const minutesMatch = param.match(/(\d{1,8})m/i);
+    const secondsMatch = param.match(/(\d{1,8})s/i);
 
-    return totalSeconds > 0 ? totalSeconds : undefined;
+    if (hoursMatch) {
+      totalSeconds += parseInt(hoursMatch[1], 10) * 3600;
+      matched = true;
+    }
+    if (minutesMatch) {
+      totalSeconds += parseInt(minutesMatch[1], 10) * 60;
+      matched = true;
+    }
+    if (secondsMatch) {
+      totalSeconds += parseInt(secondsMatch[1], 10);
+      matched = true;
+    }
+
+    return matched && totalSeconds > 0 ? totalSeconds : undefined;
   } catch {
     return undefined;
   }
@@ -750,10 +762,15 @@ export class OpenGraphService {
           html?: string;
         };
 
-        const tweetTextMatch = data.html?.match(/<p[^>]*>(.*?)<\/p>/s);
-        const text = tweetTextMatch
-          ? this.cleanHtmlEntities(tweetTextMatch[1].replace(/<[^>]+>/g, ''))
-          : null;
+        let text: string | null = null;
+        if (data.html) {
+          const tweetTextMatch = data.html.match(/<p[^>]*>(.*?)<\/p>/s);
+          const raw = tweetTextMatch ? tweetTextMatch[1] : data.html;
+          text = sanitizeHtml(raw, {
+            allowedTags: [],
+            allowedAttributes: {},
+          }).trim();
+        }
 
         return {
           url,
@@ -823,26 +840,8 @@ export class OpenGraphService {
       const sanitizedHopUrl = this.sanitizeUrl(currentUrlString);
       if (!sanitizedHopUrl) return null;
 
-      const hopParsed = new URL(sanitizedHopUrl);
-      const isHopDnsSafe = await this.validateDnsResolution(hopParsed.hostname);
-      if (!isHopDnsSafe) return null;
-
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
-      try {
-        response = await fetch(sanitizedHopUrl, {
-          signal: controller.signal,
-          redirect: 'manual',
-          headers: {
-            'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 (compatible; SocialBot/1.0)',
-            Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          },
-        });
-      } finally {
-        clearTimeout(timeoutId);
-      }
+      response = await this.safeFetch(sanitizedHopUrl);
+      if (!response) return null;
 
       if ([301, 302, 303, 307, 308].includes(response.status)) {
         const location = response.headers.get('location');

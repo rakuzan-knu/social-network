@@ -21,7 +21,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Initialize MSW
-        run: pnpm exec msw init frontend/public
+        run: pnpm -r --filter frontend exec msw init public
       - name: Build Storybook
         run: pnpm -r --filter frontend run build:storybook
       - name: Publish to Chromatic

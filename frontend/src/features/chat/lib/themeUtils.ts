@@ -8,7 +8,7 @@ import {
 } from '../model/chatTheme';
 import { idbGet, idbSet, idbDelete } from '../../../shared/lib/indexedDbStorage';
 
-// Safe URL validator for theme image / background URLs to protect against XSS (e.g. javascript:, vbscript:, data:text/html)
+// Safe URL validator for theme image / background URLs to protect against XSS (e.g. javascript:, vbscript:, data:)
 const safeUrlSchema = z
   .string()
   .max(4096)
@@ -19,9 +19,13 @@ const safeUrlSchema = z
       if (
         lower.startsWith('javascript:') ||
         lower.startsWith('vbscript:') ||
-        lower.startsWith('data:text/html') ||
-        lower.startsWith('data:application/')
+        lower.startsWith('data:')
       ) {
+        if (lower.startsWith('data:')) {
+          return /^data:image\/(?:png|jpeg|jpg|webp|gif|avif);base64,[a-z0-9+/=]+$/i.test(
+            url.trim(),
+          );
+        }
         return false;
       }
       return true;
@@ -829,13 +833,18 @@ export function sanitizeAndValidateSvg(svgContent: string): {
 
   try {
     if (typeof DOMParser === 'undefined') {
-      // Node/Test environment regex sanitizer fallback
-      const cleaned = svgContent
-        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-        .replace(/<foreignObject\b[^<]*(?:(?!<\/foreignObject>)<[^<]*)*<\/foreignObject>/gi, '')
-        .replace(/\son\w+\s*=\s*(['"]).*?\1/gi, '')
-        .replace(/\shref\s*=\s*(['"])\s*javascript:.*?\1/gi, '');
-      return { isValid: true, sanitizedSvg: cleaned };
+      // In test/Node environment, strictly reject any executable or active content without partial regex replacement
+      if (
+        /<(?:script|foreignobject|iframe|object|embed|audio|video|meta|link|use|set|animate|animatetransform|handler)\b/i.test(
+          svgContent,
+        ) ||
+        /\bon[a-z0-9_-]+\s*=/i.test(svgContent) ||
+        /(?:javascript|vbscript):/i.test(svgContent) ||
+        /data:(?!image\/(?:png|jpeg|jpg|webp|gif|avif);base64)/i.test(svgContent)
+      ) {
+        return { isValid: false, error: 'SVG contains forbidden executable tags or scripts' };
+      }
+      return { isValid: true, sanitizedSvg: svgContent };
     }
 
     const parser = new DOMParser();
@@ -865,6 +874,11 @@ export function sanitizeAndValidateSvg(svgContent: string): {
       'applet',
       'frame',
       'frameset',
+      'use',
+      'set',
+      'animate',
+      'animatetransform',
+      'handler',
     ]);
 
     const allElements = Array.from(doc.getElementsByTagName('*'));
@@ -880,29 +894,42 @@ export function sanitizeAndValidateSvg(svgContent: string): {
         const attrName = attr.name.toLowerCase();
         const attrVal = attr.value.trim().toLowerCase();
 
-        // Remove inline event handlers (e.g. onload, onerror, onclick)
-        if (attrName.startsWith('on')) {
+        // Remove inline event handlers (e.g. onload, onerror, onclick, onanything)
+        if (attrName.startsWith('on') || attrName.includes('on')) {
           el.removeAttribute(attr.name);
+          continue;
         }
 
-        // Remove dangerous href/xlink:href protocols
+        // Remove dangerous href/xlink:href/src protocols
         if (
-          (attrName === 'href' || attrName === 'xlink:href' || attrName.endsWith(':href')) &&
-          (attrVal.startsWith('javascript:') ||
-            attrVal.startsWith('vbscript:') ||
-            attrVal.startsWith('data:text/html'))
+          attrName === 'href' ||
+          attrName === 'xlink:href' ||
+          attrName === 'src' ||
+          attrName.endsWith(':href') ||
+          attrName.endsWith(':src')
         ) {
-          el.removeAttribute(attr.name);
+          if (
+            attrVal.startsWith('javascript:') ||
+            attrVal.startsWith('vbscript:') ||
+            (attrVal.startsWith('data:') &&
+              !/^data:image\/(?:png|jpeg|jpg|webp|gif|avif);base64,[a-z0-9+/=]+$/i.test(attrVal))
+          ) {
+            el.removeAttribute(attr.name);
+            continue;
+          }
         }
 
         // Check style attributes for javascript/expression execution
         if (attrName === 'style') {
           if (
             attrVal.includes('javascript:') ||
+            attrVal.includes('vbscript:') ||
             attrVal.includes('expression(') ||
-            attrVal.includes('-moz-binding')
+            attrVal.includes('-moz-binding') ||
+            attrVal.includes('url(')
           ) {
             el.removeAttribute(attr.name);
+            continue;
           }
         }
       }
