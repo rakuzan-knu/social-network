@@ -78,4 +78,47 @@ describe('MarkdownContent', () => {
       expect(img.getAttribute('onerror')).toBeNull();
     }
   });
+
+  it('renders Discord-style underline and compound formatting', () => {
+    const markdown =
+      '__underlined text__ and __*underline italic*__ and __**underline bold**__ and ***bold italics***';
+    renderWithProviders(<MarkdownContent content={markdown} />);
+
+    const underlineEl = screen.getByText('underlined text');
+    expect(underlineEl).toHaveClass('underline');
+
+    const underlineItalicEl = screen.getByText('underline italic');
+    expect(underlineItalicEl).toHaveClass('underline');
+    expect(underlineItalicEl.closest('em')).toBeInTheDocument();
+
+    const underlineBoldEl = screen.getByText('underline bold');
+    expect(underlineBoldEl).toHaveClass('underline');
+    expect(underlineBoldEl.closest('strong')).toBeInTheDocument();
+
+    const boldItalicEl = screen.getByText('bold italics');
+    expect(boldItalicEl.closest('strong')).toBeInTheDocument();
+    expect(boldItalicEl.closest('em')).toBeInTheDocument();
+  });
+
+  it('renders Discord subtext starting with -#', () => {
+    const markdown = '-# This is a small muted subtext message';
+    renderWithProviders(<MarkdownContent content={markdown} />);
+
+    const subtextEl = screen.getByText('This is a small muted subtext message');
+    expect(subtextEl).toHaveClass('text-xs');
+    expect(subtextEl).toHaveClass('text-white/50');
+  });
+
+  it('renders headers (#, ##, ###) and masked links [title](url)', () => {
+    const markdown =
+      '# Big Header\n## Smaller Header\n### Even Smaller Header\n\n[Google](https://google.com)';
+    renderWithProviders(<MarkdownContent content={markdown} />);
+
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Big Header');
+    expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('Smaller Header');
+    expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Even Smaller Header');
+
+    const link = screen.getByRole('link', { name: 'Google' });
+    expect(link).toHaveAttribute('href', 'https://google.com');
+  });
 });

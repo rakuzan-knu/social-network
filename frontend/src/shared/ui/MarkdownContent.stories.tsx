@@ -55,3 +55,30 @@ export const SpoilersAndInlineCode: Story = {
 You can also run \`npm run build\` to verify production bundles.`,
   },
 };
+
+export const DiscordFormattingCheatSheet: Story = {
+  args: {
+    content: `# Discord Text Formatting Demo
+
+*Italics* or _Italics_
+**Bold text**
+***Bold Italics***
+__Underline text__
+__*Underline Italics*__
+__**Underline Bold**__
+__***Underline Bold Italics***__
+~~Strikethrough~~
+
+## Headers Support
+### Even Smaller Header
+
+-# This is a small muted subtext message
+
+[Masked Link to GitHub](https://github.com)
+
+- Bullet item 1
+- Bullet item 2
+  - Sub-item with indentation
+`,
+  },
+};

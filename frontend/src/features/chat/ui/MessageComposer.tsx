@@ -393,11 +393,17 @@ export default function MessageComposer({
       case 'italic':
         handleFormattingHotkey('*', '*', 'italic');
         break;
+      case 'underline':
+        handleFormattingHotkey('__', '__', 'underline');
+        break;
       case 'strike':
         handleFormattingHotkey('~~', '~~', 'strikethrough');
         break;
       case 'spoiler':
         handleFormattingHotkey('||', '||', 'spoiler');
+        break;
+      case 'quote':
+        handleFormattingHotkey('> ', '', 'quote');
         break;
       case 'code':
         handleFormattingHotkey('`', '`', 'code');
@@ -520,6 +526,12 @@ export default function MessageComposer({
       if (key === 'i' && !e.shiftKey && !e.altKey) {
         e.preventDefault();
         handleFormattingHotkey('*', '*', 'italic');
+        return;
+      }
+      // Ctrl+U / Cmd+U -> Underline
+      if (key === 'u' && !e.shiftKey && !e.altKey) {
+        e.preventDefault();
+        handleFormattingHotkey('__', '__', 'underline');
         return;
       }
       // Ctrl+Shift+X / Cmd+Shift+X -> Strikethrough

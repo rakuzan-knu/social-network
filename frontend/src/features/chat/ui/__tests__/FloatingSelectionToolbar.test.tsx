@@ -6,13 +6,15 @@ import FloatingSelectionToolbar from '../FloatingSelectionToolbar';
 describe('FloatingSelectionToolbar', () => {
   const position = { top: 100, left: 200 };
 
-  it('renders formatting buttons for bold, italic, strikethrough, spoiler, inline code, and link', () => {
+  it('renders formatting buttons for bold, italic, underline, strikethrough, spoiler, quote, inline code, and link', () => {
     render(<FloatingSelectionToolbar position={position} onFormat={vi.fn()} onClose={vi.fn()} />);
 
     expect(screen.getByTitle(/Bold/i)).toBeInTheDocument();
     expect(screen.getByTitle(/Italic/i)).toBeInTheDocument();
+    expect(screen.getByTitle(/Underline/i)).toBeInTheDocument();
     expect(screen.getByTitle(/Strikethrough/i)).toBeInTheDocument();
     expect(screen.getByTitle(/Spoiler/i)).toBeInTheDocument();
+    expect(screen.getByTitle(/Quote/i)).toBeInTheDocument();
     expect(screen.getByTitle(/Inline code/i)).toBeInTheDocument();
     expect(screen.getByTitle(/Insert Link/i)).toBeInTheDocument();
   });
@@ -26,6 +28,28 @@ describe('FloatingSelectionToolbar', () => {
     const boldBtn = screen.getByTitle(/Bold/i);
     fireEvent.click(boldBtn);
     expect(handleFormat).toHaveBeenCalledWith('bold');
+  });
+
+  it('triggers onFormat with underline when underline button is clicked', () => {
+    const handleFormat = vi.fn();
+    render(
+      <FloatingSelectionToolbar position={position} onFormat={handleFormat} onClose={vi.fn()} />,
+    );
+
+    const underlineBtn = screen.getByTitle(/Underline/i);
+    fireEvent.click(underlineBtn);
+    expect(handleFormat).toHaveBeenCalledWith('underline');
+  });
+
+  it('triggers onFormat with quote when quote button is clicked', () => {
+    const handleFormat = vi.fn();
+    render(
+      <FloatingSelectionToolbar position={position} onFormat={handleFormat} onClose={vi.fn()} />,
+    );
+
+    const quoteBtn = screen.getByTitle(/Quote/i);
+    fireEvent.click(quoteBtn);
+    expect(handleFormat).toHaveBeenCalledWith('quote');
   });
 
   it('triggers onFormat with spoiler when spoiler button is clicked', () => {

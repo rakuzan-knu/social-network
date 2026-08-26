@@ -157,11 +157,17 @@ export function EditPostModal({
       case 'italic':
         handleFormattingHotkey('*', '*', 'italic');
         break;
+      case 'underline':
+        handleFormattingHotkey('__', '__', 'underline');
+        break;
       case 'strike':
         handleFormattingHotkey('~~', '~~', 'strikethrough');
         break;
       case 'spoiler':
         handleFormattingHotkey('||', '||', 'spoiler');
+        break;
+      case 'quote':
+        handleFormattingHotkey('> ', '', 'quote');
         break;
       case 'code':
         handleFormattingHotkey('`', '`', 'code');
@@ -229,6 +235,11 @@ export function EditPostModal({
       if (key === 'i' && !e.shiftKey && !e.altKey) {
         e.preventDefault();
         handleFormattingHotkey('*', '*', 'italic');
+        return;
+      }
+      if (key === 'u' && !e.shiftKey && !e.altKey) {
+        e.preventDefault();
+        handleFormattingHotkey('__', '__', 'underline');
         return;
       }
       if (e.shiftKey && key === 'x') {

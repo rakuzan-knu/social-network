@@ -2,15 +2,18 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   Bold,
   Italic,
+  Underline,
   Strikethrough,
   EyeOff,
+  Quote,
   Code,
   Link as LinkIcon,
   Check,
   X,
 } from 'lucide-react';
 
-export type SelectionFormatType = 'bold' | 'italic' | 'strike' | 'spoiler' | 'code' | 'link';
+export type SelectionFormatType =
+  'bold' | 'italic' | 'underline' | 'strike' | 'spoiler' | 'quote' | 'code' | 'link';
 
 interface FloatingSelectionToolbarProps {
   position: { top: number; left: number };
@@ -21,7 +24,7 @@ interface FloatingSelectionToolbarProps {
 export default function FloatingSelectionToolbar({
   position,
   onFormat,
-  onClose,
+  onClose: _onClose,
 }: FloatingSelectionToolbarProps) {
   const [isLinkInputOpen, setIsLinkInputOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
@@ -103,6 +106,16 @@ export default function FloatingSelectionToolbar({
             <Italic size={13} />
           </button>
 
+          {/* Underline */}
+          <button
+            type="button"
+            onClick={() => onFormat('underline')}
+            className="p-1.5 rounded-full hover:bg-white/15 text-gray-300 hover:text-white transition-colors cursor-pointer active:scale-95"
+            title="Underline (__text__)"
+          >
+            <Underline size={13} />
+          </button>
+
           {/* Strikethrough */}
           <button
             type="button"
@@ -121,6 +134,16 @@ export default function FloatingSelectionToolbar({
             title="Spoiler (||secret||)"
           >
             <EyeOff size={13} />
+          </button>
+
+          {/* Quote */}
+          <button
+            type="button"
+            onClick={() => onFormat('quote')}
+            className="p-1.5 rounded-full hover:bg-white/15 text-gray-300 hover:text-white transition-colors cursor-pointer active:scale-95"
+            title="Quote (> text)"
+          >
+            <Quote size={13} />
           </button>
 
           {/* Inline Code */}

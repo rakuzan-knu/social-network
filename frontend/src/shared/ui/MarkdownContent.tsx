@@ -57,6 +57,42 @@ function splitTrailingPunct(raw: string): { clean: string; punct: string } {
   };
 }
 
+function preprocessDiscordMarkdown(raw: string): string {
+  if (!raw) return '';
+
+  // 1. Discord Subtext: lines starting with "-# "
+  let processed = raw.replace(/(^|\n)-#\s+([^\n]+)/g, '$1\uE000SUBTEXT:$2\uE001');
+
+  // 2. Escape double underscores in text segments outside of codeblocks
+  // This prevents CommonMark from turning __ into <strong> and enables Discord-style __underline__
+  const codeBlockRegex = /(```[\s\S]*?```|`[^`\n]+`)/g;
+  const segments = processed.split(codeBlockRegex);
+  processed = segments
+    .map((segment) => {
+      if (segment.startsWith('`')) {
+        return segment;
+      }
+      let s = segment;
+      // Normalization of compound Discord formats:
+      // __***text***__ or ***__text__*** -> ***\_\_text\_\_*** (bold italic underline)
+      s = s.replace(/__\*\*\*(.+?)\*\*\*__/gs, '***\\_\\_$1\\_\\_***');
+      s = s.replace(/\*\*\*__(.+?)__\*\*\*/gs, '***\\_\\_$1\\_\\_***');
+      // __**text**__ or **__text__** -> **\_\_text\_\_** (bold underline)
+      s = s.replace(/__\*\*(.+?)\*\*__/gs, '**\\_\\_$1\\_\\_**');
+      s = s.replace(/\*\*__(.+?)__\*\*/gs, '**\\_\\_$1\\_\\_**');
+      // __*text*__ or *__text__* or ___text___ -> *\_\_text\_\_* (italic underline)
+      s = s.replace(/__\*(.+?)\*__/gs, '*\\_\\_$1\\_\\_*');
+      s = s.replace(/\*__(.+?)__\*/gs, '*\\_\\_$1\\_\\_*');
+      s = s.replace(/___(.+?)___/gs, '*\\_\\_$1\\_\\_*');
+      // Plain __underline__ -> \_\_underline\_\_
+      s = s.replace(/__(.+?)__/gs, '\\_\\_$1\\_\\_');
+      return s;
+    })
+    .join('');
+
+  return processed;
+}
+
 function renderTextWithMentionsAndSpoilers(
   text: string,
   enableMentions = true,
@@ -64,7 +100,27 @@ function renderTextWithMentionsAndSpoilers(
 ): React.ReactNode {
   if (!text) return null;
 
-  // 1. Process Spoilers: ||spoiler||
+  // 1. Process Subtext: \uE000SUBTEXT:...\uE001
+  if (text.includes('\uE000SUBTEXT:')) {
+    const subtextParts = text.split(/(\uE000SUBTEXT:[\s\S]*?\uE001)/g);
+    return subtextParts.map((part, index) => {
+      if (part.startsWith('\uE000SUBTEXT:') && part.endsWith('\uE001')) {
+        const subtextContent = part.slice('\uE000SUBTEXT:'.length, -1);
+        return (
+          <span key={index} className="block text-xs text-white/50 my-0.5 leading-snug font-normal">
+            {renderTextWithMentionsAndSpoilers(subtextContent, enableMentions, enableHashtags)}
+          </span>
+        );
+      }
+      return (
+        <React.Fragment key={index}>
+          {renderTextWithMentionsAndSpoilers(part, enableMentions, enableHashtags)}
+        </React.Fragment>
+      );
+    });
+  }
+
+  // 2. Process Spoilers: ||spoiler||
   if (text.includes('||')) {
     const spoilerParts = text.split(/(\|\|[\s\S]*?\|\|)/g);
     return spoilerParts.map((part, index) => {
@@ -80,7 +136,27 @@ function renderTextWithMentionsAndSpoilers(
     });
   }
 
-  // 2. Process Mentions (@handle) and Hashtags (#tag)
+  // 3. Process Underlines: __underline__
+  if (text.includes('__')) {
+    const underlineParts = text.split(/(__[\s\S]*?__)/g);
+    return underlineParts.map((part, index) => {
+      if (part.startsWith('__') && part.endsWith('__') && part.length >= 4) {
+        const underlineContent = part.slice(2, -2);
+        return (
+          <span key={index} className="underline underline-offset-2 decoration-white/70">
+            {renderTextWithMentionsAndSpoilers(underlineContent, enableMentions, enableHashtags)}
+          </span>
+        );
+      }
+      return (
+        <React.Fragment key={index}>
+          {renderTextWithMentionsAndSpoilers(part, enableMentions, enableHashtags)}
+        </React.Fragment>
+      );
+    });
+  }
+
+  // 4. Process Mentions (@handle) and Hashtags (#tag)
   if (!enableMentions && !enableHashtags) {
     return text;
   }
@@ -175,6 +251,8 @@ export default function MarkdownContent({
   enableHashtags = true,
 }: MarkdownContentProps) {
   if (!content) return null;
+
+  const processedContent = preprocessDiscordMarkdown(content);
 
   const components: Components = {
     // Custom pre renderer (unwraps to avoid double <pre> nesting)
@@ -340,7 +418,7 @@ export default function MarkdownContent({
         rehypePlugins={[[rehypeSanitize, sanitizeSchema], rehypeKatex]}
         components={components}
       >
-        {content}
+        {processedContent}
       </ReactMarkdown>
     </div>
   );
