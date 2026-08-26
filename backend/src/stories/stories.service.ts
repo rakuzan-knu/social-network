@@ -14,7 +14,6 @@ import { StoryMediaType, StoryPrivacy } from '@prisma/client';
 import { PrismaService } from '@common/prisma';
 import { RedisService } from '../redis/redis.service';
 import { StoriesRepository } from './stories.repository';
-import { FollowersRepository } from '../followers/repositories/followers.repository';
 import { ConversationsService } from '../messenger/conversations/conversations.service';
 import { MessagesService } from '../messenger/messages/messages.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -40,7 +39,6 @@ export class StoriesService {
 
   constructor(
     private readonly storiesRepo: StoriesRepository,
-    private readonly followersRepo: FollowersRepository,
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
     private readonly configService: ConfigService,
@@ -317,8 +315,12 @@ export class StoriesService {
     }
 
     // 1. Get user's following list
-    const following = await this.followersRepo.getFollowing(userId, 500);
-    const followingUserIds = following.map((f) => f.user.id);
+    const following = await this.prisma.follow.findMany({
+      where: { followerId: userId, status: 'ACCEPTED' },
+      select: { followingId: true },
+      take: 500,
+    });
+    const followingUserIds = following.map((f: { followingId: string }) => f.followingId);
 
     // 2. Get author IDs who have added the user as a Close Friend
     const closeFriendAuthorIds = await this.storiesRepo.getAuthorsWhoAddedViewerAsCloseFriend(
@@ -343,7 +345,7 @@ export class StoriesService {
     }
 
     const userGroups: UserStoriesGroup[] = [];
-    for (const [authorId, stories] of groupsMap.entries()) {
+    for (const [, stories] of groupsMap.entries()) {
       if (stories.length === 0) continue;
       const author = stories[0].author;
       const hasUnviewed = stories.some((s: any) => !s.hasViewed);

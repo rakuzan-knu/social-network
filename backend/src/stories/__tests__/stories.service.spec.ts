@@ -3,7 +3,6 @@ import { BadRequestException, ForbiddenException, NotFoundException } from '@nes
 import { ConfigService } from '@nestjs/config';
 import { StoriesService } from '../stories.service';
 import { StoriesRepository } from '../stories.repository';
-import { FollowersRepository } from '../../followers/repositories/followers.repository';
 import { PrismaService } from '@common/prisma';
 import { RedisService } from '../../redis/redis.service';
 import { ConversationsService } from '../../messenger/conversations/conversations.service';
@@ -14,7 +13,6 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 describe('StoriesService', () => {
   let service: StoriesService;
   let repo: jest.Mocked<StoriesRepository>;
-  let followersRepo: jest.Mocked<FollowersRepository>;
   let redis: jest.Mocked<RedisService>;
   let convsService: jest.Mocked<ConversationsService>;
   let messagesService: jest.Mocked<MessagesService>;
@@ -88,10 +86,6 @@ describe('StoriesService', () => {
       toggleCloseFriend: jest.fn().mockResolvedValue({ isCloseFriend: true }),
     };
 
-    const mockFollowersRepo = {
-      getFollowing: jest.fn().mockResolvedValue([{ id: 'f-1', user: { id: 'user-2' } }]),
-    };
-
     const mockRedis = {
       get: jest.fn().mockResolvedValue(null),
       set: jest.fn().mockResolvedValue(undefined),
@@ -111,12 +105,14 @@ describe('StoriesService', () => {
       providers: [
         StoriesService,
         { provide: StoriesRepository, useValue: mockRepo },
-        { provide: FollowersRepository, useValue: mockFollowersRepo },
         {
           provide: PrismaService,
           useValue: {
             user: {
               findUnique: jest.fn().mockResolvedValue(mockAuthor),
+            },
+            follow: {
+              findMany: jest.fn().mockResolvedValue([{ followingId: 'user-2' }]),
             },
           },
         },
@@ -135,7 +131,6 @@ describe('StoriesService', () => {
 
     service = module.get<StoriesService>(StoriesService);
     repo = module.get(StoriesRepository);
-    followersRepo = module.get(FollowersRepository);
     redis = module.get(RedisService);
     convsService = module.get(ConversationsService);
     messagesService = module.get(MessagesService);
@@ -159,7 +154,6 @@ describe('StoriesService', () => {
   it('should get stories feed and sort current user and unviewed stories first', async () => {
     const feed = await service.getStoriesFeed('user-1');
 
-    expect(followersRepo.getFollowing).toHaveBeenCalledWith('user-1', 500);
     expect(repo.findActiveFeedStories).toHaveBeenCalled();
     expect(feed.length).toBeGreaterThan(0);
     expect(feed[0].user.id).toBe('user-1');
