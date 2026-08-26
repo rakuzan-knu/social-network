@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { MemoryRouter } from 'react-router-dom';
 import MarkdownContent from './MarkdownContent';
 
 const meta: Meta<typeof MarkdownContent> = {
@@ -7,11 +6,9 @@ const meta: Meta<typeof MarkdownContent> = {
   component: MarkdownContent,
   decorators: [
     (Story) => (
-      <MemoryRouter>
-        <div className="max-w-xl p-6 bg-[#0e0e16] rounded-2xl border border-white/10 text-white">
-          <Story />
-        </div>
-      </MemoryRouter>
+      <div className="max-w-xl p-6 bg-[#0e0e16] rounded-2xl border border-white/10 text-white">
+        <Story />
+      </div>
     ),
   ],
 };
