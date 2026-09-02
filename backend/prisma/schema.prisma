@@ -66,6 +66,8 @@ model User {
   storyPollVotes           StoryPollVote[]
   closeFriends             CloseFriend[]             @relation("CloseFriendsOwner")
   closeFriendOf            CloseFriend[]             @relation("CloseFriendsTarget")
+  initiatedCalls           Call[]                    @relation("CallInitiator")
+  callParticipations       CallParticipant[]
 }
 
 model UserBadge {
@@ -245,9 +247,83 @@ model Conversation {
   participants   ConversationParticipant[]
   messages       Message[]
   pinnedMessages PinnedMessage[]
+  calls          Call[]
 
   @@index([createdAt])
   @@index([updatedAt, id])
+}
+
+/// Voice / video call record. One row per call session in a conversation.
+model Call {
+  id             String         @id @default(uuid())
+  conversationId String
+  type           CallType       @default(AUDIO)
+  status         CallStatus     @default(INITIATED)
+  initiatorId    String
+  startedAt      DateTime       @default(now())
+  connectedAt    DateTime?
+  endedAt        DateTime?
+  endedReason    CallEndReason?
+  durationMs     Int?
+  recordingUrl   String?
+  e2eeEnabled    Boolean        @default(true)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  conversation Conversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  initiator    User              @relation("CallInitiator", fields: [initiatorId], references: [id], onDelete: Cascade)
+  participants CallParticipant[]
+
+  @@index([conversationId, startedAt])
+  @@index([initiatorId, startedAt])
+  @@index([status])
+}
+
+model CallParticipant {
+  id          String          @id @default(uuid())
+  callId      String
+  userId      String
+  joinedAt    DateTime?
+  leftAt      DateTime?
+  muteState   Boolean         @default(false)
+  videoState  Boolean         @default(true)
+  screenShare Boolean         @default(false)
+  role        ParticipantRole @default(MEMBER)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  call Call @relation(fields: [callId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([callId, userId])
+  @@index([userId])
+}
+
+enum CallType {
+  AUDIO
+  VIDEO
+  SCREEN_SHARE
+}
+
+enum CallStatus {
+  INITIATED
+  RINGING
+  CONNECTED
+  ENDED
+  MISSED
+  DECLINED
+  FAILED
+}
+
+enum CallEndReason {
+  ENDED_BY_USER
+  MISSED
+  DECLINED
+  BUSY
+  NETWORK_ERROR
+  PARTICIPANT_LEFT
+  TIMEOUT
+  SYSTEM
 }
 
 enum ConversationType {
