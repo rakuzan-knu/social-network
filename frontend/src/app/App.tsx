@@ -235,8 +235,9 @@ export default function App() {
             <Route path="/wellbeing" element={<WellbeingHubPage />} />
             <Route path="/safety" element={<SafetyCenterPage />} />
             <Route path="/creators" element={<CreatorsPage />} />
+            <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="/404" element={<NotFoundPage />} />
-            <Route path="*" element={<NotFoundPage />} />
+            <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>
         </Suspense>
       </div>

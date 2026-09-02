@@ -1,5 +1,6 @@
 import { Controller, Get, HttpCode, HttpStatus, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import sanitizeHtml from 'sanitize-html';
 import { UsersService } from './users.service';
 
 @ApiTags('Search')
@@ -11,9 +12,13 @@ export class SearchController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'OpenSearch suggestion endpoint for browser Omnibox' })
   async getSuggestions(@Query('q') q?: string): Promise<[string, string[], string[], string[]]> {
-    const searchTerm = typeof q === 'string' ? q.trim() : '';
+    const raw = typeof q === 'string' ? q.trim() : '';
+    const searchTerm = sanitizeHtml(raw, { allowedTags: [], allowedAttributes: {} })
+      .replace(/[<>"'&]/g, '')
+      .slice(0, 100);
+
     if (!searchTerm) {
-      return [searchTerm, [], [], []];
+      return ['', [], [], []];
     }
     const results = await this.usersService.searchUsers(searchTerm, null);
     const top = results.slice(0, 8);
