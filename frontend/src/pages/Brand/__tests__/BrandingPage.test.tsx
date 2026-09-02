@@ -6,6 +6,7 @@ import { BrandingPage } from '../BrandingPage';
 import { useLanguageStore } from '../../../shared/lib/language/languageStore';
 import { useAuthStore } from '../../../shared/model/useAuthStore';
 import App from '../../../app/App';
+import { renderWithProviders } from '../../../test/renderWithProviders';
 
 describe('Branding Page (/branding, /brand)', () => {
   beforeEach(() => {
@@ -135,11 +136,7 @@ describe('Branding Page (/branding, /brand)', () => {
   it('is publicly accessible directly via /branding without requiring login', async () => {
     useAuthStore.setState({ isAuthenticated: false, userId: null });
 
-    render(
-      <MemoryRouter initialEntries={['/branding']}>
-        <App />
-      </MemoryRouter>,
-    );
+    renderWithProviders(<App />, { initialEntries: ['/branding'] });
 
     await waitFor(() => {
       expect(screen.getByRole('heading', { level: 1, name: /BRAND ASSETS/i })).toBeInTheDocument();

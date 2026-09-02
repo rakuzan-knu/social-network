@@ -6,6 +6,7 @@ import { BlogPage } from '../BlogPage';
 import { useLanguageStore } from '../../../shared/lib/language/languageStore';
 import { useAuthStore } from '../../../shared/model/useAuthStore';
 import App from '../../../app/App';
+import { renderWithProviders } from '../../../test/renderWithProviders';
 
 describe('Blog Page (/blog)', () => {
   beforeEach(() => {
@@ -109,11 +110,7 @@ describe('Blog Page (/blog)', () => {
   it('is publicly accessible directly via /blog without requiring login', async () => {
     useAuthStore.setState({ isAuthenticated: false, userId: null });
 
-    render(
-      <MemoryRouter initialEntries={['/blog']}>
-        <App />
-      </MemoryRouter>,
-    );
+    renderWithProviders(<App />, { initialEntries: ['/blog'] });
 
     await waitFor(() => {
       expect(screen.getByRole('heading', { level: 1, name: /ETERNAL BLOG/i })).toBeInTheDocument();

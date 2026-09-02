@@ -6,6 +6,7 @@ import { NewsroomPage } from '../NewsroomPage';
 import { useLanguageStore } from '../../../shared/lib/language/languageStore';
 import { useAuthStore } from '../../../shared/model/useAuthStore';
 import App from '../../../app/App';
+import { renderWithProviders } from '../../../test/renderWithProviders';
 
 describe('Newsroom Page (/newsroom)', () => {
   beforeEach(() => {
@@ -139,11 +140,7 @@ describe('Newsroom Page (/newsroom)', () => {
   it('is publicly accessible directly via /newsroom without requiring login', async () => {
     useAuthStore.setState({ isAuthenticated: false, userId: null });
 
-    render(
-      <MemoryRouter initialEntries={['/newsroom']}>
-        <App />
-      </MemoryRouter>,
-    );
+    renderWithProviders(<App />, { initialEntries: ['/newsroom'] });
 
     await waitFor(() => {
       expect(screen.getByRole('heading', { level: 1, name: /PRESS CENTER/i })).toBeInTheDocument();

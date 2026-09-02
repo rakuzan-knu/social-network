@@ -6,6 +6,7 @@ import { DownloadPage } from '../DownloadPage';
 import { useLanguageStore } from '../../../shared/lib/language/languageStore';
 import { useAuthStore } from '../../../shared/model/useAuthStore';
 import App from '../../../app/App';
+import { renderWithProviders } from '../../../test/renderWithProviders';
 
 describe('Download Page (/download)', () => {
   beforeEach(() => {
@@ -111,11 +112,7 @@ describe('Download Page (/download)', () => {
   it('is publicly accessible directly via /download without requiring login', async () => {
     useAuthStore.setState({ isAuthenticated: false, userId: null });
 
-    render(
-      <MemoryRouter initialEntries={['/download']}>
-        <App />
-      </MemoryRouter>,
-    );
+    renderWithProviders(<App />, { initialEntries: ['/download'] });
 
     await waitFor(() => {
       expect(

@@ -6,6 +6,7 @@ import { CategoryPage } from '../CategoryPage';
 import { useLanguageStore } from '../../../shared/lib/language/languageStore';
 import { useAuthStore } from '../../../shared/model/useAuthStore';
 import App from '../../../app/App';
+import { renderWithProviders } from '../../../test/renderWithProviders';
 
 describe('Category Page (/category/community)', () => {
   beforeEach(() => {
@@ -248,11 +249,7 @@ describe('Category Page (/category/community)', () => {
   it('is publicly accessible directly via /category/community without requiring login', async () => {
     useAuthStore.setState({ isAuthenticated: false, userId: null });
 
-    render(
-      <MemoryRouter initialEntries={['/category/community']}>
-        <App />
-      </MemoryRouter>,
-    );
+    renderWithProviders(<App />, { initialEntries: ['/category/community'] });
 
     await waitFor(() => {
       expect(screen.getByRole('heading', { level: 1, name: /COMMUNITY/i })).toBeInTheDocument();
@@ -262,11 +259,7 @@ describe('Category Page (/category/community)', () => {
   it('is publicly accessible directly via /category/company without requiring login', async () => {
     useAuthStore.setState({ isAuthenticated: false, userId: null });
 
-    render(
-      <MemoryRouter initialEntries={['/category/company']}>
-        <App />
-      </MemoryRouter>,
-    );
+    renderWithProviders(<App />, { initialEntries: ['/category/company'] });
 
     await waitFor(() => {
       expect(screen.getByRole('heading', { level: 1, name: /ETERNAL HQ/i })).toBeInTheDocument();
@@ -276,11 +269,7 @@ describe('Category Page (/category/community)', () => {
   it('is publicly accessible directly via /category/engineering without requiring login', async () => {
     useAuthStore.setState({ isAuthenticated: false, userId: null });
 
-    render(
-      <MemoryRouter initialEntries={['/category/engineering']}>
-        <App />
-      </MemoryRouter>,
-    );
+    renderWithProviders(<App />, { initialEntries: ['/category/engineering'] });
 
     await waitFor(() => {
       expect(
@@ -292,11 +281,7 @@ describe('Category Page (/category/community)', () => {
   it('is publicly accessible directly via /category/how-to-eternal without requiring login', async () => {
     useAuthStore.setState({ isAuthenticated: false, userId: null });
 
-    render(
-      <MemoryRouter initialEntries={['/category/how-to-eternal']}>
-        <App />
-      </MemoryRouter>,
-    );
+    renderWithProviders(<App />, { initialEntries: ['/category/how-to-eternal'] });
 
     await waitFor(() => {
       expect(
@@ -308,11 +293,7 @@ describe('Category Page (/category/community)', () => {
   it('is publicly accessible directly via /category/safety without requiring login', async () => {
     useAuthStore.setState({ isAuthenticated: false, userId: null });
 
-    render(
-      <MemoryRouter initialEntries={['/category/safety']}>
-        <App />
-      </MemoryRouter>,
-    );
+    renderWithProviders(<App />, { initialEntries: ['/category/safety'] });
 
     await waitFor(() => {
       expect(
@@ -324,11 +305,7 @@ describe('Category Page (/category/community)', () => {
   it('is publicly accessible directly via /category/product without requiring login', async () => {
     useAuthStore.setState({ isAuthenticated: false, userId: null });
 
-    render(
-      <MemoryRouter initialEntries={['/category/product']}>
-        <App />
-      </MemoryRouter>,
-    );
+    renderWithProviders(<App />, { initialEntries: ['/category/product'] });
 
     await waitFor(() => {
       expect(

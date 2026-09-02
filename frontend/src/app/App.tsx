@@ -281,6 +281,11 @@ export default function App() {
     location.pathname.startsWith('/404') ||
     location.pathname.startsWith('/safety');
 
+  const isMessengerRoute =
+    location.pathname.startsWith('/messages') ||
+    location.pathname.startsWith('/messenger') ||
+    location.pathname.startsWith('/chat/standalone');
+
   return (
     <DeviceLockGate>
       <div className="relative min-h-screen bg-[#070709] text-white">
