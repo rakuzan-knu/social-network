@@ -1,6 +1,7 @@
 import React, { useRef, useMemo } from 'react';
 import { Virtuoso } from 'react-virtuoso';
 import CreatePost from '../../features/posts/ui/CreatePost';
+import { StoriesBar } from '@/widgets/feed/ui/StoriesBar';
 import { PostCard } from '@/widgets/post/ui/PostCard';
 import { SkeletonFeed } from '../../entities/post/ui/SkeletonPostCard';
 import { useHiddenPostsStore } from '@/shared/model/useHiddenPostsStore';
@@ -65,6 +66,9 @@ export default function FeedPage() {
           type: 'WebSite',
         }}
       />
+      {/* Stories Bar */}
+      <StoriesBar />
+
       <CreatePost
         onSubmitFormData={(fd, optimisticPost) =>
           createPost.mutateAsync({ formData: fd, optimisticPost })

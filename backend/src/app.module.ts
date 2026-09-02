@@ -27,6 +27,8 @@ import { GithubModule } from './github/github.module';
 import { OpenGraphModule } from './opengraph/opengraph.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { SitemapModule } from './sitemap/sitemap.module';
+import { ShowcaseModule } from './showcase/showcase.module';
+import { StoriesModule } from './stories/stories.module';
 
 import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware';
 import { MetricsMiddleware } from './metrics/metrics.middleware';
@@ -64,6 +66,8 @@ import type { MiddlewareConsumer, NestModule } from '@nestjs/common';
     OpenGraphModule,
     NotificationsModule,
     SitemapModule,
+    ShowcaseModule,
+    StoriesModule,
   ],
   controllers: [],
   providers: [
