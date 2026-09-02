@@ -36,6 +36,7 @@ import {
 } from '@/entities/notification/model/useNotifications';
 import { useNotificationStore } from '@/entities/notification/model/useNotificationStore';
 import { useNotificationRealtime } from '@/entities/notification/model/useNotificationRealtime';
+import { SEOHead } from '@/shared/seo';
 
 function formatRelativeTime(dateString: string): string {
   const date = new Date(dateString);
@@ -167,6 +168,11 @@ export function NotificationsPage() {
 
   return (
     <div className="w-full max-w-2xl mx-auto space-y-5 animate-fadeIn pb-12">
+      <SEOHead
+        title="Notifications • Eternal"
+        description="Stay updated with your latest mentions, likes, comments, and community interactions on Eternal."
+        noindex={true}
+      />
       {/* Header */}
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-3">

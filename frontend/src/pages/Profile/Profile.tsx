@@ -14,7 +14,8 @@ import CreatePost from '../../features/posts/ui/CreatePost';
 import { PostCard } from '@/widgets/post/ui/PostCard';
 import { SkeletonFeed } from '../../entities/post/ui/SkeletonPostCard';
 import { SavedPostsView } from '@/features/profile/ui/saved/SavedPostsView';
-import { RESERVED_USERNAMES } from '@/features/profile/model/profileSchema';
+import { isReservedUsername } from '@/features/profile/model/profileSchema';
+import { SEOHead } from '@/shared/seo';
 
 function SkeletonProfileHeader() {
   return (
@@ -38,7 +39,7 @@ export default function ProfilePage() {
   const { userId: myUserId } = useAuthStore();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const isReserved = !!rawUsername && RESERVED_USERNAMES.includes(rawUsername.toLowerCase());
+  const isReserved = !!rawUsername && isReservedUsername(rawUsername);
 
   const effectiveUsername = isReserved
     ? '__reserved__'
@@ -129,6 +130,11 @@ export default function ProfilePage() {
   if (error || !user) {
     return (
       <div className="w-full min-h-[450px] flex flex-col items-center justify-center bg-white/[0.02] backdrop-blur-2xl border border-white/[0.05] rounded-[2.5rem] p-8 text-center shadow-[0_12px_40px_rgba(0,0,0,0.6)] animate-fadeIn">
+        <SEOHead
+          title="Profile Not Found • Eternal"
+          description="The requested user profile does not exist or has been removed."
+          noindex={true}
+        />
         <div className="relative mb-6 flex items-center justify-center">
           <div className="absolute inset-0 rounded-full bg-red-500/20 blur-xl animate-pulse w-24 h-24" />
           <div className="relative w-20 h-20 flex items-center justify-center bg-[#0b0b0c] border border-red-500/30 rounded-2xl animate-bounce shadow-2xl">
@@ -171,8 +177,28 @@ export default function ProfilePage() {
   const feedQueryKey =
     activeTab === 'posts' ? [USER_POSTS_KEY, user.id] : [USER_REPOSTS_KEY, user.id];
 
+  const profileName = user.displayName || user.username;
+  const profileDescription =
+    user.bio ||
+    `Check out ${profileName} (@${user.username}) on Eternal. Follow to see their photos, videos and updates.`;
+
   return (
     <div className="w-full flex flex-col animate-fadeIn">
+      <SEOHead
+        title={`${profileName} (@${user.username}) • Eternal Profile`}
+        description={profileDescription}
+        image={user.avatar || undefined}
+        canonical={`/@${user.username}`}
+        type="profile"
+        structuredData={{
+          type: 'ProfilePage',
+          name: profileName,
+          username: user.username,
+          bio: user.bio || undefined,
+          avatar: user.avatar || undefined,
+          breadcrumbs: [{ name: profileName, url: `/@${user.username}` }],
+        }}
+      />
       <div className="bg-white/[0.02] backdrop-blur-2xl border border-white/[0.05] rounded-[2.5rem] overflow-hidden shadow-[0_12px_40px_rgba(0,0,0,0.6)] mb-6">
         <ProfileHeader
           userId={user.id}

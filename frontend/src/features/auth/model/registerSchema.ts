@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { RESERVED_USERNAMES, HARDENED_USERNAME_REGEX } from '../../profile/model/profileSchema';
+import { isReservedUsername, HARDENED_USERNAME_REGEX } from '../../profile/model/profileSchema';
 
 export const registerSchema = z.object({
   firstName: z
@@ -24,10 +24,7 @@ export const registerSchema = z.object({
           HARDENED_USERNAME_REGEX,
           'Username must be 2-32 characters, cannot start/end with . or _, and cannot contain consecutive dots or underscores.',
         )
-        .refine(
-          (val) => !RESERVED_USERNAMES.includes(val.toLowerCase()),
-          'This username is reserved and cannot be used.',
-        ),
+        .refine((val) => !isReservedUsername(val), 'This username is reserved and cannot be used.'),
     ),
   birthMonth: z.string().min(1, 'Select a month'),
   birthDay: z.string().min(1, 'Select a day'),

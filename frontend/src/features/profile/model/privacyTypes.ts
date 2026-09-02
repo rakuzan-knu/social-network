@@ -61,4 +61,5 @@ export const DIMENSION_TO_KEY: Record<PrivacyDimension, keyof PrivacyVisibilityS
   BIRTHDAY: 'birthday',
   BIO: 'bio',
   GROUP_INVITES: 'groupInvites',
-};
+  ...({ THEME_PROPOSALS: 'messages' } as Record<string, keyof PrivacyVisibilitySettings>),
+} as Record<PrivacyDimension, keyof PrivacyVisibilitySettings>;
