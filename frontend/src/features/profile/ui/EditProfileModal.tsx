@@ -145,6 +145,23 @@ export default function EditProfileModal() {
 
   useEffect(() => {
     if (isEditProfileOpen) {
+      if (
+        editProfileInitialTab === 'family' ||
+        editProfileInitialTab === 'family-center' ||
+        editProfileInitialTab === 'sec-family'
+      ) {
+        setActiveTab('account');
+        setExpandedTabs((prev) => ({ ...prev, account: true }));
+        setActiveSection('sec-family');
+        setTimeout(() => {
+          const el = document.getElementById('sec-family');
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 150);
+        return;
+      }
+
       const validTab =
         typeof editProfileInitialTab === 'string' &&
         TABS_CONFIG.some((t) => t.id === editProfileInitialTab)
@@ -807,17 +824,19 @@ export default function EditProfileModal() {
               <div className="flex flex-col gap-1.5 px-3 pt-1 text-[11px] text-gray-500 leading-tight">
                 <div className="flex items-center gap-1.5 font-medium text-gray-400">
                   <a
-                    href="#privacy"
-                    onClick={(e) => e.preventDefault()}
-                    className="hover:text-blue-400 transition-colors"
+                    href="/privacy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-purple-400 transition-colors"
                   >
                     Privacy Policy
                   </a>
                   <span>•</span>
                   <a
-                    href="#terms"
-                    onClick={(e) => e.preventDefault()}
-                    className="hover:text-blue-400 transition-colors"
+                    href="/terms"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-purple-400 transition-colors"
                   >
                     Terms of Service
                   </a>
@@ -834,27 +853,33 @@ export default function EditProfileModal() {
 
                   {isMoreMenuOpen && (
                     <div className="absolute bottom-full left-0 mb-2 w-44 bg-[#161619] border border-white/[0.1] rounded-2xl p-1.5 shadow-2xl flex flex-col gap-0.5 z-50 backdrop-blur-xl animate-fadeIn">
-                      <button
-                        type="button"
+                      <a
+                        href="/blog"
+                        target="_blank"
+                        rel="noopener noreferrer"
                         onClick={() => setIsMoreMenuOpen(false)}
-                        className="w-full text-left px-3 py-2 rounded-xl text-xs text-gray-200 hover:text-white hover:bg-white/[0.08] transition-colors font-medium"
+                        className="w-full text-left px-3 py-2 rounded-xl text-xs text-gray-200 hover:text-white hover:bg-white/[0.08] transition-colors font-medium block"
                       >
                         What's New
-                      </button>
-                      <button
-                        type="button"
+                      </a>
+                      <a
+                        href="/acknowledgements"
+                        target="_blank"
+                        rel="noopener noreferrer"
                         onClick={() => setIsMoreMenuOpen(false)}
-                        className="w-full text-left px-3 py-2 rounded-xl text-xs text-gray-200 hover:text-white hover:bg-white/[0.08] transition-colors font-medium"
+                        className="w-full text-left px-3 py-2 rounded-xl text-xs text-gray-200 hover:text-white hover:bg-white/[0.08] transition-colors font-medium block"
                       >
                         Acknowledgements
-                      </button>
-                      <button
-                        type="button"
+                      </a>
+                      <a
+                        href="/safety"
+                        target="_blank"
+                        rel="noopener noreferrer"
                         onClick={() => setIsMoreMenuOpen(false)}
-                        className="w-full text-left px-3 py-2 rounded-xl text-xs text-gray-200 hover:text-white hover:bg-white/[0.08] transition-colors font-medium"
+                        className="w-full text-left px-3 py-2 rounded-xl text-xs text-gray-200 hover:text-white hover:bg-white/[0.08] transition-colors font-medium block"
                       >
                         Support
-                      </button>
+                      </a>
                     </div>
                   )}
                 </div>

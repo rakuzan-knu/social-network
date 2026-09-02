@@ -160,9 +160,9 @@ export function ProfileMenu({ isSidebarExpanded }: ProfileMenuProps) {
 
           <MenuItem
             icon={HelpCircle}
-            label="FAQ"
+            label="Help & Safety"
             onClick={() => {
-              navigate('/faq');
+              navigate('/safety');
               setIsOpen(false);
             }}
           />

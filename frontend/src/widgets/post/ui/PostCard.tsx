@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { MessageSquare, Repeat, Heart, Share, Bookmark, ChevronDown, Pin } from 'lucide-react';
 
@@ -67,6 +67,18 @@ export function PostCard({ post, queryKey }: PostCardProps) {
   );
 
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const likeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const repostTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (likeTimerRef.current) clearTimeout(likeTimerRef.current);
+      if (repostTimerRef.current) clearTimeout(repostTimerRef.current);
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+      if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+    };
+  }, []);
 
   const openCommentModal = useUIStore((state) => state.openCommentModal);
   const openShareModal = useUIStore((state) => state.openShareModal);
@@ -89,13 +101,13 @@ export function PostCard({ post, queryKey }: PostCardProps) {
 
   const handleLike = () => {
     setIsLikePopping(true);
-    setTimeout(() => setIsLikePopping(false), 400);
+    likeTimerRef.current = setTimeout(() => setIsLikePopping(false), 400);
     likeMutation.mutate();
   };
 
   const handleRepost = () => {
     setIsRepostSpinning(true);
-    setTimeout(() => setIsRepostSpinning(false), 400);
+    repostTimerRef.current = setTimeout(() => setIsRepostSpinning(false), 400);
     repostMutation.mutate();
   };
 
@@ -107,7 +119,7 @@ export function PostCard({ post, queryKey }: PostCardProps) {
   const handleHidePost = () => {
     setIsCollapsing(true);
     showUndo(post.id);
-    setTimeout(() => {
+    hideTimerRef.current = setTimeout(() => {
       hidePost(post.id);
       setIsCollapsing(false);
     }, 300);

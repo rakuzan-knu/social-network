@@ -47,10 +47,67 @@ const ForgotPasswordPage = lazy(() =>
     default: m.ForgotPasswordPage,
   })),
 );
+const PrivacyPage = lazy(() => import('../pages/Privacy/PrivacyPage'));
+const TermsPage = lazy(() => import('../pages/Terms/TermsPage'));
+const ApplicantCandidatePrivacyPage = lazy(
+  () => import('../pages/Terms/ApplicantCandidatePrivacyPage'),
+);
+const CookiePolicyPage = lazy(() => import('../pages/Terms/CookiePolicyPage'));
+const RegionalPrivacyPage = lazy(() => import('../pages/Terms/RegionalPrivacyPage'));
+const RetentionPolicyPage = lazy(() => import('../pages/Terms/RetentionPolicyPage'));
+const DataPrivacyControlsPage = lazy(() => import('../pages/Terms/DataPrivacyControlsPage'));
+const YourDataPackagePage = lazy(() => import('../pages/Terms/YourDataPackagePage'));
+const CopyrightPolicyPage = lazy(() => import('../pages/Terms/CopyrightPolicyPage'));
+const PaidServicesPage = lazy(() => import('../pages/Terms/PaidServicesPage'));
+const LawEnforcementPage = lazy(() => import('../pages/Safety/LawEnforcementPage'));
+const DeveloperTermsPage = lazy(() => import('../pages/Terms/DeveloperTermsPage'));
+const NotFoundPage = lazy(() => import('../pages/NotFound/NotFoundPage'));
+const GuidelinesPage = lazy(() => import('../pages/Guidelines/GuidelinesPage'));
+const AcknowledgementsPage = lazy(() => import('../pages/Acknowledgements/AcknowledgementsPage'));
+const LicensesPage = lazy(() => import('../pages/Licenses/LicensesPage'));
+const CompanyInformationPage = lazy(() => import('../pages/Company/CompanyInformationPage'));
+const CompanyAboutPage = lazy(() => import('../pages/Company/CompanyAboutPage'));
+const CareersPage = lazy(() => import('../pages/Company/CareersPage'));
+const BrandingPage = lazy(() => import('../pages/Brand/BrandingPage'));
+const DownloadPage = lazy(() => import('../pages/Download/DownloadPage'));
+const NewsroomPage = lazy(() => import('../pages/Newsroom/NewsroomPage'));
+const BlogPage = lazy(() => import('../pages/Blog/BlogPage'));
+const CategoryPage = lazy(() => import('../pages/Blog/CategoryPage'));
+const FamilyCenterPage = lazy(() =>
+  import('../pages/Safety/FamilyCenterPage').then((m) => ({ default: m.FamilyCenterPage })),
+);
+const SafetyCenterPage = lazy(() =>
+  import('../pages/Safety/SafetyCenterPage').then((m) => ({ default: m.SafetyCenterPage })),
+);
+const SafetyLibraryPage = lazy(() =>
+  import('../pages/Safety/SafetyLibraryPage').then((m) => ({ default: m.SafetyLibraryPage })),
+);
+const PrivacyHubPage = lazy(() =>
+  import('../pages/Safety/PrivacyHubPage').then((m) => ({ default: m.PrivacyHubPage })),
+);
+const TransparencyHubPage = lazy(() =>
+  import('../pages/Safety/TransparencyHubPage').then((m) => ({ default: m.TransparencyHubPage })),
+);
+const SafetyNewsHubPage = lazy(() =>
+  import('../pages/Safety/SafetyNewsHubPage').then((m) => ({ default: m.SafetyNewsHubPage })),
+);
+const PolicyHubPage = lazy(() =>
+  import('../pages/Safety/PolicyHubPage').then((m) => ({ default: m.PolicyHubPage })),
+);
+const TeenCharterPage = lazy(() =>
+  import('../pages/Safety/TeenCharterPage').then((m) => ({ default: m.TeenCharterPage })),
+);
+const WellbeingHubPage = lazy(() =>
+  import('../pages/Safety/WellbeingHubPage').then((m) => ({ default: m.WellbeingHubPage })),
+);
+const CreatorsPage = lazy(() =>
+  import('../pages/Creators/CreatorsPage').then((m) => ({ default: m.CreatorsPage })),
+);
 
 import { OnlineFriendsSidebar } from '../widgets/sidebar/ui/OnlineFriendsSidebar';
 import { usePresenceSync } from '../features/chat/model/usePresence';
 import { useDynamicTabBadge } from '../shared/lib/useDynamicTabBadge';
+import { ScrollToTop } from '../shared/lib/ScrollToTop';
 import { useNotificationRealtime } from '@/entities/notification';
 import { useStoriesRealtime } from '../features/stories/model/useStoriesRealtime';
 
@@ -96,11 +153,90 @@ export default function App() {
   if (!isAuthenticated) {
     return (
       <div className="relative min-h-screen bg-[#070709] text-white">
+        <ScrollToTop />
         <Suspense fallback={<PageFallback />}>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/terms" element={<TermsPage />} />
+            <Route
+              path="/terms/applicant-candidate-privacy-policy"
+              element={<ApplicantCandidatePrivacyPage />}
+            />
+            <Route path="/terms/applicant-candidate" element={<ApplicantCandidatePrivacyPage />} />
+            <Route path="/terms/cookie-policy" element={<CookiePolicyPage />} />
+            <Route path="/terms/cookies" element={<CookiePolicyPage />} />
+            <Route path="/terms/local-laws" element={<RegionalPrivacyPage />} />
+            <Route path="/terms/regional-privacy" element={<RegionalPrivacyPage />} />
+            <Route path="/privacy/regional" element={<RegionalPrivacyPage />} />
+            <Route path="/terms/retention-policy" element={<RetentionPolicyPage />} />
+            <Route path="/terms/retention" element={<RetentionPolicyPage />} />
+            <Route path="/privacy/retention" element={<RetentionPolicyPage />} />
+            <Route path="/terms/data-privacy-controls" element={<DataPrivacyControlsPage />} />
+            <Route path="/terms/privacy-controls" element={<DataPrivacyControlsPage />} />
+            <Route path="/privacy/controls" element={<DataPrivacyControlsPage />} />
+            <Route path="/terms/your-eternal-data-package" element={<YourDataPackagePage />} />
+            <Route path="/terms/data-package" element={<YourDataPackagePage />} />
+            <Route path="/privacy/data-package" element={<YourDataPackagePage />} />
+            <Route path="/copyright" element={<CopyrightPolicyPage />} />
+            <Route path="/dmca" element={<CopyrightPolicyPage />} />
+            <Route path="/terms/copyright" element={<CopyrightPolicyPage />} />
+            <Route path="/terms/dmca" element={<CopyrightPolicyPage />} />
+            <Route path="/terms/paid-services" element={<PaidServicesPage />} />
+            <Route path="/terms/paid" element={<PaidServicesPage />} />
+            <Route path="/terms/refunds" element={<PaidServicesPage />} />
+            <Route path="/terms/refund-policy" element={<PaidServicesPage />} />
+            <Route path="/safety-law-enforcement" element={<LawEnforcementPage />} />
+            <Route path="/safety/law-enforcement" element={<LawEnforcementPage />} />
+            <Route path="/safety/law" element={<LawEnforcementPage />} />
+            <Route path="/law-enforcement" element={<LawEnforcementPage />} />
+            <Route path="/terms/developer" element={<DeveloperTermsPage />} />
+            <Route path="/terms/developers" element={<DeveloperTermsPage />} />
+            <Route path="/developers" element={<DeveloperTermsPage />} />
+            <Route path="/developer" element={<DeveloperTermsPage />} />
+            <Route path="/guidelines" element={<GuidelinesPage />} />
+            <Route path="/acknowledgements" element={<AcknowledgementsPage />} />
+            <Route path="/licenses" element={<LicensesPage />} />
+            <Route path="/licences" element={<LicensesPage />} />
+            <Route path="/company-information" element={<CompanyInformationPage />} />
+            <Route path="/impressum" element={<CompanyInformationPage />} />
+            <Route path="/company" element={<CompanyAboutPage />} />
+            <Route path="/about" element={<CompanyAboutPage />} />
+            <Route path="/careers" element={<CareersPage />} />
+            <Route path="/jobs" element={<CareersPage />} />
+            <Route path="/branding" element={<BrandingPage />} />
+            <Route path="/brand" element={<BrandingPage />} />
+            <Route path="/download" element={<DownloadPage />} />
+            <Route path="/newsroom" element={<NewsroomPage />} />
+            <Route path="/blog" element={<BlogPage />} />
+            <Route path="/category/:categoryId" element={<CategoryPage />} />
+            <Route path="/category/community" element={<CategoryPage />} />
+            <Route path="/safety-family-center" element={<FamilyCenterPage />} />
+            <Route path="/safety/family-center" element={<FamilyCenterPage />} />
+            <Route path="/safety-library" element={<SafetyLibraryPage />} />
+            <Route path="/safety/library" element={<SafetyLibraryPage />} />
+            <Route path="/safety-privacy" element={<PrivacyHubPage />} />
+            <Route path="/safety/privacy" element={<PrivacyHubPage />} />
+            <Route path="/safety-transparency" element={<TransparencyHubPage />} />
+            <Route path="/safety/transparency" element={<TransparencyHubPage />} />
+            <Route path="/transparency" element={<TransparencyHubPage />} />
+            <Route path="/safety-news" element={<SafetyNewsHubPage />} />
+            <Route path="/safety/news" element={<SafetyNewsHubPage />} />
+            <Route path="/safety-policies" element={<PolicyHubPage />} />
+            <Route path="/safety/policies" element={<PolicyHubPage />} />
+            <Route path="/policies" element={<PolicyHubPage />} />
+            <Route path="/safety-teen-charter" element={<TeenCharterPage />} />
+            <Route path="/safety/teen-charter" element={<TeenCharterPage />} />
+            <Route path="/teen-charter" element={<TeenCharterPage />} />
+            <Route path="/safety-wellbeing" element={<WellbeingHubPage />} />
+            <Route path="/safety/wellbeing" element={<WellbeingHubPage />} />
+            <Route path="/wellbeing" element={<WellbeingHubPage />} />
+            <Route path="/safety" element={<SafetyCenterPage />} />
+            <Route path="/creators" element={<CreatorsPage />} />
+            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="/404" element={<NotFoundPage />} />
             <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>
         </Suspense>
@@ -108,13 +244,54 @@ export default function App() {
     );
   }
 
+  const isStandaloneRoute =
+    location.pathname.startsWith('/messages') ||
+    location.pathname.startsWith('/messenger') ||
+    location.pathname.startsWith('/privacy') ||
+    location.pathname.startsWith('/terms') ||
+    location.pathname.startsWith('/copyright') ||
+    location.pathname.startsWith('/dmca') ||
+    location.pathname.startsWith('/developers') ||
+    location.pathname.startsWith('/developer') ||
+    location.pathname.startsWith('/guidelines') ||
+    location.pathname.startsWith('/acknowledgements') ||
+    location.pathname.startsWith('/licenses') ||
+    location.pathname.startsWith('/licences') ||
+    location.pathname.startsWith('/company-information') ||
+    location.pathname.startsWith('/impressum') ||
+    location.pathname.startsWith('/company') ||
+    location.pathname.startsWith('/about') ||
+    location.pathname.startsWith('/careers') ||
+    location.pathname.startsWith('/jobs') ||
+    location.pathname.startsWith('/branding') ||
+    location.pathname.startsWith('/brand') ||
+    location.pathname.startsWith('/download') ||
+    location.pathname.startsWith('/newsroom') ||
+    location.pathname.startsWith('/blog') ||
+    location.pathname.startsWith('/category') ||
+    location.pathname.startsWith('/safety-family-center') ||
+    location.pathname.startsWith('/safety-library') ||
+    location.pathname.startsWith('/safety-privacy') ||
+    location.pathname.startsWith('/safety-law') ||
+    location.pathname.startsWith('/safety-law-enforcement') ||
+    location.pathname.startsWith('/law-enforcement') ||
+    location.pathname.startsWith('/policies') ||
+    location.pathname.startsWith('/teen-charter') ||
+    location.pathname.startsWith('/wellbeing') ||
+    location.pathname.startsWith('/creators') ||
+    location.pathname.startsWith('/404') ||
+    location.pathname.startsWith('/safety');
+
   const isMessengerRoute =
-    location.pathname.startsWith('/messages') || location.pathname.startsWith('/messenger');
+    location.pathname.startsWith('/messages') ||
+    location.pathname.startsWith('/messenger') ||
+    location.pathname.startsWith('/chat/standalone');
 
   return (
     <DeviceLockGate>
       <div className="relative min-h-screen bg-[#070709] text-white">
-        {!isMessengerRoute && <Sidebar />}
+        <ScrollToTop />
+        {!isStandaloneRoute && <Sidebar />}
         <Suspense fallback={null}>
           <EditProfileModal />
           <ShareModal />
@@ -130,7 +307,7 @@ export default function App() {
 
         <main
           className={
-            isMessengerRoute
+            isStandaloneRoute
               ? 'min-h-screen flex-1'
               : `flex min-h-screen flex-1 justify-center py-8 transition-all duration-300 ${
                   isSidebarExpanded ? 'pl-[232px]' : 'pl-24'
@@ -139,6 +316,85 @@ export default function App() {
         >
           <Suspense fallback={<PageFallback />}>
             <Routes>
+              <Route path="/privacy" element={<PrivacyPage />} />
+              <Route path="/terms" element={<TermsPage />} />
+              <Route
+                path="/terms/applicant-candidate-privacy-policy"
+                element={<ApplicantCandidatePrivacyPage />}
+              />
+              <Route
+                path="/terms/applicant-candidate"
+                element={<ApplicantCandidatePrivacyPage />}
+              />
+              <Route path="/terms/cookie-policy" element={<CookiePolicyPage />} />
+              <Route path="/terms/cookies" element={<CookiePolicyPage />} />
+              <Route path="/terms/local-laws" element={<RegionalPrivacyPage />} />
+              <Route path="/terms/regional-privacy" element={<RegionalPrivacyPage />} />
+              <Route path="/privacy/regional" element={<RegionalPrivacyPage />} />
+              <Route path="/terms/retention-policy" element={<RetentionPolicyPage />} />
+              <Route path="/terms/retention" element={<RetentionPolicyPage />} />
+              <Route path="/privacy/retention" element={<RetentionPolicyPage />} />
+              <Route path="/terms/data-privacy-controls" element={<DataPrivacyControlsPage />} />
+              <Route path="/terms/privacy-controls" element={<DataPrivacyControlsPage />} />
+              <Route path="/privacy/controls" element={<DataPrivacyControlsPage />} />
+              <Route path="/terms/your-eternal-data-package" element={<YourDataPackagePage />} />
+              <Route path="/terms/data-package" element={<YourDataPackagePage />} />
+              <Route path="/privacy/data-package" element={<YourDataPackagePage />} />
+              <Route path="/copyright" element={<CopyrightPolicyPage />} />
+              <Route path="/dmca" element={<CopyrightPolicyPage />} />
+              <Route path="/terms/copyright" element={<CopyrightPolicyPage />} />
+              <Route path="/terms/dmca" element={<CopyrightPolicyPage />} />
+              <Route path="/terms/paid-services" element={<PaidServicesPage />} />
+              <Route path="/terms/paid" element={<PaidServicesPage />} />
+              <Route path="/terms/refunds" element={<PaidServicesPage />} />
+              <Route path="/terms/refund-policy" element={<PaidServicesPage />} />
+              <Route path="/safety-law-enforcement" element={<LawEnforcementPage />} />
+              <Route path="/safety/law-enforcement" element={<LawEnforcementPage />} />
+              <Route path="/safety/law" element={<LawEnforcementPage />} />
+              <Route path="/law-enforcement" element={<LawEnforcementPage />} />
+              <Route path="/terms/developer" element={<DeveloperTermsPage />} />
+              <Route path="/terms/developers" element={<DeveloperTermsPage />} />
+              <Route path="/developers" element={<DeveloperTermsPage />} />
+              <Route path="/developer" element={<DeveloperTermsPage />} />
+              <Route path="/guidelines" element={<GuidelinesPage />} />
+              <Route path="/acknowledgements" element={<AcknowledgementsPage />} />
+              <Route path="/licenses" element={<LicensesPage />} />
+              <Route path="/licences" element={<LicensesPage />} />
+              <Route path="/company-information" element={<CompanyInformationPage />} />
+              <Route path="/impressum" element={<CompanyInformationPage />} />
+              <Route path="/company" element={<CompanyAboutPage />} />
+              <Route path="/about" element={<CompanyAboutPage />} />
+              <Route path="/careers" element={<CareersPage />} />
+              <Route path="/jobs" element={<CareersPage />} />
+              <Route path="/branding" element={<BrandingPage />} />
+              <Route path="/brand" element={<BrandingPage />} />
+              <Route path="/download" element={<DownloadPage />} />
+              <Route path="/newsroom" element={<NewsroomPage />} />
+              <Route path="/blog" element={<BlogPage />} />
+              <Route path="/category/:categoryId" element={<CategoryPage />} />
+              <Route path="/category/community" element={<CategoryPage />} />
+              <Route path="/safety-family-center" element={<FamilyCenterPage />} />
+              <Route path="/safety/family-center" element={<FamilyCenterPage />} />
+              <Route path="/safety-library" element={<SafetyLibraryPage />} />
+              <Route path="/safety/library" element={<SafetyLibraryPage />} />
+              <Route path="/safety-privacy" element={<PrivacyHubPage />} />
+              <Route path="/safety/privacy" element={<PrivacyHubPage />} />
+              <Route path="/safety-transparency" element={<TransparencyHubPage />} />
+              <Route path="/safety/transparency" element={<TransparencyHubPage />} />
+              <Route path="/transparency" element={<TransparencyHubPage />} />
+              <Route path="/safety-news" element={<SafetyNewsHubPage />} />
+              <Route path="/safety/news" element={<SafetyNewsHubPage />} />
+              <Route path="/safety-policies" element={<PolicyHubPage />} />
+              <Route path="/safety/policies" element={<PolicyHubPage />} />
+              <Route path="/policies" element={<PolicyHubPage />} />
+              <Route path="/safety-teen-charter" element={<TeenCharterPage />} />
+              <Route path="/safety/teen-charter" element={<TeenCharterPage />} />
+              <Route path="/teen-charter" element={<TeenCharterPage />} />
+              <Route path="/safety-wellbeing" element={<WellbeingHubPage />} />
+              <Route path="/safety/wellbeing" element={<WellbeingHubPage />} />
+              <Route path="/wellbeing" element={<WellbeingHubPage />} />
+              <Route path="/safety" element={<SafetyCenterPage />} />
+              <Route path="/creators" element={<CreatorsPage />} />
               <Route
                 path="/"
                 element={
@@ -237,7 +493,8 @@ export default function App() {
                 }
               />
 
-              <Route path="*" element={<Navigate to="/" replace />} />
+              <Route path="/404" element={<NotFoundPage />} />
+              <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
         </main>

@@ -14,6 +14,8 @@ import CreatePost from '../../features/posts/ui/CreatePost';
 import { PostCard } from '@/widgets/post/ui/PostCard';
 import { SkeletonFeed } from '../../entities/post/ui/SkeletonPostCard';
 import { SavedPostsView } from '@/features/profile/ui/saved/SavedPostsView';
+import { isReservedUsername } from '@/features/profile/model/profileSchema';
+import { SEOHead } from '@/shared/seo';
 import { RESERVED_USERNAMES } from '@/features/profile/model/profileSchema';
 import { ProfileShowcaseSidebar } from '@/widgets/profile/showcase/ProfileShowcaseSidebar';
 
@@ -39,7 +41,7 @@ export default function ProfilePage() {
   const { userId: myUserId } = useAuthStore();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const isReserved = !!rawUsername && RESERVED_USERNAMES.includes(rawUsername.toLowerCase());
+  const isReserved = !!rawUsername && isReservedUsername(rawUsername);
 
   const effectiveUsername = isReserved
     ? '__reserved__'
@@ -132,6 +134,11 @@ export default function ProfilePage() {
   if (error || !user) {
     return (
       <div className="w-full min-h-[450px] flex flex-col items-center justify-center bg-white/[0.02] backdrop-blur-2xl border border-white/[0.05] rounded-[2.5rem] p-8 text-center shadow-[0_12px_40px_rgba(0,0,0,0.6)] animate-fadeIn">
+        <SEOHead
+          title="Profile Not Found • Eternal"
+          description="The requested user profile does not exist or has been removed."
+          noindex={true}
+        />
         <div className="relative mb-6 flex items-center justify-center">
           <div className="absolute inset-0 rounded-full bg-red-500/20 blur-xl animate-pulse w-24 h-24" />
           <div className="relative w-20 h-20 flex items-center justify-center bg-[#0b0b0c] border border-red-500/30 rounded-2xl animate-bounce shadow-2xl">
@@ -174,77 +181,83 @@ export default function ProfilePage() {
   const feedQueryKey =
     activeTab === 'posts' ? [USER_POSTS_KEY, user.id] : [USER_REPOSTS_KEY, user.id];
 
+  const profileName = user.displayName || user.username;
+  const profileDescription =
+    user.bio ||
+    `Check out ${profileName} (@${user.username}) on Eternal. Follow to see their photos, videos and updates.`;
+
   return (
-    <div className="w-full flex justify-center gap-6 xl:gap-8 animate-fadeIn">
-      {/* Central Profile & Feed Column (Smoothly centered) */}
-      <div className="w-full max-w-2xl flex flex-col transition-all duration-300 ease-in-out">
-        <div className="bg-white/[0.02] backdrop-blur-2xl border border-white/[0.05] rounded-[2.5rem] overflow-hidden shadow-[0_12px_40px_rgba(0,0,0,0.6)] mb-6">
-          <ProfileHeader
-            userId={user.id}
-            displayName={user.displayName}
-            username={user.username}
-            bio={user.bio}
-            avatar={user.avatar}
-            banner={user.banner}
-            bannerPosition={user.bannerPosition}
-            createdAt={user.createdAt}
-            isOwnProfile={isOwnProfile}
-            isFollowing={user.isFollowing}
-            followsYou={user.followsYou}
-            isVerified={user.isVerified}
-            primaryBadge={user.primaryBadge}
-            badges={user.badges}
-            followersCount={user.followersCount}
-            followingCount={user.followingCount}
-            onEditClick={() => openEditProfile('account')}
-          />
+    <div className="w-full flex flex-col animate-fadeIn">
+      <SEOHead
+        title={`${profileName} (@${user.username}) • Eternal Profile`}
+        description={profileDescription}
+        image={user.avatar || undefined}
+        canonical={`/@${user.username}`}
+        type="profile"
+        structuredData={{
+          type: 'ProfilePage',
+          name: profileName,
+          username: user.username,
+          bio: user.bio || undefined,
+          avatar: user.avatar || undefined,
+          breadcrumbs: [{ name: profileName, url: `/@${user.username}` }],
+        }}
+      />
+      <div className="bg-white/[0.02] backdrop-blur-2xl border border-white/[0.05] rounded-[2.5rem] overflow-hidden shadow-[0_12px_40px_rgba(0,0,0,0.6)] mb-6">
+        <ProfileHeader
+          userId={user.id}
+          displayName={user.displayName}
+          username={user.username}
+          bio={user.bio}
+          avatar={user.avatar}
+          banner={user.banner}
+          bannerPosition={user.bannerPosition}
+          createdAt={user.createdAt}
+          isOwnProfile={isOwnProfile}
+          isFollowing={user.isFollowing}
+          followsYou={user.followsYou}
+          isVerified={user.isVerified}
+          primaryBadge={user.primaryBadge}
+          badges={user.badges}
+          followersCount={user.followersCount}
+          followingCount={user.followingCount}
+          onEditClick={() => openEditProfile('account')}
+        />
+        <ProfileTabs
+          activeTab={activeTab}
+          setActiveTab={handleTabChange}
+          showSavedTab={isOwnProfile}
+        />
+      </div>
 
-          {/* Mobile Showcase View (< 1024px) */}
-          <div className="px-6 pt-2 xl:hidden">
-            <ProfileShowcaseSidebar
-              username={user.username}
-              userId={user.id}
-              isOwner={isOwnProfile}
-              variant="mobile"
-            />
-          </div>
-
-          <ProfileTabs
-            activeTab={activeTab}
-            setActiveTab={handleTabChange}
-            showSavedTab={isOwnProfile}
+      {isOwnProfile && activeTab === 'posts' && (
+        <div className="mb-4">
+          <CreatePost
+            onSubmitFormData={(fd, optimisticPost) =>
+              createPost.mutateAsync({ formData: fd, optimisticPost })
+            }
+            isPending={createPost.isPending}
           />
         </div>
+      )}
 
-        {isOwnProfile && activeTab === 'posts' && (
-          <div className="mb-4">
-            <CreatePost
-              onSubmitFormData={(fd, optimisticPost) =>
-                createPost.mutateAsync({ formData: fd, optimisticPost })
-              }
-              isPending={createPost.isPending}
-            />
-          </div>
-        )}
-
-        {activeTab === 'saved' && isOwnProfile ? (
-          <SavedPostsView userId={user.id} />
-        ) : activeQuery.isLoading ? (
-          <SkeletonFeed count={4} />
-        ) : activeFeed.length > 0 ? (
-          <div className="flex flex-col gap-4">
-            {activeFeed.map((post) => (
-              <PostCard key={post.id} post={post} queryKey={feedQueryKey} />
-            ))}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-white/5 rounded-[2rem] bg-white/[0.01]">
-            <p className="text-gray-500 font-medium text-base">
-              {activeTab === 'posts' ? 'No posts have been created yet.' : 'No reposts yet'}
-            </p>
-          </div>
-        )}
-      </div>
+      {activeTab === 'saved' && isOwnProfile ? (
+        <SavedPostsView userId={user.id} />
+      ) : activeQuery.isLoading ? (
+        <SkeletonFeed count={4} />
+      ) : activeFeed.length > 0 ? (
+        <div className="flex flex-col gap-4">
+          {activeFeed.map((post) => (
+            <PostCard key={post.id} post={post} queryKey={feedQueryKey} />
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-white/5 rounded-[2rem] bg-white/[0.01]">
+          <p className="text-gray-500 font-medium text-base">
+            {activeTab === 'posts' ? 'No posts have been created yet.' : 'No reposts yet'}
+          </p>
+        </div>
+      )}
 
       {/* Desktop Sticky Profile Showcase Sidebar (>= 1024px) */}
       <ProfileShowcaseSidebar

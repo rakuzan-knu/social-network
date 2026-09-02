@@ -36,6 +36,7 @@ import { useNavigate } from 'react-router-dom';
 import { chatApi } from '@/features/chat/api/chatApi';
 import { initCrossTabSync } from '@/shared/lib/broadcastSync';
 import { useChatDraftsStore } from '@/features/chat/model/useChatDraftsStore';
+import { SEOHead } from '@/shared/seo';
 
 export default function StandaloneChatPage() {
   const { conversationId } = useParams<{ conversationId: string }>();
@@ -179,6 +180,11 @@ export default function StandaloneChatPage() {
         isMaximized ? '' : 'p-0'
       }`}
     >
+      <SEOHead
+        title={`${display.title || 'Chat'} • Messages`}
+        description="Direct and group messaging on Eternal."
+        noindex={true}
+      />
       {/* PC Style Liquid Glass Titlebar / Header */}
       <div className="flex items-center justify-between px-4 h-14 bg-[#111622]/90 backdrop-blur-2xl border-b border-white/10 select-none flex-shrink-0 z-30">
         {/* User Info */}

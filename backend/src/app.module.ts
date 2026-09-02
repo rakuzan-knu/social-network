@@ -26,6 +26,7 @@ import { PollModule } from './poll/poll.module';
 import { GithubModule } from './github/github.module';
 import { OpenGraphModule } from './opengraph/opengraph.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { SitemapModule } from './sitemap/sitemap.module';
 import { ShowcaseModule } from './showcase/showcase.module';
 import { StoriesModule } from './stories/stories.module';
 
@@ -64,6 +65,7 @@ import type { MiddlewareConsumer, NestModule } from '@nestjs/common';
     GithubModule,
     OpenGraphModule,
     NotificationsModule,
+    SitemapModule,
     ShowcaseModule,
     StoriesModule,
   ],
