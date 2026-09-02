@@ -1,14 +1,17 @@
 {
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
-    "target": "ES2022",
+    "target": "ES2023",
     "useDefineForClassFields": true,
-    "lib": ["DOM", "DOM.Iterable", "ES2022"],
+    "lib": ["DOM", "DOM.Iterable", "ES2023"],
     "module": "ESNext",
     "skipLibCheck": true,
     "paths": {
       "@/*": ["./src/*"],
-      "@backend/*": ["../backend/src/*"]
+      "@backend/*": ["../backend/src/*"],
+      "@common/*": ["../backend/src/common/*", "../backend/src/common/*/index.ts"],
+      "@common/prisma": ["../backend/src/common/prisma/index.ts"],
+      "@common/contracts": ["../backend/src/common/contracts/index.ts"]
     },
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,

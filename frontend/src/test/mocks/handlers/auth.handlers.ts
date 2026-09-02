@@ -71,6 +71,31 @@ export const authHandlers = [
     });
   }),
 
+  http.post('*/auth/change-password', () => {
+    return HttpResponse.json({ success: true });
+  }),
+
+  http.get('*/auth/sessions', () => {
+    return HttpResponse.json([
+      {
+        id: 'session-1',
+        device: 'Chrome on Windows',
+        ip: '127.0.0.1',
+        lastActive: new Date().toISOString(),
+        isCurrent: true,
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+  }),
+
+  http.delete('*/auth/sessions/:id', () => {
+    return new HttpResponse(null, { status: 204 });
+  }),
+
+  http.delete('*/auth/sessions', () => {
+    return new HttpResponse(null, { status: 204 });
+  }),
+
   http.get('*/users/me', () => {
     return HttpResponse.json({
       id: 'user-1',

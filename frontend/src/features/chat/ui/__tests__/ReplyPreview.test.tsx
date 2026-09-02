@@ -38,4 +38,51 @@ describe('ReplyPreview', () => {
     fireEvent.click(cancelBtn);
     expect(onCancel).toHaveBeenCalled();
   });
+
+  it('renders sticker, photo, video, audio, video note, and file attachment preview texts and handles image error', () => {
+    const photoMessage: MessageView = {
+      ...mockMessage,
+      body: '',
+      attachments: [
+        {
+          id: 'att-1',
+          type: 'IMAGE',
+          url: 'https://example.com/pic.jpg',
+          fileName: 'photo.jpg',
+        } as any,
+      ],
+    };
+
+    const { rerender } = render(<ReplyPreview message={photoMessage} onCancel={vi.fn()} />);
+    expect(screen.getByText('🖼️ Photo')).toBeInTheDocument();
+
+    const img = screen.getByAltText('Reply attachment preview');
+    fireEvent.error(img);
+
+    const voiceMessage: MessageView = {
+      ...mockMessage,
+      body: '',
+      attachments: [{ id: 'att-2', type: 'AUDIO', url: 'https://voice.ogg' } as any],
+    };
+    rerender(<ReplyPreview message={voiceMessage} onCancel={vi.fn()} />);
+    expect(screen.getByText('🎙️ Voice message')).toBeInTheDocument();
+
+    const fileMessage: MessageView = {
+      ...mockMessage,
+      body: '',
+      attachments: [
+        { id: 'att-3', type: 'FILE', url: 'https://doc.pdf', fileName: 'contract.pdf' } as any,
+      ],
+    };
+    rerender(<ReplyPreview message={fileMessage} onCancel={vi.fn()} />);
+    expect(screen.getByText('📄 contract.pdf')).toBeInTheDocument();
+
+    const otherAttMessage: MessageView = {
+      ...mockMessage,
+      body: '',
+      attachments: [{ id: 'att-4', type: 'UNKNOWN_TYPE' as any, url: 'https://other.bin' } as any],
+    };
+    rerender(<ReplyPreview message={otherAttMessage} onCancel={vi.fn()} />);
+    expect(screen.getByText('Attachment')).toBeInTheDocument();
+  });
 });

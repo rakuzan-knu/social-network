@@ -55,6 +55,7 @@ export class MessengerMapper {
       conversationId: msg.conversationId,
       sender: msg.sender,
       body: isMessageHidden ? null : (msg.body ?? null),
+      clientSeq: msg.clientSeq ?? null,
       messageType: msg.messageType,
       replyTo: msg.replyTo
         ? this.mapMessage(

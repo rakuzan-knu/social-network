@@ -1,14 +1,18 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import { S3Client, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { StoriesRepository } from './stories.repository';
 
 @Injectable()
-export class StoriesRetentionService {
+export class StoriesRetentionService implements OnModuleDestroy {
   private readonly logger = new Logger(StoriesRetentionService.name);
   private readonly s3: S3Client;
   private readonly bucket: string;
+
+  onModuleDestroy(): void {
+    this.s3.destroy();
+  }
 
   constructor(
     private readonly storiesRepo: StoriesRepository,
@@ -73,9 +77,7 @@ export class StoriesRetentionService {
         }
       }
 
-      const deletedCount = await this.storiesRepo.deleteExpiredStories(
-        expired.map((s: any) => s.id),
-      );
+      const deletedCount = await this.storiesRepo.deleteExpiredStories(expired.map((s) => s.id));
       this.logger.log(`Successfully purged ${deletedCount} expired story records from database.`);
     } catch (e) {
       this.logger.error(`Error during expired stories cleanup job: ${String(e)}`);

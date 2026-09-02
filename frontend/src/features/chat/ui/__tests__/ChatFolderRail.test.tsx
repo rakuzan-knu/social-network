@@ -55,5 +55,51 @@ describe('ChatFolderRail', () => {
     const createBtn = screen.getByRole('button', { name: 'Create chat folder' });
     fireEvent.click(createBtn);
     expect(onCreate).toHaveBeenCalled();
+
+    // Context menu
+    fireEvent.contextMenu(screen.getByText('Personal'));
+    expect(onContextMenu).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'f-personal' }),
+      expect.any(Number),
+      expect.any(Number),
+    );
+  });
+
+  it('supports pointer drag and drop reordering', () => {
+    const onReorder = vi.fn();
+    render(
+      <ChatFolderRail
+        folders={mockFolders}
+        conversations={[]}
+        forcedUnreadIds={new Set()}
+        activeFolderId="f-all"
+        onSelect={vi.fn()}
+        onCreate={vi.fn()}
+        onContextMenu={vi.fn()}
+        onReorder={onReorder}
+      />,
+    );
+
+    const personalFolder = screen.getByText('Personal').closest('button')!;
+
+    // Pointer down
+    fireEvent.pointerDown(personalFolder, {
+      clientX: 50,
+      clientY: 50,
+      pointerType: 'mouse',
+    });
+
+    // Pointer move > 6px to trigger startDrag
+    fireEvent(
+      window,
+      new MouseEvent('pointermove', {
+        clientX: 70,
+        clientY: 50,
+        bubbles: true,
+      }),
+    );
+
+    // Pointer up to end drag
+    fireEvent(window, new MouseEvent('pointerup', { bubbles: true }));
   });
 });

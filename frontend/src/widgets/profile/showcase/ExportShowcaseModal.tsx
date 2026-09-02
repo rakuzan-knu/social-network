@@ -32,7 +32,7 @@ export const ExportShowcaseModal: React.FC<ExportShowcaseModalProps> = ({
   const [copied, setCopied] = useState(false);
 
   const accent = showcase.accentColor || '#6366f1';
-  const topMedia = showcase.mediaItems.slice(0, 3);
+  const topMedia = (showcase.mediaItems || []).slice(0, 3);
 
   const generateCard = async () => {
     if (!cardRef.current) return;
@@ -129,7 +129,7 @@ export const ExportShowcaseModal: React.FC<ExportShowcaseModalProps> = ({
         }}
       >
         {/* Modal Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
+        <div className="flex items-center justify-between pb-3 border-b border-white/8">
           <div className="flex items-center gap-2.5">
             <div className="p-1.5 rounded-xl bg-indigo-500/20 text-indigo-300">
               <Share2 size={16} />
@@ -145,7 +145,7 @@ export const ExportShowcaseModal: React.FC<ExportShowcaseModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-gray-400 hover:text-white transition-colors cursor-pointer"
+            className="p-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-colors cursor-pointer"
           >
             <X size={18} />
           </button>
@@ -170,10 +170,10 @@ export const ExportShowcaseModal: React.FC<ExportShowcaseModalProps> = ({
         </div>
 
         {/* HIDDEN OFF-SCREEN RENDER CONTAINER FOR HTML-TO-IMAGE */}
-        <div className="absolute -left-[9999px] top-0 pointer-events-none">
+        <div className="absolute left-[-9999px] top-0 pointer-events-none">
           <div
             ref={cardRef}
-            className="w-[480px] bg-[#0c0c0f] text-white p-5 rounded-[2.5rem] border border-white/10 flex flex-col gap-4 relative overflow-hidden font-sans"
+            className="w-120 bg-[#0c0c0f] text-white p-5 rounded-[2.5rem] border border-white/10 flex flex-col gap-4 relative overflow-hidden font-sans"
             style={{
               boxShadow: `0 20px 50px rgba(0,0,0,0.9)`,
             }}
@@ -186,7 +186,7 @@ export const ExportShowcaseModal: React.FC<ExportShowcaseModalProps> = ({
             <div className="absolute -bottom-16 -left-16 w-52 h-52 rounded-full bg-purple-600/25 blur-3xl pointer-events-none" />
 
             {/* Profile Header Block */}
-            <div className="relative rounded-2xl overflow-hidden bg-white/[0.03] border border-white/[0.08] p-3 flex items-center gap-3.5 backdrop-blur-xl">
+            <div className="relative rounded-2xl overflow-hidden bg-white/3 border border-white/8 p-3 flex items-center gap-3.5 backdrop-blur-xl">
               {user.banner && (
                 <img
                   src={user.banner}
@@ -214,20 +214,20 @@ export const ExportShowcaseModal: React.FC<ExportShowcaseModalProps> = ({
 
             {/* Spotlight Card */}
             {showcase.spotlightMedia && (
-              <div className="relative rounded-2xl overflow-hidden bg-white/[0.04] border border-white/[0.08] p-3 flex flex-col gap-2 backdrop-blur-xl">
+              <div className="relative rounded-2xl overflow-hidden bg-white/4 border border-white/8 p-3 flex flex-col gap-2 backdrop-blur-xl">
                 <div className="flex items-center gap-1.5 text-amber-400 text-[11px] font-bold uppercase tracking-wider">
                   <Flame size={13} />
                   <span>Spotlight Title</span>
                 </div>
 
-                <div className="relative rounded-xl overflow-hidden aspect-[16/9] border border-white/10 bg-black/40">
+                <div className="relative rounded-xl overflow-hidden aspect-video border border-white/10 bg-black/40">
                   <img
                     src={bannerSource}
                     alt={showcase.spotlightMedia.title}
                     crossOrigin="anonymous"
                     className="w-full h-full object-cover"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent flex flex-col justify-end p-3">
+                  <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/30 to-transparent flex flex-col justify-end p-3">
                     <div className="flex items-center justify-between">
                       <div className="flex flex-col">
                         <span className="font-extrabold text-sm text-white drop-shadow-md">
@@ -255,7 +255,7 @@ export const ExportShowcaseModal: React.FC<ExportShowcaseModalProps> = ({
                     {showcase.spotlightMedia.tags.slice(0, 3).map((tag, idx) => (
                       <span
                         key={idx}
-                        className="px-2 py-0.5 rounded-lg bg-white/[0.06] border border-white/10 text-[10px] text-gray-200"
+                        className="px-2 py-0.5 rounded-lg bg-white/6 border border-white/10 text-[10px] text-gray-200"
                       >
                         {tag}
                       </span>
@@ -275,7 +275,7 @@ export const ExportShowcaseModal: React.FC<ExportShowcaseModalProps> = ({
                   {topMedia.map((m, idx) => (
                     <div
                       key={idx}
-                      className="aspect-[2/3] rounded-xl overflow-hidden border border-white/10 bg-black/40 relative"
+                      className="aspect-2/3 rounded-xl overflow-hidden border border-white/10 bg-black/40 relative"
                     >
                       <img
                         src={m.posterUrl}
@@ -283,7 +283,7 @@ export const ExportShowcaseModal: React.FC<ExportShowcaseModalProps> = ({
                         crossOrigin="anonymous"
                         className="w-full h-full object-cover"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent p-1.5 flex items-end">
+                      <div className="absolute inset-0 bg-linear-to-t from-black/80 to-transparent p-1.5 flex items-end">
                         <span className="text-[9px] font-bold text-white truncate">{m.title}</span>
                       </div>
                     </div>
@@ -293,7 +293,7 @@ export const ExportShowcaseModal: React.FC<ExportShowcaseModalProps> = ({
             )}
 
             {/* Brand Watermark Footer */}
-            <div className="pt-2 border-t border-white/[0.08] flex items-center justify-between text-[10px] text-gray-400 font-medium">
+            <div className="pt-2 border-t border-white/8 flex items-center justify-between text-[10px] text-gray-400 font-medium">
               <div className="flex items-center gap-1 text-indigo-300">
                 <Sparkles size={11} />
                 <span className="font-bold">Social Network</span>
@@ -304,12 +304,12 @@ export const ExportShowcaseModal: React.FC<ExportShowcaseModalProps> = ({
         </div>
 
         {/* Modal Actions */}
-        <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/[0.08]">
+        <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/8">
           <button
             type="button"
             onClick={handleCopyToClipboard}
             disabled={!previewUrl || isGenerating}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.15] text-xs font-bold text-white transition-all cursor-pointer disabled:opacity-40"
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-white/8 hover:bg-white/15 text-xs font-bold text-white transition-all cursor-pointer disabled:opacity-40"
           >
             {copied ? (
               <>

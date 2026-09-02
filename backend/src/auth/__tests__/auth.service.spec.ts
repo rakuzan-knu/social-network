@@ -2,11 +2,12 @@ import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import type { ConfigService } from '@nestjs/config';
 import type { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
+import { Prisma } from '@prisma/client';
 import { AuthService } from '../auth.service';
 import type { RedisService } from '../../redis/redis.service';
 import type { UsersService } from '../../users/users.service';
 import type { SessionsService } from '../../sessions/sessions.service';
+import type { TokenRevocationService } from '../token-revocation.service';
 
 jest.setTimeout(30000);
 
@@ -83,11 +84,19 @@ describe('AuthService', () => {
       revokeOthers: jest.fn().mockResolvedValue(['revoked-jti-1']),
     };
 
+    const mockTokenRevocationService = {
+      revokeJti: jest.fn().mockResolvedValue(undefined),
+      revokeJtis: jest.fn().mockResolvedValue(undefined),
+      revokeAllUserTokens: jest.fn().mockResolvedValue(undefined),
+      isTokenRevoked: jest.fn().mockResolvedValue(false),
+    };
+
     service = new AuthService(
       mockUsersService as unknown as UsersService,
       mockJwtService as unknown as JwtService,
       mockConfigService as unknown as ConfigService,
       mockRedisService as unknown as RedisService,
+      mockTokenRevocationService as unknown as TokenRevocationService,
       mockSessionsService as unknown as SessionsService,
     );
   });
@@ -156,9 +165,9 @@ describe('AuthService', () => {
       mockUsersService.findByEmail.mockResolvedValueOnce(null);
       mockUsersService.findByUsername.mockResolvedValueOnce(null);
       mockUsersService.create.mockRejectedValueOnce(
-        new PrismaClientKnownRequestError('Unique constraint failed', {
+        new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
           code: 'P2002',
-          clientVersion: '5.22.0',
+          clientVersion: '7.10.0',
         }),
       );
 

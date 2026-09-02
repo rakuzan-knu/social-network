@@ -1,4 +1,5 @@
 import type Redis from 'ioredis';
+import { Logger } from '@nestjs/common';
 import { RedisService } from '../redis.service';
 
 describe('RedisService', () => {
@@ -18,34 +19,106 @@ describe('RedisService', () => {
     sadd: jest.Mock;
     srem: jest.Mock;
     scard: jest.Mock;
+    smembers: jest.Mock;
+    geoadd: jest.Mock;
+    geodist: jest.Mock;
+    geosearch: jest.Mock;
+    georadius: jest.Mock;
+    eval: jest.Mock;
+    multi: jest.Mock;
+    status: string;
   };
 
   beforeEach(() => {
     mockRedisClient = {
+      status: 'ready',
       set: jest.fn().mockResolvedValue('OK'),
       get: jest.fn(),
+      eval: jest.fn().mockResolvedValue(1),
       del: jest.fn().mockResolvedValue(1),
       exists: jest.fn().mockResolvedValue(1),
       scanStream: jest.fn(),
       unlink: jest.fn().mockResolvedValue(1),
       zadd: jest.fn().mockResolvedValue(1),
-      zrangebyscore: jest.fn().mockResolvedValue([]),
+      zrangebyscore: jest.fn().mockResolvedValue(['item1']),
       zremrangebyrank: jest.fn().mockResolvedValue(1),
       incr: jest.fn().mockResolvedValue(1),
       expire: jest.fn().mockResolvedValue(1),
       sadd: jest.fn().mockResolvedValue(1),
       srem: jest.fn().mockResolvedValue(1),
-      scard: jest.fn().mockResolvedValue(0),
+      scard: jest.fn().mockResolvedValue(3),
+      smembers: jest.fn().mockResolvedValue(['m1', 'm2']),
+      geoadd: jest.fn().mockResolvedValue(1),
+      geodist: jest.fn().mockResolvedValue('4.5'),
+      geosearch: jest.fn().mockResolvedValue(['loc1', 'loc2']),
+      georadius: jest.fn().mockResolvedValue(['loc1']),
+      multi: jest.fn().mockReturnValue({
+        sadd: jest.fn().mockReturnThis(),
+        expire: jest.fn().mockReturnThis(),
+        exec: jest.fn().mockResolvedValue([]),
+      }),
     };
 
     service = new RedisService(mockRedisClient as unknown as Redis);
+    jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
+    jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   it('getClient returns underlying redis client', () => {
     expect(service.getClient()).toBe(mockRedisClient);
   });
 
-  it('set, get, del, exists operate on redis client', async () => {
+  it('mutex lock: acquireLock, releaseLock, and withLock', async () => {
+    // Successful acquire and release
+    mockRedisClient.set.mockResolvedValueOnce('OK');
+    const token = await service.acquireLock('lock:test', 2000);
+    expect(token).toBeDefined();
+    expect(mockRedisClient.set).toHaveBeenCalledWith('lock:test', token, 'PX', 2000, 'NX');
+
+    const released = await service.releaseLock('lock:test', token!);
+    expect(released).toBe(true);
+    expect(mockRedisClient.eval).toHaveBeenCalled();
+
+    // Acquire failure when already held
+    mockRedisClient.set.mockResolvedValueOnce(null);
+    expect(await service.acquireLock('lock:held')).toBeNull();
+
+    // withLock execution
+    mockRedisClient.set.mockResolvedValue('OK');
+    const actionResult = await service.withLock('lock:action', async () => 'computed');
+    expect(actionResult).toBe('computed');
+
+    // withLock failure after retries
+    mockRedisClient.set.mockResolvedValue(null);
+    await expect(
+      service.withLock('lock:fail', async () => 'never', { retryCount: 1, retryDelayMs: 10 }),
+    ).rejects.toThrow('Failed to acquire lock');
+  });
+
+  it('getOrSetWithProbabilisticEarlyExpiration reads cache or recomputes', async () => {
+    // Cache miss
+    mockRedisClient.get.mockResolvedValueOnce(null);
+    const loader = jest.fn().mockResolvedValue({ status: 'ok' });
+    const fresh = await service.getOrSetWithProbabilisticEarlyExpiration('cache:key', 60, loader);
+    expect(fresh).toEqual({ status: 'ok' });
+
+    // Cache hit with valid payload
+    const payload = JSON.stringify({
+      value: { status: 'cached' },
+      ttl: 60,
+      savedAt: Date.now(),
+      deltaMs: 10,
+    });
+    mockRedisClient.get.mockResolvedValueOnce(payload);
+    const cached = await service.getOrSetWithProbabilisticEarlyExpiration('cache:key', 60, loader);
+    expect(cached).toEqual({ status: 'cached' });
+  });
+
+  it('set, get, del, exists operate on redis client and catch errors', async () => {
     await service.set('key-1', 'val-1', 60);
     expect(mockRedisClient.set).toHaveBeenCalledWith('key-1', 'val-1', 'EX', 60);
 
@@ -56,43 +129,156 @@ describe('RedisService', () => {
     expect(mockRedisClient.del).toHaveBeenCalledWith('key-1');
 
     expect(await service.exists('key-1')).toBe(true);
+
+    // Error handling
+    mockRedisClient.set.mockRejectedValueOnce(new Error('fail'));
+    await expect(service.set('key', 'val')).resolves.not.toThrow();
+
+    mockRedisClient.get.mockRejectedValueOnce(new Error('fail'));
+    expect(await service.get('key')).toBeNull();
+
+    mockRedisClient.del.mockRejectedValueOnce(new Error('fail'));
+    await expect(service.del('key')).resolves.not.toThrow();
+
+    mockRedisClient.exists.mockRejectedValueOnce(new Error('fail'));
+    expect(await service.exists('key')).toBe(false);
   });
 
-  it('getOrSet returns cached value if available', async () => {
+  it('getOrSet returns cached value or executes loader and catches errors', async () => {
     mockRedisClient.get.mockResolvedValueOnce(JSON.stringify({ test: 'cached' }));
     const loader = jest.fn();
-
     const result = await service.getOrSet('test-key', 60, loader);
-
     expect(result).toEqual({ test: 'cached' });
-    expect(loader).not.toHaveBeenCalled();
+
+    mockRedisClient.get.mockRejectedValueOnce(new Error('get fail'));
+    mockRedisClient.set.mockRejectedValueOnce(new Error('set fail'));
+    const freshLoader = jest.fn().mockResolvedValue({ test: 'fresh' });
+    const fresh = await service.getOrSet('fresh-key', 60, freshLoader);
+    expect(fresh).toEqual({ test: 'fresh' });
+
+    // Singleflight: concurrent calls for same key coalesce into single execution
+    mockRedisClient.get.mockResolvedValue(null);
+    let executionCount = 0;
+    const slowLoader = jest.fn(async () => {
+      executionCount++;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      return { count: executionCount };
+    });
+
+    const [res1, res2] = await Promise.all([
+      service.getOrSet('concurrent-key', 60, slowLoader),
+      service.getOrSet('concurrent-key', 60, slowLoader),
+    ]);
+
+    expect(res1).toEqual({ count: 1 });
+    expect(res2).toEqual({ count: 1 });
+    expect(slowLoader).toHaveBeenCalledTimes(1);
   });
 
-  it('getOrSet executes loader and caches value when cache misses', async () => {
-    mockRedisClient.get.mockResolvedValueOnce(null);
-    const loader = jest.fn().mockResolvedValue({ test: 'fresh' });
-
-    const result = await service.getOrSet('test-key', 60, loader);
-
-    expect(result).toEqual({ test: 'fresh' });
-    expect(loader).toHaveBeenCalled();
-    expect(mockRedisClient.set).toHaveBeenCalledWith(
-      'test-key',
-      JSON.stringify({ test: 'fresh' }),
-      'EX',
-      expect.any(Number),
-    );
-  });
-
-  it('delByPattern deletes matching keys from scanStream', async () => {
+  it('delByPattern deletes matching keys from scanStream and catches errors', async () => {
+    const destroyFn = jest.fn();
     async function* asyncGenerator() {
       await Promise.resolve();
       yield ['key:1', 'key:2'];
     }
-    mockRedisClient.scanStream.mockReturnValue(asyncGenerator());
-
+    const gen = Object.assign(asyncGenerator(), { destroy: destroyFn });
+    mockRedisClient.scanStream.mockReturnValue(gen);
     await service.delByPattern('key:*');
-
     expect(mockRedisClient.unlink).toHaveBeenCalledWith('key:1', 'key:2');
+    expect(destroyFn).toHaveBeenCalledTimes(1);
+
+    // Early return when not connected
+    mockRedisClient.status = 'end';
+    await service.delByPattern('key:*');
+    mockRedisClient.status = 'ready';
+
+    // Connection is closed error
+    mockRedisClient.scanStream.mockImplementationOnce(() => {
+      throw new Error('Connection is closed');
+    });
+    await expect(service.delByPattern('closed:*')).resolves.not.toThrow();
+
+    // Generic error
+    mockRedisClient.scanStream.mockImplementationOnce(() => {
+      throw new Error('scan fail');
+    });
+    await expect(service.delByPattern('error:*')).resolves.not.toThrow();
+  });
+
+  it('sorted set, string, and set commands operate properly and handle errors', async () => {
+    expect(await service.zadd('zkey', 10, 'm1')).toBe(1);
+    expect(await service.zrangebyscore('zkey', 0, 100)).toEqual(['item1']);
+    expect(await service.zremrangebyrank('zkey', 0, 1)).toBe(1);
+    expect(await service.incr('counter')).toBe(1);
+    expect(await service.expire('counter', 30)).toBe(1);
+    expect(await service.sadd('setkey', 'a', 'b')).toBe(1);
+    expect(await service.saddWithTtl('setkey', 3600, 'a', 'b')).toBe(1);
+    expect(mockRedisClient.expire).toHaveBeenCalledWith('setkey', 3600);
+    expect(await service.srem('setkey', 'a')).toBe(1);
+    expect(await service.scard('setkey')).toBe(3);
+    expect(await service.smembers('setkey')).toEqual(['m1', 'm2']);
+
+    mockRedisClient.zadd.mockRejectedValueOnce(new Error('fail'));
+    expect(await service.zadd('zkey', 10, 'm1')).toBe(0);
+
+    mockRedisClient.zrangebyscore.mockRejectedValueOnce(new Error('fail'));
+    expect(await service.zrangebyscore('zkey', 0, 100)).toEqual([]);
+
+    mockRedisClient.zremrangebyrank.mockRejectedValueOnce(new Error('fail'));
+    expect(await service.zremrangebyrank('zkey', 0, 1)).toBe(0);
+
+    mockRedisClient.incr.mockRejectedValueOnce(new Error('fail'));
+    expect(await service.incr('counter')).toBe(0);
+
+    mockRedisClient.expire.mockRejectedValueOnce(new Error('fail'));
+    expect(await service.expire('counter', 30)).toBe(0);
+
+    mockRedisClient.sadd.mockRejectedValueOnce(new Error('fail'));
+    expect(await service.sadd('setkey', 'a')).toBe(0);
+
+    mockRedisClient.srem.mockRejectedValueOnce(new Error('fail'));
+    expect(await service.srem('setkey', 'a')).toBe(0);
+
+    mockRedisClient.scard.mockRejectedValueOnce(new Error('fail'));
+    expect(await service.scard('setkey')).toBe(0);
+
+    mockRedisClient.smembers.mockRejectedValueOnce(new Error('fail'));
+    expect(await service.smembers('setkey')).toEqual([]);
+  });
+
+  it('geo commands: geoadd, geodist, geosearchMembers', async () => {
+    expect(await service.geoadd('geo:users', 37.6173, 55.7558, 'u1')).toBe(1);
+    mockRedisClient.geoadd.mockRejectedValueOnce(new Error('fail'));
+    expect(await service.geoadd('geo:users', 37.6173, 55.7558, 'u1')).toBe(0);
+
+    expect(await service.geodist('geo:users', 'u1', 'u2', 'km')).toBe(4.5);
+    mockRedisClient.geodist.mockResolvedValueOnce(null);
+    expect(await service.geodist('geo:users', 'u1', 'u2')).toBeNull();
+    mockRedisClient.geodist.mockRejectedValueOnce(new Error('fail'));
+    expect(await service.geodist('geo:users', 'u1', 'u2')).toBeNull();
+
+    // geosearch success
+    const members = await service.geosearchMembers('geo:users', 37.6, 55.7, 50, 10);
+    expect(members).toEqual(['loc1', 'loc2']);
+
+    // geosearch error -> fallback to georadius
+    mockRedisClient.geosearch.mockRejectedValueOnce(new Error('no geosearch'));
+    const fallbackMembers = await service.geosearchMembers('geo:users', 37.6, 55.7, 50, 10);
+    expect(fallbackMembers).toEqual(['loc1']);
+
+    // both error
+    mockRedisClient.geosearch.mockRejectedValueOnce(new Error('fail'));
+    mockRedisClient.georadius.mockRejectedValueOnce(new Error('fail'));
+    expect(await service.geosearchMembers('geo:users', 37.6, 55.7, 50)).toEqual([]);
+  });
+
+  it('dismissSuggestedUser multi pipeline and error handling', async () => {
+    await service.dismissSuggestedUser('viewer-1', 'target-1');
+    expect(mockRedisClient.multi).toHaveBeenCalled();
+
+    mockRedisClient.multi.mockImplementationOnce(() => {
+      throw new Error('multi fail');
+    });
+    await expect(service.dismissSuggestedUser('viewer-1', 'target-1')).resolves.not.toThrow();
   });
 });

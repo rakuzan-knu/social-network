@@ -6,19 +6,29 @@ export function usePresenceSync() {
   const socket = useChatSocket();
   const setOnline = usePresenceStore((s) => s.setOnline);
   const setOffline = usePresenceStore((s) => s.setOffline);
+  const applyBatch = usePresenceStore((s) => s.applyBatch);
 
   useEffect(() => {
     const handleOnline = ({ userId }: { userId: string }) => setOnline(userId);
     const handleOffline = ({ userId }: { userId: string }) => setOffline(userId);
+    const handleBatch = ({
+      online = [],
+      offline = [],
+    }: {
+      online?: string[];
+      offline?: string[];
+    }) => applyBatch(online, offline);
 
     socket.on('userOnline', handleOnline);
     socket.on('userOffline', handleOffline);
+    socket.on('presence:batch', handleBatch);
 
     return () => {
       socket.off('userOnline', handleOnline);
       socket.off('userOffline', handleOffline);
+      socket.off('presence:batch', handleBatch);
     };
-  }, [socket, setOnline, setOffline]);
+  }, [socket, setOnline, setOffline, applyBatch]);
 }
 
 export function useQueryOnlineStatus(userIds: string[]) {

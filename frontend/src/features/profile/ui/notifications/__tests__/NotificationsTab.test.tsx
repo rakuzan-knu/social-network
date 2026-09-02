@@ -130,4 +130,31 @@ describe('NotificationsTab', () => {
 
     expect(useNotificationSettingsStore.getState().mutedActorIds).toEqual([]);
   });
+
+  it('handles volume change, sound toggle, name/text preview toggles and DND resume', () => {
+    useNotificationSettingsStore.setState({
+      dndUntil: new Date(Date.now() + 3600000).toISOString(),
+    });
+
+    render(<NotificationsTab />);
+
+    // Resume DND
+    const resumeBtn = screen.getByRole('button', { name: /Resume/i });
+    fireEvent.click(resumeBtn);
+    expect(useNotificationSettingsStore.getState().dndUntil).toBeNull();
+
+    // Volume range slider
+    const slider = screen.getByRole('slider');
+    fireEvent.change(slider, { target: { value: '50' } });
+    expect(useNotificationSettingsStore.getState().volume).toBe(50);
+
+    // Toggle Name & Text in Preview card
+    const namePill = screen.getByRole('button', { name: /Name/i });
+    fireEvent.click(namePill);
+    expect(useNotificationSettingsStore.getState().showName).toBe(false);
+
+    const textPill = screen.getByRole('button', { name: /Text/i });
+    fireEvent.click(textPill);
+    expect(useNotificationSettingsStore.getState().showText).toBe(true);
+  });
 });

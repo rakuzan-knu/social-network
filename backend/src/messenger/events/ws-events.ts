@@ -8,11 +8,16 @@ export const WS_EVENTS = {
   MESSAGE_READ: 'messageRead',
   USER_ONLINE: 'userOnline',
   USER_OFFLINE: 'userOffline',
+  PRESENCE_BATCH: 'presence:batch',
+  RECONNECT_WITH_BACKOFF: 'reconnect_with_backoff',
   GET_ONLINE_STATUS: 'getOnlineStatus',
   RATE_LIMIT_EXCEEDED: 'rateLimitExceeded',
 
   SEND_MESSAGE: 'sendMessage',
   NEW_MESSAGE: 'newMessage',
+  MESSAGE_DELIVERED: 'messageDelivered',
+  CLIENT_HIBERNATE: 'clientHibernate',
+  CLIENT_WAKE: 'clientWake',
 
   EDIT_MESSAGE: 'editMessage',
   MESSAGE_EDITED: 'messageEdited',

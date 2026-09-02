@@ -8,6 +8,7 @@ export interface IMessagesRepository {
     conversationId: string;
     senderId: string;
     body?: string;
+    clientSeq?: number;
     messageType?: string;
     replyToId?: string;
     forwardedFromId?: string;

@@ -1,0 +1,294 @@
+{
+  "meta": {
+    "targetUrl": "http://127.0.0.1:54332",
+    "connections": 100,
+    "duration": 5,
+    "date": "Tue, 01 Sep 2026 11:33:14 GMT",
+    "rps": 3560,
+    "p95Latency": 12.4
+  },
+  "doctorMetrics": {
+    "eventLoopLagP95": 33.23,
+    "eventLoopLagMax": 41.55,
+    "eventLoopUtilization": "100.0",
+    "heapUsedMb": "15.8"
+  },
+  "totalDurationMs": 5126.35,
+  "hotspots": [
+    {
+      "id": 125,
+      "functionName": "(idle)",
+      "url": "node:internal",
+      "lineNumber": -1,
+      "category": "Node.js Core (I/O & Streams)",
+      "selfTimeMs": 648.6,
+      "totalTimeMs": 648.6,
+      "selfPercent": 12.65,
+      "totalPercent": 12.65
+    },
+    {
+      "id": 364,
+      "functionName": "writev",
+      "url": "node:internal",
+      "lineNumber": -1,
+      "category": "Node.js Core (I/O & Streams)",
+      "selfTimeMs": 626.77,
+      "totalTimeMs": 626.77,
+      "selfPercent": 12.23,
+      "totalPercent": 12.23
+    },
+    {
+      "id": 410,
+      "functionName": "writeBuffer",
+      "url": "node:internal",
+      "lineNumber": -1,
+      "category": "Node.js Core (I/O & Streams)",
+      "selfTimeMs": 586.18,
+      "totalTimeMs": 586.18,
+      "selfPercent": 11.43,
+      "totalPercent": 11.43
+    },
+    {
+      "id": 197,
+      "functionName": "writev",
+      "url": "node:internal",
+      "lineNumber": -1,
+      "category": "Node.js Core (I/O & Streams)",
+      "selfTimeMs": 571.57,
+      "totalTimeMs": 571.57,
+      "selfPercent": 11.15,
+      "totalPercent": 11.15
+    },
+    {
+      "id": 591,
+      "functionName": "writeBuffer",
+      "url": "node:internal",
+      "lineNumber": -1,
+      "category": "Node.js Core (I/O & Streams)",
+      "selfTimeMs": 373.69,
+      "totalTimeMs": 373.69,
+      "selfPercent": 7.29,
+      "totalPercent": 7.29
+    },
+    {
+      "id": 74,
+      "functionName": "(program)",
+      "url": "node:internal",
+      "lineNumber": -1,
+      "category": "Node.js Core (I/O & Streams)",
+      "selfTimeMs": 256.09,
+      "totalTimeMs": 256.09,
+      "selfPercent": 5,
+      "totalPercent": 5
+    },
+    {
+      "id": 548,
+      "functionName": "writev",
+      "url": "node:internal",
+      "lineNumber": -1,
+      "category": "Node.js Core (I/O & Streams)",
+      "selfTimeMs": 103.33,
+      "totalTimeMs": 103.33,
+      "selfPercent": 2.02,
+      "totalPercent": 2.02
+    },
+    {
+      "id": 232,
+      "functionName": "writeBuffer",
+      "url": "node:internal",
+      "lineNumber": -1,
+      "category": "Node.js Core (I/O & Streams)",
+      "selfTimeMs": 90.2,
+      "totalTimeMs": 90.2,
+      "selfPercent": 1.76,
+      "totalPercent": 1.76
+    },
+    {
+      "id": 198,
+      "functionName": "parse",
+      "url": "node:internal",
+      "lineNumber": -1,
+      "category": "JSON Serialization",
+      "selfTimeMs": 81.91,
+      "totalTimeMs": 81.91,
+      "selfPercent": 1.6,
+      "totalPercent": 1.6
+    },
+    {
+      "id": 397,
+      "functionName": "HTTPParser.execute",
+      "url": "file:///C:/Users/unbeatable/Documents/Social%20Network%20(Antigravity)/social-network/node_modules/.pnpm/http-parser-js@0.5.10/node_modules/http-parser-js/http-parser.js",
+      "lineNumber": 112,
+      "category": "JSON Serialization",
+      "selfTimeMs": 47.25,
+      "totalTimeMs": 1344.65,
+      "selfPercent": 0.92,
+      "totalPercent": 26.23
+    },
+    {
+      "id": 91,
+      "functionName": "connect",
+      "url": "node:internal",
+      "lineNumber": -1,
+      "category": "Node.js Core (I/O & Streams)",
+      "selfTimeMs": 41.64,
+      "totalTimeMs": 41.64,
+      "selfPercent": 0.81,
+      "totalPercent": 0.81
+    },
+    {
+      "id": 415,
+      "functionName": "HTTPParser.HEADER",
+      "url": "file:///C:/Users/unbeatable/Documents/Social%20Network%20(Antigravity)/social-network/node_modules/.pnpm/http-parser-js@0.5.10/node_modules/http-parser-js/http-parser.js",
+      "lineNumber": 287,
+      "category": "JSON Serialization",
+      "selfTimeMs": 40.63,
+      "totalTimeMs": 100.64,
+      "selfPercent": 0.79,
+      "totalPercent": 1.96
+    },
+    {
+      "id": 167,
+      "functionName": "_storeHeader",
+      "url": "node:_http_outgoing",
+      "lineNumber": 435,
+      "category": "Node.js Core (I/O & Streams)",
+      "selfTimeMs": 40.45,
+      "totalTimeMs": 43.51,
+      "selfPercent": 0.79,
+      "totalPercent": 0.85
+    },
+    {
+      "id": 252,
+      "functionName": "setHeader",
+      "url": "node:_http_outgoing",
+      "lineNumber": 679,
+      "category": "Node.js Core (I/O & Streams)",
+      "selfTimeMs": 31.89,
+      "totalTimeMs": 49.1,
+      "selfPercent": 0.62,
+      "totalPercent": 0.96
+    },
+    {
+      "id": 6,
+      "functionName": "post",
+      "url": "node:inspector",
+      "lineNumber": 114,
+      "category": "Node.js Core (I/O & Streams)",
+      "selfTimeMs": 29.5,
+      "totalTimeMs": 29.5,
+      "selfPercent": 0.58,
+      "totalPercent": 0.58
+    },
+    {
+      "id": 75,
+      "functionName": "(garbage collector)",
+      "url": "node:internal",
+      "lineNumber": -1,
+      "category": "Node.js Core (I/O & Streams)",
+      "selfTimeMs": 29.36,
+      "totalTimeMs": 29.36,
+      "selfPercent": 0.57,
+      "totalPercent": 0.57
+    },
+    {
+      "id": 2,
+      "functionName": "processTicksAndRejections",
+      "url": "node:internal/process/task_queues",
+      "lineNumber": 71,
+      "category": "Node.js Core (I/O & Streams)",
+      "selfTimeMs": 26.8,
+      "totalTimeMs": 316.48,
+      "selfPercent": 0.52,
+      "totalPercent": 6.17
+    },
+    {
+      "id": 137,
+      "functionName": "parserOnIncoming",
+      "url": "node:_http_server",
+      "lineNumber": 1155,
+      "category": "JSON Serialization",
+      "selfTimeMs": 25.71,
+      "totalTimeMs": 2172.68,
+      "selfPercent": 0.5,
+      "totalPercent": 42.38
+    },
+    {
+      "id": 416,
+      "functionName": "HTTPParser.parseHeader",
+      "url": "file:///C:/Users/unbeatable/Documents/Social%20Network%20(Antigravity)/social-network/node_modules/.pnpm/http-parser-js@0.5.10/node_modules/http-parser-js/http-parser.js",
+      "lineNumber": 210,
+      "category": "JSON Serialization",
+      "selfTimeMs": 25.24,
+      "totalTimeMs": 34.13,
+      "selfPercent": 0.49,
+      "totalPercent": 0.67
+    },
+    {
+      "id": 164,
+      "functionName": "resOnFinish",
+      "url": "node:_http_server",
+      "lineNumber": 1085,
+      "category": "Node.js Core (I/O & Streams)",
+      "selfTimeMs": 23.28,
+      "totalTimeMs": 90.58,
+      "selfPercent": 0.45,
+      "totalPercent": 1.77
+    },
+    {
+      "id": 440,
+      "functionName": "HTTPParser.RESPONSE_LINE",
+      "url": "file:///C:/Users/unbeatable/Documents/Social%20Network%20(Antigravity)/social-network/node_modules/.pnpm/http-parser-js@0.5.10/node_modules/http-parser-js/http-parser.js",
+      "lineNumber": 253,
+      "category": "JSON Serialization",
+      "selfTimeMs": 22.42,
+      "totalTimeMs": 45.51,
+      "selfPercent": 0.44,
+      "totalPercent": 0.89
+    },
+    {
+      "id": 353,
+      "functionName": "writeBuffer",
+      "url": "node:internal",
+      "lineNumber": -1,
+      "category": "Node.js Core (I/O & Streams)",
+      "selfTimeMs": 18.74,
+      "totalTimeMs": 18.74,
+      "selfPercent": 0.37,
+      "totalPercent": 0.37
+    },
+    {
+      "id": 124,
+      "functionName": "writeBuffer",
+      "url": "node:internal",
+      "lineNumber": -1,
+      "category": "Node.js Core (I/O & Streams)",
+      "selfTimeMs": 16.8,
+      "totalTimeMs": 16.8,
+      "selfPercent": 0.33,
+      "totalPercent": 0.33
+    },
+    {
+      "id": 139,
+      "functionName": "_addHeaderLine",
+      "url": "node:_http_incoming",
+      "lineNumber": 404,
+      "category": "Node.js Core (I/O & Streams)",
+      "selfTimeMs": 16.62,
+      "totalTimeMs": 17.21,
+      "selfPercent": 0.32,
+      "totalPercent": 0.34
+    },
+    {
+      "id": 363,
+      "functionName": "writevGeneric",
+      "url": "node:internal/stream_base_commons",
+      "lineNumber": 120,
+      "category": "Node.js Core (I/O & Streams)",
+      "selfTimeMs": 15.59,
+      "totalTimeMs": 655.42,
+      "selfPercent": 0.3,
+      "totalPercent": 12.79
+    }
+  ]
+}

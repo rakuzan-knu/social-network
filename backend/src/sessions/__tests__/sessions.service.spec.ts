@@ -1,6 +1,5 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { SessionsService } from '../sessions.service';
-import type { PrismaService } from '@common/prisma';
 
 describe('SessionsService', () => {
   let service: SessionsService;
@@ -13,16 +12,10 @@ describe('SessionsService', () => {
     deleteByJti: jest.Mock;
     deleteById: jest.Mock;
     deleteOtherJtis: jest.Mock;
+    findByUserAndAgent: jest.Mock;
+    updateSession: jest.Mock;
+    touchWithMeta: jest.Mock;
   };
-  let mockPrisma: {
-    session: {
-      findFirst: jest.Mock;
-      update: jest.Mock;
-      updateMany: jest.Mock;
-    };
-  };
-
-  const sampleDate = new Date('2026-08-16T12:00:00.000Z');
 
   const sampleSession = {
     id: 'sess-1',
@@ -32,10 +25,10 @@ describe('SessionsService', () => {
     userAgent:
       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     ip: '127.0.0.1',
-    city: 'San Francisco',
-    country: 'US',
-    createdAt: sampleDate,
-    lastActiveAt: sampleDate,
+    city: 'Paris',
+    country: 'FR',
+    createdAt: new Date(),
+    lastActiveAt: new Date(),
   };
 
   beforeEach(() => {
@@ -48,22 +41,21 @@ describe('SessionsService', () => {
       deleteByJti: jest.fn().mockResolvedValue(undefined),
       deleteById: jest.fn().mockResolvedValue(undefined),
       deleteOtherJtis: jest.fn().mockResolvedValue(['revoked-jti-1']),
+      findByUserAndAgent: jest.fn().mockResolvedValue(null),
+      updateSession: jest.fn().mockResolvedValue(sampleSession),
+      touchWithMeta: jest.fn().mockResolvedValue(undefined),
     };
 
-    mockPrisma = {
-      session: {
-        findFirst: jest.fn().mockResolvedValue(null),
-        update: jest.fn().mockResolvedValue({}),
-        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
-      },
+    const mockRedis = {
+      withLock: jest.fn((_key, action) => action()),
     };
 
-    service = new SessionsService(mockSessionsRepo, mockPrisma as unknown as PrismaService);
+    service = new SessionsService(mockSessionsRepo, mockRedis as any);
   });
 
   describe('create', () => {
     it('creates new session with parsed device name and geo info', async () => {
-      mockPrisma.session.findFirst.mockResolvedValueOnce(null);
+      mockSessionsRepo.findByUserAndAgent.mockResolvedValueOnce(null);
 
       await service.create('usr-1', 'jti-123', {
         userAgent: sampleSession.userAgent,
@@ -81,7 +73,7 @@ describe('SessionsService', () => {
     });
 
     it('updates existing session if active session from same userAgent is present', async () => {
-      mockPrisma.session.findFirst.mockResolvedValueOnce({
+      mockSessionsRepo.findByUserAndAgent.mockResolvedValueOnce({
         id: 'existing-sess-id',
         deviceName: 'Chrome on Mac OS',
         ip: '127.0.0.1',
@@ -94,9 +86,10 @@ describe('SessionsService', () => {
         ip: '127.0.0.1',
       });
 
-      expect(mockPrisma.session.update).toHaveBeenCalledWith(
+      expect(mockSessionsRepo.updateSession).toHaveBeenCalledWith(
+        'existing-sess-id',
         expect.objectContaining({
-          where: { id: 'existing-sess-id' },
+          jti: 'jti-new',
         }),
       );
       expect(mockSessionsRepo.create).not.toHaveBeenCalled();
@@ -107,9 +100,10 @@ describe('SessionsService', () => {
     it('touch updates lastActiveAt and ip info', async () => {
       await service.touch('jti-123', { ip: '127.0.0.1' });
 
-      expect(mockPrisma.session.updateMany).toHaveBeenCalledWith(
+      expect(mockSessionsRepo.touchWithMeta).toHaveBeenCalledWith(
+        'jti-123',
         expect.objectContaining({
-          where: { jti: 'jti-123' },
+          ip: '127.0.0.1',
         }),
       );
     });

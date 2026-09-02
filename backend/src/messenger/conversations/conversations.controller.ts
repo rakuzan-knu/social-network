@@ -1,4 +1,32 @@
 import {
+  type AddMembersDto,
+  type CreateDirectConversationDto,
+  type CreateGroupConversationDto,
+  type ForAllQueryDto,
+  type MuteConversationDto,
+  type ProposeThemeDto,
+  type ReportDto,
+  type RespondThemeProposalDto,
+  type SetNicknameDto,
+  type SetThemeDto,
+  type TransferOwnershipDto,
+  type UpdateAdminPermissionsDto,
+  type UpdateGroupConversationDto,
+  addMembersSchema,
+  createDirectConversationSchema,
+  createGroupConversationSchema,
+  forAllQuerySchema,
+  muteConversationSchema,
+  proposeThemeSchema,
+  reportSchema,
+  respondThemeProposalSchema,
+  setNicknameSchema,
+  setThemeSchema,
+  transferOwnershipSchema,
+  updateAdminPermissionsSchema,
+  updateGroupConversationSchema,
+} from '@common/contracts';
+import {
   Body,
   Controller,
   Delete,
@@ -14,38 +42,15 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags, ApiParam } from '@nestjs/swagger';
-import { AuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
+import { AuthGuard } from '../../auth/guards/jwt-auth.guard';
 import type { RequestUser } from '../../auth/interfaces/jwt-payload.interface';
-import { ConversationsService } from './conversations.service';
-import { MessagesService } from '../messages/messages.service';
-import {
-  type AddMembersDto,
-  type CreateDirectConversationDto,
-  type CreateGroupConversationDto,
-  type MuteConversationDto,
-  type ReportDto,
-  type ProposeThemeDto,
-  type RespondThemeProposalDto,
-  type SetNicknameDto,
-  type SetThemeDto,
-  type TransferOwnershipDto,
-  type UpdateGroupConversationDto,
-  addMembersSchema,
-  createDirectConversationSchema,
-  createGroupConversationSchema,
-  muteConversationSchema,
-  proposeThemeSchema,
-  reportSchema,
-  respondThemeProposalSchema,
-  setNicknameSchema,
-  setThemeSchema,
-  transferOwnershipSchema,
-  updateGroupConversationSchema,
-} from '@common/contracts';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
+import { MessagesService } from '../messages/messages.service';
+import { ConversationsService } from './conversations.service';
+import { ConditionalHttpCache } from '../../common/cache/etag.interceptor';
 
 @ApiTags('Messenger / Conversations')
 @ApiBearerAuth()
@@ -58,13 +63,15 @@ export class ConversationsController {
   ) {}
 
   @Get()
+  @ConditionalHttpCache()
   @ApiOperation({ summary: 'Get all conversations for the current user' })
   getAll(@CurrentUser() user: RequestUser) {
     return this.service.getConversations(user.id);
   }
 
   @Post(':id/attachments')
-  @UseInterceptors(FileInterceptor('file'))
+  @Throttle({ sensitive: { limit: 30, ttl: 60_000 } })
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 25 * 1024 * 1024, files: 1 } }))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Upload attachment for conversation message' })
   uploadAttachment(
@@ -76,6 +83,7 @@ export class ConversationsController {
   }
 
   @Get(':id')
+  @ConditionalHttpCache()
   @ApiOperation({ summary: 'Get a single conversation' })
   @ApiParam({ name: 'id', description: 'Conversation UUID' })
   getOne(@Param('id') id: string, @CurrentUser() user: RequestUser) {
@@ -83,30 +91,35 @@ export class ConversationsController {
   }
 
   @Delete(':id/history')
-  @Throttle({ default: { limit: 2, ttl: 10000 } })
+  @Throttle({ default: { limit: 20, ttl: 60_000 }, sensitive: { limit: 20, ttl: 60_000 } })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete message history for conversation' })
   clearHistory(
     @Param('id') id: string,
     @CurrentUser() user: RequestUser,
-    @Query('forAll') forAll?: string,
+    @Query(new ZodValidationPipe(forAllQuerySchema)) query?: ForAllQueryDto | string,
   ) {
-    return this.service.clearHistory(id, user.id, forAll === 'true' || forAll === '1');
+    const isForAll =
+      typeof query === 'string' ? query === 'true' || query === '1' : Boolean(query?.forAll);
+    return this.service.clearHistory(id, user.id, isForAll);
   }
 
   @Delete(':id')
-  @Throttle({ default: { limit: 2, ttl: 10000 } })
+  @Throttle({ default: { limit: 5, ttl: 60_000 }, sensitive: { limit: 5, ttl: 60_000 } })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a conversation for current user or all participants' })
   deleteConversation(
     @Param('id') id: string,
     @CurrentUser() user: RequestUser,
-    @Query('forAll') forAll?: string,
+    @Query(new ZodValidationPipe(forAllQuerySchema)) query?: ForAllQueryDto | string,
   ) {
-    return this.service.deleteConversation(id, user.id, forAll === 'true' || forAll === '1');
+    const isForAll =
+      typeof query === 'string' ? query === 'true' || query === '1' : Boolean(query?.forAll);
+    return this.service.deleteConversation(id, user.id, isForAll);
   }
 
   @Post('direct')
+  @Throttle({ sensitive: { limit: 50, ttl: 60_000 } })
   @ApiOperation({ summary: 'Start or get a direct conversation' })
   createDirect(
     @Body(new ZodValidationPipe(createDirectConversationSchema)) dto: CreateDirectConversationDto,
@@ -116,6 +129,7 @@ export class ConversationsController {
   }
 
   @Post('group')
+  @Throttle({ sensitive: { limit: 20, ttl: 60_000 } })
   @ApiOperation({ summary: 'Create a group conversation' })
   createGroup(
     @Body(new ZodValidationPipe(createGroupConversationSchema)) dto: CreateGroupConversationDto,
@@ -135,7 +149,7 @@ export class ConversationsController {
   }
 
   @Post(':id/avatar')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024, files: 1 } }))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Upload group conversation avatar' })
   uploadAvatar(
@@ -234,14 +248,8 @@ export class ConversationsController {
   updatePermissions(
     @Param('id') id: string,
     @Param('userId') targetUserId: string,
-    @Body()
-    dto: {
-      canEditGroup?: boolean;
-      canDeleteMessages?: boolean;
-      canManageMembers?: boolean;
-      canPinMessages?: boolean;
-      canInviteUsers?: boolean;
-    },
+    @Body(new ZodValidationPipe(updateAdminPermissionsSchema))
+    dto: UpdateAdminPermissionsDto,
     @CurrentUser() user: RequestUser,
   ) {
     return this.service.updateAdminPermissions(id, user.id, targetUserId, dto);

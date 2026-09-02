@@ -7,7 +7,7 @@ import { WaveformRenderer } from './WaveformRenderer';
 
 export interface AudioMessageBubbleProps {
   attachment: (AttachmentView | (Partial<AttachmentView> & { id: string; url: string })) & {
-    waveform?: number[];
+    waveform?: number[] | null;
   };
   isOwnMessage?: boolean;
   senderName?: string;
@@ -128,16 +128,16 @@ export function AudioMessageBubble({
   return (
     <div
       data-testid="audio-message-bubble"
-      className="flex items-center gap-3 py-1 pl-1 pr-3 sm:pr-4 w-[245px] sm:w-[275px] max-w-full overflow-hidden select-none"
+      className="flex items-center gap-3 py-1 pl-1 pr-3 sm:pr-4 w-61.25 sm:w-68.75 max-w-full overflow-hidden select-none"
     >
       {/* Play / Pause / Buffering Circular Button */}
       <button
         type="button"
         onClick={handleTogglePlay}
-        className={`w-9 h-9 sm:w-10 sm:h-10 flex-shrink-0 flex items-center justify-center rounded-full text-white shadow-md transition-all active:scale-95 cursor-pointer ${
+        className={`w-9 h-9 sm:w-10 sm:h-10 shrink-0 flex items-center justify-center rounded-full text-white shadow-md transition-all active:scale-95 cursor-pointer ${
           isOwnMessage
-            ? 'bg-gradient-to-tr from-purple-600 to-indigo-500 hover:from-purple-500 hover:to-indigo-400 shadow-[0_0_12px_rgba(168,85,247,0.4)]'
-            : 'bg-gradient-to-tr from-sky-600 to-blue-500 hover:from-sky-500 hover:to-blue-400 shadow-[0_0_12px_rgba(14,165,233,0.4)]'
+            ? 'bg-linear-to-tr from-purple-600 to-indigo-500 hover:from-purple-500 hover:to-indigo-400 shadow-[0_0_12px_rgba(168,85,247,0.4)]'
+            : 'bg-linear-to-tr from-sky-600 to-blue-500 hover:from-sky-500 hover:to-blue-400 shadow-[0_0_12px_rgba(14,165,233,0.4)]'
         }`}
         title={isLoading ? 'Buffering audio...' : isPlaying ? 'Pause' : 'Play voice message'}
       >

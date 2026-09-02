@@ -8,8 +8,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
-import type { User } from '@prisma/client';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
+import { Prisma, type User } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import type { StringValue } from 'ms';
 import { RedisService } from '../redis/redis.service';
@@ -25,6 +24,7 @@ import {
 import { AccessTokenPayload, RefreshTokenPayload } from './interfaces/jwt-payload.interface';
 import { PublicUser } from './interfaces/public-user.interface';
 import { TokenPair } from './interfaces/token-pair.interface';
+import { TokenRevocationService } from './token-revocation.service';
 
 @Injectable()
 export class AuthService {
@@ -33,6 +33,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly redisService: RedisService,
+    private readonly tokenRevocationService: TokenRevocationService,
     @Inject(forwardRef(() => SessionsService))
     private readonly sessionsService: SessionsService,
   ) {}
@@ -76,7 +77,7 @@ export class AuthService {
         }),
       );
     } catch (error) {
-      if (error instanceof PrismaClientKnownRequestError && error.code === 'P2002') {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         throw new ConflictException('Email or username is already taken');
       }
       throw error;
@@ -148,6 +149,7 @@ export class AuthService {
 
     const redisKey = this.buildRefreshKey(payload.sub, payload.jti);
     await this.redisService.del(redisKey);
+    await this.tokenRevocationService.revokeJti(payload.jti);
     await this.sessionsService.deleteByJti(payload.jti);
   }
 
@@ -161,11 +163,16 @@ export class AuthService {
     const newHash = await argon2.hash(dto.newPassword);
     await this.usersService.updatePasswordHash(userId, newHash);
 
-    if (keepJti) await this.revokeOtherSessions(userId, keepJti);
+    if (keepJti) {
+      await this.revokeOtherSessions(userId, keepJti);
+    } else {
+      await this.tokenRevocationService.revokeAllUserTokens(userId);
+    }
   }
 
   async revokeRefreshByJti(userId: string, jti: string): Promise<void> {
     await this.redisService.del(this.buildRefreshKey(userId, jti));
+    await this.tokenRevocationService.revokeJti(jti);
   }
 
   async revokeOtherSessions(userId: string, keepJti: string): Promise<void> {
@@ -173,6 +180,7 @@ export class AuthService {
     await Promise.all(
       revokedJtis.map((jti) => this.redisService.del(this.buildRefreshKey(userId, jti))),
     );
+    await this.tokenRevocationService.revokeJtis(revokedJtis);
   }
 
   private async issueTokenPair(

@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { IPostRepository } from './interfaces/posts-repository.interface';
 import { PrismaService } from '@common/prisma';
+import { SnowflakeService } from '../common/id/snowflake.service';
 import {
   FollowStatus,
   type Post,
@@ -48,7 +49,11 @@ type PrismaPostQueryResult = {
 
 @Injectable()
 export class PostsRepository implements IPostRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional()
+    private readonly snowflake?: SnowflakeService,
+  ) {}
 
   private async getBlockedUserIds(userId: string): Promise<string[]> {
     const blocks = await this.prisma.userBlock.findMany({
@@ -178,12 +183,49 @@ export class PostsRepository implements IPostRepository {
     });
   }
 
+  async incrementManyShareCounts(entries: { postId: string; count: number }[]): Promise<void> {
+    if (!entries || entries.length === 0) return;
+    await this.prisma.$transaction(
+      entries.map(({ postId, count }) =>
+        this.prisma.post.update({
+          where: { id: postId },
+          data: {
+            sharesCount: { increment: count },
+          },
+        }),
+      ),
+    );
+  }
+
   async createPost(data: Prisma.PostCreateInput): Promise<PostWithRelations> {
-    const created = await this.prisma.post.create({
-      data,
-      include: this.postInclude(),
-    });
     const authorId = (data.author as { connect?: { id?: string } })?.connect?.id;
+    const postId = data.id ?? (this.snowflake ? this.snowflake.generate() : undefined);
+    const created = await this.prisma.$transaction(async (tx) => {
+      const post = await tx.post.create({
+        data: {
+          ...data,
+          id: postId,
+        },
+        include: this.postInclude(),
+      });
+
+      await tx.outboxEvent.create({
+        data: {
+          aggregateType: 'POST',
+          aggregateId: post.id,
+          eventType: 'POST_CREATED',
+          payload: {
+            postId: post.id,
+            authorId: post.authorId,
+            content: post.content,
+          },
+          status: 'PENDING',
+        },
+      });
+
+      return post;
+    });
+
     return this.mapPost(created, authorId);
   }
 
@@ -549,5 +591,129 @@ export class PostsRepository implements IPostRepository {
     });
 
     return report;
+  }
+
+  async createPollForPost(
+    authorId: string,
+    postId: string,
+    title: string,
+    options: string[],
+  ): Promise<unknown> {
+    return this.prisma.poll.create({
+      data: {
+        authorId,
+        postId,
+        title,
+        options: {
+          createMany: {
+            data: options.map((text: string, index: number) => ({
+              optionText: text,
+              sortOrder: index,
+            })),
+          },
+        },
+      },
+      include: {
+        options: { orderBy: { sortOrder: 'asc' } },
+        votes: true,
+      },
+    });
+  }
+
+  async findMentionUsers(
+    usernames: string[],
+    excludeUserId: string,
+  ): Promise<{ id: string; username: string }[]> {
+    return this.prisma.user.findMany({
+      where: {
+        username: { in: usernames, mode: 'insensitive' },
+        id: { not: excludeUserId },
+      },
+      select: { id: true, username: true },
+    });
+  }
+
+  async findUserBasic(id: string): Promise<{
+    id: string;
+    username: string;
+    displayName: string | null;
+    avatar: string | null;
+  } | null> {
+    return this.prisma.user.findUnique({
+      where: { id },
+      select: { id: true, username: true, displayName: true, avatar: true },
+    });
+  }
+
+  async getPollForVote(postId: string): Promise<{
+    id: string;
+    isActive: boolean;
+    options: { id: string; optionText: string; votesCount: number }[];
+    votes: { id: string; userId: string; optionId: string }[];
+  } | null> {
+    return this.prisma.poll.findUnique({
+      where: { postId },
+      include: { options: true, votes: true },
+    });
+  }
+
+  async updateVote(voteId: string, oldOptionId: string, newOptionId: string): Promise<void> {
+    await this.prisma.$transaction([
+      this.prisma.vote.update({
+        where: { id: voteId },
+        data: { optionId: newOptionId },
+      }),
+      this.prisma.pollOption.update({
+        where: { id: oldOptionId },
+        data: { votesCount: { decrement: 1 } },
+      }),
+      this.prisma.pollOption.update({
+        where: { id: newOptionId },
+        data: { votesCount: { increment: 1 } },
+      }),
+    ]);
+  }
+
+  async createVote(pollId: string, optionId: string, userId: string): Promise<void> {
+    await this.prisma.$transaction([
+      this.prisma.vote.create({
+        data: {
+          pollId,
+          optionId,
+          userId,
+        },
+      }),
+      this.prisma.pollOption.update({
+        where: { id: optionId },
+        data: { votesCount: { increment: 1 } },
+      }),
+    ]);
+  }
+
+  async getPollVoters(postId: string): Promise<{
+    options: { id: string }[];
+    votes: {
+      optionId: string;
+      user: { id: string; username: string; displayName?: string | null; avatar?: string | null };
+    }[];
+  } | null> {
+    return this.prisma.poll.findUnique({
+      where: { postId },
+      include: {
+        options: true,
+        votes: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+                avatar: true,
+              },
+            },
+          },
+        },
+      },
+    });
   }
 }

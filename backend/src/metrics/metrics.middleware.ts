@@ -1,5 +1,5 @@
 import { Injectable, NestMiddleware } from '@nestjs/common';
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { MetricsService } from './metrics.service';
 
 @Injectable()
@@ -8,27 +8,51 @@ export class MetricsMiddleware implements NestMiddleware {
 
   use(req: Request, res: Response, next: NextFunction) {
     const startTime = Date.now();
-    const route = (req.route as { path?: string } | undefined)?.path || req.path;
+    const route =
+      (req.route as { path?: string } | undefined)?.path ||
+      req.path ||
+      (req as unknown as { raw?: { url?: string } }).raw?.url ||
+      req.url;
     const method = req.method;
 
-    // Intercept response
-
-    const originalSend = res.send.bind(res);
-    res.send = (data: unknown) => {
+    let recorded = false;
+    const record = () => {
+      if (recorded) return;
+      recorded = true;
       const duration = Date.now() - startTime;
-      const statusCode = res.statusCode;
+      const statusCode = res.statusCode || 200;
 
-      // Record metrics
       this.metricsService.recordHttpRequest(method, route, statusCode, duration);
-
       if (statusCode >= 400) {
         this.metricsService.recordHttpError(method, route, statusCode);
       }
-
-      res.send = originalSend;
-
-      return originalSend(data);
     };
+
+    if (typeof res.on === 'function') {
+      res.on('finish', record);
+      res.on('close', record);
+    } else if (
+      typeof (res as unknown as { raw?: { on?: (e: string, fn: () => void) => void } }).raw?.on ===
+      'function'
+    ) {
+      (res as unknown as { raw: { on: (e: string, fn: () => void) => void } }).raw.on(
+        'finish',
+        record,
+      );
+      (res as unknown as { raw: { on: (e: string, fn: () => void) => void } }).raw.on(
+        'close',
+        record,
+      );
+    }
+
+    if (typeof res.send === 'function') {
+      const originalSend = res.send.bind(res);
+      res.send = (data: unknown) => {
+        record();
+        res.send = originalSend;
+        return originalSend(data);
+      };
+    }
 
     next();
   }

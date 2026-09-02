@@ -7,6 +7,7 @@ export type LoginPayload = Partial<LoginDto> & {
   email?: string;
   identity?: string;
   password?: string;
+  turnstileToken?: string;
 };
 
 export type RegisterPayload = Partial<RegisterDto> & {
@@ -15,6 +16,7 @@ export type RegisterPayload = Partial<RegisterDto> & {
   displayName?: string;
   password?: string;
   birthDate?: string;
+  turnstileToken?: string;
 };
 
 export interface FindAccountPayload {

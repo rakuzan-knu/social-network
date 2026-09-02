@@ -57,4 +57,5 @@ export interface INotificationsRepository {
     userId: string,
     data: Prisma.UserNotificationSettingsUpdateInput,
   ): Promise<UserNotificationSettings>;
+  isBlocked(userId: string, actorId: string): Promise<boolean>;
 }

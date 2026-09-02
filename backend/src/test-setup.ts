@@ -1,3 +1,8 @@
+import { Logger } from '@nestjs/common';
+
+// Silence NestJS info/warn logging in unit tests to keep test outputs clean and legible
+Logger.overrideLogger(['error']);
+
 // Provide fallback test environment variables for modules validating env on import
 process.env.DATABASE_URL =
   process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/social_network_test';

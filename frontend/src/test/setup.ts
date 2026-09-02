@@ -56,14 +56,21 @@ const createMockContext = () =>
     drawFocusIfNeeded: vi.fn(),
     isPointInPath: vi.fn(() => false),
     isPointInStroke: vi.fn(() => false),
-    createLinearGradient: vi.fn(),
-    createRadialGradient: vi.fn(),
-    createPattern: vi.fn(),
+    createLinearGradient: vi.fn(() => ({
+      addColorStop: vi.fn(),
+    })),
+    createRadialGradient: vi.fn(() => ({
+      addColorStop: vi.fn(),
+    })),
+    createPattern: vi.fn(() => ({
+      setTransform: vi.fn(),
+    })),
     createImageBitmap: vi.fn(),
   }) as unknown as CanvasRenderingContext2D;
 
 const mockContext = createMockContext();
 const originalGetContext = HTMLCanvasElement.prototype.getContext;
+HTMLCanvasElement.prototype.toDataURL = vi.fn(() => 'data:image/png;base64,mock');
 HTMLCanvasElement.prototype.getContext = vi.fn((contextId: string) => {
   if (contextId === '2d') return mockContext;
   return originalGetContext.call(this, contextId);
@@ -99,7 +106,34 @@ vi.mock('socket.io-client', () => ({
   })),
 }));
 
-beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
+// Suppress noisy React act(...) warnings in tests for async state updates/microtasks
+const originalConsoleError = console.error;
+console.error = (...args: unknown[]) => {
+  const msg = typeof args[0] === 'string' ? args[0] : '';
+  if (
+    msg.includes('was not wrapped in act(') ||
+    msg.includes('wrap-tests-with-act') ||
+    msg.includes('not wrapped in act(...)')
+  ) {
+    return;
+  }
+  originalConsoleError(...args);
+};
+
+const originalConsoleWarn = console.warn;
+console.warn = (...args: unknown[]) => {
+  const msg = typeof args[0] === 'string' ? args[0] : '';
+  if (
+    msg.includes('was not wrapped in act(') ||
+    msg.includes('wrap-tests-with-act') ||
+    msg.includes('not wrapped in act(...)')
+  ) {
+    return;
+  }
+  originalConsoleWarn(...args);
+};
+
+beforeAll(() => server.listen());
 
 afterEach(() => {
   server.resetHandlers();

@@ -114,5 +114,8 @@ describe('FollowersController', () => {
 
     await controller.unfollowUser('usr-target', mockUser);
     expect(mockFollowersService.unfollowUser).toHaveBeenCalledWith('usr-current', 'usr-target');
+
+    await controller.removeFollower('usr-follower', mockUser);
+    expect(mockFollowersService.unfollowUser).toHaveBeenCalledWith('usr-follower', 'usr-current');
   });
 });

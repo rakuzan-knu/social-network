@@ -16,6 +16,10 @@ describe('poll-repository.interface', () => {
       deletePoll: jest.fn().mockResolvedValue(undefined),
       addVote: addVoteMock,
       deleteVote: deleteVoteMock,
+      findPostById: jest.fn().mockResolvedValue(null),
+      findPollById: jest.fn().mockResolvedValue(null),
+      findVoters: jest.fn().mockResolvedValue([]),
+      findVote: jest.fn().mockResolvedValue(null),
     };
 
     await mockRepo.addVote('poll-1', 'opt-1', 'usr-1');

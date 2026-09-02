@@ -164,10 +164,14 @@ describe('UsersRepository', () => {
     expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
   });
 
-  it('blockUser executes upsert and removes follow relations via transaction array', async () => {
-    mockPrisma.userBlock.upsert.mockReturnValueOnce('upsert-query');
-    mockPrisma.follow.deleteMany.mockReturnValueOnce('delete-follow-query');
-    mockPrisma.$transaction.mockResolvedValueOnce([]);
+  it('blockUser executes upsert and removes follow relations via transaction', async () => {
+    mockPrisma.userBlock.upsert.mockResolvedValueOnce({});
+    mockPrisma.follow.deleteMany.mockResolvedValueOnce({ count: 2 });
+    mockPrisma.$transaction.mockImplementationOnce(
+      async (callback: (tx: typeof mockPrisma) => Promise<void>) => {
+        await callback(mockPrisma);
+      },
+    );
 
     await repository.blockUser('usr-blocker', 'usr-blocked');
 
@@ -184,7 +188,6 @@ describe('UsersRepository', () => {
         ],
       },
     });
-    expect(mockPrisma.$transaction).toHaveBeenCalledWith(['upsert-query', 'delete-follow-query']);
   });
 
   it('unblockUser deletes user block record', async () => {

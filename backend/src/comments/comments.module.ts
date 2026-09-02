@@ -7,9 +7,10 @@ import { COMMENTS_REPOSITORY } from './interfaces/comments-repository.interface'
 
 import { PrismaModule } from '@common/prisma';
 import { MessengerModule } from '../messenger/messenger.module';
+import { SnowflakeModule } from '../common/id/snowflake.module';
 
 @Module({
-  imports: [PrismaModule, forwardRef(() => MessengerModule)],
+  imports: [PrismaModule, forwardRef(() => MessengerModule), SnowflakeModule],
   controllers: [CommentsController],
   providers: [
     CommentsService,

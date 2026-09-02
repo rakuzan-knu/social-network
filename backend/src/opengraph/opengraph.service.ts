@@ -3,7 +3,11 @@ import * as dns from 'dns';
 import * as net from 'net';
 import sanitizeHtml from 'sanitize-html';
 import { RedisService } from '../redis/redis.service';
-import type { LinkEmbedData, LinkEmbedType } from '@common/contracts';
+import { CircuitBreaker } from '../common/resilience/circuit-breaker';
+import { safeJsonParse } from '../common/utils/json.util';
+import { extractMetaContentLinear, extractTagContentLinear } from '../common/utils/safe-regex.util';
+import { TraceContext } from '../common/tracing/trace-context';
+import type { LinkEmbedData } from '@common/contracts';
 
 export type { LinkEmbedData, LinkEmbedType } from '@common/contracts';
 export type OpenGraphMetadata = LinkEmbedData;
@@ -243,8 +247,19 @@ export function isSafeHostname(hostname: string): boolean {
 @Injectable()
 export class OpenGraphService {
   private readonly logger = new Logger(OpenGraphService.name);
+  private readonly circuitBreaker: CircuitBreaker;
 
-  constructor(private readonly redisService: RedisService) {}
+  constructor(private readonly redisService: RedisService) {
+    this.circuitBreaker = new CircuitBreaker({
+      name: 'OpenGraph-External-Fetch',
+      failureThreshold: 5,
+      resetTimeoutMs: 15_000,
+      halfOpenSuccessThreshold: 2,
+      onStateChange: (from, to) => {
+        this.logger.warn(`OpenGraph CircuitBreaker transitioned from ${from} to ${to}`);
+      },
+    });
+  }
 
   /**
    * Synchronous URL Sanitizer & Validator (recognized as CodeQL SSRF sanitizer guard).
@@ -368,27 +383,45 @@ export class OpenGraphService {
     const safePath = parsed.pathname + parsed.search;
     const safeTargetUrl = `${safeScheme}//${safeHost}${safePort}${safePath}`;
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    return this.circuitBreaker.execute(
+      async () => {
+        const controller = new AbortController();
+        const parentSignal = TraceContext.getAbortSignal();
 
-    try {
-      const res = await fetch(safeTargetUrl, {
-        signal: controller.signal,
-        redirect: 'manual',
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 (compatible; SocialBot/1.0)',
-          Accept:
-            'application/json,text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          ...headers,
-        },
-      });
-      return res;
-    } catch {
-      return null;
-    } finally {
-      clearTimeout(timeoutId);
-    }
+        let parentAbortListener: (() => void) | undefined;
+        if (parentSignal) {
+          if (parentSignal.aborted) {
+            controller.abort(parentSignal.reason);
+          } else {
+            parentAbortListener = () => controller.abort(parentSignal.reason);
+            parentSignal.addEventListener('abort', parentAbortListener, { once: true });
+          }
+        }
+
+        const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+        try {
+          const res = await fetch(safeTargetUrl, {
+            signal: controller.signal,
+            redirect: 'manual',
+            headers: {
+              'User-Agent':
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 (compatible; SocialBot/1.0)',
+              Accept:
+                'application/json,text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+              ...headers,
+            },
+          });
+          return res;
+        } finally {
+          clearTimeout(timeoutId);
+          if (parentSignal && parentAbortListener) {
+            parentSignal.removeEventListener('abort', parentAbortListener);
+          }
+        }
+      },
+      () => null,
+    );
   }
 
   /**
@@ -410,11 +443,13 @@ export class OpenGraphService {
     try {
       const cached = await this.redisService.get(cacheKey);
       if (cached) {
-        const parsed = JSON.parse(cached) as Record<string, unknown>;
-        if (parsed.notFound === true) {
+        const parsed = safeJsonParse<Record<string, unknown>>(cached);
+        if (parsed?.notFound === true) {
           return null;
         }
-        return parsed as unknown as LinkEmbedData;
+        if (parsed) {
+          return parsed as unknown as LinkEmbedData;
+        }
       }
     } catch (e) {
       this.logger.warn(`Redis get failed for ${cacheKey}: ${String(e)}`);
@@ -548,7 +583,6 @@ export class OpenGraphService {
     }
 
     const maxResImage = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
-    const hqImage = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
 
     return {
       url,
@@ -897,7 +931,8 @@ export class OpenGraphService {
     }
 
     let html = '';
-    const reader = response.body?.getReader();
+    const reader = response.body?.getReader() as
+      ReadableStreamDefaultReader<Uint8Array> | undefined;
     if (reader) {
       let totalBytes = 0;
       const decoder = new TextDecoder('utf-8');
@@ -923,30 +958,17 @@ export class OpenGraphService {
     const currentParsed = new URL(currentUrlString);
 
     const title =
-      this.extractMetaContent(html, /property=["']og:title["']\s+content=["']([^"']+)["']/i) ||
-      this.extractMetaContent(html, /content=["']([^"']+)["']\s+property=["']og:title["']/i) ||
-      this.extractMetaContent(html, /name=["']twitter:title["']\s+content=["']([^"']+)["']/i) ||
-      this.extractTagContent(html, /<title[^>]*>([^<]+)<\/title>/i);
+      extractMetaContentLinear(html, 'og:title') ||
+      extractMetaContentLinear(html, 'twitter:title') ||
+      extractTagContentLinear(html, 'title');
 
     const description =
-      this.extractMetaContent(
-        html,
-        /property=["']og:description["']\s+content=["']([^"']+)["']/i,
-      ) ||
-      this.extractMetaContent(
-        html,
-        /content=["']([^"']+)["']\s+property=["']og:description["']/i,
-      ) ||
-      this.extractMetaContent(
-        html,
-        /name=["']twitter:description["']\s+content=["']([^"']+)["']/i,
-      ) ||
-      this.extractMetaContent(html, /name=["']description["']\s+content=["']([^"']+)["']/i);
+      extractMetaContentLinear(html, 'og:description') ||
+      extractMetaContentLinear(html, 'twitter:description') ||
+      extractMetaContentLinear(html, 'description');
 
     let image =
-      this.extractMetaContent(html, /property=["']og:image["']\s+content=["']([^"']+)["']/i) ||
-      this.extractMetaContent(html, /content=["']([^"']+)["']\s+property=["']og:image["']/i) ||
-      this.extractMetaContent(html, /name=["']twitter:image["']\s+content=["']([^"']+)["']/i);
+      extractMetaContentLinear(html, 'og:image') || extractMetaContentLinear(html, 'twitter:image');
 
     if (image && !image.startsWith('http://') && !image.startsWith('https://')) {
       try {
@@ -957,19 +979,10 @@ export class OpenGraphService {
     }
 
     const siteName =
-      this.extractMetaContent(html, /property=["']og:site_name["']\s+content=["']([^"']+)["']/i) ||
-      this.extractMetaContent(html, /content=["']([^"']+)["']\s+property=["']og:site_name["']/i) ||
+      extractMetaContentLinear(html, 'og:site_name') ||
       currentParsed.hostname.replace(/^www\./, '');
 
-    let favicon =
-      this.extractMetaContent(
-        html,
-        /<link[^>]+rel=["'](?:shortcut )?icon["'][^>]+href=["']([^"']+)["']/i,
-      ) ||
-      this.extractMetaContent(
-        html,
-        /<link[^>]+href=["']([^"']+)["'][^>]+rel=["'](?:shortcut )?icon["']/i,
-      );
+    let favicon = this.extractFaviconLinear(html) || `${currentParsed.origin}/favicon.ico`;
 
     if (favicon && !favicon.startsWith('http://') && !favicon.startsWith('https://')) {
       try {
@@ -977,8 +990,6 @@ export class OpenGraphService {
       } catch {
         favicon = `${currentParsed.origin}/favicon.ico`;
       }
-    } else if (!favicon) {
-      favicon = `${currentParsed.origin}/favicon.ico`;
     }
 
     if (!title && !description && !image) {
@@ -996,14 +1007,34 @@ export class OpenGraphService {
     };
   }
 
-  private extractMetaContent(html: string, regex: RegExp): string | null {
-    const match = html.match(regex);
-    return match && match[1] ? match[1].trim() : null;
-  }
+  private extractFaviconLinear(html: string): string | null {
+    if (!html) return null;
+    const maxScan = Math.min(html.length, 100_000);
+    let pos = 0;
 
-  private extractTagContent(html: string, regex: RegExp): string | null {
-    const match = html.match(regex);
-    return match && match[1] ? match[1].trim() : null;
+    while (pos < maxScan) {
+      const tagStart = html.indexOf('<link', pos);
+      if (tagStart === -1) break;
+
+      const tagEnd = html.indexOf('>', tagStart);
+      if (tagEnd === -1) break;
+
+      const linkSnippet = html.slice(tagStart, tagEnd + 1).toLowerCase();
+      pos = tagEnd + 1;
+
+      if (
+        linkSnippet.includes('rel="icon"') ||
+        linkSnippet.includes("rel='icon'") ||
+        linkSnippet.includes('rel="shortcut icon"') ||
+        linkSnippet.includes("rel='shortcut icon'")
+      ) {
+        const hrefMatch = html.slice(tagStart, tagEnd + 1).match(/href=["']([^"']+)["']/i);
+        if (hrefMatch && hrefMatch[1]) {
+          return hrefMatch[1].trim();
+        }
+      }
+    }
+    return null;
   }
 
   /**

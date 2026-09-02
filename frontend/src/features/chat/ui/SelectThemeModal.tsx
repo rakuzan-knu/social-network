@@ -15,26 +15,17 @@ import {
   Layers,
   Eye,
   CheckCheck,
-  Smartphone,
-  Monitor,
   RefreshCcw,
   Pipette,
   Dices,
   Send,
   Share2,
   Download,
-  Copy,
   Wand2,
-  Flame,
-  Heart,
-  SmilePlus,
-  Waves,
   Zap,
   Volume2,
   Compass,
   Film,
-  ShieldCheck,
-  Radio,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Modal from '../../../shared/ui/Modal';
@@ -42,7 +33,6 @@ import {
   BUILT_IN_BUBBLE_PRESETS,
   BUILT_IN_PRESETS,
   ChatThemeConfig,
-  DEFAULT_DARK_THEME_CONFIG,
   PROCEDURAL_SHADER_PRESETS,
   PresetBubble,
   PresetTheme,
@@ -130,7 +120,13 @@ export default function SelectThemeModal({
   const [isComparing, setIsComparing] = useState(false);
 
   const [activeTab, setActiveTab] = useState<TabType>('background');
-  const [bgSubMode, setBgSubMode] = useState<BackgroundSubMode>('solid');
+  const [bgSubMode, setBgSubMode] = useState<BackgroundSubMode>(() => {
+    const initial = parseChatTheme(currentTheme);
+    if (initial.backgroundType === 'shader') return 'shader';
+    if (initial.backgroundType === 'image') return 'image';
+    if (initial.backgroundType === 'gradient') return 'gradient';
+    return 'solid';
+  });
   const [mobileViewMode, setMobileViewMode] = useState<'editor' | 'preview'>('editor');
 
   // Working theme state inside editor
@@ -154,7 +150,9 @@ export default function SelectThemeModal({
   const [copyToast, setCopyToast] = useState<string | null>(null);
 
   // Browser capability check for EyeDropper
-  const [isEyeDropperSupported, setIsEyeDropperSupported] = useState(false);
+  const [isEyeDropperSupported] = useState(
+    () => typeof window !== 'undefined' && 'EyeDropper' in window,
+  );
 
   // Theme Import Modal State
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -188,15 +186,18 @@ export default function SelectThemeModal({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const previewScrollRef = useRef<HTMLDivElement | null>(null);
 
-  // Check browser EyeDropper support
-  useEffect(() => {
-    setIsEyeDropperSupported(typeof window !== 'undefined' && 'EyeDropper' in window);
-  }, []);
-
   // Load custom presets and recent wallpapers on mount
   useEffect(() => {
-    getCustomPresets().then(setCustomPresets);
-    getRecentWallpapers().then(setRecentWallpapers);
+    let isMounted = true;
+    void getCustomPresets().then((presets) => {
+      if (isMounted) setCustomPresets(presets);
+    });
+    void getRecentWallpapers().then((wallpapers) => {
+      if (isMounted) setRecentWallpapers(wallpapers);
+    });
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Sync mobile <meta name="theme-color"> in real-time
@@ -204,25 +205,21 @@ export default function SelectThemeModal({
     updateMetaThemeColor(draftTheme);
   }, [draftTheme]);
 
-  // Initialize submode based on draftTheme backgroundType
-  useEffect(() => {
-    if (draftTheme.backgroundType === 'shader') setBgSubMode('shader');
-    else if (draftTheme.backgroundType === 'image') setBgSubMode('image');
-    else if (draftTheme.backgroundType === 'gradient') setBgSubMode('gradient');
-    else setBgSubMode('solid');
-  }, [draftTheme.backgroundType]);
-
   // Extract palette whenever image background is loaded
   useEffect(() => {
+    let isMounted = true;
     if (draftTheme.backgroundType === 'image' && draftTheme.bgImageUrl) {
-      extractDominantColorsFromImage(draftTheme.bgImageUrl, 4).then((palette) => {
-        if (palette && palette.length > 0) {
+      void extractDominantColorsFromImage(draftTheme.bgImageUrl, 4).then((palette) => {
+        if (isMounted && palette && palette.length > 0) {
           setMagicPalette(palette);
         }
       });
     } else {
       setMagicPalette([]);
     }
+    return () => {
+      isMounted = false;
+    };
   }, [draftTheme.backgroundType, draftTheme.bgImageUrl]);
 
   // Scroll to bottom of preview when new test message is added
@@ -714,9 +711,9 @@ export default function SelectThemeModal({
       {(close) => (
         <div className="bg-[#12131b]/95 border border-white/10 rounded-3xl w-full shadow-2xl overflow-hidden backdrop-blur-2xl flex flex-col max-h-[94vh]">
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 flex-shrink-0">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 shrink-0">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-500 border border-purple-400/40 flex items-center justify-center text-white shadow-lg shadow-purple-500/20">
+              <div className="w-9 h-9 rounded-2xl bg-linear-to-tr from-purple-600 to-indigo-500 border border-purple-400/40 flex items-center justify-center text-white shadow-lg shadow-purple-500/20">
                 <Palette size={18} />
               </div>
               <div>
@@ -798,7 +795,7 @@ export default function SelectThemeModal({
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-xs font-semibold text-center shadow-lg border-b border-purple-400/30 flex items-center justify-center gap-2"
+                className="px-4 py-2 bg-linear-to-r from-purple-600 to-indigo-600 text-white text-xs font-semibold text-center shadow-lg border-b border-purple-400/30 flex items-center justify-center gap-2"
               >
                 <Sparkles size={14} />
                 <span>{copyToast}</span>
@@ -834,7 +831,7 @@ export default function SelectThemeModal({
                       {isActive && (
                         <motion.div
                           layoutId="activeThemeTabPill"
-                          className="absolute inset-0 bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 border border-purple-400/40 rounded-xl shadow-lg shadow-purple-500/25 -z-10"
+                          className="absolute inset-0 bg-linear-to-r from-purple-600 via-indigo-600 to-purple-600 border border-purple-400/40 rounded-xl shadow-lg shadow-purple-500/25 -z-10"
                           transition={{ type: 'spring', stiffness: 480, damping: 35 }}
                         />
                       )}
@@ -974,7 +971,7 @@ export default function SelectThemeModal({
                               }`}
                             >
                               <span
-                                className="w-6 h-6 rounded-full border border-white/20 shadow-md flex-shrink-0"
+                                className="w-6 h-6 rounded-full border border-white/20 shadow-md shrink-0"
                                 style={{ backgroundColor: pal.color }}
                               />
                               <span className="text-xs font-medium text-gray-200 truncate">
@@ -1035,7 +1032,7 @@ export default function SelectThemeModal({
                           >
                             <div className="flex items-center gap-2 min-w-0">
                               <label
-                                className="relative w-8 h-8 rounded-xl border border-white/20 shadow-md cursor-pointer flex-shrink-0 flex items-center justify-center overflow-hidden"
+                                className="relative w-8 h-8 rounded-xl border border-white/20 shadow-md cursor-pointer shrink-0 flex items-center justify-center overflow-hidden"
                                 style={{ backgroundColor: color }}
                               >
                                 <input
@@ -1158,7 +1155,7 @@ export default function SelectThemeModal({
                             >
                               <div className="flex items-center gap-3">
                                 <div
-                                  className="w-12 h-12 rounded-xl border border-white/20 shadow-inner flex-shrink-0 relative overflow-hidden"
+                                  className="w-12 h-12 rounded-xl border border-white/20 shadow-inner shrink-0 relative overflow-hidden"
                                   style={{ background: preset.previewGradient }}
                                 >
                                   <div className="absolute inset-0 bg-black/20" />
@@ -1169,7 +1166,7 @@ export default function SelectThemeModal({
                                       {preset.name}
                                     </p>
                                     {isSelected && (
-                                      <span className="w-4 h-4 rounded-full bg-purple-500 flex items-center justify-center text-white flex-shrink-0">
+                                      <span className="w-4 h-4 rounded-full bg-purple-500 flex items-center justify-center text-white shrink-0">
                                         <Check size={10} strokeWidth={3} />
                                       </span>
                                     )}
@@ -1269,7 +1266,7 @@ export default function SelectThemeModal({
                         {/* Card 1: Upload Image */}
                         <div
                           onClick={() => fileInputRef.current?.click()}
-                          className="p-5 rounded-3xl border border-white/10 hover:border-purple-500/50 bg-[#161722]/80 hover:bg-[#1a1b2a] transition flex flex-col items-center justify-center text-center cursor-pointer group min-h-[140px] shadow-lg"
+                          className="p-5 rounded-3xl border border-white/10 hover:border-purple-500/50 bg-[#161722]/80 hover:bg-[#1a1b2a] transition flex flex-col items-center justify-center text-center cursor-pointer group min-h-35 shadow-lg"
                         >
                           <input
                             ref={fileInputRef}
@@ -1290,7 +1287,7 @@ export default function SelectThemeModal({
                         {/* Card 2: Select GIF / Animated Montage */}
                         <div
                           onClick={() => fileInputRef.current?.click()}
-                          className="p-5 rounded-3xl border border-white/10 hover:border-purple-500/50 bg-[#161722]/80 hover:bg-[#1a1b2a] transition flex flex-col items-center justify-center text-center cursor-pointer group min-h-[140px] relative overflow-hidden shadow-lg"
+                          className="p-5 rounded-3xl border border-white/10 hover:border-purple-500/50 bg-[#161722]/80 hover:bg-[#1a1b2a] transition flex flex-col items-center justify-center text-center cursor-pointer group min-h-35 relative overflow-hidden shadow-lg"
                         >
                           <div className="w-11 h-11 rounded-2xl bg-purple-600/20 text-purple-300 border border-purple-400/30 group-hover:scale-110 flex items-center justify-center mb-2.5 transition">
                             <Film size={20} />
@@ -1307,9 +1304,9 @@ export default function SelectThemeModal({
 
                       {/* Magic Color Match Banner */}
                       {magicPalette.length > 0 && (
-                        <div className="p-3.5 rounded-2xl bg-gradient-to-r from-purple-900/40 via-indigo-900/30 to-pink-900/40 border border-purple-500/40 flex items-center justify-between gap-3 shadow-lg animate-fadeIn">
+                        <div className="p-3.5 rounded-2xl bg-linear-to-r from-purple-900/40 via-indigo-900/30 to-pink-900/40 border border-purple-500/40 flex items-center justify-between gap-3 shadow-lg animate-fadeIn">
                           <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-8 h-8 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-300 flex-shrink-0">
+                            <div className="w-8 h-8 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-300 shrink-0">
                               <Wand2 size={16} className="animate-pulse" />
                             </div>
                             <div className="min-w-0">
@@ -1321,7 +1318,7 @@ export default function SelectThemeModal({
                               </p>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2 flex-shrink-0">
+                          <div className="flex items-center gap-2 shrink-0">
                             <div className="flex -space-x-1.5">
                               {magicPalette.map((c, i) => (
                                 <span
@@ -1417,7 +1414,7 @@ export default function SelectThemeModal({
                           <div
                             key={item.id}
                             onClick={() => handleSelectRecentWallpaper(item)}
-                            className="relative group cursor-pointer flex-shrink-0"
+                            className="relative group cursor-pointer shrink-0"
                             title={item.name}
                           >
                             <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white/20 group-hover:border-purple-400 group-hover:scale-105 transition-all shadow-md flex items-center justify-center bg-black/40">
@@ -1594,7 +1591,7 @@ export default function SelectThemeModal({
                             >
                               <div className="flex items-center gap-2 min-w-0">
                                 <label
-                                  className="relative w-8 h-8 rounded-xl border border-white/20 shadow-md cursor-pointer flex-shrink-0 flex items-center justify-center overflow-hidden"
+                                  className="relative w-8 h-8 rounded-xl border border-white/20 shadow-md cursor-pointer shrink-0 flex items-center justify-center overflow-hidden"
                                   style={{ backgroundColor: color }}
                                 >
                                   <input
@@ -1750,7 +1747,7 @@ export default function SelectThemeModal({
                   </div>
 
                   {/* Instagram / Telegram Continuous Screen Gradient Toggle */}
-                  <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-900/30 to-indigo-900/30 border border-purple-500/30 flex items-center justify-between gap-4">
+                  <div className="p-4 rounded-2xl bg-linear-to-r from-purple-900/30 to-indigo-900/30 border border-purple-500/30 flex items-center justify-between gap-4">
                     <div>
                       <p className="text-xs font-bold text-white flex items-center gap-1.5">
                         <Sparkles size={14} className="text-purple-400" />
@@ -1771,7 +1768,7 @@ export default function SelectThemeModal({
                           bubbleContinuousGradient: !p.bubbleContinuousGradient,
                         }));
                       }}
-                      className={`relative w-12 h-6 rounded-full transition-colors flex-shrink-0 ${
+                      className={`relative w-12 h-6 rounded-full transition-colors shrink-0 ${
                         draftTheme.bubbleContinuousGradient ? 'bg-purple-600' : 'bg-white/20'
                       }`}
                     >
@@ -1797,7 +1794,7 @@ export default function SelectThemeModal({
                           className="flex items-center gap-2 p-2.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-left transition"
                         >
                           <span
-                            className="w-5 h-5 rounded-full border border-white/20 flex-shrink-0 shadow-md"
+                            className="w-5 h-5 rounded-full border border-white/20 shrink-0 shadow-md"
                             style={{ background: bp.previewBg }}
                           />
                           <span className="text-xs font-medium text-gray-200 truncate">
@@ -1843,7 +1840,7 @@ export default function SelectThemeModal({
                         >
                           <div className="flex items-center gap-3">
                             <div
-                              className="w-10 h-10 rounded-xl border border-white/20 shadow-inner flex-shrink-0"
+                              className="w-10 h-10 rounded-xl border border-white/20 shadow-inner shrink-0"
                               style={{ background: preset.previewBg }}
                             />
                             <div>
@@ -1879,7 +1876,7 @@ export default function SelectThemeModal({
                       type="button"
                       onClick={handleSaveToCustomPresets}
                       disabled={isSavingPreset}
-                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-xs font-bold text-white shadow-md transition disabled:opacity-50 flex items-center gap-1.5 flex-shrink-0"
+                      className="px-4 py-2 rounded-xl bg-linear-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-xs font-bold text-white shadow-md transition disabled:opacity-50 flex items-center gap-1.5 shrink-0"
                     >
                       <Bookmark size={14} />
                       <span>Save Current Theme</span>
@@ -1904,7 +1901,7 @@ export default function SelectThemeModal({
                         >
                           <div className="flex items-center gap-3">
                             <div
-                              className="w-10 h-10 rounded-xl border border-white/20 shadow-inner flex-shrink-0"
+                              className="w-10 h-10 rounded-xl border border-white/20 shadow-inner shrink-0"
                               style={{ background: cp.previewBg }}
                             />
                             <div>
@@ -1931,7 +1928,7 @@ export default function SelectThemeModal({
 
             {/* Right Column: Live Interactive Chat Preview with Real Telegram Reactions */}
             <div
-              className={`w-full md:w-[380px] lg:w-[420px] flex-shrink-0 flex flex-col p-6 bg-black/40 border-l border-white/5 ${
+              className={`w-full md:w-95 lg:w-105 shrink-0 flex flex-col p-6 bg-black/40 border-l border-white/5 ${
                 mobileViewMode === 'editor' ? 'hidden md:flex' : 'flex'
               }`}
             >
@@ -1973,7 +1970,7 @@ export default function SelectThemeModal({
               </div>
 
               {/* Chat Frame Mockup */}
-              <div className="relative flex-1 rounded-3xl overflow-hidden border border-white/15 shadow-2xl flex flex-col min-h-[380px]">
+              <div className="relative flex-1 rounded-3xl overflow-hidden border border-white/15 shadow-2xl flex flex-col min-h-95">
                 {/* Hold-to-Compare Floating Notice Badge */}
                 {isComparing && (
                   <div className="absolute top-14 left-1/2 -translate-x-1/2 z-30 px-3 py-1 rounded-full bg-black/80 backdrop-blur-xl border border-purple-500/50 text-white text-[11px] font-bold shadow-2xl flex items-center gap-1.5 animate-bounce pointer-events-none">
@@ -2018,7 +2015,7 @@ export default function SelectThemeModal({
                     WebkitBackdropFilter: 'blur(16px)',
                   }}
                 >
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-500 to-indigo-500 flex items-center justify-center text-xs font-bold text-white shadow-md">
+                  <div className="w-8 h-8 rounded-full bg-linear-to-tr from-purple-500 to-indigo-500 flex items-center justify-center text-xs font-bold text-white shadow-md">
                     EA
                   </div>
                   <div>
@@ -2164,7 +2161,7 @@ export default function SelectThemeModal({
                   <button
                     type="submit"
                     disabled={!testInput.trim()}
-                    className="w-7 h-7 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white flex items-center justify-center transition disabled:opacity-30 flex-shrink-0 shadow-md active:scale-95"
+                    className="w-7 h-7 rounded-xl bg-linear-to-tr from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white flex items-center justify-center transition disabled:opacity-30 shrink-0 shadow-md active:scale-95"
                     title="Send test message to preview"
                   >
                     <Send size={12} />
@@ -2175,7 +2172,7 @@ export default function SelectThemeModal({
           </div>
 
           {/* Footer Controls: Toggles & Action Buttons */}
-          <div className="px-6 py-4 bg-[#0e0f15] border-t border-white/10 flex flex-col md:flex-row items-center justify-between gap-4 flex-shrink-0">
+          <div className="px-6 py-4 bg-[#0e0f15] border-t border-white/10 flex flex-col md:flex-row items-center justify-between gap-4 shrink-0">
             {/* Toggles */}
             <div className="flex flex-wrap items-center gap-6 w-full md:w-auto">
               {/* Toggle 1: Apply to all chats */}
@@ -2277,7 +2274,7 @@ export default function SelectThemeModal({
                 type="button"
                 onClick={handleApply}
                 disabled={isApplying}
-                className="px-6 py-2.5 rounded-full text-xs font-bold bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 hover:from-purple-500 hover:via-indigo-500 hover:to-pink-500 text-white shadow-lg shadow-purple-500/25 transition active:scale-95 disabled:opacity-50 flex items-center gap-2"
+                className="px-6 py-2.5 rounded-full text-xs font-bold bg-linear-to-r from-purple-600 via-indigo-600 to-pink-600 hover:from-purple-500 hover:via-indigo-500 hover:to-pink-500 text-white shadow-lg shadow-purple-500/25 transition active:scale-95 disabled:opacity-50 flex items-center gap-2"
               >
                 {isApplying ? (
                   <span>Applying...</span>
@@ -2346,7 +2343,7 @@ export default function SelectThemeModal({
                     type="button"
                     onClick={handleImportThemeCode}
                     disabled={!importCodeInput.trim()}
-                    className="px-5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold shadow-md transition disabled:opacity-40"
+                    className="px-5 py-2 rounded-xl bg-linear-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold shadow-md transition disabled:opacity-40"
                   >
                     Load Theme
                   </button>

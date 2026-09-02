@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -11,6 +11,7 @@ import * as useRepostMutationModule from '@/features/posts/model/useRepostMutati
 import * as useSavePostMutationModule from '@/features/posts/model/useSavePostMutation';
 import * as useDeletePostMutationModule from '@/features/posts/model/useDeletePostMutation';
 import * as usePinPostMutationModule from '@/features/posts/model/usePinPostMutation';
+import * as useEditPostMutationModule from '@/features/posts/model/useEditPostMutation';
 
 vi.mock('@/entities/post/ui/PostMedia', () => ({
   PostMedia: ({ media }: { media: { url: string }[] }) =>
@@ -41,6 +42,7 @@ const basePost: PostType = {
   avatar: '💀',
   text: 'Hello world',
   createdAt: '2026-07-15T09:00:00.000Z',
+  editedAt: '2026-07-15T10:00:00.000Z',
   comments: 2,
   reposts: 1,
   likes: 5,
@@ -53,6 +55,7 @@ describe('PostCard', () => {
   const mockSaveMutate = vi.fn();
   const mockDeleteMutate = vi.fn();
   const mockPinMutate = vi.fn();
+  const mockEditMutate = vi.fn();
 
   beforeEach(() => {
     vi.spyOn(useLikeMutationModule, 'useLikeMutation').mockReturnValue({
@@ -79,6 +82,11 @@ describe('PostCard', () => {
       mutate: mockPinMutate,
       isPending: false,
     } as any);
+
+    vi.spyOn(useEditPostMutationModule, 'useEditPostMutation').mockReturnValue({
+      mutate: mockEditMutate,
+      isPending: false,
+    } as any);
   });
 
   afterEach(() => {
@@ -99,11 +107,12 @@ describe('PostCard', () => {
     );
   }
 
-  it('renders author, handle, time, text and counters', () => {
+  it('renders author, handle, time, edited badge, text and counters', () => {
     renderPostCard();
 
     expect(screen.getByText('Ayate')).toBeInTheDocument();
     expect(screen.getByText('@ayate • 3h')).toBeInTheDocument();
+    expect(screen.getByText('(edited)')).toBeInTheDocument();
     expect(screen.getByText('Hello world')).toBeInTheDocument();
     expect(screen.getByText('2')).toBeInTheDocument();
     expect(screen.getByText('1')).toBeInTheDocument();
@@ -141,33 +150,20 @@ describe('PostCard', () => {
     expect(screen.getByText('Pinned post')).toBeInTheDocument();
   });
 
-  it('handles like click', async () => {
+  it('handles like, repost, and save clicks', async () => {
     const user = userEvent.setup();
     renderPostCard();
 
     const likeButton = screen.getByTitle('Like');
     await user.click(likeButton);
-
     expect(mockLikeMutate).toHaveBeenCalled();
-  });
-
-  it('handles repost click', async () => {
-    const user = userEvent.setup();
-    renderPostCard();
 
     const repostButton = screen.getByTitle('Repost');
     await user.click(repostButton);
-
     expect(mockRepostMutate).toHaveBeenCalled();
-  });
-
-  it('handles save click', async () => {
-    const user = userEvent.setup();
-    renderPostCard();
 
     const saveButton = screen.getByTitle('Save post (Hold for collections)');
     await user.click(saveButton);
-
     expect(mockSaveMutate).toHaveBeenCalled();
   });
 
@@ -206,7 +202,7 @@ describe('PostCard', () => {
     expect(screen.queryByTestId('voters-modal')).not.toBeInTheDocument();
   });
 
-  it('opens the comment modal for this post when the comment button is clicked', async () => {
+  it('opens comment modal when comment button is clicked', async () => {
     const user = userEvent.setup();
     renderPostCard();
 
@@ -215,5 +211,30 @@ describe('PostCard', () => {
     const state = useUIStore.getState();
     expect(state.isCommentModalOpen).toBe(true);
     expect(state.activePostForComments).toEqual(basePost);
+  });
+
+  it('handles post menu actions for owner: Edit, Delete, Hide likes, Disable comments', () => {
+    renderPostCard({ ...basePost, isOwner: true });
+
+    const menuTrigger = screen.getByRole('button', { name: /more options/i });
+    fireEvent.click(menuTrigger);
+
+    expect(screen.getByText('Edit post')).toBeInTheDocument();
+    expect(screen.getByText('Hide like count')).toBeInTheDocument();
+    expect(screen.getByText('Disable commenting')).toBeInTheDocument();
+
+    // Toggle hide like count
+    fireEvent.click(screen.getByText('Hide like count'));
+    expect(screen.queryByText('5')).not.toBeInTheDocument();
+
+    // Open Edit post modal
+    fireEvent.click(menuTrigger);
+    fireEvent.click(screen.getByText('Edit post'));
+    expect(screen.getByText('Edit information')).toBeInTheDocument();
+
+    // Open Delete post modal
+    fireEvent.click(menuTrigger);
+    fireEvent.click(screen.getByText('Delete your post'));
+    expect(screen.getByText('Delete post?')).toBeInTheDocument();
   });
 });

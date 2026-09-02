@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -59,24 +59,64 @@ describe('CommentItem', () => {
     expect(screen.getByText('Author')).toBeInTheDocument();
   });
 
-  it('renders pinned badge when comment is pinned', () => {
+  it('renders pinned badge and liked by author badge', () => {
     renderCommentItem({
-      comment: { ...mockComment, isPinned: true },
+      comment: { ...mockComment, isPinned: true, isLikedByAuthor: true },
       postAuthorId: 'u2',
       currentUserId: 'u3',
     });
 
     expect(screen.getByText('Pinned')).toBeInTheDocument();
+    expect(screen.getByText('Liked by author')).toBeInTheDocument();
   });
 
-  it('handles like click', () => {
+  it('handles double tap to like with heart burst animation', () => {
+    vi.useFakeTimers();
+    const onLike = vi.fn();
+    const { container } = renderCommentItem({ comment: mockComment, onLike });
+
+    const card = container.firstChild as HTMLElement;
+
+    // First tap
+    fireEvent.click(card);
+    // Second tap within 300ms
+    fireEvent.click(card);
+
+    expect(onLike).toHaveBeenCalledWith('c1');
+
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+
+    vi.useRealTimers();
+  });
+
+  it('handles like click with debounce and pending state early return', () => {
+    vi.useFakeTimers();
     const onLike = vi.fn();
     renderCommentItem({ comment: mockComment, onLike });
 
     const likeButton = screen.getByTitle('Like');
     fireEvent.click(likeButton);
+    // Rapid duplicate clicks while pending return early without calling onLike again
+    fireEvent.click(likeButton);
+    fireEvent.click(likeButton);
 
-    expect(onLike).toHaveBeenCalledWith('c1');
+    expect(onLike).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      vi.advanceTimersByTime(600);
+    });
+
+    // After pending timeout clears, another click works
+    fireEvent.click(likeButton);
+    expect(onLike).toHaveBeenCalledTimes(2);
+
+    act(() => {
+      vi.advanceTimersByTime(600);
+    });
+
+    vi.useRealTimers();
   });
 
   it('handles reply button click', () => {
@@ -90,6 +130,7 @@ describe('CommentItem', () => {
   });
 
   it('opens menu and copies text', async () => {
+    vi.useFakeTimers();
     const writeTextMock = vi.fn().mockResolvedValue(undefined);
     Object.assign(navigator, {
       clipboard: { writeText: writeTextMock },
@@ -110,17 +151,22 @@ describe('CommentItem', () => {
     fireEvent.click(copyButton);
 
     expect(writeTextMock).toHaveBeenCalledWith('Great post!');
+
+    act(() => {
+      vi.advanceTimersByTime(1300);
+    });
+    vi.useRealTimers();
   });
 
-  it('handles pin, report, and delete actions from menu', async () => {
+  it('handles unpin, report, and delete actions from menu', async () => {
     const onPin = vi.fn();
     const onDelete = vi.fn();
     const onReport = vi.fn();
 
     renderCommentItem({
-      comment: mockComment,
+      comment: { ...mockComment, isPinned: true },
       currentUserId: 'u1', // owner can delete
-      postAuthorId: 'u1', // post owner can pin
+      postAuthorId: 'u1', // post owner can pin/unpin
       onPin,
       onDelete,
       onReport,
@@ -129,8 +175,8 @@ describe('CommentItem', () => {
     const menuButton = screen.getByTitle('Options');
     fireEvent.click(menuButton);
 
-    const pinButton = screen.getByText('Pin to top');
-    fireEvent.click(pinButton);
+    const unpinButton = screen.getByText('Unpin');
+    fireEvent.click(unpinButton);
     expect(onPin).toHaveBeenCalledWith('c1');
 
     fireEvent.click(menuButton);
@@ -164,14 +210,41 @@ describe('CommentItem', () => {
     expect(screen.queryByTitle('Options')).not.toBeInTheDocument();
   });
 
-  it('opens image on media click', () => {
+  it('renders liked comment and handles unlike title', () => {
+    const onLike = vi.fn();
+    renderCommentItem({
+      comment: { ...mockComment, isLiked: true, likesCount: 12 },
+      onLike,
+    });
+
+    const unlikeBtn = screen.getByTitle('Unlike');
+    expect(unlikeBtn).toBeInTheDocument();
+    expect(screen.getByText('12')).toBeInTheDocument();
+    fireEvent.click(unlikeBtn);
+    expect(onLike).toHaveBeenCalledWith('c1');
+  });
+
+  it('opens image on media click and handles edge cases', () => {
     const windowOpenSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
-    renderCommentItem({ comment: mockComment });
+    const commentWithMedia: CommentType = { ...mockComment, mediaUrl: 'https://media.png' };
+    renderCommentItem({ comment: commentWithMedia });
 
     const img = screen.getByAltText('attachment');
     fireEvent.click(img);
 
     expect(windowOpenSpy).toHaveBeenCalledWith('https://media.png', '_blank');
+
+    // Test fallback when mediaUrl is undefined at runtime on click
+    commentWithMedia.mediaUrl = undefined as any;
+    fireEvent.click(img);
+    expect(windowOpenSpy).toHaveBeenCalledWith('', '_blank');
+
     windowOpenSpy.mockRestore();
+  });
+
+  it('handles like click without onLike callback safely', () => {
+    renderCommentItem({ comment: mockComment, onLike: undefined });
+    const likeButton = screen.getByTitle('Like');
+    expect(() => fireEvent.click(likeButton)).not.toThrow();
   });
 });

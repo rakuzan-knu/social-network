@@ -198,7 +198,6 @@ export default function ChatListPanel({
       return;
     }
     // TODO: wire the remaining sections to real routes/modals once they exist
-    console.log('open section:', section);
   };
 
   const handleCreateFolder = () => {
@@ -248,7 +247,7 @@ export default function ChatListPanel({
         width: isChatListExpanded ? width : COLLAPSED_WIDTH,
         transitionDuration: isResizing ? '0ms' : '300ms',
       }}
-      className="relative h-full flex-shrink-0 flex flex-col bg-[#16161a]/60 backdrop-blur-2xl border-r border-white/5 py-6 transition-[width] ease-in-out overflow-hidden"
+      className="relative h-full shrink-0 flex flex-col bg-[#16161a]/60 backdrop-blur-2xl border-r border-white/5 py-6 transition-[width] ease-in-out overflow-hidden"
     >
       {!isChatListExpanded ? (
         <div className="h-full flex flex-col items-center pt-0 gap-4">
@@ -347,7 +346,7 @@ export default function ChatListPanel({
                       <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
                         Pinned
                       </span>
-                      <div className="h-px flex-1 bg-white/[0.08]" />
+                      <div className="h-px flex-1 bg-white/8" />
                     </div>
                     <div className="flex flex-col gap-0.5 mb-3">
                       {visiblePinnedConversations.map((c) => (

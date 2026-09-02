@@ -29,7 +29,8 @@ export class WsValidationFilter implements ExceptionFilter {
             : String((resp as Record<string, unknown>).message)
           : exception.message;
     } else if (exception instanceof Error) {
-      errorMessage = exception.message;
+      errorMessage =
+        process.env.NODE_ENV === 'production' ? 'Internal server error' : exception.message;
     }
 
     this.logger.warn(`WS Exception caught for client ${client?.id}: ${errorMessage}`);

@@ -4,17 +4,21 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  OnModuleDestroy,
+  Optional,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AttachmentType, MessageType } from '@prisma/client';
+import { AttachmentType, MessageType, type Prisma } from '@prisma/client';
 import { S3Client } from '@aws-sdk/client-s3';
 import { uid } from 'uid';
 import { PrismaService } from '@common/prisma';
+import { SnowflakeService } from '../../common/id/snowflake.service';
 import { uploadToStorageWithFallback } from '../../common/media/image-processor';
 import { CONVERSATIONS_REPOSITORY } from '../interfaces/conversations-repository.interface';
 import type { IConversationsRepository } from '../interfaces/conversations-repository.interface';
 import { MESSAGES_REPOSITORY } from '../interfaces/messages-repository.interface';
 import type { IMessagesRepository } from '../interfaces/messages-repository.interface';
+import { messageInclude } from '../interfaces/types';
 import { MessengerMapper } from '../messenger.mapper';
 import type {
   GetMessagesQueryDto,
@@ -32,8 +36,12 @@ import type {
 } from '@common/contracts';
 
 @Injectable()
-export class MessagesService {
+export class MessagesService implements OnModuleDestroy {
   private readonly s3: S3Client;
+
+  onModuleDestroy(): void {
+    this.s3.destroy();
+  }
 
   constructor(
     @Inject(CONVERSATIONS_REPOSITORY)
@@ -43,6 +51,8 @@ export class MessagesService {
     private readonly mapper: MessengerMapper,
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
+    @Optional()
+    private readonly snowflake?: SnowflakeService,
   ) {
     this.s3 = new S3Client({
       endpoint:
@@ -183,72 +193,69 @@ export class MessagesService {
       }
     }
 
-    const message = await this.prisma.message.create({
-      data: {
-        conversationId,
-        senderId,
-        body: dto.text || null,
-        messageType: finalMessageType,
-        replyToId: dto.replyToId || undefined,
-        forwardedFromId: dto.forwardedFromId || undefined,
-        attachments:
-          dto.attachments && dto.attachments.length > 0
-            ? {
-                create: dto.attachments.map((att) => ({
-                  type: att.type,
-                  url: att.url,
-                  fileName: att.fileName || null,
-                  mimeType: att.mimeType || null,
-                  size: att.size != null ? Math.round(att.size) : null,
-                  width: att.width != null ? Math.round(att.width) : null,
-                  height: att.height != null ? Math.round(att.height) : null,
-                  duration: att.duration != null ? Math.round(att.duration) : null,
-                  thumbnailUrl: att.thumbnailUrl || null,
-                })),
-              }
-            : undefined,
-      },
-      include: {
-        sender: true,
-        attachments: true,
-        conversation: {
-          include: {
-            participants: true,
-          },
+    const participantIds = await this.convsRepo.findParticipantIds(conversationId);
+    const recipientIds = participantIds.filter((id) => id !== senderId);
+
+    const { mappedMessage } = await this.prisma.$transaction(async (tx) => {
+      const message = await tx.message.create({
+        data: {
+          id: this.snowflake ? this.snowflake.generate() : undefined,
+          conversationId,
+          senderId,
+          body: dto.text || null,
+          clientSeq: dto.clientSeq ?? undefined,
+          messageType: finalMessageType,
+          replyToId: dto.replyToId || undefined,
+          forwardedFromId: dto.forwardedFromId || undefined,
+          attachments:
+            dto.attachments && dto.attachments.length > 0
+              ? {
+                  create: dto.attachments.map((att) => ({
+                    type: att.type,
+                    url: att.url,
+                    fileName: att.fileName || null,
+                    mimeType: att.mimeType || null,
+                    size: att.size != null ? Math.round(att.size) : null,
+                    width: att.width != null ? Math.round(att.width) : null,
+                    height: att.height != null ? Math.round(att.height) : null,
+                    duration: att.duration != null ? Math.round(att.duration) : null,
+                    thumbnailUrl: att.thumbnailUrl || null,
+                  })),
+                }
+              : undefined,
         },
-        replyTo: {
-          include: {
-            sender: true,
-            attachments: true,
+        include: messageInclude,
+      });
+
+      await tx.conversation.update({
+        where: { id: conversationId },
+        data: { updatedAt: new Date() },
+      });
+
+      const pinnedIds = await this.convsRepo.findPinnedMessages(conversationId);
+      const pinnedSet = new Set(pinnedIds);
+      const mapped = this.mapper.mapMessage(message, senderId, pinnedSet);
+
+      await tx.outboxEvent.create({
+        data: {
+          aggregateType: 'MESSAGE',
+          aggregateId: message.id,
+          eventType: 'MESSAGE_SENT',
+          payload: {
+            messageId: message.id,
+            conversationId,
+            senderId,
+            recipientIds,
+            messageView: JSON.parse(JSON.stringify(mapped)) as Prisma.InputJsonValue,
           },
+          status: 'PENDING',
         },
-        forwardedFrom: {
-          include: {
-            sender: true,
-            attachments: true,
-          },
-        },
-        reactions: {
-          include: {
-            user: true,
-          },
-        },
-        deletedFor: true,
-        pinnedIn: true,
-        replies: true,
-        forwards: true,
-      },
+      });
+
+      return { message, mappedMessage: mapped };
     });
 
-    await this.prisma.conversation.update({
-      where: { id: conversationId },
-      data: { updatedAt: new Date() },
-    });
-
-    const pinnedIds = await this.convsRepo.findPinnedMessages(conversationId);
-    const pinnedSet = new Set(pinnedIds);
-
-    return this.mapper.mapMessage(message, senderId, pinnedSet);
+    return mappedMessage;
   }
 
   async getMessages(

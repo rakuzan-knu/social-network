@@ -36,7 +36,7 @@ export const showcaseTagListSchema = z
   );
 
 export const showcaseMediaItemSchema = z.object({
-  id: z.string().optional(),
+  id: z.string().max(128).optional(),
   type: showcaseMediaTypeSchema,
   isWishlist: z.boolean().default(false),
   title: z
@@ -44,9 +44,9 @@ export const showcaseMediaItemSchema = z.object({
     .min(1)
     .max(120)
     .transform((val) => sanitizeHtml(val) as string),
-  posterUrl: z.string().url(),
+  posterUrl: z.string().url().max(2048),
   externalId: z.string().max(100).optional().nullable(),
-  externalUrl: z.string().url().optional().nullable(),
+  externalUrl: z.string().url().max(2048).optional().nullable(),
   rating: z.number().min(0).max(10).optional().nullable(),
   userComment: z
     .string()
@@ -71,10 +71,10 @@ export const profileAnthemSchema = z.object({
     .min(1)
     .max(100)
     .transform((val) => sanitizeHtml(val) as string),
-  albumArt: z.string().url(),
-  previewUrl: z.string().url().optional().nullable(),
-  spotifyUrl: z.string().url().optional().nullable(),
-  durationMs: z.number().int().positive().optional().nullable(),
+  albumArt: z.string().url().max(2048),
+  previewUrl: z.string().url().max(2048).optional().nullable(),
+  spotifyUrl: z.string().url().max(2048).optional().nullable(),
+  durationMs: z.number().int().positive().max(86400000).optional().nullable(),
 });
 export type ProfileAnthemDto = z.infer<typeof profileAnthemSchema>;
 
@@ -84,8 +84,8 @@ export const spotlightMediaSchema = z.object({
     .min(1)
     .max(120)
     .transform((val) => sanitizeHtml(val) as string),
-  posterUrl: z.string().url(),
-  customBannerUrl: z.string().url().optional().nullable(),
+  posterUrl: z.string().url().max(2048),
+  customBannerUrl: z.string().url().max(2048).optional().nullable(),
   subtitle: z
     .string()
     .max(60)
@@ -94,7 +94,7 @@ export const spotlightMediaSchema = z.object({
     .nullable(),
   tags: showcaseTagListSchema,
   rating: z.number().min(0).max(10).optional().nullable(),
-  externalUrl: z.string().url().optional().nullable(),
+  externalUrl: z.string().url().max(2048).optional().nullable(),
   type: showcaseMediaTypeSchema.default('GAME'),
 });
 export type SpotlightMediaDto = z.infer<typeof spotlightMediaSchema>;
@@ -167,14 +167,25 @@ export const updateShowcaseSchema = z.object({
 });
 export type UpdateShowcaseDto = z.infer<typeof updateShowcaseSchema>;
 
+export const searchMediaSchema = z.object({
+  q: z.string().max(100).default(''),
+  type: showcaseMediaTypeSchema.default('GAME'),
+});
+export type SearchMediaDto = z.infer<typeof searchMediaSchema>;
+
+export const searchTracksSchema = z.object({
+  q: z.string().max(100).default(''),
+});
+export type SearchTracksDto = z.infer<typeof searchTracksSchema>;
+
 export const mediaSearchResultSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  posterUrl: z.string(),
+  id: z.string().max(128),
+  title: z.string().max(256),
+  posterUrl: z.string().max(2048),
   releaseYear: z.number().optional().nullable(),
   rating: z.number().optional().nullable(),
   type: showcaseMediaTypeSchema,
-  externalUrl: z.string().optional().nullable(),
+  externalUrl: z.string().max(2048).optional().nullable(),
 });
 export type MediaSearchResultDto = z.infer<typeof mediaSearchResultSchema>;
 

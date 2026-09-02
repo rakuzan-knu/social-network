@@ -156,4 +156,80 @@ describe('useMediaRecorderGesture (Comprehensive Suite)', () => {
 
     expect(result.current.facingMode).toBe('environment');
   });
+
+  it('stops and sends recording on handlePointerUp when actively recording', async () => {
+    const onSend = vi.fn();
+    const { result } = renderHook(() => useMediaRecorderGesture({ onSend }));
+
+    act(() => {
+      result.current.handlePointerDown({ clientX: 100, clientY: 100 } as any);
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(350);
+    });
+
+    expect(result.current.recordState).toBe('recording');
+
+    act(() => {
+      result.current.handlePointerUp();
+    });
+  });
+
+  it('switches camera facing mode and restarts stream while actively recording video', async () => {
+    const onSend = vi.fn();
+    const { result } = renderHook(() => useMediaRecorderGesture({ onSend }));
+
+    // Switch to video mode
+    act(() => {
+      result.current.setMode('video');
+    });
+
+    act(() => {
+      result.current.handlePointerDown({ clientX: 100, clientY: 100 } as any);
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(350);
+    });
+
+    expect(result.current.recordState).toBe('recording');
+
+    // Switch camera while recording
+    act(() => {
+      result.current.toggleFacingMode();
+    });
+  });
+
+  it('stops recording to preview state and switches camera to specific deviceId', async () => {
+    const onSend = vi.fn();
+    const { result } = renderHook(() => useMediaRecorderGesture({ onSend }));
+
+    // Start recording
+    act(() => {
+      result.current.handlePointerDown({ clientX: 100, clientY: 100 } as any);
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(350);
+    });
+
+    // Lock recording
+    act(() => {
+      result.current.handlePointerMove({ clientX: 100, clientY: 20 } as any);
+    });
+    expect(result.current.recordState).toBe('locked');
+
+    // Switch camera with specific deviceId
+    act(() => {
+      result.current.switchCamera('cam-2');
+    });
+
+    // Stop to preview
+    act(() => {
+      result.current.stopToPreview();
+    });
+
+    expect(result.current.recordState).toBe('preview');
+    expect(result.current.previewPayload).not.toBeNull();
+  });
 });

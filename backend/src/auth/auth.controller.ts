@@ -1,22 +1,4 @@
 import {
-  Body,
-  Controller,
-  Get,
-  Headers,
-  HttpCode,
-  HttpStatus,
-  Ip,
-  Post,
-  Query,
-  Req,
-  UseGuards,
-} from '@nestjs/common';
-import type { Request } from 'express';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { Throttle } from '@nestjs/throttler';
-import { AuthService } from './auth.service';
-import { CurrentUser } from './decorators/current-user.decorator';
-import {
   type AuthResponse,
   type ChangePasswordDto,
   type CheckUsernameDto,
@@ -29,10 +11,30 @@ import {
   refreshTokenSchema,
   registerSchema,
 } from '@common/contracts';
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  HttpCode,
+  HttpStatus,
+  Ip,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
+import type { Request } from 'express';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
+import type { RequestMeta } from '../sessions/sessions.service';
+import { AuthService } from './auth.service';
+import { CurrentUser } from './decorators/current-user.decorator';
 import { AuthGuard } from './guards/jwt-auth.guard';
 import type { RequestUser } from './interfaces/jwt-payload.interface';
-import type { RequestMeta } from '../sessions/sessions.service';
+import { TurnstileService } from './turnstile.service';
+import { HighPriority } from '../common/resilience/request-priority.decorator';
 
 function extractMeta(req: Request, ip: string, ua?: string): RequestMeta {
   return { ip: req.ip ?? ip ?? null, userAgent: ua ?? null };
@@ -41,11 +43,14 @@ function extractMeta(req: Request, ip: string, ua?: string): RequestMeta {
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly turnstileService: TurnstileService,
+  ) {}
 
   @Get('check-username')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @Throttle({ default: { limit: 30, ttl: 60_000 }, auth: { limit: 30, ttl: 60_000 } })
   @ApiOperation({ summary: 'Check if a username is available' })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -58,7 +63,8 @@ export class AuthController {
   }
 
   @Post('register')
-  @Throttle({ default: { limit: 3, ttl: 3600_000 } })
+  @HighPriority()
+  @Throttle({ default: { limit: 5, ttl: 3600_000 }, auth: { limit: 5, ttl: 3600_000 } })
   @ApiOperation({ summary: 'Register a new user account' })
   @ApiResponse({
     status: HttpStatus.CREATED,
@@ -72,18 +78,20 @@ export class AuthController {
     status: HttpStatus.BAD_REQUEST,
     description: 'Validation failed',
   })
-  register(
+  async register(
     @Body(new ZodValidationPipe(registerSchema)) dto: RegisterDto,
     @Req() req: Request,
     @Ip() ip: string,
     @Headers('user-agent') ua?: string,
   ): Promise<AuthResponse> {
+    await this.turnstileService.verifyToken(dto.turnstileToken, req.ip ?? ip);
     return this.authService.register(dto, extractMeta(req, ip, ua));
   }
 
   @Post('login')
+  @HighPriority()
   @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Throttle({ default: { limit: 10, ttl: 60_000 }, auth: { limit: 10, ttl: 60_000 } })
   @ApiOperation({ summary: 'Login with email and password' })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -93,17 +101,22 @@ export class AuthController {
     status: HttpStatus.UNAUTHORIZED,
     description: 'Invalid credentials',
   })
-  login(
+  async login(
     @Body(new ZodValidationPipe(loginSchema)) dto: LoginDto,
     @Req() req: Request,
     @Ip() ip: string,
     @Headers('user-agent') ua?: string,
   ): Promise<AuthResponse> {
+    if (dto.turnstileToken) {
+      await this.turnstileService.verifyToken(dto.turnstileToken, req.ip ?? ip);
+    }
     return this.authService.login(dto, extractMeta(req, ip, ua));
   }
 
   @Post('refresh')
+  @HighPriority()
   @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 30, ttl: 60_000 }, auth: { limit: 30, ttl: 60_000 } })
   @ApiOperation({ summary: 'Exchange a refresh token for a new access token' })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -123,7 +136,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
-  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Throttle({ default: { limit: 5, ttl: 60_000 }, auth: { limit: 5, ttl: 60_000 } })
   @ApiOperation({ summary: 'Change the current account password' })
   @ApiResponse({ status: HttpStatus.OK, description: 'Password changed' })
   @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Current password incorrect' })

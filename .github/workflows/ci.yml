@@ -200,6 +200,9 @@ jobs:
         run: |
           npx nx run-many -t lint typecheck build --affected --base=${{ needs.plan.outputs.base-sha }} --parallel=3
 
+      - name: Run Knip (Unused Code & Dependency Analysis)
+        run: pnpm knip
+
   backend-unit-tests:
     name: Backend — Unit Tests
     runs-on: ubuntu-latest

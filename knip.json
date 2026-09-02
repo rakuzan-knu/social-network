@@ -1,0 +1,49 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "rules": {
+    "files": "error",
+    "dependencies": "error",
+    "unlisted": "error",
+    "binaries": "error",
+    "unresolved": "error",
+    "exports": "off",
+    "types": "off",
+    "nsExports": "off",
+    "duplicates": "off"
+  },
+  "ignoreDependencies": [
+    "husky",
+    "@commitlint/types",
+    "conventional-changelog-conventionalcommits",
+    "k6",
+    "0x",
+    "@clinic/doctor",
+    "@clinic/flame",
+    "clinic"
+  ],
+  "ignoreBinaries": ["msw", "chromatic"],
+  "workspaces": {
+    ".": {
+      "entry": [
+        "scripts/log.js",
+        "scripts/validate-prisma-migrations.cjs",
+        "scripts/verify-terraform.cjs",
+        "benchmarks/k6/real-user-simulation.js",
+        "benchmarks/k6/feed-stress.js",
+        "benchmarks/k6/socket-stress.js"
+      ]
+    },
+    "backend": {
+      "entry": ["src/main.ts", "test/*.ts"],
+      "project": ["src/**/*.ts", "test/**/*.ts"]
+    },
+    "frontend": {
+      "entry": [
+        "index.html",
+        "vitest.contract.config.ts",
+        "public/mockServiceWorker.js",
+        "public/sw.js"
+      ]
+    }
+  }
+}

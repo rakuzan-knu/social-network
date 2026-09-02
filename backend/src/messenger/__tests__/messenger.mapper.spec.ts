@@ -27,6 +27,7 @@ describe('MessengerMapper', () => {
       deletedForAll: false,
       deletedAt: null,
       editedAt: null,
+      clientSeq: null,
       createdAt: new Date('2026-08-16T12:00:00.000Z'),
       sender: {
         id: 'usr-sender',

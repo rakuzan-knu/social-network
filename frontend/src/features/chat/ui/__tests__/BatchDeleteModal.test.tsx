@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import BatchDeleteModal from '../BatchDeleteModal';
 import React from 'react';
 
@@ -21,5 +21,28 @@ describe('BatchDeleteModal', () => {
     fireEvent.click(deleteBtn);
 
     expect(onConfirm).toHaveBeenCalledWith(true);
+  });
+
+  it('renders singular 1 message label, hides delete for all, and handles cancel', async () => {
+    const onClose = vi.fn();
+    const onConfirm = vi.fn();
+
+    render(
+      <BatchDeleteModal
+        count={1}
+        canDeleteForAll={false}
+        onClose={onClose}
+        onConfirm={onConfirm}
+      />,
+    );
+
+    expect(screen.getByText('Delete 1 message')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Also delete for everyone')).not.toBeInTheDocument();
+
+    const cancelBtn = screen.getByRole('button', { name: 'Cancel' });
+    fireEvent.click(cancelBtn);
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalled();
+    });
   });
 });

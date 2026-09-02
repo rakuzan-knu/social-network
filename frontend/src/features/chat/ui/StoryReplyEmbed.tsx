@@ -9,11 +9,7 @@ interface StoryReplyEmbedProps {
   isOwnMessage?: boolean;
 }
 
-export const StoryReplyEmbed: React.FC<StoryReplyEmbedProps> = ({
-  attachment,
-  createdAt,
-  isOwnMessage,
-}) => {
+export const StoryReplyEmbed: React.FC<StoryReplyEmbedProps> = ({ attachment, createdAt }) => {
   const [hasError, setHasError] = useState(false);
 
   // Check 24-hour expiration based on message creation if no metadata
@@ -25,8 +21,8 @@ export const StoryReplyEmbed: React.FC<StoryReplyEmbedProps> = ({
 
   if (showUnavailable) {
     return (
-      <div className="mb-2.5 p-2.5 rounded-2xl bg-[#12131d]/90 backdrop-blur-2xl border border-white/[0.08] flex items-center gap-3 shadow-[0_4px_20px_rgba(0,0,0,0.35)] transition-all">
-        <div className="w-10 h-14 rounded-xl bg-white/[0.04] border border-white/10 shrink-0 flex items-center justify-center backdrop-blur-md shadow-inner">
+      <div className="mb-2.5 p-2.5 rounded-2xl bg-[#12131d]/90 backdrop-blur-2xl border border-white/8 flex items-center gap-3 shadow-[0_4px_20px_rgba(0,0,0,0.35)] transition-all">
+        <div className="w-10 h-14 rounded-xl bg-white/4 border border-white/10 shrink-0 flex items-center justify-center backdrop-blur-md shadow-inner">
           <Clock size={18} className="text-purple-300/70 animate-pulse" />
         </div>
         <div className="flex flex-col min-w-0 pr-1">

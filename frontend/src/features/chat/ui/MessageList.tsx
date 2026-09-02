@@ -59,6 +59,7 @@ interface MessageListProps {
   onResetToLive?: () => void;
   onLoadOlder?: () => void;
   onLoadNewer?: () => void;
+  onRetry?: (messageId: string) => void;
 }
 
 type Row =
@@ -227,6 +228,7 @@ export default function MessageList({
   onResetToLive,
   onLoadOlder,
   onLoadNewer,
+  onRetry,
 }: MessageListProps) {
   const virtuosoRef = useRef<VirtuosoHandle>(null);
   const scrollerElementRef = useRef<HTMLElement | null>(null);
@@ -325,7 +327,7 @@ export default function MessageList({
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-6 text-center animate-fadeIn select-none">
         <div className="relative mb-4 group">
-          <div className="absolute -inset-2 rounded-full bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600 opacity-30 blur-lg group-hover:opacity-60 transition duration-500" />
+          <div className="absolute -inset-2 rounded-full bg-linear-to-r from-blue-600 via-indigo-500 to-purple-600 opacity-30 blur-lg group-hover:opacity-60 transition duration-500" />
           <div className="relative p-1 rounded-full bg-[#18181c] border border-white/10 shadow-2xl">
             <Avatar size="xl" src={avatarUrl} />
           </div>
@@ -391,12 +393,12 @@ export default function MessageList({
         components={{
           Header: () =>
             isFetchingMore ? (
-              <div className="w-full max-w-[960px] mx-auto px-2 sm:px-4">
+              <div className="w-full max-w-240 mx-auto px-2 sm:px-4">
                 <OlderMessagesSkeleton />
               </div>
             ) : null,
           Footer: () => (
-            <div className="w-full max-w-[960px] mx-auto px-2 sm:px-4">
+            <div className="w-full max-w-240 mx-auto px-2 sm:px-4">
               <TypingIndicatorBubble typists={typingParticipants} isGroup={isGroup} />
             </div>
           ),
@@ -405,7 +407,7 @@ export default function MessageList({
           if (row.type === 'separator') {
             const isHighlighted = highlightDateLabel === row.label;
             return (
-              <div className="w-full max-w-[960px] mx-auto px-2 sm:px-4 sticky top-2 z-20 flex justify-center my-3 pointer-events-none">
+              <div className="w-full max-w-240 mx-auto px-2 sm:px-4 sticky top-2 z-20 flex justify-center my-3 pointer-events-none">
                 <button
                   type="button"
                   onClick={(e) => {
@@ -425,7 +427,7 @@ export default function MessageList({
 
           if (row.type === 'system_cluster') {
             return (
-              <div className="w-full max-w-[960px] mx-auto px-2 sm:px-4">
+              <div className="w-full max-w-240 mx-auto px-2 sm:px-4">
                 <SystemMessageCluster key={row.key} messages={row.messages} />
               </div>
             );
@@ -435,7 +437,7 @@ export default function MessageList({
 
           if (message.messageType === 'THEME_PROPOSAL') {
             return (
-              <div className="w-full max-w-[960px] mx-auto px-2 sm:px-4">
+              <div className="w-full max-w-240 mx-auto px-2 sm:px-4">
                 <ThemeProposalMessage
                   key={message.id}
                   message={message}
@@ -453,7 +455,7 @@ export default function MessageList({
             : false;
 
           return (
-            <div className="w-full max-w-[960px] mx-auto px-2 sm:px-4">
+            <div className="w-full max-w-240 mx-auto px-2 sm:px-4">
               <div
                 className={`rounded-2xl transition-all ${
                   highlightMessageId === message.id ? 'animate-jumpHighlight' : ''
@@ -479,6 +481,7 @@ export default function MessageList({
                   onReact={onReact}
                   onUnreact={onUnreact}
                   onJumpToMessage={onJumpToMessage}
+                  onRetry={onRetry}
                 />
               </div>
             </div>
@@ -507,7 +510,7 @@ export default function MessageList({
           <ChevronDown size={20} className="group-hover:translate-y-0.5 transition-transform" />
 
           {unreadBelowCount > 0 && (
-            <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 text-[10.5px] font-bold text-white flex items-center justify-center border-2 border-[#181926] shadow-[0_0_10px_rgba(168,85,247,0.7)] animate-popIn tabular-nums">
+            <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1 rounded-full bg-linear-to-r from-purple-500 to-indigo-500 text-[10.5px] font-bold text-white flex items-center justify-center border-2 border-[#181926] shadow-[0_0_10px_rgba(168,85,247,0.7)] animate-popIn tabular-nums">
               {unreadBelowCount > 99 ? '+99' : `+${unreadBelowCount}`}
             </span>
           )}

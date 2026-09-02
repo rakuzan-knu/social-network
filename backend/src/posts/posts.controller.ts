@@ -1,4 +1,20 @@
 import {
+  type CreatePostDto,
+  type EditPostDto,
+  type GetPostsQueryDto,
+  type ReportPostDto,
+  type SearchPostsDto,
+  type UploadChunkDto,
+  type VotePostPollDto,
+  createPostSchema,
+  editPostSchema,
+  getPostsQuerySchema,
+  reportPostSchema,
+  searchPostsSchema,
+  uploadChunkSchema,
+  votePostPollSchema,
+} from '@common/contracts';
+import {
   Body,
   Controller,
   Delete,
@@ -9,32 +25,21 @@ import {
   Patch,
   Post,
   Query,
-  UploadedFiles,
   UploadedFile,
+  UploadedFiles,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { FilesInterceptor, FileInterceptor } from '@nestjs/platform-express';
-import { Throttle } from '@nestjs/throttler';
-import { PostsService } from './posts.service';
-import {
-  type CreatePostDto,
-  type EditPostDto,
-  type GetPostsQueryDto,
-  type ReportPostDto,
-  type SearchPostsDto,
-  createPostSchema,
-  editPostSchema,
-  getPostsQuerySchema,
-  reportPostSchema,
-  searchPostsSchema,
-} from '@common/contracts';
-import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AuthGuard } from '../auth/guards/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/interfaces/jwt-payload.interface';
+import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
+import { LowPriority } from '../common/resilience/request-priority.decorator';
+import { PostsService } from './posts.service';
 
 @ApiTags('Posts')
 @Controller('posts')
@@ -79,6 +84,7 @@ export class PostsController {
   }
 
   @Get('search')
+  @LowPriority()
   @UseGuards(OptionalJwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Search posts by text query' })
@@ -110,7 +116,10 @@ export class PostsController {
   @Post()
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
-  @UseInterceptors(FilesInterceptor('media', 5))
+  @Throttle({ sensitive: { limit: 10, ttl: 60_000 } })
+  @UseInterceptors(
+    FilesInterceptor('media', 5, { limits: { fileSize: 100 * 1024 * 1024, files: 5 } }),
+  )
   @ApiConsumes('multipart/form-data', 'application/json')
   @ApiOperation({ summary: 'Create a new post with optional media files' })
   @ApiResponse({ status: 201, description: 'Post created successfully.' })
@@ -125,21 +134,15 @@ export class PostsController {
   @Post('upload/chunk')
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
-  @UseInterceptors(FileInterceptor('chunk'))
+  @Throttle({ sensitive: { limit: 60, ttl: 60_000 } })
+  @UseInterceptors(FileInterceptor('chunk', { limits: { fileSize: 10 * 1024 * 1024, files: 1 } }))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Upload a 5MB chunk of a media file (resumable upload)' })
   uploadChunk(
-    @Body('uploadId') uploadId: string,
-    @Body('chunkIndex') chunkIndex: string,
-    @Body('totalChunks') totalChunks: string,
+    @Body(new ZodValidationPipe(uploadChunkSchema)) dto: UploadChunkDto,
     @UploadedFile() file: Express.Multer.File,
   ) {
-    return this.postsService.uploadChunk(
-      uploadId,
-      parseInt(chunkIndex, 10),
-      parseInt(totalChunks, 10),
-      file,
-    );
+    return this.postsService.uploadChunk(dto.uploadId, dto.chunkIndex, dto.totalChunks, file);
   }
 
   @Get('upload/chunk/:uploadId/status')
@@ -219,7 +222,7 @@ export class PostsController {
   @Post(':id/report')
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
-  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Throttle({ default: { limit: 5, ttl: 60_000 }, sensitive: { limit: 5, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Report a post for moderation review' })
   @ApiResponse({ status: 200, description: 'Post report queued successfully.' })
@@ -253,6 +256,7 @@ export class PostsController {
   }
 
   @Post(':id/share')
+  @LowPriority()
   @UseGuards(OptionalJwtAuthGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
@@ -266,6 +270,7 @@ export class PostsController {
   }
 
   @Get(':id/og')
+  @LowPriority()
   @ApiOperation({ summary: 'Get OpenGraph HTML preview for post link embeds' })
   @ApiResponse({ status: 200, description: 'OpenGraph HTML content' })
   async getPostOgHtml(@Param('id') id: string) {
@@ -275,15 +280,16 @@ export class PostsController {
   @Post(':id/poll/vote')
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
+  @Throttle({ sensitive: { limit: 20, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Vote on post poll' })
   @ApiResponse({ status: 200, description: 'Vote recorded successfully.' })
   votePoll(
     @Param('id') id: string,
-    @Body('optionId') optionId: string,
+    @Body(new ZodValidationPipe(votePostPollSchema)) dto: VotePostPollDto,
     @CurrentUser() user: RequestUser,
   ) {
-    return this.postsService.votePoll(id, optionId, user.id);
+    return this.postsService.votePoll(id, dto.optionId, user.id);
   }
 
   @Get(':id/poll/voters')

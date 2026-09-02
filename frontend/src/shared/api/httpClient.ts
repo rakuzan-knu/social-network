@@ -19,12 +19,25 @@ export const apiClient = axios.create({
   baseURL: (import.meta.env.VITE_API_URL || 'http://localhost:3000')
     .replace(/\/api\/?$/, '')
     .replace(/\/+$/, ''),
+  timeout: 30000,
   withCredentials: true,
 });
 
 apiClient.interceptors.request.use((config) => {
   const token = localStorage.getItem('accessToken');
   if (token && config.headers) config.headers.Authorization = `Bearer ${token}`;
+
+  const method = (config.method || '').toUpperCase();
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) && config.headers) {
+    if (!config.headers['X-Idempotency-Key'] && !config.headers['x-idempotency-key']) {
+      const idempotencyKey =
+        typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+      config.headers['X-Idempotency-Key'] = idempotencyKey;
+    }
+  }
+
   return config;
 });
 

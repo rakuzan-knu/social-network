@@ -5,7 +5,9 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import type { App } from 'supertest/types';
 import { io, type Socket } from 'socket.io-client';
+import msgpackParser from 'socket.io-msgpack-parser';
 import { AppModule } from '../src/app.module';
+import { RedisIoAdapter } from '../src/common/adapters/redis-io.adapter';
 
 interface AuthedUser {
   id: string;
@@ -46,6 +48,7 @@ function httpPort(app: INestApplication<App>): number {
 
 function connect(app: INestApplication<App>, token: string): Socket {
   return io(`http://localhost:${httpPort(app)}/messenger`, {
+    parser: msgpackParser,
     auth: { token },
     transports: ['websocket'],
     reconnection: false,
@@ -65,6 +68,9 @@ describe('Chat & notifications over WebSocket (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    const redisIoAdapter = new RedisIoAdapter(app);
+    await redisIoAdapter.connectToRedis(process.env.REDIS_URL);
+    app.useWebSocketAdapter(redisIoAdapter);
     // A real listening port is required for the Socket.IO gateway.
     await app.listen(0);
 
@@ -77,7 +83,7 @@ describe('Chat & notifications over WebSocket (e2e)', () => {
       waitForEvent<{ sessionId: string }>(aliceSocket, 'gatewayReady'),
       waitForEvent<{ sessionId: string }>(bobSocket, 'gatewayReady'),
     ]);
-  });
+  }, 30000);
 
   afterAll(async () => {
     aliceSocket?.disconnect();
@@ -90,6 +96,7 @@ describe('Chat & notifications over WebSocket (e2e)', () => {
   it('rejects sockets without a valid token', async () => {
     await new Promise<void>((resolve, reject) => {
       const rogue = io(`http://localhost:${httpPort(app)}/messenger`, {
+        parser: msgpackParser,
         transports: ['websocket'],
         reconnection: false,
       });

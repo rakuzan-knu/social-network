@@ -10,7 +10,8 @@ import {
   ChevronUp,
   FileCode,
 } from 'lucide-react';
-import CodeSandboxPreview, { isRunnableLanguage } from './CodeSandboxPreview';
+import CodeSandboxPreview from './CodeSandboxPreview';
+import { isRunnableLanguage } from '../lib/codeSandboxUtils';
 
 interface CodeBlockProps {
   language?: string;
@@ -382,7 +383,7 @@ export default function CodeBlock({ language = '', value, className = '' }: Code
           {/* Syntax Highlighting Container */}
           <div
             className={`w-full min-w-0 max-w-full overflow-x-auto p-3 text-[12.5px] font-mono leading-relaxed select-text custom-scrollbar ${
-              shouldCollapse && !isExpanded ? 'max-h-[340px] overflow-hidden' : ''
+              shouldCollapse && !isExpanded ? 'max-h-85 overflow-hidden' : ''
             }`}
           >
             <Highlight
@@ -398,7 +399,7 @@ export default function CodeBlock({ language = '', value, className = '' }: Code
                 return (
                   <pre className="m-0 p-0 bg-transparent font-mono text-[12.5px] leading-relaxed select-text">
                     {tokens.map((line, i) => {
-                      const { key: lineKey, ...lineProps } = getLineProps({ line });
+                      const { key: _lineKey, ...lineProps } = getLineProps({ line });
                       const lineContent = line.map((t) => t.content).join('');
 
                       let diffRowClass = '';
@@ -420,13 +421,13 @@ export default function CodeBlock({ language = '', value, className = '' }: Code
                           className={`table-row leading-relaxed ${diffRowClass}`}
                         >
                           {/* Non-selectable Line Number (Copy Fidelity Guarantee) */}
-                          <span className="table-cell pr-3.5 select-none pointer-events-none text-white/20 font-mono text-[11px] text-right user-select-none min-w-[2rem]">
+                          <span className="table-cell pr-3.5 select-none pointer-events-none text-white/20 font-mono text-[11px] text-right user-select-none min-w-8">
                             {i + 1}
                           </span>
                           {/* Pure Code Content */}
                           <span className="table-cell select-text break-normal whitespace-pre">
                             {line.map((token, key) => {
-                              const { key: tokenKey, ...tokenProps } = getTokenProps({ token });
+                              const { key: _tokenKey, ...tokenProps } = getTokenProps({ token });
                               return <span key={key} {...tokenProps} />;
                             })}
                           </span>
@@ -444,7 +445,7 @@ export default function CodeBlock({ language = '', value, className = '' }: Code
             <div
               className={`relative z-10 ${
                 !isExpanded
-                  ? 'pt-10 -mt-10 bg-gradient-to-t from-[#101118] via-[#101118]/80 to-transparent'
+                  ? 'pt-10 -mt-10 bg-linear-to-t from-[#101118] via-[#101118]/80 to-transparent'
                   : 'border-t border-white/5 bg-[#12131c]/60'
               }`}
             >

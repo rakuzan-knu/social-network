@@ -1,12 +1,8 @@
-name: Deploy Backend to Render
+name: Deploy Backend to Render (Deprecated / Manual Only)
 
 on:
-  workflow_run:
-    workflows: ["Build & Push Docker Images"]
-    branches: [main]
-    types:
-      - completed
   workflow_dispatch:
+
 
 concurrency:
   group: deploy-backend-render-${{ github.ref }}
@@ -23,7 +19,7 @@ jobs:
     name: Verify Signature & Deploy Backend to Render
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    if: github.event_name == 'workflow_dispatch'
     permissions:
       contents: read
       packages: read

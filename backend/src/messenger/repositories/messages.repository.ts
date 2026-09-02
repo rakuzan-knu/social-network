@@ -1,28 +1,37 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { MessageReaction, ConversationParticipant } from '@prisma/client';
 import { PrismaService } from '@common/prisma';
+import { SnowflakeService } from '../../common/id/snowflake.service';
 import type { IMessagesRepository } from '../interfaces/messages-repository.interface';
 import type { MessageWithDetails } from '../interfaces/types';
 import { messageInclude } from '../interfaces/types';
 
 @Injectable()
 export class MessagesRepository implements IMessagesRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional()
+    private readonly snowflake?: SnowflakeService,
+  ) {}
 
   async create(data: {
     conversationId: string;
     senderId: string;
     body?: string;
+    clientSeq?: number;
     messageType?: string;
     replyToId?: string;
     forwardedFromId?: string;
+    id?: string;
   }): Promise<MessageWithDetails> {
     return this.prisma.message.create({
       data: {
+        id: data.id ?? (this.snowflake ? this.snowflake.generate() : undefined),
         conversationId: data.conversationId,
         senderId: data.senderId,
         body: data.body ?? null,
+        clientSeq: data.clientSeq ?? null,
         messageType: (data.messageType ?? 'TEXT') as Prisma.MessageCreateInput['messageType'],
         replyToId: data.replyToId ?? null,
         forwardedFromId: data.forwardedFromId ?? null,
@@ -52,7 +61,7 @@ export class MessagesRepository implements IMessagesRepository {
           ? { senderId: { notIn: hiddenUserIds } }
           : {}),
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { clientSeq: 'desc' }, { id: 'desc' }],
       take: take,
       skip: cursor ? 1 : 0,
       cursor: cursor ? { id: cursor } : undefined,

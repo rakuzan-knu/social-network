@@ -2,6 +2,7 @@ import { ConversationsController } from '../conversations.controller';
 import type { ConversationsService } from '../conversations.service';
 import type { MessagesService } from '../../messages/messages.service';
 import type { RequestUser } from '../../../auth/interfaces/jwt-payload.interface';
+import { MuteLevel, ReportCategory } from '@prisma/client';
 
 describe('ConversationsController', () => {
   let controller: ConversationsController;
@@ -13,7 +14,16 @@ describe('ConversationsController', () => {
     createGroup: jest.Mock;
     setNickname: jest.Mock;
     setTheme: jest.Mock;
-    mute: jest.Mock;
+    proposeTheme: jest.Mock;
+    respondThemeProposal: jest.Mock;
+    unlinkSharedTheme: jest.Mock;
+    muteConversation: jest.Mock;
+    archiveConversation: jest.Mock;
+    unarchiveConversation: jest.Mock;
+    getBlockedUsers: jest.Mock;
+    blockUser: jest.Mock;
+    unblockUser: jest.Mock;
+    reportUser: jest.Mock;
     clearHistory: jest.Mock;
   };
   let mockMessagesService: {
@@ -37,7 +47,16 @@ describe('ConversationsController', () => {
       createGroup: jest.fn().mockResolvedValue({ id: 'conv-group-1' }),
       setNickname: jest.fn().mockResolvedValue({}),
       setTheme: jest.fn().mockResolvedValue({}),
-      mute: jest.fn().mockResolvedValue({}),
+      proposeTheme: jest.fn().mockResolvedValue({}),
+      respondThemeProposal: jest.fn().mockResolvedValue({}),
+      unlinkSharedTheme: jest.fn().mockResolvedValue({}),
+      muteConversation: jest.fn().mockResolvedValue({}),
+      archiveConversation: jest.fn().mockResolvedValue({}),
+      unarchiveConversation: jest.fn().mockResolvedValue({}),
+      getBlockedUsers: jest.fn().mockResolvedValue([]),
+      blockUser: jest.fn().mockResolvedValue(undefined),
+      unblockUser: jest.fn().mockResolvedValue(undefined),
+      reportUser: jest.fn().mockResolvedValue(undefined),
     };
 
     mockMessagesService = {
@@ -81,7 +100,6 @@ describe('ConversationsController', () => {
   });
 
   it('clearHistory delegates to ConversationsService', async () => {
-    mockConversationsService.clearHistory = jest.fn().mockResolvedValue(undefined);
     await controller.clearHistory('conv-1', mockUser, 'true');
     expect(mockConversationsService.clearHistory).toHaveBeenCalledWith('conv-1', 'usr-1', true);
   });
@@ -90,5 +108,58 @@ describe('ConversationsController', () => {
     const mockFile = {} as Express.Multer.File;
     await controller.uploadAttachment('conv-1', mockFile, mockUser);
     expect(mockMessagesService.uploadAttachment).toHaveBeenCalledWith('conv-1', 'usr-1', mockFile);
+  });
+
+  it('theme operations delegate to ConversationsService', async () => {
+    await controller.setTheme('conv-1', { theme: 'cyberpunk' }, mockUser);
+    expect(mockConversationsService.setTheme).toHaveBeenCalledWith('conv-1', 'usr-1', {
+      theme: 'cyberpunk',
+    });
+
+    await controller.proposeTheme('conv-1', { theme: 'sunset' }, mockUser);
+    expect(mockConversationsService.proposeTheme).toHaveBeenCalledWith('conv-1', 'usr-1', 'sunset');
+
+    await controller.respondThemeProposal('conv-1', 'msg-prop-1', { action: 'ACCEPT' }, mockUser);
+    expect(mockConversationsService.respondThemeProposal).toHaveBeenCalledWith(
+      'conv-1',
+      'msg-prop-1',
+      'usr-1',
+      'ACCEPT',
+    );
+
+    await controller.unlinkSharedTheme('conv-1', mockUser);
+    expect(mockConversationsService.unlinkSharedTheme).toHaveBeenCalledWith('conv-1', 'usr-1');
+  });
+
+  it('mute, archive, unarchive, block, unblock, report delegate to ConversationsService', async () => {
+    await controller.mute('conv-1', { muteLevel: MuteLevel.MESSAGES }, mockUser);
+    expect(mockConversationsService.muteConversation).toHaveBeenCalledWith('conv-1', 'usr-1', {
+      muteLevel: MuteLevel.MESSAGES,
+    });
+
+    await controller.archive('conv-1', mockUser);
+    expect(mockConversationsService.archiveConversation).toHaveBeenCalledWith('conv-1', 'usr-1');
+
+    await controller.unarchive('conv-1', mockUser);
+    expect(mockConversationsService.unarchiveConversation).toHaveBeenCalledWith('conv-1', 'usr-1');
+
+    await controller.getBlockedUsers(mockUser);
+    expect(mockConversationsService.getBlockedUsers).toHaveBeenCalledWith('usr-1');
+
+    await controller.block('usr-2', mockUser);
+    expect(mockConversationsService.blockUser).toHaveBeenCalledWith('usr-1', 'usr-2');
+
+    await controller.unblock('usr-2', mockUser);
+    expect(mockConversationsService.unblockUser).toHaveBeenCalledWith('usr-1', 'usr-2');
+
+    await controller.report(
+      'usr-2',
+      { category: ReportCategory.SPAM, details: 'Spamming' },
+      mockUser,
+    );
+    expect(mockConversationsService.reportUser).toHaveBeenCalledWith('usr-1', 'usr-2', {
+      category: ReportCategory.SPAM,
+      details: 'Spamming',
+    });
   });
 });

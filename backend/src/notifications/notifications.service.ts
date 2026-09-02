@@ -9,9 +9,9 @@ import {
 import { OnEvent } from '@nestjs/event-emitter';
 import { NOTIFICATIONS_REPOSITORY } from './interfaces/notifications-repository.interface';
 import type { INotificationsRepository } from './interfaces/notifications-repository.interface';
-import { PrismaService } from '@common/prisma';
 import type { Prisma } from '@prisma/client';
 import { RedisService } from '../redis/redis.service';
+import { safeJsonParse } from '../common/utils/json.util';
 import { MessengerGateway } from '../messenger/gateway/messenger.gateway';
 import { WS_EVENTS } from '../messenger/events/ws-events';
 import {
@@ -25,6 +25,8 @@ import {
   UpdateNotificationSettingsDto,
 } from '@common/contracts';
 import { CreateNotificationEvent, NOTIFICATION_EVENTS } from './events/notification.events';
+import { QueueService } from '../queue/queue.service';
+import { NotificationJobType } from '../queue/queue.constants';
 
 @Injectable()
 export class NotificationsService {
@@ -33,8 +35,8 @@ export class NotificationsService {
   constructor(
     @Inject(NOTIFICATIONS_REPOSITORY)
     private readonly repo: INotificationsRepository,
-    private readonly prisma: PrismaService,
     @Optional() private readonly redis?: RedisService,
+    @Optional() private readonly queueService?: QueueService,
     @Inject(forwardRef(() => MessengerGateway))
     @Optional()
     private readonly gateway?: MessengerGateway,
@@ -72,14 +74,7 @@ export class NotificationsService {
 
     // 2. Blocklist Check: if either user has blocked the other, suppress notification
     if (actorId) {
-      const isBlocked = await this.prisma.userBlock.findFirst({
-        where: {
-          OR: [
-            { blockerId: userId, blockedId: actorId },
-            { blockerId: actorId, blockedId: userId },
-          ],
-        },
-      });
+      const isBlocked = await this.repo.isBlocked(userId, actorId);
       if (isBlocked) {
         return null;
       }
@@ -89,16 +84,12 @@ export class NotificationsService {
     if (actorId && this.redis) {
       const lockKey = `notif_debounce:${actorId}:${userId}:${type}:${opts.postId || 'none'}:${opts.commentId || 'none'}`;
       try {
-        const client = this.redis.getClient();
-        if (client && typeof client.set === 'function') {
-          // Set a 3-second debounce lock
-          const acquired = await client.set(lockKey, '1', 'EX', 3, 'NX');
-          if (!acquired) {
-            return null; // Ignore spam burst
-          }
+        const acquired = await this.redis.acquireLock(lockKey, 3000);
+        if (!acquired) {
+          return null; // Ignore spam burst
         }
-      } catch {
-        // Fallback gracefully
+      } catch (e) {
+        this.logger.warn(`Notification debounce lock Redis fallback: ${String(e)}`);
       }
     }
 
@@ -162,6 +153,16 @@ export class NotificationsService {
       } catch (err) {
         this.logger.warn(`Failed to emit socket notification: ${(err as Error).message}`);
       }
+    }
+
+    if (this.queueService) {
+      void this.queueService
+        .addNotificationJob(NotificationJobType.PUSH, {
+          userId,
+          type,
+          payload: opts,
+        })
+        .catch(() => {});
     }
 
     return dto;
@@ -349,9 +350,11 @@ export class NotificationsService {
     if (this.redis) {
       try {
         const cached = await this.redis.get(cacheKey);
-        if (cached) cachedDto = JSON.parse(cached) as NotificationSettingsDto;
-      } catch {
-        // Fallback to db
+        if (cached) cachedDto = safeJsonParse<NotificationSettingsDto>(cached);
+      } catch (e) {
+        this.logger.warn(
+          `Failed to parse notification settings from Redis for ${userId}: ${String(e)}`,
+        );
       }
     }
 
@@ -407,8 +410,10 @@ export class NotificationsService {
       if (this.redis) {
         try {
           await this.redis.set(cacheKey, JSON.stringify(result), 300);
-        } catch {
-          // Non-blocking cache write
+        } catch (e) {
+          this.logger.warn(
+            `Failed to write notification settings to Redis for ${userId}: ${String(e)}`,
+          );
         }
       }
     }
@@ -425,7 +430,8 @@ export class NotificationsService {
           isVerified: Boolean(u.isVerified),
           primaryBadge: u.primaryBadge ?? null,
         }));
-      } catch {
+      } catch (e) {
+        this.logger.warn(`Failed to enrich muted actors for ${userId}: ${String(e)}`);
         result.mutedActors = [];
       }
     } else {
@@ -470,8 +476,10 @@ export class NotificationsService {
     if (this.redis) {
       try {
         await this.redis.set(cacheKey, JSON.stringify(result), 300);
-      } catch {
-        // Non-blocking cache write
+      } catch (e) {
+        this.logger.warn(
+          `Failed to update notification settings cache for ${userId}: ${String(e)}`,
+        );
       }
     }
 
@@ -486,7 +494,10 @@ export class NotificationsService {
           isVerified: Boolean(u.isVerified),
           primaryBadge: u.primaryBadge ?? null,
         }));
-      } catch {
+      } catch (e) {
+        this.logger.warn(
+          `Failed to enrich muted actors in updateSettings for ${userId}: ${String(e)}`,
+        );
         result.mutedActors = [];
       }
     } else {
@@ -551,7 +562,8 @@ export class NotificationsService {
         default:
           return true;
       }
-    } catch {
+    } catch (e) {
+      this.logger.warn(`Failed to check push allowed for user ${userId}: ${String(e)}`);
       return true;
     }
   }

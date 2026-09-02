@@ -7,6 +7,8 @@ import { SessionsModule } from '../sessions/sessions.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { TurnstileService } from './turnstile.service';
+import { TokenRevocationService } from './token-revocation.service';
 
 @Module({
   imports: [
@@ -17,7 +19,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     forwardRef(() => SessionsModule),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
-  exports: [AuthService],
+  providers: [AuthService, JwtStrategy, TurnstileService, TokenRevocationService],
+  exports: [AuthService, TurnstileService, TokenRevocationService],
 })
 export class AuthModule {}

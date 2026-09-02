@@ -1,8 +1,8 @@
 {
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
-    "module": "Node16",
-    "moduleResolution": "Node16",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "esModuleInterop": true,
     "isolatedModules": true,
     "declaration": true,
@@ -11,7 +11,8 @@
     "experimentalDecorators": true,
     "useDefineForClassFields": false,
     "allowSyntheticDefaultImports": true,
-    "target": "es2022",
+    "target": "ES2023",
+    "lib": ["ES2023"],
     "sourceMap": true,
     "outDir": "./dist",
     "rootDir": ".",
@@ -33,5 +34,5 @@
       "socket.io-client": ["./node_modules/socket.io-client/build/cjs/index.d.ts"]
     }
   },
-  "include": ["src/**/*", "test/**/*"]
+  "include": ["src/**/*", "test/**/*", "prisma.config.ts"]
 }

@@ -1,20 +1,52 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@common/prisma';
 import {
-  Story,
   StoryMediaType,
   StoryPrivacy,
   StoryView,
   StoryReaction,
   StoryPollVote,
+  type Prisma,
 } from '@prisma/client';
+
+export type StoryWithDetails = Prisma.StoryGetPayload<{
+  include: {
+    author: {
+      select: {
+        id: true;
+        username: true;
+        displayName: true;
+        avatar: true;
+        isVerified: true;
+      };
+    };
+    views: {
+      select: {
+        viewerId: true;
+        viewedAt: true;
+      };
+    };
+    reactions: {
+      select: {
+        userId: true;
+        emoji: true;
+      };
+    };
+    pollVotes: {
+      select: {
+        userId: true;
+        optionIndex: true;
+      };
+    };
+  };
+}>;
 
 export interface CreateStoryDbData {
   authorId: string;
   mediaUrl: string;
   mediaType: StoryMediaType;
   caption?: string | null;
-  overlays?: unknown;
+  overlays?: Prisma.InputJsonValue;
   privacy: StoryPrivacy;
   expiresAt: Date;
 }
@@ -23,14 +55,14 @@ export interface CreateStoryDbData {
 export class StoriesRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async createStory(data: CreateStoryDbData): Promise<Story> {
+  async createStory(data: CreateStoryDbData): Promise<StoryWithDetails> {
     return this.prisma.story.create({
       data: {
         authorId: data.authorId,
         mediaUrl: data.mediaUrl,
         mediaType: data.mediaType,
         caption: data.caption,
-        overlays: data.overlays as any,
+        overlays: data.overlays,
         privacy: data.privacy,
         expiresAt: data.expiresAt,
       },
@@ -44,9 +76,24 @@ export class StoriesRepository {
             isVerified: true,
           },
         },
-        views: true,
-        reactions: true,
-        pollVotes: true,
+        views: {
+          select: {
+            viewerId: true,
+            viewedAt: true,
+          },
+        },
+        reactions: {
+          select: {
+            userId: true,
+            emoji: true,
+          },
+        },
+        pollVotes: {
+          select: {
+            userId: true,
+            optionIndex: true,
+          },
+        },
       },
     });
   }
@@ -168,9 +215,24 @@ export class StoriesRepository {
             isVerified: true,
           },
         },
-        views: true,
-        reactions: true,
-        pollVotes: true,
+        views: {
+          select: {
+            viewerId: true,
+            viewedAt: true,
+          },
+        },
+        reactions: {
+          select: {
+            userId: true,
+            emoji: true,
+          },
+        },
+        pollVotes: {
+          select: {
+            userId: true,
+            optionIndex: true,
+          },
+        },
       },
     });
   }
@@ -187,6 +249,20 @@ export class StoriesRepository {
         storyId,
         viewerId,
       },
+    });
+  }
+
+  async recordManyViews(
+    views: { storyId: string; viewerId: string; viewedAt?: Date }[],
+  ): Promise<void> {
+    if (!views || views.length === 0) return;
+    await this.prisma.storyView.createMany({
+      data: views.map((v) => ({
+        storyId: v.storyId,
+        viewerId: v.viewerId,
+        viewedAt: v.viewedAt ?? new Date(),
+      })),
+      skipDuplicates: true,
     });
   }
 
@@ -275,7 +351,7 @@ export class StoriesRepository {
 
     return {
       totalViews: views.length,
-      viewers: views.map((v: any) => ({
+      viewers: views.map((v) => ({
         user: v.viewer,
         viewedAt: v.viewedAt instanceof Date ? v.viewedAt.toISOString() : String(v.viewedAt),
         reaction: reactionsMap.get(v.viewerId) ?? null,
@@ -356,7 +432,7 @@ export class StoriesRepository {
       },
       select: { userId: true },
     });
-    return records.map((r: any) => r.userId);
+    return records.map((r) => r.userId);
   }
 
   async toggleCloseFriend(userId: string, friendId: string): Promise<{ isCloseFriend: boolean }> {
@@ -380,5 +456,27 @@ export class StoriesRepository {
       },
     });
     return { isCloseFriend: true };
+  }
+
+  async getFollowingIds(userId: string, limit = 500): Promise<string[]> {
+    const following = await this.prisma.follow.findMany({
+      where: { followerId: userId, status: 'ACCEPTED' },
+      select: { followingId: true },
+      take: limit,
+    });
+    return following.map((f) => f.followingId);
+  }
+
+  async findUserBasic(userId: string) {
+    return this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        username: true,
+        displayName: true,
+        avatar: true,
+        isVerified: true,
+      },
+    });
   }
 }

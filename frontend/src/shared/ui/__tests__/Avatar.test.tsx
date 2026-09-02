@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import Avatar from '../Avatar';
 
@@ -15,6 +15,13 @@ describe('Avatar', () => {
 
     expect(screen.getByRole('img')).toHaveAttribute('src', 'https://example.com/avatar.png');
     expect(container.querySelector('svg')).not.toBeInTheDocument();
+  });
+
+  it('handles image load error and hides image', () => {
+    render(<Avatar src="https://example.com/broken.png" name="User" />);
+    const img = screen.getByRole('img');
+    fireEvent.error(img);
+    expect(img.style.display).toBe('none');
   });
 
   it('uses the default "User avatar" alt text when none is given', () => {
@@ -48,5 +55,10 @@ describe('Avatar', () => {
       xl: 'w-28',
     };
     expect(container.firstChild).toHaveClass(sizeClassMap[size]);
+  });
+
+  it('falls back to default size class for unknown size value', () => {
+    const { container } = render(<Avatar size={'unknown' as any} />);
+    expect(container.firstChild).toHaveClass('w-10', 'h-10');
   });
 });

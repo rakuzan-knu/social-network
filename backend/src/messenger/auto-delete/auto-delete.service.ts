@@ -8,7 +8,12 @@ import { MessengerGateway } from '../gateway/messenger.gateway';
 import { AUTO_DELETE_S3_CLIENT } from './s3-provider';
 import { cutoffFor } from './auto-delete.util';
 
+import { TraceContext } from '../../common/tracing/trace-context';
+import { chunkQuery } from '../../common/utils/batch-stream.util';
+import { randomUUID } from 'node:crypto';
+
 const PAGE_SIZE = 200;
+const USER_BATCH_SIZE = 500;
 
 @Injectable()
 export class AutoDeleteService {
@@ -36,22 +41,43 @@ export class AutoDeleteService {
     }
     this.running = true;
     const now = Date.now();
-    try {
-      const users = await this.prisma.user.findMany({
-        where: { autoDeletePeriod: { not: AutoDeletePeriod.OFF } },
-        select: { id: true, autoDeletePeriod: true },
-      });
+    const traceId = `cron-autodelete-${randomUUID()}`;
 
-      for (const user of users) {
-        const cutoff = cutoffFor(user.autoDeletePeriod, now);
-        if (!cutoff) continue;
-        await this.purgeUserMessages(user.id, cutoff).catch((e) =>
-          this.logger.error(`Auto-delete failed for user ${user.id}: ${String(e)}`),
-        );
-      }
-    } finally {
-      this.running = false;
-    }
+    await TraceContext.runIsolated(
+      {
+        traceId,
+        correlationId: traceId,
+        reqMethod: 'CRON',
+        reqUrl: 'AutoDeleteService.sweep',
+        startTime: now,
+      },
+      async () => {
+        try {
+          await chunkQuery({
+            chunkSize: USER_BATCH_SIZE,
+            fetcher: (skip, take) =>
+              this.prisma.user.findMany({
+                where: { autoDeletePeriod: { not: AutoDeletePeriod.OFF } },
+                select: { id: true, autoDeletePeriod: true },
+                skip,
+                take,
+                orderBy: { id: 'asc' },
+              }),
+            handler: async (users) => {
+              for (const user of users) {
+                const cutoff = cutoffFor(user.autoDeletePeriod, now);
+                if (!cutoff) continue;
+                await this.purgeUserMessages(user.id, cutoff).catch((e) =>
+                  this.logger.error(`Auto-delete failed for user ${user.id}: ${String(e)}`),
+                );
+              }
+            },
+          });
+        } finally {
+          this.running = false;
+        }
+      },
+    );
   }
 
   private async purgeUserMessages(userId: string, cutoff: Date): Promise<void> {

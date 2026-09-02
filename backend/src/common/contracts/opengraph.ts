@@ -74,5 +74,6 @@ export interface LinkEmbedData {
 export type OpenGraphMetadata = LinkEmbedData;
 
 export const linkPreviewQuerySchema = z.object({
-  url: z.string().min(1),
+  url: z.string().min(1).max(2048),
 });
+export type LinkPreviewQueryDto = z.infer<typeof linkPreviewQuerySchema>;

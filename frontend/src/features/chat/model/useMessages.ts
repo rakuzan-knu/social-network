@@ -27,6 +27,17 @@ export function useMessages(conversationId: string | null) {
       if (key) seen.add(key);
       result.push(m);
     }
+
+    result.sort((a, b) => {
+      const timeA = new Date(a.createdAt).getTime();
+      const timeB = new Date(b.createdAt).getTime();
+      if (timeA !== timeB) return timeA - timeB;
+      if (a.sender?.id === b.sender?.id && a.clientSeq != null && b.clientSeq != null) {
+        return a.clientSeq - b.clientSeq;
+      }
+      return (a.id || '').localeCompare(b.id || '');
+    });
+
     return result;
   }, [query.data]);
 

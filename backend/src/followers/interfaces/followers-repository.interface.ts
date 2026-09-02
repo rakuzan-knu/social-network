@@ -13,4 +13,20 @@ export interface IFollowersRepository {
   acceptRequest(ownerId: string, followerId: string): Promise<boolean>;
   rejectRequest(ownerId: string, followerId: string): Promise<boolean>;
   pendingCount(ownerId: string): Promise<number>;
+  getFollowStatusSets(
+    currentUserId: string,
+    targetIds: string[],
+  ): Promise<{ myFollowings: string[]; myFollowers: string[] }>;
+  getFollowingIds(userId: string): Promise<string[]>;
+  getMutualFollowers(
+    userId: string,
+    viewerFollowingIds: string[],
+    limit: number,
+  ): Promise<FollowUserRow[]>;
+  findUserBasic(userId: string): Promise<{
+    id: string;
+    username: string;
+    displayName: string | null;
+    avatar: string | null;
+  } | null>;
 }

@@ -244,7 +244,7 @@ function processChildren(
   });
 }
 
-export default function MarkdownContent({
+export function MarkdownContent({
   content,
   className = '',
   enableMentions = true,
@@ -310,7 +310,7 @@ export default function MarkdownContent({
     // Blockquote
     blockquote({ children }) {
       return (
-        <blockquote className="border-l-2 border-purple-500 pl-3 my-1.5 text-white/80 bg-white/[0.03] py-1 rounded-r-md italic">
+        <blockquote className="border-l-2 border-purple-500 pl-3 my-1.5 text-white/80 bg-white/3 py-1 rounded-r-md italic">
           {processChildren(children, enableMentions, enableHashtags)}
         </blockquote>
       );
@@ -372,7 +372,7 @@ export default function MarkdownContent({
     // Paragraph
     p({ children }) {
       return (
-        <p className="leading-relaxed my-1 break-words [overflow-wrap:anywhere] first:mt-0 last:mb-0">
+        <p className="leading-relaxed my-1 wrap-anywhere first:mt-0 last:mb-0">
           {processChildren(children, enableMentions, enableHashtags)}
         </p>
       );
@@ -381,7 +381,7 @@ export default function MarkdownContent({
     // Tables
     table({ children }) {
       return (
-        <div className="w-full my-2 overflow-x-auto rounded-lg border border-white/10 bg-white/[0.02] custom-scrollbar">
+        <div className="w-full my-2 overflow-x-auto rounded-lg border border-white/10 bg-white/2 custom-scrollbar">
           <table className="min-w-full divide-y divide-white/10 text-xs text-left">
             {children}
           </table>
@@ -411,7 +411,7 @@ export default function MarkdownContent({
 
   return (
     <div
-      className={`markdown-content w-full min-w-0 max-w-full leading-relaxed select-text [overflow-wrap:anywhere] ${className}`}
+      className={`markdown-content w-full min-w-0 max-w-full leading-relaxed select-text wrap-anywhere ${className}`}
     >
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
@@ -424,4 +424,4 @@ export default function MarkdownContent({
   );
 }
 
-export { MarkdownContent, renderTextWithMentionsAndSpoilers };
+export default MarkdownContent;

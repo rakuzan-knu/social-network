@@ -92,8 +92,23 @@ export function useConversationRealtime(conversationId: string | null) {
         return next;
       });
       if (payload.message.sender.id !== userId) {
+        socket.emit('messageDelivered', { conversationId, messageId: payload.message.id });
         socket.emit('markRead', { conversationId });
       }
+    },
+  );
+
+  useChatSocketEvent<{ conversationId: string; messageId: string; deliveredToUserId: string }>(
+    'messageDelivered',
+    (payload) => {
+      if (payload.conversationId !== conversationId) return;
+      updatePages((pages) =>
+        mapMessages(pages, (m) =>
+          m.id === payload.messageId && m.status !== 'READ'
+            ? { ...m, status: 'DELIVERED' as const }
+            : m,
+        ),
+      );
     },
   );
 

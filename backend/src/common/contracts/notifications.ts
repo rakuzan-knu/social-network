@@ -30,12 +30,17 @@ export type NotificationFilterType =
 
 export const getNotificationsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(20),
-  cursor: z.string().optional(),
+  cursor: z.string().max(128).optional(),
   type: z
     .enum(['all', 'likes', 'comments', 'follows', 'mentions', 'reposts', 'system'])
     .default('all'),
 });
 export type GetNotificationsQueryDto = z.infer<typeof getNotificationsQuerySchema>;
+
+export const markAllAsReadQuerySchema = z.object({
+  type: z.enum(['all', 'likes', 'comments', 'follows', 'mentions', 'reposts', 'system']).optional(),
+});
+export type MarkAllAsReadQueryDto = z.infer<typeof markAllAsReadQuerySchema>;
 
 export interface NotificationActorDto {
   id: string;
@@ -251,8 +256,8 @@ export const notificationSettingsSchema = z.object({
     .enum(['top-left', 'top-right', 'bottom-left', 'bottom-right'])
     .default('bottom-right'),
   maxToasts: z.number().int().min(1).max(5).default(3),
-  dndUntil: z.string().nullable().optional(),
-  mutedActorIds: z.array(z.string()).default([]),
+  dndUntil: z.string().max(64).nullable().optional(),
+  mutedActorIds: z.array(z.string().max(64)).max(100).default([]),
 });
 
 export type NotificationSettingsDto = z.infer<typeof notificationSettingsSchema> & {

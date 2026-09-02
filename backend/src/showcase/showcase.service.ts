@@ -1,18 +1,15 @@
 import {
+  Inject,
   Injectable,
   NotFoundException,
   BadRequestException,
   Logger,
   Optional,
-  Inject,
-  forwardRef,
 } from '@nestjs/common';
-import { PrismaService } from '@common/prisma';
 import { RedisService } from '../redis/redis.service';
 import { FollowStatus } from '@prisma/client';
 import {
   ShowcasePrivacy,
-  ShowcaseMediaType,
   type UpdateShowcaseDto,
   type ProfileShowcaseDto,
   type ShowcaseMediaItemDto,
@@ -22,6 +19,10 @@ import {
   type ConnectedAccountsDto,
 } from '@common/contracts';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import {
+  SHOWCASE_REPOSITORY,
+  type IShowcaseRepository,
+} from './interfaces/showcase-repository.interface';
 
 function getZodiacSign(date: Date): string {
   const day = date.getUTCDate();
@@ -81,7 +82,8 @@ export class ShowcaseService {
   private readonly logger = new Logger(ShowcaseService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    @Inject(SHOWCASE_REPOSITORY)
+    private readonly showcaseRepo: IShowcaseRepository,
     private readonly redis: RedisService,
     @Optional()
     private readonly eventEmitter?: EventEmitter2,
@@ -92,24 +94,7 @@ export class ShowcaseService {
   }
 
   async getShowcase(targetUsername: string, viewerId: string | null): Promise<ProfileShowcaseDto> {
-    const user = await this.prisma.user.findUnique({
-      where: { username: targetUsername.toLowerCase() },
-      select: {
-        id: true,
-        username: true,
-        displayName: true,
-        birthDate: true,
-        gender: true,
-        githubUsername: true,
-        showcase: {
-          include: {
-            mediaItems: {
-              orderBy: [{ type: 'asc' }, { position: 'asc' }],
-            },
-          },
-        },
-      },
-    });
+    const user = await this.showcaseRepo.findUserWithShowcase(targetUsername);
 
     if (!user) {
       throw new NotFoundException(`User @${targetUsername} not found`);
@@ -121,44 +106,14 @@ export class ShowcaseService {
       if (viewerId === user.id) {
         relationship = 'SELF';
       } else {
-        const follow = await this.prisma.follow.findUnique({
-          where: {
-            followerId_followingId: {
-              followerId: viewerId,
-              followingId: user.id,
-            },
-          },
-        });
-        if (follow && follow.status === FollowStatus.ACCEPTED) {
+        const followStatus = await this.showcaseRepo.getFollowStatus(viewerId, user.id);
+        if (followStatus === FollowStatus.ACCEPTED) {
           relationship = 'FOLLOWER';
         }
       }
     }
 
-    const rawShowcase =
-      user.showcase ||
-      (await this.prisma.profileShowcase.upsert({
-        where: { userId: user.id },
-        create: {
-          userId: user.id,
-          privacyMeta: ShowcasePrivacy.PUBLIC,
-          privacyActivity: ShowcasePrivacy.PUBLIC,
-          privacyShowcase: ShowcasePrivacy.PUBLIC,
-          privacyLinks: ShowcasePrivacy.PUBLIC,
-          showAge: false,
-          showBirthdate: true,
-          showGender: true,
-          showTimezone: true,
-          timezone: 'UTC',
-          accentColor: '#6366f1',
-        },
-        update: {},
-        include: {
-          mediaItems: {
-            orderBy: [{ type: 'asc' }, { position: 'asc' }],
-          },
-        },
-      }));
+    const rawShowcase = user.showcase || (await this.showcaseRepo.upsertDefaultShowcase(user.id));
 
     // Personal Meta
     const metaAllowed = canView(rawShowcase.privacyMeta, relationship);
@@ -214,20 +169,35 @@ export class ShowcaseService {
       : null;
 
     const mediaItems: ShowcaseMediaItemDto[] = showcaseAllowed
-      ? rawShowcase.mediaItems.map((m) => ({
-          id: m.id,
-          type: m.type,
-          isWishlist: m.isWishlist ?? false,
-          title: m.title,
-          posterUrl: m.posterUrl,
-          externalId: m.externalId,
-          externalUrl: m.externalUrl,
-          rating: m.rating,
-          userComment: m.userComment,
-          tags: m.tags || [],
-          releaseYear: m.releaseYear,
-          position: m.position,
-        }))
+      ? (rawShowcase.mediaItems || []).map(
+          (m: {
+            id: string;
+            type: any;
+            isWishlist?: boolean | null;
+            title: string;
+            posterUrl: string;
+            externalId?: string | null;
+            externalUrl?: string | null;
+            rating?: number | null;
+            userComment?: string | null;
+            tags?: string[] | null;
+            releaseYear?: number | null;
+            position: number;
+          }) => ({
+            id: m.id,
+            type: m.type,
+            isWishlist: m.isWishlist ?? false,
+            title: m.title,
+            posterUrl: m.posterUrl,
+            externalId: m.externalId,
+            externalUrl: m.externalUrl,
+            rating: m.rating,
+            userComment: m.userComment,
+            tags: m.tags || [],
+            releaseYear: m.releaseYear,
+            position: m.position,
+          }),
+        )
       : [];
 
     // Check if at least 1 widget is visible and configured
@@ -272,10 +242,7 @@ export class ShowcaseService {
   }
 
   async updateShowcase(userId: string, dto: UpdateShowcaseDto): Promise<ProfileShowcaseDto> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { id: true, username: true },
-    });
+    const user = await this.showcaseRepo.findUserBasic(userId);
 
     if (!user) {
       throw new NotFoundException(`User with id ${userId} not found`);
@@ -295,84 +262,7 @@ export class ShowcaseService {
       }
     }
 
-    const updated = await this.prisma.$transaction(async (tx) => {
-      const showcase = await tx.profileShowcase.upsert({
-        where: { userId },
-        create: {
-          userId,
-          privacyMeta: dto.privacyMeta || ShowcasePrivacy.PUBLIC,
-          privacyActivity: dto.privacyActivity || ShowcasePrivacy.PUBLIC,
-          privacyShowcase: dto.privacyShowcase || ShowcasePrivacy.PUBLIC,
-          privacyLinks: dto.privacyLinks || ShowcasePrivacy.PUBLIC,
-          showAge: dto.showAge ?? false,
-          showBirthdate: dto.showBirthdate ?? true,
-          showGender: dto.showGender ?? true,
-          showTimezone: dto.showTimezone ?? true,
-          pronouns: dto.pronouns !== undefined ? dto.pronouns : null,
-          timezone: dto.timezone || 'UTC',
-          accentColor: dto.accentColor || '#6366f1',
-          connectedAccounts:
-            dto.connectedAccounts !== undefined ? (dto.connectedAccounts as any) : undefined,
-          activityStatus:
-            dto.activityStatus !== undefined ? (dto.activityStatus as any) : undefined,
-          spotlightMedia:
-            dto.spotlightMedia !== undefined ? (dto.spotlightMedia as any) : undefined,
-          anthemTrack: dto.anthemTrack !== undefined ? (dto.anthemTrack as any) : undefined,
-        },
-        update: {
-          ...(dto.privacyMeta !== undefined && { privacyMeta: dto.privacyMeta }),
-          ...(dto.privacyActivity !== undefined && { privacyActivity: dto.privacyActivity }),
-          ...(dto.privacyShowcase !== undefined && { privacyShowcase: dto.privacyShowcase }),
-          ...(dto.privacyLinks !== undefined && { privacyLinks: dto.privacyLinks }),
-          ...(dto.showAge !== undefined && { showAge: dto.showAge }),
-          ...(dto.showBirthdate !== undefined && { showBirthdate: dto.showBirthdate }),
-          ...(dto.showGender !== undefined && { showGender: dto.showGender }),
-          ...(dto.showTimezone !== undefined && { showTimezone: dto.showTimezone }),
-          ...(dto.pronouns !== undefined && { pronouns: dto.pronouns }),
-          ...(dto.timezone !== undefined && { timezone: dto.timezone }),
-          ...(dto.accentColor !== undefined && { accentColor: dto.accentColor }),
-          ...(dto.connectedAccounts !== undefined && {
-            connectedAccounts: dto.connectedAccounts as any,
-          }),
-          ...(dto.activityStatus !== undefined && { activityStatus: dto.activityStatus as any }),
-          ...(dto.spotlightMedia !== undefined && { spotlightMedia: dto.spotlightMedia as any }),
-          ...(dto.anthemTrack !== undefined && { anthemTrack: dto.anthemTrack as any }),
-        },
-      });
-
-      if (dto.mediaItems !== undefined) {
-        await tx.showcaseMedia.deleteMany({
-          where: { showcaseId: showcase.id },
-        });
-
-        if (dto.mediaItems.length > 0) {
-          const typePositions: Record<string, number> = {};
-          await tx.showcaseMedia.createMany({
-            data: dto.mediaItems.map((item) => {
-              const posKey = `${item.type}:${Boolean(item.isWishlist)}`;
-              const currentPos = typePositions[posKey] ?? 0;
-              typePositions[posKey] = currentPos + 1;
-              return {
-                showcaseId: showcase.id,
-                type: item.type,
-                isWishlist: item.isWishlist ?? false,
-                title: item.title,
-                posterUrl: item.posterUrl,
-                externalId: item.externalId || null,
-                externalUrl: item.externalUrl || null,
-                rating: item.rating ?? null,
-                userComment: item.userComment || null,
-                tags: item.tags || [],
-                releaseYear: item.releaseYear ?? null,
-                position: item.position !== undefined ? item.position : currentPos,
-              };
-            }),
-          });
-        }
-      }
-
-      return showcase;
-    });
+    await this.showcaseRepo.updateShowcase(userId, dto);
 
     await this.redis.del(this.showcaseKey(userId));
 

@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
   Optional,
   forwardRef,
@@ -13,7 +14,6 @@ import { COMMENTS_REPOSITORY } from './interfaces/comments-repository.interface'
 import type { ICommentsRepository } from './interfaces/comments-repository.interface';
 import { GetAllCommentsResult } from './types/comments.types';
 import { paginate } from '../common/pagination';
-import { PrismaService } from '@common/prisma';
 import { MessengerGateway } from '../messenger/gateway/messenger.gateway';
 import { WS_EVENTS } from '../messenger/events/ws-events';
 import { RedisService } from '../redis/redis.service';
@@ -23,13 +23,15 @@ import {
   CreateNotificationEvent,
   NOTIFICATION_EVENTS,
 } from '../notifications/events/notification.events';
+import { extractMentions } from '../common/utils/safe-regex.util';
 
 @Injectable()
 export class CommentsService {
+  private readonly logger = new Logger(CommentsService.name);
+
   constructor(
     @Inject(COMMENTS_REPOSITORY)
     private readonly commentsRepository: ICommentsRepository,
-    private readonly prisma: PrismaService,
     @Inject(forwardRef(() => MessengerGateway))
     @Optional()
     private readonly gateway?: MessengerGateway,
@@ -46,37 +48,32 @@ export class CommentsService {
     if (dto.clientMutationId && this.redis) {
       const lockKey = `idempotency:comment:${userId}:${dto.clientMutationId}`;
       try {
-        const client = this.redis.getClient();
-        if (client && typeof client.set === 'function') {
-          const acquired = await client.set(lockKey, 'locked', 'EX', 30, 'NX');
-          if (!acquired) {
-            throw new ConflictException(
-              'Duplicate mutation request in progress or already processed',
-            );
-          }
+        const acquired = await this.redis.acquireLock(lockKey, 30000);
+        if (!acquired) {
+          throw new ConflictException(
+            'Duplicate mutation request in progress or already processed',
+          );
         }
       } catch (err) {
         if (err instanceof ConflictException) throw err;
-        // Non-blocking fallback if redis error
+        this.logger.warn(`Idempotency check Redis fallback for user ${userId}: ${String(err)}`);
       }
     }
 
     // 2. Anti-Spam: Mention Bombing Protection (Max 5 mentions)
-    const rawMatches: string[] = dto.text ? (dto.text.match(/@([a-zA-Z0-9._]{1,32})/g) ?? []) : [];
+    const rawMatches: string[] = dto.text ? extractMentions(dto.text) : [];
     if (rawMatches.length > 5) {
       throw new BadRequestException('Maximum 5 mentions per comment allowed');
     }
 
     // 3. Anti-Spam: Duplicate Comment Guard (Same text on same post within 60s)
     const sixtySecondsAgo = new Date(Date.now() - 60 * 1000);
-    const duplicate = await this.prisma.comment.findFirst({
-      where: {
-        userId,
-        postId,
-        text: dto.text.trim(),
-        createdAt: { gte: sixtySecondsAgo },
-      },
-    });
+    const duplicate = await this.commentsRepository.findRecentDuplicate(
+      userId,
+      postId,
+      dto.text,
+      sixtySecondsAgo,
+    );
     if (duplicate) {
       throw new ConflictException(
         'Duplicate comment detected. Please wait before posting identical text.',
@@ -84,35 +81,18 @@ export class CommentsService {
     }
 
     // 4. Post & Blocklist Permission Checks
-    const post = await this.prisma.post.findUnique({
-      where: { id: postId },
-      select: { id: true, authorId: true, author: { select: { username: true } } },
-    });
+    const post = await this.commentsRepository.findPostBasic(postId);
     if (!post) throw new NotFoundException('Post not found');
 
     if (post.authorId !== userId) {
-      const isBlocked = await this.prisma.userBlock.findFirst({
-        where: {
-          OR: [
-            { blockerId: post.authorId, blockedId: userId },
-            { blockerId: userId, blockedId: post.authorId },
-          ],
-        },
-      });
+      const isBlocked = await this.commentsRepository.isBlocked(post.authorId, userId);
       if (isBlocked) {
         throw new ForbiddenException('You cannot comment on this post due to block settings');
       }
     }
 
     if (dto.replyToUserId && dto.replyToUserId !== userId) {
-      const isReplyBlocked = await this.prisma.userBlock.findFirst({
-        where: {
-          OR: [
-            { blockerId: dto.replyToUserId, blockedId: userId },
-            { blockerId: userId, blockedId: dto.replyToUserId },
-          ],
-        },
-      });
+      const isReplyBlocked = await this.commentsRepository.isBlocked(dto.replyToUserId, userId);
       if (isReplyBlocked) {
         throw new ForbiddenException('You cannot reply to this user due to block settings');
       }
@@ -135,10 +115,7 @@ export class CommentsService {
           );
         }
         if (this.gateway) {
-          const actor = await this.prisma.user.findUnique({
-            where: { id: userId },
-            select: { id: true, username: true, displayName: true, avatar: true },
-          });
+          const actor = await this.commentsRepository.findUserBasic(userId);
           if (actor) {
             const preview = dto.text.trim();
             const commentBody = preview.length > 50 ? `${preview.slice(0, 50)}...` : preview;
@@ -201,13 +178,10 @@ export class CommentsService {
 
       if (cleanUsernames.length > 0) {
         const cappedUsernames = cleanUsernames.slice(0, 5);
-        const mentionedUsers = await this.prisma.user.findMany({
-          where: {
-            username: { in: cappedUsernames, mode: 'insensitive' },
-            id: { not: userId },
-          },
-          select: { id: true, username: true },
-        });
+        const mentionedUsers = await this.commentsRepository.findMentionedUsers(
+          cappedUsernames,
+          userId,
+        );
 
         const uniqueTargets = Array.from(new Map(mentionedUsers.map((u) => [u.id, u])).values());
 
@@ -226,10 +200,7 @@ export class CommentsService {
             }
           }
           if (this.gateway) {
-            const actor = await this.prisma.user.findUnique({
-              where: { id: userId },
-              select: { id: true, username: true, displayName: true, avatar: true },
-            });
+            const actor = await this.commentsRepository.findUserBasic(userId);
             if (actor) {
               const preview = dto.text.trim();
               const commentBody = preview.length > 50 ? `${preview.slice(0, 50)}...` : preview;
@@ -254,8 +225,10 @@ export class CommentsService {
           }
         }
       }
-    } catch {
-      // Non-blocking notification emission
+    } catch (e) {
+      this.logger.warn(
+        `Non-blocking notification emission failure in addComment for post ${post.id}: ${String(e)}`,
+      );
     }
 
     return CommentResponseDto.fromPrisma(comment, userId, post.authorId);

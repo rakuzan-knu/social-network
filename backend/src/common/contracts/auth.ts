@@ -53,9 +53,10 @@ export const RESERVED_USERNAMES = [
 
 export const loginSchema = z
   .object({
-    email: z.string().email().optional(),
-    identity: z.string().min(1).optional(),
-    password: z.string().min(8),
+    email: z.string().email().max(255).optional(),
+    identity: z.string().min(1).max(255).optional(),
+    password: z.string().min(8).max(128),
+    turnstileToken: z.string().max(2048).optional(),
   })
   .refine((data) => data.email || data.identity, {
     message: 'Either email or identity must be provided',
@@ -66,6 +67,7 @@ export const registerSchema = z.object({
   email: z
     .string()
     .email()
+    .max(255)
     .transform((val) => val.trim().toLowerCase()),
   username: z
     .string()
@@ -86,16 +88,18 @@ export const registerSchema = z.object({
   displayName: z.string().max(64).optional(),
   password: z.string().min(8).max(128),
   birthDate: z.string().datetime().optional(),
+  turnstileToken: z.string().max(2048).optional(),
 });
+
 export type RegisterDto = z.infer<typeof registerSchema>;
 
 export const refreshTokenSchema = z.object({
-  refreshToken: z.string().min(1),
+  refreshToken: z.string().min(1).max(4096),
 });
 export type RefreshTokenDto = z.infer<typeof refreshTokenSchema>;
 
 export const changePasswordSchema = z.object({
-  currentPassword: z.string().min(8),
+  currentPassword: z.string().min(8).max(128),
   newPassword: z.string().min(8).max(128),
 });
 export type ChangePasswordDto = z.infer<typeof changePasswordSchema>;

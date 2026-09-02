@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 import { RedisService } from '../redis/redis.service';
+import { CircuitBreaker } from '../common/resilience/circuit-breaker';
 import { ShowcaseMediaType, type MediaSearchResultDto } from '@common/contracts';
 
 interface AniListMedia {
@@ -2951,8 +2952,52 @@ const POPULAR_CINEMA_DATABASE: Array<MediaSearchResultDto & { aliases?: string[]
 export class MediaProxyService {
   private readonly logger = new Logger(MediaProxyService.name);
   private readonly CACHE_TTL_SECONDS = 86400; // 24 hours
+  private readonly aniListBreaker: CircuitBreaker;
+  private readonly rawgBreaker: CircuitBreaker;
+  private readonly tmdbBreaker: CircuitBreaker;
+  private readonly itunesBreaker: CircuitBreaker;
 
-  constructor(private readonly redis: RedisService) {}
+  constructor(private readonly redis: RedisService) {
+    this.aniListBreaker = new CircuitBreaker({
+      name: 'AniList-API',
+      failureThreshold: 4,
+      resetTimeoutMs: 20_000,
+      halfOpenSuccessThreshold: 2,
+      onStateChange: (from, to) => {
+        this.logger.warn(`AniList API CircuitBreaker transitioned from ${from} to ${to}`);
+      },
+    });
+
+    this.rawgBreaker = new CircuitBreaker({
+      name: 'RAWG-API',
+      failureThreshold: 4,
+      resetTimeoutMs: 20_000,
+      halfOpenSuccessThreshold: 2,
+      onStateChange: (from, to) => {
+        this.logger.warn(`RAWG API CircuitBreaker transitioned from ${from} to ${to}`);
+      },
+    });
+
+    this.tmdbBreaker = new CircuitBreaker({
+      name: 'TMDB-API',
+      failureThreshold: 4,
+      resetTimeoutMs: 20_000,
+      halfOpenSuccessThreshold: 2,
+      onStateChange: (from, to) => {
+        this.logger.warn(`TMDB API CircuitBreaker transitioned from ${from} to ${to}`);
+      },
+    });
+
+    this.itunesBreaker = new CircuitBreaker({
+      name: 'iTunes-API',
+      failureThreshold: 4,
+      resetTimeoutMs: 20_000,
+      halfOpenSuccessThreshold: 2,
+      onStateChange: (from, to) => {
+        this.logger.warn(`iTunes API CircuitBreaker transitioned from ${from} to ${to}`);
+      },
+    });
+  }
 
   async searchMedia(query: string, type: ShowcaseMediaType): Promise<MediaSearchResultDto[]> {
     const cleanQuery = (query || '').trim().toLowerCase();
@@ -2999,8 +3044,22 @@ export class MediaProxyService {
       return localMatches.slice(0, 15);
     }
 
-    // 2. Query AniList for additional/unlisted anime
-    try {
+    // 2. Query AniList for additional/unlisted anime with CircuitBreaker protection
+    const fallbackResponse = (): MediaSearchResultDto[] => {
+      if (localMatches.length > 0) return localMatches;
+      return [
+        {
+          id: `anime-${encodeURIComponent(query)}`,
+          title: query.charAt(0).toUpperCase() + query.slice(1),
+          posterUrl:
+            'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=500&auto=format&fit=crop&q=80',
+          type: ShowcaseMediaType.ANIME,
+          rating: 8.5,
+        },
+      ];
+    };
+
+    return this.aniListBreaker.execute(async () => {
       const gqlQuery = `
         query ($search: String) {
           Page(page: 1, perPage: 10) {
@@ -3074,29 +3133,33 @@ export class MediaProxyService {
       }
 
       return combined.slice(0, 15);
-    } catch (error) {
-      this.logger.warn(`AniList API query failed for "${query}": ${(error as Error).message}`);
-      if (localMatches.length > 0) {
-        return localMatches;
-      }
-      return [
-        {
-          id: `anime-${encodeURIComponent(query)}`,
-          title: query.charAt(0).toUpperCase() + query.slice(1),
-          posterUrl:
-            'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=500&auto=format&fit=crop&q=80',
-          type: ShowcaseMediaType.ANIME,
-          rating: 8.5,
-        },
-      ];
-    }
+    }, fallbackResponse);
   }
 
   private async searchGames(query: string): Promise<MediaSearchResultDto[]> {
     const rawgApiKey = process.env.RAWG_API_KEY;
 
     if (rawgApiKey && query) {
-      try {
+      const fallbackGames = (): MediaSearchResultDto[] => {
+        const filtered = POPULAR_GAMES_DATABASE.filter((g) =>
+          g.title.toLowerCase().includes(query),
+        );
+        if (filtered.length > 0) return filtered;
+        return [
+          {
+            id: `custom-game-${encodeURIComponent(query)}`,
+            title: query.charAt(0).toUpperCase() + query.slice(1),
+            posterUrl:
+              'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=500&auto=format&fit=crop&q=80',
+            releaseYear: new Date().getFullYear(),
+            rating: 9.0,
+            type: ShowcaseMediaType.GAME,
+          },
+          ...POPULAR_GAMES_DATABASE.slice(0, 4),
+        ];
+      };
+
+      return this.rawgBreaker.execute(async () => {
         const response = await axios.get<{
           results?: Array<{
             id: number;
@@ -3127,9 +3190,8 @@ export class MediaProxyService {
             externalUrl: g.slug ? `https://rawg.io/games/${g.slug}` : undefined,
           }));
         }
-      } catch (err) {
-        this.logger.warn(`RAWG API search failed: ${(err as Error).message}`);
-      }
+        return fallbackGames();
+      }, fallbackGames);
     }
 
     if (!query) return POPULAR_GAMES_DATABASE;
@@ -3178,10 +3240,26 @@ export class MediaProxyService {
       return localMatches.slice(0, 15);
     }
 
-    // 2. Query TMDB API for additional/unlisted movies or TV series
+    // 2. Query TMDB API with CircuitBreaker protection
     const tmdbApiKey = process.env.TMDB_API_KEY;
     if (tmdbApiKey && clean) {
-      try {
+      const fallbackCinema = (): MediaSearchResultDto[] => {
+        if (localMatches.length > 0) return localMatches;
+        return [
+          {
+            id: `custom-cinema-${encodeURIComponent(query)}`,
+            title: query.charAt(0).toUpperCase() + query.slice(1),
+            posterUrl:
+              'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=500&auto=format&fit=crop&q=80',
+            releaseYear: new Date().getFullYear(),
+            rating: 9.0,
+            type,
+          },
+          ...POPULAR_CINEMA_DATABASE.slice(0, 3).map(({ aliases: _, ...rest }) => rest),
+        ];
+      };
+
+      return this.tmdbBreaker.execute(async () => {
         const endpoint = type === ShowcaseMediaType.MOVIE ? 'movie' : 'tv';
         const response = await axios.get<{
           results?: Array<{
@@ -3222,9 +3300,8 @@ export class MediaProxyService {
           );
           return unique.slice(0, 15);
         }
-      } catch (err) {
-        this.logger.warn(`TMDB API search failed: ${(err as Error).message}`);
-      }
+        return fallbackCinema();
+      }, fallbackCinema);
     }
 
     if (localMatches.length > 0) return localMatches;
@@ -3243,47 +3320,20 @@ export class MediaProxyService {
     ];
   }
 
-  async searchTracks(query: string): Promise<any[]> {
+  async searchTracks(query: string): Promise<
+    Array<{
+      title: string;
+      artist: string;
+      albumArt: string;
+      previewUrl: string | null;
+      spotifyUrl: string | null;
+      durationMs: number | null;
+    }>
+  > {
     const cleanQuery = (query || '').trim();
     const cacheKey = `showcase:search:tracks:${encodeURIComponent(cleanQuery.toLowerCase())}`;
 
     return this.redis.getOrSet(cacheKey, this.CACHE_TTL_SECONDS, async () => {
-      if (cleanQuery) {
-        try {
-          const res = await axios.get<{
-            resultCount: number;
-            results: Array<{
-              trackName?: string;
-              artistName?: string;
-              artworkUrl100?: string;
-              previewUrl?: string;
-              trackViewUrl?: string;
-              trackTimeMillis?: number;
-            }>;
-          }>(
-            `https://itunes.apple.com/search?term=${encodeURIComponent(cleanQuery)}&media=music&entity=song&limit=15`,
-            { timeout: 5000 },
-          );
-
-          if (res.data?.results && res.data.results.length > 0) {
-            return res.data.results
-              .filter((t) => Boolean(t.trackName && t.artistName))
-              .map((t) => ({
-                title: t.trackName || 'Unknown Title',
-                artist: t.artistName || 'Unknown Artist',
-                albumArt: t.artworkUrl100
-                  ? t.artworkUrl100.replace('100x100bb', '600x600bb')
-                  : 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=80',
-                previewUrl: t.previewUrl || null,
-                spotifyUrl: t.trackViewUrl || null,
-                durationMs: t.trackTimeMillis || null,
-              }));
-          }
-        } catch (err) {
-          this.logger.warn(`iTunes music search failed: ${(err as Error).message}`);
-        }
-      }
-
       const POPULAR_TRACKS = [
         {
           title: 'Starboy',
@@ -3327,29 +3377,64 @@ export class MediaProxyService {
         },
       ];
 
-      if (!cleanQuery) {
-        return POPULAR_TRACKS;
+      const fallbackTracks = () => {
+        if (!cleanQuery) return POPULAR_TRACKS;
+        const filtered = POPULAR_TRACKS.filter(
+          (t) =>
+            t.title.toLowerCase().includes(cleanQuery.toLowerCase()) ||
+            t.artist.toLowerCase().includes(cleanQuery.toLowerCase()),
+        );
+        if (filtered.length > 0) return filtered;
+        return [
+          {
+            title: cleanQuery.charAt(0).toUpperCase() + cleanQuery.slice(1),
+            artist: 'Popular Artist',
+            albumArt:
+              'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=80',
+            previewUrl: null,
+            spotifyUrl: `https://open.spotify.com/search/${encodeURIComponent(cleanQuery)}`,
+            durationMs: null,
+          },
+          ...POPULAR_TRACKS.slice(0, 3),
+        ];
+      };
+
+      if (cleanQuery) {
+        return this.itunesBreaker.execute(async () => {
+          const res = await axios.get<{
+            resultCount: number;
+            results: Array<{
+              trackName?: string;
+              artistName?: string;
+              artworkUrl100?: string;
+              previewUrl?: string;
+              trackViewUrl?: string;
+              trackTimeMillis?: number;
+            }>;
+          }>(
+            `https://itunes.apple.com/search?term=${encodeURIComponent(cleanQuery)}&media=music&entity=song&limit=15`,
+            { timeout: 5000 },
+          );
+
+          if (res.data?.results && res.data.results.length > 0) {
+            return res.data.results
+              .filter((t) => Boolean(t.trackName && t.artistName))
+              .map((t) => ({
+                title: t.trackName || 'Unknown Title',
+                artist: t.artistName || 'Unknown Artist',
+                albumArt: t.artworkUrl100
+                  ? t.artworkUrl100.replace('100x100bb', '600x600bb')
+                  : 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=80',
+                previewUrl: t.previewUrl || null,
+                spotifyUrl: t.trackViewUrl || null,
+                durationMs: t.trackTimeMillis || null,
+              }));
+          }
+          return fallbackTracks();
+        }, fallbackTracks);
       }
 
-      const filtered = POPULAR_TRACKS.filter(
-        (t) =>
-          t.title.toLowerCase().includes(cleanQuery.toLowerCase()) ||
-          t.artist.toLowerCase().includes(cleanQuery.toLowerCase()),
-      );
-
-      if (filtered.length > 0) return filtered;
-
-      return [
-        {
-          title: cleanQuery.charAt(0).toUpperCase() + cleanQuery.slice(1),
-          artist: 'Popular Artist',
-          albumArt:
-            'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=80',
-          previewUrl: null,
-          spotifyUrl: `https://open.spotify.com/search/${encodeURIComponent(cleanQuery)}`,
-        },
-        ...POPULAR_TRACKS.slice(0, 3),
-      ];
+      return fallbackTracks();
     });
   }
 }

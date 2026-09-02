@@ -58,4 +58,60 @@ describe('useUndoRedoStack', () => {
     expect(result.current.current).toBe(3);
     expect(result.current.canRedo).toBe(false);
   });
+
+  it('handles keyboard shortcuts: Ctrl+Z, Ctrl+Shift+Z, Ctrl+Y', () => {
+    const { result } = renderHook(() => useUndoRedoStack<string>());
+
+    act(() => {
+      result.current.commit('A');
+      result.current.commit('B');
+    });
+
+    // Press Ctrl+Z
+    act(() => {
+      window.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true }),
+      );
+    });
+    expect(result.current.current).toBe('A');
+
+    // Press Ctrl+Shift+Z
+    act(() => {
+      window.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, shiftKey: true, bubbles: true }),
+      );
+    });
+    expect(result.current.current).toBe('B');
+
+    // Undo again
+    act(() => {
+      result.current.undo();
+    });
+    expect(result.current.current).toBe('A');
+
+    // Press Ctrl+Y
+    act(() => {
+      window.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'y', ctrlKey: true, bubbles: true }),
+      );
+    });
+    expect(result.current.current).toBe('B');
+
+    // Non-modifier key should do nothing
+    act(() => {
+      window.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'z', ctrlKey: false, bubbles: true }),
+      );
+    });
+    expect(result.current.current).toBe('B');
+  });
+
+  it('handles undo/redo when stacks are empty', () => {
+    const { result } = renderHook(() => useUndoRedoStack<string>());
+    act(() => {
+      result.current.undo();
+      result.current.redo();
+    });
+    expect(result.current.current).toBeNull();
+  });
 });

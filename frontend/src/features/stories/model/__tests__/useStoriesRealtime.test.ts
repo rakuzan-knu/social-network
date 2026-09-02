@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import { useStoryViewerStore } from '../useStoryViewerStore';
 import * as socketModule from '@/shared/api/socket';
+import { STORIES_FEED_KEY } from '@/shared/api/queryKeys';
 
 describe('useStoriesRealtime', () => {
   let queryClient: QueryClient;
@@ -79,5 +80,56 @@ describe('useStoriesRealtime', () => {
     const updatedGroups = useStoryViewerStore.getState().groups;
     expect(updatedGroups[0].hasUnviewed).toBe(true);
     expect(updatedGroups[0].stories.length).toBe(1);
+  });
+
+  it('updates cache on story:viewed and story:poll_voted events', () => {
+    queryClient.setQueryData(
+      [STORIES_FEED_KEY],
+      [
+        {
+          user: { id: 'u-1' },
+          stories: [{ id: 's-1', viewsCount: 1, pollResult: null }],
+        },
+      ],
+    );
+
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(QueryClientProvider, { client: queryClient }, children);
+
+    renderHook(() => useStoriesRealtime(), { wrapper });
+
+    // Trigger story:viewed
+    mockListeners['story:viewed']({
+      storyId: 's-1',
+      authorId: 'u-1',
+      viewerId: 'v-1',
+      viewer: {},
+      viewedAt: '',
+    });
+
+    let feed = queryClient.getQueryData<any>([STORIES_FEED_KEY]);
+    expect(feed[0].stories[0].viewsCount).toBe(2);
+
+    // Trigger story:poll_voted
+    mockListeners['story:poll_voted']({
+      storyId: 's-1',
+      authorId: 'u-1',
+      userId: 'u-voter',
+      pollResult: { totalVotes: 10 },
+    });
+
+    feed = queryClient.getQueryData<any>([STORIES_FEED_KEY]);
+    expect(feed[0].stories[0].pollResult).toEqual({ totalVotes: 10 });
+  });
+
+  it('handles exception when getSocket throws', () => {
+    vi.spyOn(socketModule, 'getSocket').mockImplementation(() => {
+      throw new Error('Socket not initialized');
+    });
+
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(QueryClientProvider, { client: queryClient }, children);
+
+    expect(() => renderHook(() => useStoriesRealtime(), { wrapper })).not.toThrow();
   });
 });

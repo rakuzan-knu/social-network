@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@common/prisma';
 import type { Prisma, UserNotificationSettings } from '@prisma/client';
 import {
@@ -39,6 +39,8 @@ const NOTIFICATION_INCLUDE = {
 
 @Injectable()
 export class NotificationsRepository implements INotificationsRepository {
+  private readonly logger = new Logger(NotificationsRepository.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   async create(data: CreateNotificationParams): Promise<NotificationWithRelations> {
@@ -125,7 +127,8 @@ export class NotificationsRepository implements INotificationsRepository {
         include: NOTIFICATION_INCLUDE,
       });
       return items;
-    } catch {
+    } catch (e) {
+      this.logger.warn(`Failed to find notifications for user ${params.userId}: ${String(e)}`);
       return [];
     }
   }
@@ -141,7 +144,8 @@ export class NotificationsRepository implements INotificationsRepository {
         include: NOTIFICATION_INCLUDE,
       });
       return updated;
-    } catch {
+    } catch (e) {
+      this.logger.warn(`Failed to mark notification ${id} as read: ${String(e)}`);
       return null;
     }
   }
@@ -160,7 +164,8 @@ export class NotificationsRepository implements INotificationsRepository {
       });
 
       return res.count;
-    } catch {
+    } catch (e) {
+      this.logger.warn(`Failed to mark all notifications as read for user ${userId}: ${String(e)}`);
       return 0;
     }
   }
@@ -170,7 +175,8 @@ export class NotificationsRepository implements INotificationsRepository {
       return await this.prisma.notification.count({
         where: { userId, isRead: false },
       });
-    } catch {
+    } catch (e) {
+      this.logger.warn(`Failed to count unread notifications for user ${userId}: ${String(e)}`);
       return 0;
     }
   }
@@ -219,7 +225,10 @@ export class NotificationsRepository implements INotificationsRepository {
         reposts,
         system,
       };
-    } catch {
+    } catch (e) {
+      this.logger.warn(
+        `Failed to count unread notifications by category for user ${userId}: ${String(e)}`,
+      );
       return {
         likes: 0,
         comments: 0,
@@ -243,7 +252,8 @@ export class NotificationsRepository implements INotificationsRepository {
 
       await this.prisma.notification.delete({ where: { id } });
       return true;
-    } catch {
+    } catch (e) {
+      this.logger.warn(`Failed to delete notification ${id}: ${String(e)}`);
       return false;
     }
   }
@@ -311,5 +321,18 @@ export class NotificationsRepository implements INotificationsRepository {
       create: createData,
       update: data,
     });
+  }
+
+  async isBlocked(userId: string, actorId: string): Promise<boolean> {
+    const block = await this.prisma.userBlock.findFirst({
+      where: {
+        OR: [
+          { blockerId: userId, blockedId: actorId },
+          { blockerId: actorId, blockedId: userId },
+        ],
+      },
+      select: { blockerId: true },
+    });
+    return block !== null;
   }
 }

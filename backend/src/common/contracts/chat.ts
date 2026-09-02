@@ -35,34 +35,35 @@ export const MuteLevel = {
 export type MuteLevel = (typeof MuteLevel)[keyof typeof MuteLevel];
 
 export const conversationIdSchema = z.object({
-  conversationId: z.string().uuid(),
+  conversationId: z.string().min(1).max(128),
 });
 export type ConversationIdDto = z.infer<typeof conversationIdSchema>;
 
 export const attachmentSchema = z.object({
   type: z.nativeEnum(AttachmentType),
-  url: z.string().min(1),
+  url: z.string().min(1).max(2048),
   fileName: z.string().max(255).optional(),
-  mimeType: z.string().optional(),
+  mimeType: z.string().max(128).optional(),
   size: z.coerce.number().min(0).optional(),
   width: z.coerce.number().min(0).optional(),
   height: z.coerce.number().min(0).optional(),
   duration: z.coerce.number().min(0).optional(),
-  waveform: z.array(z.number()).optional(),
+  waveform: z.array(z.number()).max(256).optional(),
   isSpoiler: z.boolean().optional(),
-  thumbnailUrl: z.string().optional(),
+  thumbnailUrl: z.string().max(2048).optional(),
 });
 export type AttachmentDto = z.infer<typeof attachmentSchema>;
 
 export const sendMessageSchema = z
   .object({
-    conversationId: z.string().uuid(),
+    conversationId: z.string().min(1).max(128).optional(),
     text: z.string().max(4096).optional(),
     messageType: z.nativeEnum(MessageType).default(MessageType.TEXT),
-    replyToId: z.string().uuid().optional(),
-    forwardedFromId: z.string().uuid().optional(),
+    replyToId: z.string().min(1).max(128).optional(),
+    forwardedFromId: z.string().min(1).max(128).optional(),
     clientMessageId: z.string().max(64).optional(),
-    attachments: z.array(attachmentSchema).optional(),
+    clientSeq: z.number().int().min(1).optional(),
+    attachments: z.array(attachmentSchema).max(10).optional(),
   })
   .refine(
     (data) =>
@@ -75,75 +76,93 @@ export const sendMessageSchema = z
 export type SendMessageDto = z.infer<typeof sendMessageSchema>;
 
 export const gatewayResumeSchema = z.object({
-  sessionId: z.string().min(1),
+  sessionId: z.string().min(1).max(128),
   lastSeq: z.number().int().min(0),
 });
 export type GatewayResumeDto = z.infer<typeof gatewayResumeSchema>;
 
+export const messageDeliveredSchema = z.object({
+  conversationId: z.string().min(1).max(128),
+  messageId: z.string().min(1).max(128),
+});
+export type MessageDeliveredDto = z.infer<typeof messageDeliveredSchema>;
+
+export const clientHibernateSchema = z.object({
+  reason: z.string().max(64).optional(),
+});
+export type ClientHibernateDto = z.infer<typeof clientHibernateSchema>;
+
 export const editMessageSchema = z.object({
-  messageId: z.string().uuid(),
+  messageId: z.string().min(1).max(128).optional(),
   body: z.string().min(1).max(4096),
 });
 export type EditMessageDto = z.infer<typeof editMessageSchema>;
 
 export const deleteMessageSchema = z.object({
-  messageId: z.string().uuid(),
+  messageId: z.string().min(1).max(128).optional(),
   forAll: z.coerce.boolean().optional(),
 });
 export type DeleteMessageDto = z.infer<typeof deleteMessageSchema>;
 
+export const forAllQuerySchema = z.object({
+  forAll: z
+    .preprocess((val) => val === 'true' || val === '1' || val === true, z.boolean())
+    .optional(),
+});
+export type ForAllQueryDto = z.infer<typeof forAllQuerySchema>;
+
 export const batchDeleteMessagesSchema = z.object({
-  messageIds: z.array(z.string().uuid()).min(1).max(50),
+  messageIds: z.array(z.string().min(1).max(128)).min(1).max(50),
   forAll: z.coerce.boolean().optional(),
 });
 export type BatchDeleteMessagesDto = z.infer<typeof batchDeleteMessagesSchema>;
 
 export const forwardMessageSchema = z.object({
-  messageId: z.string().uuid(),
-  conversationIds: z.array(z.string().uuid()),
+  messageId: z.string().min(1).max(128).optional(),
+  conversationIds: z.array(z.string().min(1).max(128)).min(1).max(50),
   hideAuthor: z.boolean().optional(),
 });
 export type ForwardMessageDto = z.infer<typeof forwardMessageSchema>;
 
 export const forwardMultipleMessagesSchema = z.object({
-  messageIds: z.array(z.string().uuid()).min(1).max(50),
-  conversationIds: z.array(z.string().uuid()).min(1),
+  messageIds: z.array(z.string().min(1).max(128)).min(1).max(50),
+  conversationIds: z.array(z.string().min(1).max(128)).min(1).max(50),
   hideAuthor: z.boolean().optional(),
 });
 export type ForwardMultipleMessagesDto = z.infer<typeof forwardMultipleMessagesSchema>;
 
 export const reactToMessageSchema = z.object({
-  messageId: z.string().uuid(),
-  emoji: z.string().min(1).max(8),
+  messageId: z.string().min(1).max(128).optional(),
+  emoji: z.string().min(1).max(32),
 });
 export type ReactToMessageDto = z.infer<typeof reactToMessageSchema>;
 
 export const pinMessageSchema = z.object({
-  messageId: z.string().uuid(),
+  messageId: z.string().min(1).max(128).optional(),
 });
 export type PinMessageDto = z.infer<typeof pinMessageSchema>;
 
 export const togglePinMessageSchema = z.object({
-  conversationId: z.string().uuid(),
-  messageId: z.string().uuid(),
+  conversationId: z.string().min(1).max(128),
+  messageId: z.string().min(1).max(128),
 });
 export type TogglePinMessageDto = z.infer<typeof togglePinMessageSchema>;
 
 export const markReadSchema = z.object({
-  conversationId: z.string().uuid(),
-  messageId: z.string().uuid().optional(),
+  conversationId: z.string().min(1).max(128),
+  messageId: z.string().min(1).max(128).optional(),
 });
 export type MarkReadDto = z.infer<typeof markReadSchema>;
 
 export const getOnlineStatusSchema = z.object({
-  userIds: z.array(z.string().uuid()),
+  userIds: z.array(z.string().min(1).max(128)).min(1).max(100),
 });
 export type GetOnlineStatusDto = z.infer<typeof getOnlineStatusSchema>;
 
 export const getMessagesQuerySchema = z.object({
-  before: z.string().uuid().optional(),
-  after: z.string().uuid().optional(),
-  limit: z.coerce.number().int().min(1).max(100).default(50),
+  before: z.string().min(1).max(128).optional(),
+  after: z.string().min(1).max(128).optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(50),
 });
 export type GetMessagesQueryDto = z.infer<typeof getMessagesQuerySchema>;
 
@@ -155,8 +174,8 @@ export const getChatActivityQuerySchema = z.object({
 export type GetChatActivityQueryDto = z.infer<typeof getChatActivityQuerySchema>;
 
 export const getMessagesAroundDateQuerySchema = z.object({
-  date: z.string().min(1),
-  limit: z.coerce.number().int().min(1).max(100).default(50),
+  date: z.string().min(1).max(64),
+  limit: z.coerce.number().int().min(1).max(50).default(50),
 });
 export type GetMessagesAroundDateQueryDto = z.infer<typeof getMessagesAroundDateQuerySchema>;
 
@@ -172,26 +191,26 @@ export type ChatActivityMap = Record<string, DayActivityItem>;
 
 export const searchMessagesQuerySchema = z.object({
   q: z.string().min(1).max(256),
-  limit: z.coerce.number().int().min(1).max(100).default(30),
+  limit: z.coerce.number().int().min(1).max(50).default(30),
 });
 export type SearchMessagesQueryDto = z.infer<typeof searchMessagesQuerySchema>;
 
 export const reportSchema = z.object({
-  messageId: z.string().uuid().optional(),
-  category: z.string().min(1),
+  messageId: z.string().min(1).max(128).optional(),
+  category: z.string().min(1).max(64),
   details: z.string().max(1024).optional(),
 });
 export type ReportDto = z.infer<typeof reportSchema>;
 
 export const createDirectConversationSchema = z.object({
-  participantId: z.string().min(1),
+  participantId: z.string().min(1).max(128),
 });
 export type CreateDirectConversationDto = z.infer<typeof createDirectConversationSchema>;
 
 export const createGroupConversationSchema = z.object({
   name: z.string().min(1).max(128),
   description: z.string().max(512).optional(),
-  memberIds: z.array(z.string().uuid()),
+  memberIds: z.array(z.string().min(1).max(128)).min(1).max(100),
 });
 export type CreateGroupConversationDto = z.infer<typeof createGroupConversationSchema>;
 
@@ -201,36 +220,45 @@ export const updateGroupConversationSchema = z.object({
 });
 export type UpdateGroupConversationDto = z.infer<typeof updateGroupConversationSchema>;
 
+export const updateAdminPermissionsSchema = z.object({
+  canEditGroup: z.boolean().optional(),
+  canDeleteMessages: z.boolean().optional(),
+  canManageMembers: z.boolean().optional(),
+  canPinMessages: z.boolean().optional(),
+  canInviteUsers: z.boolean().optional(),
+});
+export type UpdateAdminPermissionsDto = z.infer<typeof updateAdminPermissionsSchema>;
+
 export const setNicknameSchema = z.object({
-  targetUserId: z.string().uuid(),
+  targetUserId: z.string().min(1).max(128),
   nickname: z.string().max(64).nullable().optional(),
 });
 export type SetNicknameDto = z.infer<typeof setNicknameSchema>;
 
 export const setThemeSchema = z.object({
-  theme: z.string().nullable().optional(),
+  theme: z.string().max(128).nullable().optional(),
   applyToAll: z.coerce.boolean().optional(),
 });
 export type SetThemeDto = z.infer<typeof setThemeSchema>;
 
 export const muteConversationSchema = z.object({
   muteLevel: z.nativeEnum(MuteLevel),
-  mutedUntil: z.string().optional(),
+  mutedUntil: z.string().max(64).optional(),
 });
 export type MuteConversationDto = z.infer<typeof muteConversationSchema>;
 
 export const addMembersSchema = z.object({
-  memberIds: z.array(z.string().uuid()),
+  memberIds: z.array(z.string().min(1).max(128)).min(1).max(100),
 });
 export type AddMembersDto = z.infer<typeof addMembersSchema>;
 
 export const transferOwnershipSchema = z.object({
-  newOwnerId: z.string().uuid(),
+  newOwnerId: z.string().min(1).max(128),
 });
 export type TransferOwnershipDto = z.infer<typeof transferOwnershipSchema>;
 
 export const promoteMemberSchema = z.object({
-  userId: z.string().uuid(),
+  userId: z.string().min(1).max(128),
 });
 export type PromoteMemberDto = z.infer<typeof promoteMemberSchema>;
 
@@ -253,6 +281,8 @@ export interface AttachmentView {
   height: number | null;
   duration: number | null;
   thumbnailUrl: string | null;
+  waveform?: number[];
+  isSpoiler?: boolean;
 }
 
 export interface ReactionSummary {
@@ -267,6 +297,7 @@ export interface MessageView {
   conversationId: string;
   sender: UserSnapshot;
   body: string | null;
+  clientSeq?: number | null;
   messageType: MessageType;
   replyTo: MessageView | null;
   forwardedFrom: Pick<MessageView, 'id' | 'body' | 'sender'> | null;

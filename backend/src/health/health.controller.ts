@@ -1,17 +1,42 @@
-import { Controller, Get, HttpStatus, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Query,
+  Res,
+  VERSION_NEUTRAL,
+} from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { SkipThrottle } from '@nestjs/throttler';
+import { HealthCheck, HealthCheckService } from '@nestjs/terminus';
 import type { Response } from 'express';
-import { HealthResponseDto, PingResponseDto } from '@common/contracts';
+import {
+  HealthResponseDto,
+  PingResponseDto,
+  RedisMemoryInfoDto,
+  SelfHealResponseDto,
+} from '@common/contracts';
+import { SelfHealTriggerDto } from './dto/self-heal-trigger.dto';
 import { HealthService } from './health.service';
+import { CriticalPriority } from '../common/resilience/request-priority.decorator';
 
 @ApiTags('health')
-@Controller()
+@CriticalPriority()
+@Controller({ version: VERSION_NEUTRAL })
 export class HealthController {
-  constructor(private readonly healthService: HealthService) {}
+  constructor(
+    private readonly healthService: HealthService,
+    private readonly healthCheckService: HealthCheckService,
+  ) {}
 
   @Get(['health', 'api/health'])
-  @ApiOperation({ summary: 'Deep health check (database + redis connectivity)' })
+  @HealthCheck()
+  @ApiOperation({
+    summary: 'Deep health check (database + redis connectivity + automated self-healing)',
+  })
   @ApiResponse({ status: 200, description: 'Service is healthy', type: HealthResponseDto })
   @ApiResponse({
     status: 503,
@@ -35,7 +60,8 @@ export class HealthController {
   }
 
   @Get(['health/ready', 'api/health/ready'])
-  @ApiOperation({ summary: 'Readiness probe (verifies DB & Redis)' })
+  @HealthCheck()
+  @ApiOperation({ summary: 'Readiness probe (verifies DB & Redis & memory health)' })
   @ApiResponse({
     status: 200,
     description: 'Service ready to serve traffic',
@@ -60,6 +86,36 @@ export class HealthController {
   @ApiResponse({ status: 200, description: 'Ping successful', type: PingResponseDto })
   ping(): PingResponseDto {
     return this.healthService.getLiveness();
+  }
+
+  @Get(['health/redis-memory', 'api/health/redis-memory'])
+  @ApiOperation({ summary: 'Inspect Redis memory stats and threshold utilization ratio' })
+  @ApiResponse({ status: 200, description: 'Redis memory statistics', type: RedisMemoryInfoDto })
+  async getRedisMemoryInfo(): Promise<RedisMemoryInfoDto> {
+    return this.healthService.getRedisMemoryInfo();
+  }
+
+  @Post(['health/self-heal', 'api/health/self-heal'])
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Trigger automated self-healing non-critical cache eviction runbook' })
+  @ApiResponse({
+    status: 200,
+    description: 'Self-healing runbook execution results',
+    type: SelfHealResponseDto,
+  })
+  async triggerSelfHealPost(@Body() body?: SelfHealTriggerDto): Promise<SelfHealResponseDto> {
+    return this.healthService.triggerSelfHealing(body);
+  }
+
+  @Get(['health/self-heal', 'api/health/self-heal'])
+  @ApiOperation({ summary: 'Inspect or trigger self-healing runbook via GET' })
+  @ApiResponse({
+    status: 200,
+    description: 'Self-healing runbook execution results',
+    type: SelfHealResponseDto,
+  })
+  async triggerSelfHealGet(@Query() query?: SelfHealTriggerDto): Promise<SelfHealResponseDto> {
+    return this.healthService.triggerSelfHealing(query);
   }
 
   @Get('health/debug-sentry')

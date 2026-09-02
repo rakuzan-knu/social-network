@@ -25,7 +25,7 @@ describe('LinkPreviewCard & Rich Embeds 2.0', () => {
       expect(screen.getByTestId('link-preview-skeleton')).toBeInTheDocument();
     });
 
-    it('returns null when url is null and not loading', () => {
+    it('returns null when url is null and not loading or data has no title/description/image', () => {
       vi.spyOn(ogHook, 'useLinkPreview').mockReturnValue({
         data: null,
         isLoading: false,
@@ -33,6 +33,43 @@ describe('LinkPreviewCard & Rich Embeds 2.0', () => {
 
       const { container } = render(<LinkPreviewCard url={null} />);
       expect(container.firstChild).toBeNull();
+
+      const { container: emptyContainer } = render(
+        <LinkPreviewCard
+          url="https://example.com"
+          embedData={
+            {
+              url: 'https://example.com',
+              type: 'generic',
+              title: null,
+              description: null,
+              siteName: null,
+              image: null,
+              favicon: null,
+            } as any
+          }
+        />,
+      );
+      expect(emptyContainer.firstChild).toBeNull();
+    });
+
+    it('renders directly from embedData without calling useLinkPreview', () => {
+      render(
+        <LinkPreviewCard
+          url="https://example.com/direct"
+          embedData={{
+            url: 'https://example.com/direct',
+            type: 'generic',
+            title: 'Direct Embed Title',
+            description: 'Direct Description',
+            siteName: 'Example',
+            image: null,
+            favicon: null,
+          }}
+        />,
+      );
+
+      expect(screen.getByText('Direct Embed Title')).toBeInTheDocument();
     });
   });
 
@@ -58,6 +95,13 @@ describe('LinkPreviewCard & Rich Embeds 2.0', () => {
       expect(screen.getByText('Example Title')).toBeInTheDocument();
       expect(screen.getByText('Example Description')).toBeInTheDocument();
       expect(screen.getByAltText('Example Title')).toBeInTheDocument();
+
+      // Favicon onError
+      const faviconImg = document.querySelector(
+        'img[src="https://example.com/favicon.ico"]',
+      ) as HTMLImageElement;
+      fireEvent.error(faviconImg);
+      expect(faviconImg.style.display).toBe('none');
     });
 
     it('protects against broken image: hides image container on onError', () => {
@@ -79,7 +123,6 @@ describe('LinkPreviewCard & Rich Embeds 2.0', () => {
       const img = screen.getByAltText('Broken Image Post');
       fireEvent.error(img);
 
-      // After error, the image is removed from DOM to avoid broken box
       expect(screen.queryByAltText('Broken Image Post')).not.toBeInTheDocument();
       expect(screen.getByText('Broken Image Post')).toBeInTheDocument();
     });
@@ -102,6 +145,7 @@ describe('LinkPreviewCard & Rich Embeds 2.0', () => {
             videoId: 'dQw4w9WgXcQ',
             author: 'Rick Astley',
             startSeconds: 90,
+            duration: '3:33',
           },
         },
         isLoading: false,
@@ -113,6 +157,11 @@ describe('LinkPreviewCard & Rich Embeds 2.0', () => {
       expect(screen.getByText('Never Gonna Give You Up')).toBeInTheDocument();
       expect(screen.getByText('Rick Astley')).toBeInTheDocument();
       expect(screen.getByText('Start 1:30')).toBeInTheDocument();
+      expect(screen.getByText('3:33')).toBeInTheDocument();
+
+      // Click external link
+      const extLink = screen.getByTitle('Open on YouTube');
+      fireEvent.click(extLink);
 
       // Click play to mount iframe
       const card = screen.getByTestId('youtube-embed-card');
@@ -125,6 +174,35 @@ describe('LinkPreviewCard & Rich Embeds 2.0', () => {
         'src',
         'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=1&start=90',
       );
+    });
+
+    it('extracts videoId from youtu.be or youtube.com search params if not provided', () => {
+      vi.spyOn(ogHook, 'useLinkPreview').mockReturnValue({
+        data: {
+          url: 'https://youtu.be/dQw4w9WgXcQ',
+          type: 'youtube',
+          title: 'Shortened URL Video',
+          image: 'https://example.com/img.jpg',
+        },
+        isLoading: false,
+      } as unknown as ReturnType<typeof ogHook.useLinkPreview>);
+
+      const { rerender } = render(<LinkPreviewCard url="https://youtu.be/dQw4w9WgXcQ" />);
+      expect(screen.getByTestId('youtube-embed-card')).toBeInTheDocument();
+
+      // Test youtube.com?v=123
+      vi.spyOn(ogHook, 'useLinkPreview').mockReturnValue({
+        data: {
+          url: 'https://www.youtube.com/watch?v=12345678901',
+          type: 'youtube',
+          title: 'Param Video',
+          image: 'https://example.com/img.jpg',
+        },
+        isLoading: false,
+      } as unknown as ReturnType<typeof ogHook.useLinkPreview>);
+
+      rerender(<LinkPreviewCard url="https://www.youtube.com/watch?v=12345678901" />);
+      expect(screen.getByTestId('youtube-embed-card')).toBeInTheDocument();
     });
 
     it('falls back to hqdefault on maxres error and then icon on second error', () => {
@@ -164,7 +242,7 @@ describe('LinkPreviewCard & Rich Embeds 2.0', () => {
   });
 
   describe('GitHub Repository Card', () => {
-    it('renders repository stats with stars, forks, and language indicator', () => {
+    it('renders repository stats with stars, forks, and language indicator and formats numbers', () => {
       vi.spyOn(ogHook, 'useLinkPreview').mockReturnValue({
         data: {
           url: 'https://github.com/facebook/react',
@@ -177,8 +255,8 @@ describe('LinkPreviewCard & Rich Embeds 2.0', () => {
           github: {
             owner: 'facebook',
             repo: 'react',
-            stars: 220000,
-            forks: 45000,
+            stars: 1200000,
+            forks: 450,
             language: 'TypeScript',
             languageColor: '#3178c6',
             avatarUrl: 'https://avatars.githubusercontent.com/u/69631?v=4',
@@ -191,12 +269,13 @@ describe('LinkPreviewCard & Rich Embeds 2.0', () => {
 
       expect(screen.getByTestId('github-embed-card')).toBeInTheDocument();
       expect(screen.getByText('facebook/react')).toBeInTheDocument();
-      expect(
-        screen.getByText('The library for web and native user interfaces.'),
-      ).toBeInTheDocument();
-      expect(screen.getByText('220k')).toBeInTheDocument();
-      expect(screen.getByText('45k')).toBeInTheDocument();
-      expect(screen.getByText('TypeScript')).toBeInTheDocument();
+      expect(screen.getByText('1.2M')).toBeInTheDocument();
+      expect(screen.getByText('450')).toBeInTheDocument();
+
+      // Avatar error
+      const avatarImg = screen.getByAltText('facebook');
+      fireEvent.error(avatarImg);
+      expect(avatarImg.style.display).toBe('none');
     });
   });
 
@@ -206,28 +285,37 @@ describe('LinkPreviewCard & Rich Embeds 2.0', () => {
 
       vi.spyOn(ogHook, 'useLinkPreview').mockReturnValue({
         data: {
-          url: 'https://open.spotify.com/track/7MXVkk9YM5IZxh0wAE26V5',
-          type: 'spotify',
-          siteName: 'Spotify',
-          title: 'Starboy',
-          description: 'Listen on Spotify',
-          image: 'https://i.scdn.co/image/cover.jpg',
-          favicon: 'https://open.spotify.com/favicon.ico',
+          url: 'https://soundcloud.com/artist/track',
+          type: 'soundcloud',
+          siteName: 'SoundCloud',
+          title: 'SoundCloud Track',
+          description: 'Listen on SoundCloud',
+          image: 'https://example.com/sc-cover.jpg',
+          favicon: 'https://soundcloud.com/favicon.ico',
           audio: {
-            provider: 'spotify',
+            provider: 'soundcloud',
             audioType: 'track',
-            artist: 'The Weeknd',
-            embedUrl: 'https://open.spotify.com/embed/track/7MXVkk9YM5IZxh0wAE26V5',
+            artist: 'SoundCloud Artist',
+            embedUrl: 'https://w.soundcloud.com/player/?url=https://soundcloud.com/artist/track',
           },
         },
         isLoading: false,
       } as unknown as ReturnType<typeof ogHook.useLinkPreview>);
 
-      render(<LinkPreviewCard url="https://open.spotify.com/track/7MXVkk9YM5IZxh0wAE26V5" />);
+      render(<LinkPreviewCard url="https://soundcloud.com/artist/track" />);
 
       expect(screen.getByTestId('audio-embed-card')).toBeInTheDocument();
-      expect(screen.getByText('Starboy')).toBeInTheDocument();
-      expect(screen.getByText('The Weeknd')).toBeInTheDocument();
+      expect(screen.getByText('SoundCloud Track')).toBeInTheDocument();
+      expect(screen.getByText('SoundCloud Artist')).toBeInTheDocument();
+      expect(screen.getByText('SoundCloud')).toBeInTheDocument();
+
+      // Cover error
+      const coverImg = screen.getByAltText('SoundCloud Track');
+      fireEvent.error(coverImg);
+
+      // Click external link
+      const extLink = screen.getByTitle('Open in new tab');
+      fireEvent.click(extLink);
 
       // Click play to toggle expanded iframe
       const playBtn = screen.getByTitle('Play audio');

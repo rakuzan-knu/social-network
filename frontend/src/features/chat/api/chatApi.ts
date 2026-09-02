@@ -111,6 +111,7 @@ export const chatApi = {
       replyToId?: string;
       attachments?: OutgoingAttachment[];
       clientMessageId?: string;
+      clientSeq?: number;
     },
   ) =>
     api

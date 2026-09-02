@@ -2,6 +2,7 @@ import {
   ConflictException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
   Optional,
   forwardRef,
@@ -11,7 +12,6 @@ import { LIKES_REPOSITORY } from './interfaces/likes-repository.interface';
 import type { ILikesRepository } from './interfaces/likes-repository.interface';
 import { POSTS_REPOSITORY } from '../posts/interfaces/posts-repository.interface';
 import type { IPostRepository } from '../posts/interfaces/posts-repository.interface';
-import { PrismaService } from '@common/prisma';
 import { MessengerGateway } from '../messenger/gateway/messenger.gateway';
 import { WS_EVENTS } from '../messenger/events/ws-events';
 import { Like, NotificationType, Prisma } from '@prisma/client';
@@ -22,12 +22,13 @@ import {
 
 @Injectable()
 export class LikesService {
+  private readonly logger = new Logger(LikesService.name);
+
   constructor(
     @Inject(LIKES_REPOSITORY)
     private readonly likesRepository: ILikesRepository,
     @Inject(forwardRef(() => POSTS_REPOSITORY))
     private readonly postsRepository: IPostRepository,
-    private readonly prisma: PrismaService,
     @Inject(forwardRef(() => MessengerGateway))
     @Optional()
     private readonly gateway?: MessengerGateway,
@@ -57,14 +58,8 @@ export class LikesService {
         if (this.gateway) {
           try {
             const [actor, author] = await Promise.all([
-              this.prisma.user.findUnique({
-                where: { id: userId },
-                select: { id: true, username: true, displayName: true, avatar: true },
-              }),
-              this.prisma.user.findUnique({
-                where: { id: post.authorId },
-                select: { username: true },
-              }),
+              this.postsRepository.findUserBasic(userId),
+              this.postsRepository.findUserBasic(post.authorId),
             ]);
             if (actor) {
               this.gateway.emitToUser(post.authorId, WS_EVENTS.SOCIAL_NOTIFICATION, {
@@ -80,8 +75,10 @@ export class LikesService {
                 message: 'liked your post',
               });
             }
-          } catch {
-            // Non-blocking
+          } catch (e) {
+            this.logger.warn(
+              `Failed to emit real-time like notification for post ${postId}: ${String(e)}`,
+            );
           }
         }
       }
