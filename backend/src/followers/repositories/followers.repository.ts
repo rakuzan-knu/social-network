@@ -17,8 +17,8 @@ export class FollowersRepository implements IFollowersRepository {
       include: { follower: { select: publicUserSelect } },
       take: limit + 1,
       skip: after ? 1 : 0,
-      cursor: after ? { id: after } : undefined,
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      ...(after ? { cursor: { id: after } } : {}),
     });
     return follows.map((f) => ({ id: f.id, user: f.follower }));
   }
@@ -29,8 +29,8 @@ export class FollowersRepository implements IFollowersRepository {
       include: { following: { select: publicUserSelect } },
       take: limit + 1,
       skip: after ? 1 : 0,
-      cursor: after ? { id: after } : undefined,
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      ...(after ? { cursor: { id: after } } : {}),
     });
     return follows.map((f) => ({ id: f.id, user: f.following }));
   }
@@ -92,8 +92,8 @@ export class FollowersRepository implements IFollowersRepository {
       include: { follower: { select: publicUserSelect } },
       take: limit + 1,
       skip: after ? 1 : 0,
-      cursor: after ? { id: after } : undefined,
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      ...(after ? { cursor: { id: after } } : {}),
     });
     return rows.map((r) => ({ id: r.id, user: r.follower }));
   }

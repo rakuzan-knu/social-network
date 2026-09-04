@@ -10,17 +10,7 @@ import type { RedisService } from '../../redis/redis.service';
 
 describe('PollService', () => {
   let service: PollService;
-  let mockPollRepository: {
-    getPollByPostId: jest.Mock;
-    addPoll: jest.Mock;
-    deletePoll: jest.Mock;
-    addVote: jest.Mock;
-    deleteVote: jest.Mock;
-    findPostById: jest.Mock;
-    findPollById: jest.Mock;
-    findVoters: jest.Mock;
-    findVote: jest.Mock;
-  };
+  let mockPollRepository: Record<keyof IPollRepository, jest.Mock>;
   let mockRedis: {
     withLock: jest.Mock;
   };
@@ -32,6 +22,7 @@ describe('PollService', () => {
     authorId: 'usr-author',
     question: 'Favorite language?',
     isClosed: false,
+    isActive: true,
     closedAt: null,
     expiresAt: new Date(Date.now() + 86400000),
     allowMultiple: false,

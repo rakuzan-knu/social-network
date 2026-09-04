@@ -2,13 +2,17 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@common/prisma';
 import { FollowStatus, ShowcasePrivacy, type Prisma } from '@prisma/client';
 import type { UpdateShowcaseDto } from '@common/contracts';
-import type { IShowcaseRepository } from '../interfaces/showcase-repository.interface';
+import type {
+  IShowcaseRepository,
+  ProfileShowcaseWithMedia,
+  UserWithShowcase,
+} from '../interfaces/showcase-repository.interface';
 
 @Injectable()
 export class ShowcaseRepository implements IShowcaseRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findUserWithShowcase(username: string) {
+  async findUserWithShowcase(username: string): Promise<UserWithShowcase | null> {
     return this.prisma.user.findUnique({
       where: { username: username.toLowerCase() },
       select: {
@@ -49,7 +53,7 @@ export class ShowcaseRepository implements IShowcaseRepository {
     return follow ? follow.status : null;
   }
 
-  async upsertDefaultShowcase(userId: string) {
+  async upsertDefaultShowcase(userId: string): Promise<ProfileShowcaseWithMedia> {
     return this.prisma.profileShowcase.upsert({
       where: { userId },
       create: {
@@ -89,22 +93,18 @@ export class ShowcaseRepository implements IShowcaseRepository {
           pronouns: dto.pronouns !== undefined ? dto.pronouns : null,
           timezone: dto.timezone || 'UTC',
           accentColor: dto.accentColor || '#6366f1',
-          connectedAccounts:
-            dto.connectedAccounts !== undefined
-              ? (dto.connectedAccounts as unknown as Prisma.InputJsonValue)
-              : undefined,
-          activityStatus:
-            dto.activityStatus !== undefined
-              ? (dto.activityStatus as unknown as Prisma.InputJsonValue)
-              : undefined,
-          spotlightMedia:
-            dto.spotlightMedia !== undefined
-              ? (dto.spotlightMedia as unknown as Prisma.InputJsonValue)
-              : undefined,
-          anthemTrack:
-            dto.anthemTrack !== undefined
-              ? (dto.anthemTrack as unknown as Prisma.InputJsonValue)
-              : undefined,
+          ...(dto.connectedAccounts !== undefined
+            ? { connectedAccounts: dto.connectedAccounts as unknown as Prisma.InputJsonValue }
+            : {}),
+          ...(dto.activityStatus !== undefined
+            ? { activityStatus: dto.activityStatus as unknown as Prisma.InputJsonValue }
+            : {}),
+          ...(dto.spotlightMedia !== undefined
+            ? { spotlightMedia: dto.spotlightMedia as unknown as Prisma.InputJsonValue }
+            : {}),
+          ...(dto.anthemTrack !== undefined
+            ? { anthemTrack: dto.anthemTrack as unknown as Prisma.InputJsonValue }
+            : {}),
         },
         update: {
           ...(dto.privacyMeta !== undefined && { privacyMeta: dto.privacyMeta }),

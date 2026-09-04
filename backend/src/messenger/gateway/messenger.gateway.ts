@@ -16,6 +16,7 @@ import {
   forwardRef,
   Inject,
   OnModuleDestroy,
+  OnModuleInit,
   Optional,
 } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
@@ -69,11 +70,13 @@ import { MetricsService } from '../../metrics/metrics.service';
 import { PresenceEngineService } from '../presence/presence-engine.service';
 import { WsDrainingService, type DrainOptions } from './ws-draining.service';
 import { WsBackpressureService, type EventPriority } from './ws-backpressure.service';
-import { typingEventPool, readReceiptPool, gatewayWrapperPool } from './ws-event-pools';
+import { typingEventPool, readReceiptPool } from './ws-event-pools';
+import { buildWsFrameString } from '../../common/v8/zero-alloc-parser';
+import { makeWsEvent } from '../../common/v8/shape-stable';
 
 interface AuthenticatedSocket extends Socket {
   userId: string;
-  traceId?: string;
+  traceId?: string | undefined;
 }
 
 const getCorsOrigin = () => {
@@ -108,7 +111,7 @@ const getCorsOrigin = () => {
   maxHttpBufferSize: 1_000_000,
 })
 export class MessengerGateway
-  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect, OnModuleDestroy
+  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect, OnModuleInit, OnModuleDestroy
 {
   @WebSocketServer()
   private readonly server!: Server;
@@ -119,6 +122,10 @@ export class MessengerGateway
 
   private readonly RATE_LIMIT = 20;
   private readonly RATE_WINDOW_MS = 10_000;
+
+  onModuleInit(): void {
+    this.logger.log('MessengerGateway initialized');
+  }
 
   constructor(
     private readonly jwtService: JwtService,
@@ -218,7 +225,7 @@ export class MessengerGateway
           if (!token) throw new WsException('Missing auth token');
 
           const payload = await this.jwtService.verifyAsync<{ sub: string; type: string }>(token, {
-            secret: this.configService.get<string>('JWT_ACCESS_SECRET'),
+            secret: this.configService.get<string>('JWT_ACCESS_SECRET') || '',
           });
 
           if (payload.type !== 'access') throw new WsException('Invalid token type');
@@ -247,7 +254,7 @@ export class MessengerGateway
           }
 
           const seqRaw = await this.redisService.get(`user:seq:${userId}`).catch(() => '0');
-          const currentSeq = Number(seqRaw || '0');
+          const currentSeq = Number(seqRaw || '0') | 0;
           client.emit(WS_EVENTS.GATEWAY_READY, { sessionId: client.id, seq: currentSeq });
 
           this.metricsService?.incrementActiveConnections();
@@ -462,9 +469,9 @@ export class MessengerGateway
     callback?: (res: {
       status: string;
       message?: unknown;
-      error?: string;
-      clientMessageId?: string;
-      clientSeq?: number;
+      error?: string | undefined;
+      clientMessageId?: string | undefined;
+      clientSeq?: number | undefined;
     }) => void,
   ): Promise<void> {
     const isLimited = await this.isRateLimited(client.userId).catch(() => false);
@@ -884,15 +891,17 @@ export class MessengerGateway
   ): void {
     void (async () => {
       try {
-        const seq = await this.redisService.incr(`user:seq:${userId}`);
+        const seq = (await this.redisService.incr(`user:seq:${userId}`)) | 0;
         await this.redisService.expire(`user:seq:${userId}`, 86400 * 30).catch(() => {});
-        const wrapped = gatewayWrapperPool.acquire();
-        wrapped.seq = seq;
-        wrapped.event = event;
-        wrapped.payload = payload;
-        wrapped.timestamp = Date.now();
-        const serialized = JSON.stringify(wrapped);
-        gatewayWrapperPool.release(wrapped);
+
+        // Shape-stable wrapper — always same key order {seq, event, payload, timestamp}
+        // V8 assigns one stable hidden-class for all emitToUser calls
+        const wrapped = makeWsEvent(seq, event, payload, Date.now());
+        const serialized = buildWsFrameString(wrapped);
+        // Pool release no longer needed (makeWsEvent is allocation-per-call but
+        // remains monomorphic — GC collects this, no fragmentation from mixed shapes)
+        // For zero-allocation budget: the pool is still used for typing/read-receipts
+        // which are the true high-frequency paths (100+ calls/sec)
 
         const bufferKey = `user:events:${userId}`;
         await this.redisService.zadd(bufferKey, seq, serialized);
@@ -1125,6 +1134,33 @@ export class MessengerGateway
     if (payload?.storyId) {
       this.server.to(`story:${payload.storyId}`).emit('story:poll_voted', payload);
     }
+  }
+
+  @SubscribeMessage('e2ee:key_exchange')
+  handleE2eeKeyExchange(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody()
+    payload: {
+      recipientId: string;
+      ephemeralPublicKey: string;
+      conversationId?: string;
+    },
+    callback?: (res: { status: string }) => void,
+  ): void {
+    const senderId = client.userId;
+    if (!senderId || !payload?.recipientId || !payload?.ephemeralPublicKey) {
+      callback?.({ status: 'error' });
+      return;
+    }
+
+    this.server.to(`user:${payload.recipientId}`).emit('e2ee:key_exchange_received', {
+      senderId,
+      ephemeralPublicKey: payload.ephemeralPublicKey,
+      conversationId: payload.conversationId,
+      timestamp: new Date().toISOString(),
+    });
+
+    callback?.({ status: 'ok' });
   }
 
   private extractToken(client: Socket): string | null {

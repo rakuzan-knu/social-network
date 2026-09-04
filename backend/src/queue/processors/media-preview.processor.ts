@@ -62,6 +62,7 @@ export class MediaPreviewProcessor implements OnModuleInit, OnModuleDestroy {
               reqMethod: 'BULLMQ_JOB',
               reqUrl: `queue:${QUEUE_MEDIA_PREVIEWS}:${job.name}`,
               startTime: Date.now(),
+              startHrTime: process.hrtime.bigint(),
             },
             async () => {
               await this.processJob(job);

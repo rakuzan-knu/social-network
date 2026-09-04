@@ -8,6 +8,7 @@ import type { PrismaService } from '@common/prisma';
 import type { ConfigService } from '@nestjs/config';
 import type { MessengerGateway } from '../../gateway/messenger.gateway';
 import { MuteLevel, ReportCategory } from '@prisma/client';
+import { Permission } from '@common/contracts';
 
 describe('ConversationsService', () => {
   let service: ConversationsService;
@@ -311,6 +312,8 @@ describe('ConversationsService', () => {
       });
       expect(res.success).toBe(true);
       expect(res.permissions.canEditGroup).toBe(true);
+      expect(typeof res.permissionsMask).toBe('number');
+      expect((res.permissionsMask & Permission.CAN_EDIT) !== 0).toBe(true);
     });
 
     it('promotes and demotes members', async () => {

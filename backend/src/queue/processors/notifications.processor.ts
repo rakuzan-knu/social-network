@@ -76,6 +76,7 @@ export class NotificationsProcessor implements OnModuleInit, OnModuleDestroy {
               reqMethod: 'BULLMQ_JOB',
               reqUrl: `queue:${QUEUE_NOTIFICATIONS}:${job.name}`,
               startTime: Date.now(),
+              startHrTime: process.hrtime.bigint(),
             },
             async () => {
               await this.processJob(job);

@@ -1,5 +1,4 @@
 import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
-import { FollowStatus } from '@prisma/client';
 
 export enum RelationState {
   NONE = 'NONE',

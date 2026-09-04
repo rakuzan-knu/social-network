@@ -47,11 +47,11 @@ export class NotificationsRepository implements INotificationsRepository {
     const created = await this.prisma.notification.create({
       data: {
         userId: data.userId,
-        actorId: data.actorId,
+        actorId: data.actorId ?? null,
         type: data.type,
-        postId: data.postId,
-        commentId: data.commentId,
-        text: data.text,
+        postId: data.postId ?? null,
+        commentId: data.commentId ?? null,
+        text: data.text ?? null,
         extraCount: data.extraCount ?? 0,
       },
       include: NOTIFICATION_INCLUDE,
@@ -62,9 +62,9 @@ export class NotificationsRepository implements INotificationsRepository {
   async findRecentMatching(params: {
     userId: string;
     type: NotificationType;
-    postId?: string | null;
-    commentId?: string | null;
-    withinSeconds?: number;
+    postId?: string | null | undefined;
+    commentId?: string | null | undefined;
+    withinSeconds?: number | undefined;
   }): Promise<NotificationWithRelations | null> {
     const seconds = params.withinSeconds ?? 86400; // Default 24h grouping window
     const since = new Date(Date.now() - seconds * 1000);
@@ -122,8 +122,8 @@ export class NotificationsRepository implements INotificationsRepository {
         where,
         take: params.limit + 1,
         skip: params.cursor ? 1 : 0,
-        cursor: params.cursor ? { id: params.cursor } : undefined,
         orderBy: { createdAt: 'desc' },
+        ...(params.cursor ? { cursor: { id: params.cursor } } : {}),
         include: NOTIFICATION_INCLUDE,
       });
       return items;

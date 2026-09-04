@@ -54,7 +54,6 @@ export class CommentsRepository implements ICommentsRepository {
 
     return this.prisma.comment.create({
       data: {
-        id: this.snowflake ? this.snowflake.generate() : undefined,
         text: dto.text,
         postId,
         userId,
@@ -62,6 +61,7 @@ export class CommentsRepository implements ICommentsRepository {
         rootParentId,
         replyToUserId,
         mediaUrl: dto.mediaUrl || null,
+        ...(this.snowflake ? { id: this.snowflake.generate() } : {}),
       },
       include: {
         user: { select: userSelect },
@@ -85,8 +85,8 @@ export class CommentsRepository implements ICommentsRepository {
       },
       take: limit + 1,
       skip: after ? 1 : 0,
-      cursor: after ? { id: after } : undefined,
       orderBy: [{ isPinned: 'desc' }, { createdAt: 'asc' }, { id: 'asc' }],
+      ...(after ? { cursor: { id: after } } : {}),
       include: {
         user: { select: userSelect },
         replyToUser: { select: replyToUserSelect },
@@ -131,8 +131,8 @@ export class CommentsRepository implements ICommentsRepository {
       },
       take: limit + 1,
       skip: after ? 1 : 0,
-      cursor: after ? { id: after } : undefined,
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      ...(after ? { cursor: { id: after } } : {}),
       include: {
         user: { select: userSelect },
         replyToUser: { select: replyToUserSelect },

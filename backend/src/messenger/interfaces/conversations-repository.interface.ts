@@ -16,7 +16,7 @@ export interface IConversationsRepository {
 
   createGroup(data: {
     name: string;
-    description?: string;
+    description?: string | undefined;
     createdById: string;
     memberIds: string[];
   }): Promise<ConversationWithDetails>;
@@ -27,7 +27,11 @@ export interface IConversationsRepository {
 
   updateGroup(
     conversationId: string,
-    data: { name?: string; description?: string; avatar?: string | null },
+    data: {
+      name?: string | undefined;
+      description?: string | undefined;
+      avatar?: string | null | undefined;
+    },
   ): Promise<Conversation>;
 
   findParticipant(conversationId: string, userId: string): Promise<ConversationParticipant | null>;
@@ -51,6 +55,7 @@ export interface IConversationsRepository {
       muteLevel: MuteLevel;
       mutedUntil: Date | null;
       role: ParticipantRole;
+      permissions: number;
       archivedAt: Date | null;
       leftAt: Date | null;
       pinnedAt: Date | null;

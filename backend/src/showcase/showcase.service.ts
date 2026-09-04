@@ -7,16 +7,15 @@ import {
   Optional,
 } from '@nestjs/common';
 import { RedisService } from '../redis/redis.service';
-import { FollowStatus } from '@prisma/client';
-import {
-  ShowcasePrivacy,
-  type UpdateShowcaseDto,
-  type ProfileShowcaseDto,
-  type ShowcaseMediaItemDto,
-  type SpotlightMediaDto,
-  type ProfileAnthemDto,
-  type LiveActivityStatusDto,
-  type ConnectedAccountsDto,
+import { FollowStatus, ShowcasePrivacy, type ShowcaseMedia } from '@prisma/client';
+import type {
+  UpdateShowcaseDto,
+  ProfileShowcaseDto,
+  ShowcaseMediaItemDto,
+  SpotlightMediaDto,
+  ProfileAnthemDto,
+  LiveActivityStatusDto,
+  ConnectedAccountsDto,
 } from '@common/contracts';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
@@ -169,35 +168,20 @@ export class ShowcaseService {
       : null;
 
     const mediaItems: ShowcaseMediaItemDto[] = showcaseAllowed
-      ? (rawShowcase.mediaItems || []).map(
-          (m: {
-            id: string;
-            type: any;
-            isWishlist?: boolean | null;
-            title: string;
-            posterUrl: string;
-            externalId?: string | null;
-            externalUrl?: string | null;
-            rating?: number | null;
-            userComment?: string | null;
-            tags?: string[] | null;
-            releaseYear?: number | null;
-            position: number;
-          }) => ({
-            id: m.id,
-            type: m.type,
-            isWishlist: m.isWishlist ?? false,
-            title: m.title,
-            posterUrl: m.posterUrl,
-            externalId: m.externalId,
-            externalUrl: m.externalUrl,
-            rating: m.rating,
-            userComment: m.userComment,
-            tags: m.tags || [],
-            releaseYear: m.releaseYear,
-            position: m.position,
-          }),
-        )
+      ? (rawShowcase.mediaItems || []).map((m: ShowcaseMedia) => ({
+          id: m.id,
+          type: m.type,
+          isWishlist: m.isWishlist ?? false,
+          title: m.title,
+          posterUrl: m.posterUrl,
+          externalId: m.externalId,
+          externalUrl: m.externalUrl,
+          rating: m.rating,
+          userComment: m.userComment,
+          tags: m.tags || [],
+          releaseYear: m.releaseYear,
+          position: m.position,
+        }))
       : [];
 
     // Check if at least 1 widget is visible and configured

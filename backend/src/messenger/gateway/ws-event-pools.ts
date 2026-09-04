@@ -60,6 +60,13 @@ export const readReceiptPool = new ObjectPool<ReadReceiptPayload>({
   },
 });
 
+export interface GatewayEventWrapper {
+  seq: number;
+  event: string;
+  payload: unknown;
+  timestamp: number;
+}
+
 /**
  * Pre-allocated object pool for Sequence Buffer wrappers in emitToUser.
  */

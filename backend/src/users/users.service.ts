@@ -23,6 +23,8 @@ import {
   RESERVED_USERNAMES,
   type UpdateUserDto,
   type UserProfileDto,
+  UserFlags,
+  DEFAULT_USER_FLAGS,
 } from '@common/contracts';
 import { USERS_REPOSITORY } from './interfaces/users-repository.interface';
 import type { IUsersRepository } from './interfaces/users-repository.interface';
@@ -45,6 +47,7 @@ type RawProfile = {
   birthDate: string | null;
   isPrivate: boolean;
   isVerified: boolean;
+  flags?: number;
   primaryBadge: string | null;
   badges: string[];
   githubUsername: string | null;
@@ -766,6 +769,13 @@ export class UsersService {
       birthDate: user.birthDate ? user.birthDate.toISOString() : null,
       isPrivate: user.isPrivate,
       isVerified: user.isVerified ?? false,
+      flags:
+        (user as unknown as { flags?: number }).flags !== undefined &&
+        (user as unknown as { flags?: number }).flags !== 0
+          ? (user as unknown as { flags: number }).flags
+          : user.isVerified
+            ? DEFAULT_USER_FLAGS | UserFlags.IS_VERIFIED
+            : DEFAULT_USER_FLAGS,
       primaryBadge: user.primaryBadge ?? null,
       badges,
       githubUsername: user.githubUsername ?? null,
@@ -803,6 +813,7 @@ export class UsersService {
       bio: null,
       isPrivate: raw.isPrivate,
       isVerified: raw.isVerified ?? false,
+      flags: raw.flags ?? DEFAULT_USER_FLAGS,
       primaryBadge: raw.primaryBadge ?? null,
       badges: raw.badges ?? [],
       githubUsername: raw.githubUsername ?? null,

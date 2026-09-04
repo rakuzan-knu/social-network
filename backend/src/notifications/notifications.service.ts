@@ -24,6 +24,7 @@ import {
   PaginatedNotificationsResponseDto,
   UpdateNotificationSettingsDto,
 } from '@common/contracts';
+import { makeNotificationUnreadCounts } from '../common/v8/shape-stable';
 import { CreateNotificationEvent, NOTIFICATION_EVENTS } from './events/notification.events';
 import { QueueService } from '../queue/queue.service';
 import { NotificationJobType } from '../queue/queue.constants';
@@ -143,12 +144,21 @@ export class NotificationsService {
 
     if (this.gateway && isPushAllowed) {
       try {
-        const unreadCounts = await this.repo.countUnreadByCategory(userId);
+        const categoryCounts = await this.repo.countUnreadByCategory(userId);
         const total = await this.repo.countUnread(userId);
+        const unreadCounts = makeNotificationUnreadCounts(
+          total,
+          categoryCounts.likes,
+          categoryCounts.comments,
+          categoryCounts.follows,
+          categoryCounts.mentions,
+          categoryCounts.reposts,
+          categoryCounts.system,
+        );
 
         this.gateway.emitToUser(userId, WS_EVENTS.NOTIFICATION_NEW, {
           notification: dto,
-          unreadCounts: { ...unreadCounts, total },
+          unreadCounts,
         });
       } catch (err) {
         this.logger.warn(`Failed to emit socket notification: ${(err as Error).message}`);
@@ -230,13 +240,22 @@ export class NotificationsService {
 
     if (this.gateway) {
       try {
-        const unreadCounts = await this.repo.countUnreadByCategory(userId);
+        const categoryCounts = await this.repo.countUnreadByCategory(userId);
         const total = await this.repo.countUnread(userId);
+        const unreadCounts = makeNotificationUnreadCounts(
+          total,
+          categoryCounts.likes,
+          categoryCounts.comments,
+          categoryCounts.follows,
+          categoryCounts.mentions,
+          categoryCounts.reposts,
+          categoryCounts.system,
+        );
 
         this.gateway.emitToUser(userId, WS_EVENTS.NOTIFICATION_READ, {
           notificationId: id,
           allRead: false,
-          unreadCounts: { ...unreadCounts, total },
+          unreadCounts,
         });
       } catch (err) {
         this.logger.warn(`Failed to emit socket read: ${(err as Error).message}`);
@@ -258,10 +277,15 @@ export class NotificationsService {
       this.repo.countUnread(userId),
     ]);
 
-    const unreadCounts = {
+    const unreadCounts = makeNotificationUnreadCounts(
       total,
-      ...categoryCounts,
-    };
+      categoryCounts.likes,
+      categoryCounts.comments,
+      categoryCounts.follows,
+      categoryCounts.mentions,
+      categoryCounts.reposts,
+      categoryCounts.system,
+    );
 
     if (this.gateway) {
       try {
@@ -296,10 +320,15 @@ export class NotificationsService {
       this.repo.countUnread(userId),
     ]);
 
-    const unreadCounts = {
+    const unreadCounts = makeNotificationUnreadCounts(
       total,
-      ...categoryCounts,
-    };
+      categoryCounts.likes,
+      categoryCounts.comments,
+      categoryCounts.follows,
+      categoryCounts.mentions,
+      categoryCounts.reposts,
+      categoryCounts.system,
+    );
 
     if (this.gateway) {
       try {
@@ -326,21 +355,18 @@ export class NotificationsService {
         this.repo.countUnread(userId),
       ]);
 
-      return {
+      return makeNotificationUnreadCounts(
         total,
-        ...categoryCounts,
-      };
+        categoryCounts.likes,
+        categoryCounts.comments,
+        categoryCounts.follows,
+        categoryCounts.mentions,
+        categoryCounts.reposts,
+        categoryCounts.system,
+      );
     } catch (err) {
       this.logger.error(`Failed to get unread counts: ${(err as Error).message}`);
-      return {
-        total: 0,
-        likes: 0,
-        comments: 0,
-        follows: 0,
-        mentions: 0,
-        reposts: 0,
-        system: 0,
-      };
+      return makeNotificationUnreadCounts(0, 0, 0, 0, 0, 0, 0);
     }
   }
 
@@ -445,7 +471,12 @@ export class NotificationsService {
     userId: string,
     dto: UpdateNotificationSettingsDto,
   ): Promise<NotificationSettingsDto> {
-    const prismaUpdateData: Prisma.UserNotificationSettingsUpdateInput = { ...dto };
+    const prismaUpdateData: Prisma.UserNotificationSettingsUpdateInput = {};
+    for (const [key, value] of Object.entries(dto)) {
+      if (value !== undefined && key !== 'dndUntil') {
+        (prismaUpdateData as Record<string, unknown>)[key] = value;
+      }
+    }
     if (dto.dndUntil !== undefined) {
       prismaUpdateData.dndUntil = dto.dndUntil ? new Date(dto.dndUntil) : null;
     }

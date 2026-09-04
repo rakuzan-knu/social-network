@@ -38,6 +38,14 @@ import type {
   UserSnapshot,
   ReportDto,
 } from '@common/contracts';
+import {
+  Permission,
+  DEFAULT_ADMIN_PERMISSIONS,
+  DEFAULT_MEMBER_PERMISSIONS,
+  DEFAULT_OWNER_PERMISSIONS,
+  adminPermissionsToMask,
+  maskToAdminPermissions,
+} from '@common/contracts';
 import { MessengerMapper } from '../messenger.mapper';
 import type { ReportCategory } from '@prisma/client';
 import { WS_EVENTS } from '../events/ws-events';
@@ -274,6 +282,20 @@ export class ConversationsService implements OnModuleDestroy {
 
       await this.assertMember(conversationId, userId);
 
+      const inviter = conv.participants.find((p) => p.userId === userId);
+      if (inviter) {
+        const inviterFlags =
+          (inviter as unknown as { permissions?: number }).permissions ??
+          (inviter.role === 'OWNER'
+            ? DEFAULT_OWNER_PERMISSIONS
+            : inviter.role === 'ADMIN'
+              ? DEFAULT_ADMIN_PERMISSIONS
+              : DEFAULT_MEMBER_PERMISSIONS);
+        if (inviter.role !== 'OWNER' && (inviterFlags & Permission.CAN_INVITE_USERS) === 0) {
+          throw new ForbiddenException('You do not have permission to invite users');
+        }
+      }
+
       const existingUsersCount = await this.prisma.user.count({
         where: { id: { in: dto.memberIds } },
       });
@@ -303,7 +325,18 @@ export class ConversationsService implements OnModuleDestroy {
     if (conv.type !== 'GROUP') throw new BadRequestException('Not a group');
 
     const admin = conv.participants.find((p) => p.userId === adminId);
-    if (!admin || (admin.role !== 'ADMIN' && admin.role !== 'OWNER')) {
+    if (!admin) {
+      throw new ForbiddenException('Only admins can remove members');
+    }
+    const adminFlags =
+      (admin as unknown as { permissions?: number }).permissions ??
+      (admin.role === 'OWNER'
+        ? DEFAULT_OWNER_PERMISSIONS
+        : admin.role === 'ADMIN'
+          ? DEFAULT_ADMIN_PERMISSIONS
+          : DEFAULT_MEMBER_PERMISSIONS);
+
+    if (admin.role !== 'OWNER' && (adminFlags & Permission.CAN_MANAGE_MEMBERS) === 0) {
       throw new ForbiddenException('Only admins can remove members');
     }
 
@@ -324,13 +357,14 @@ export class ConversationsService implements OnModuleDestroy {
     ownerId: string,
     targetUserId: string,
     permissions: {
-      canEditGroup?: boolean;
-      canDeleteMessages?: boolean;
-      canManageMembers?: boolean;
-      canPinMessages?: boolean;
-      canInviteUsers?: boolean;
+      permissions?: number | undefined;
+      canEditGroup?: boolean | undefined;
+      canDeleteMessages?: boolean | undefined;
+      canManageMembers?: boolean | undefined;
+      canPinMessages?: boolean | undefined;
+      canInviteUsers?: boolean | undefined;
     },
-  ): Promise<{ success: boolean; permissions: Record<string, boolean> }> {
+  ): Promise<{ success: boolean; permissions: Record<string, boolean>; permissionsMask: number }> {
     const conv = await this.convsRepo.findOneForUser(conversationId, ownerId);
     if (!conv) throw new NotFoundException('Conversation not found');
     if (conv.type !== 'GROUP') {
@@ -348,15 +382,28 @@ export class ConversationsService implements OnModuleDestroy {
       throw new BadRequestException('Target user must have ADMIN role');
     }
 
+    const currentMask =
+      (target as unknown as { permissions?: number }).permissions ?? DEFAULT_ADMIN_PERMISSIONS;
+
+    const finalMask =
+      permissions.permissions !== undefined
+        ? permissions.permissions
+        : adminPermissionsToMask(permissions, currentMask);
+
+    await this.convsRepo.updateParticipant(conversationId, targetUserId, {
+      permissions: finalMask,
+    });
+
+    const flags = maskToAdminPermissions(finalMask);
+
     return {
       success: true,
+      permissionsMask: finalMask,
       permissions: {
-        canEditGroup: permissions.canEditGroup ?? true,
-        canDeleteMessages: permissions.canDeleteMessages ?? true,
-        canManageMembers: permissions.canManageMembers ?? true,
-        canPinMessages: permissions.canPinMessages ?? true,
-        canInviteUsers: permissions.canInviteUsers ?? true,
+        ...flags,
+        mask: finalMask as unknown as boolean,
       },
+      ...flags,
     };
   }
 
@@ -575,7 +622,21 @@ export class ConversationsService implements OnModuleDestroy {
   private async assertGroupAdmin(conversationId: string, userId: string): Promise<void> {
     const participants = await this.convsRepo.findParticipants(conversationId);
     const p = participants.find((p) => p.userId === userId);
-    if (!p || (p.role !== 'ADMIN' && p.role !== 'OWNER')) {
+    if (!p) {
+      throw new ForbiddenException('Only admins can perform this action');
+    }
+    const pFlags =
+      (p as unknown as { permissions?: number }).permissions ??
+      (p.role === 'OWNER'
+        ? DEFAULT_OWNER_PERMISSIONS
+        : p.role === 'ADMIN'
+          ? DEFAULT_ADMIN_PERMISSIONS
+          : DEFAULT_MEMBER_PERMISSIONS);
+    if (
+      p.role !== 'OWNER' &&
+      (pFlags & Permission.IS_ADMIN) === 0 &&
+      (pFlags & Permission.CAN_EDIT) === 0
+    ) {
       throw new ForbiddenException('Only admins can perform this action');
     }
   }

@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { RedisService } from '../../redis/redis.service';
 import { WS_EVENTS } from '../events/ws-events';
 import type { Server } from 'socket.io';
@@ -28,7 +28,7 @@ export type VisibilityFilterFn = (
  *    - Evaluates multi-user online status directly from Redis ZSET and in-memory hot cache.
  */
 @Injectable()
-export class PresenceEngineService implements OnModuleDestroy {
+export class PresenceEngineService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PresenceEngineService.name);
 
   public static readonly PRESENCE_ZSET_KEY = 'presence:online_zset';
@@ -52,6 +52,10 @@ export class PresenceEngineService implements OnModuleDestroy {
 
   constructor(private readonly redisService: RedisService) {
     this.startTimers();
+  }
+
+  onModuleInit(): void {
+    this.logger.log('PresenceEngineService initialized');
   }
 
   onModuleDestroy(): void {

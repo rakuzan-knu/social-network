@@ -44,7 +44,7 @@ export interface IPrivacyRepository {
     ownerIds: string[],
     viewerId: string | null,
   ): Promise<{
-    privacyRows: any[];
+    privacyRows: UserPrivacy[];
     exceptionRows: {
       ownerId: string;
       dimension: PrivacyDimension;

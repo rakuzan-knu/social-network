@@ -5,6 +5,12 @@ import type {
   ParticipantView,
   ReactionSummary,
 } from '@common/contracts';
+import {
+  DEFAULT_MEMBER_PERMISSIONS,
+  DEFAULT_ADMIN_PERMISSIONS,
+  DEFAULT_OWNER_PERMISSIONS,
+} from '@common/contracts';
+import { makeReactionSummary } from '../common/v8/shape-stable';
 import type {
   MessageWithDetails,
   ConversationWithDetails,
@@ -38,10 +44,9 @@ export class MessengerMapper {
       reactionMap.set(r.emoji, entry);
     }
 
-    const reactions: ReactionSummary[] = Array.from(reactionMap.entries()).map(([emoji, data]) => ({
-      emoji,
-      ...data,
-    }));
+    const reactions: ReactionSummary[] = Array.from(reactionMap.entries()).map(([emoji, data]) =>
+      makeReactionSummary(emoji, data.count, data.selfReacted, data.users),
+    );
 
     const isDeletedForMe = msg.deletedFor?.some((d) => d.userId === requestingUserId) ?? false;
     const isMessageHidden = isDeletedForMe || msg.deletedForAll;
@@ -55,7 +60,7 @@ export class MessengerMapper {
       conversationId: msg.conversationId,
       sender: msg.sender,
       body: isMessageHidden ? null : (msg.body ?? null),
-      clientSeq: msg.clientSeq ?? null,
+      clientSeq: msg.clientSeq != null ? msg.clientSeq | 0 : null,
       messageType: msg.messageType,
       replyTo: msg.replyTo
         ? this.mapMessage(
@@ -81,11 +86,13 @@ export class MessengerMapper {
             url: a.url,
             fileName: a.fileName ?? null,
             mimeType: a.mimeType ?? null,
-            size: a.size ?? null,
-            width: a.width ?? null,
-            height: a.height ?? null,
-            duration: a.duration ?? null,
+            size: a.size != null ? a.size | 0 : null,
+            width: a.width != null ? a.width | 0 : null,
+            height: a.height != null ? a.height | 0 : null,
+            duration: a.duration != null ? a.duration | 0 : null,
             thumbnailUrl: a.thumbnailUrl ?? null,
+            waveform: (a as unknown as { waveform?: number[] }).waveform,
+            isSpoiler: Boolean((a as unknown as { isSpoiler?: boolean }).isSpoiler),
           })),
 
       reactions,
@@ -105,11 +112,25 @@ export class MessengerMapper {
         : ((p.user as unknown as { defaultChatTheme?: string | null })?.defaultChatTheme ??
           'default');
 
+    const defaultPermissions =
+      p.role === 'OWNER'
+        ? DEFAULT_OWNER_PERMISSIONS
+        : p.role === 'ADMIN'
+          ? DEFAULT_ADMIN_PERMISSIONS
+          : DEFAULT_MEMBER_PERMISSIONS;
+
+    const permissions =
+      (p as unknown as { permissions?: number }).permissions !== undefined &&
+      (p as unknown as { permissions?: number }).permissions !== 0
+        ? (p as unknown as { permissions: number }).permissions | 0
+        : defaultPermissions | 0;
+
     return {
       userId: p.userId,
       user: p.user,
       nickname: p.nickname ?? null,
       role: p.role,
+      permissions,
       theme: effectiveTheme,
       muteLevel: p.muteLevel,
       mutedUntil: p.mutedUntil ?? null,
@@ -169,13 +190,13 @@ export class MessengerMapper {
       createdById: conv.createdById ?? null,
       participants: conv.participants.map((p) => this.mapParticipant(p)),
       lastMessage,
-      unreadCount,
+      unreadCount: unreadCount | 0,
       myTheme: effectiveTheme,
       myMuteLevel: effectiveMuteLevel,
       myMutedUntil: isMuteExpired ? null : (myParticipant?.mutedUntil ?? null),
       myNickname: myParticipant?.nickname ?? null,
-      isArchived: !!myParticipant?.archivedAt,
-      isPinned: !!myParticipant?.pinnedAt,
+      isArchived: Boolean(myParticipant?.archivedAt),
+      isPinned: Boolean(myParticipant?.pinnedAt),
       blockedByMe: iBlockedThem,
       blockingMe: theyBlockedMe,
       isBlocked: iBlockedThem || theyBlockedMe,

@@ -46,7 +46,11 @@ describe('QueueService', () => {
     get: jest.Mock;
   };
 
+  let prevTestBullmq: string | undefined;
+
   beforeEach(() => {
+    prevTestBullmq = process.env.TEST_BULLMQ;
+    process.env.TEST_BULLMQ = 'true';
     jest.clearAllMocks();
     mockConfigService = {
       get: jest.fn().mockReturnValue('redis://localhost:6379'),
@@ -55,6 +59,11 @@ describe('QueueService', () => {
   });
 
   afterEach(async () => {
+    if (prevTestBullmq !== undefined) {
+      process.env.TEST_BULLMQ = prevTestBullmq;
+    } else {
+      delete process.env.TEST_BULLMQ;
+    }
     await service.onModuleDestroy();
   });
 

@@ -18,7 +18,7 @@ import { RedisService } from '../redis/redis.service';
 import { PostsMediaService, type ProcessedMedia } from './posts-media.service';
 import { MessengerGateway } from '../messenger/gateway/messenger.gateway';
 import { WS_EVENTS } from '../messenger/events/ws-events';
-import { MediaType, NotificationType, type ReportCategory } from '@prisma/client';
+import { MediaType, NotificationType, type ReportCategory, Prisma } from '@prisma/client';
 import {
   CreateNotificationEvent,
   NOTIFICATION_EVENTS,
@@ -104,18 +104,28 @@ export class PostsService {
     authorId: string,
     files?: Express.Multer.File[],
   ): Promise<PostResponseDto> {
-    const mediaItems: { type: MediaType; url: string; poster?: string; order: number }[] = [];
+    const mediaItems: {
+      type: MediaType;
+      url: string;
+      poster?: string | undefined;
+      order: number;
+    }[] = [];
 
     if (dto.media && dto.media.length > 0) {
       dto.media.forEach(
         (
-          item: { type: MediaType; url: string; poster?: string; order?: number },
+          item: {
+            type: MediaType;
+            url: string;
+            poster?: string | undefined;
+            order?: number | undefined;
+          },
           index: number,
         ) => {
           mediaItems.push({
             type: item.type,
             url: item.url,
-            poster: item.poster,
+            ...(item.poster ? { poster: item.poster } : {}),
             order: item.order ?? index,
           });
         },
@@ -148,17 +158,18 @@ export class PostsService {
     const post = await this.postsRepository.createPost({
       content: contentText,
       author: { connect: { id: authorId } },
-      media:
-        mediaItems.length > 0
-          ? {
+      ...(mediaItems.length > 0
+        ? {
+            media: {
               create: mediaItems.map((m) => ({
                 type: m.type,
                 url: m.url,
-                poster: m.poster,
+                ...(m.poster ? { poster: m.poster } : {}),
                 order: m.order,
               })),
-            }
-          : undefined,
+            },
+          }
+        : {}),
     });
 
     // If poll options were provided, create the poll
@@ -173,7 +184,7 @@ export class PostsService {
             pollTitle,
             validOptions,
           )) as typeof post.poll;
-          post.poll = createdPoll;
+          post.poll = createdPoll ?? null;
         }
       } catch (e) {
         this.logger.warn(`Non-blocking poll creation failure for post ${post.id}: ${String(e)}`);
@@ -322,8 +333,10 @@ export class PostsService {
     const post = await this.postsRepository.getPostById(id);
     if (!post) throw new NotFoundException('Post not found');
     if (post.authorId !== userId) throw new ForbiddenException('You can only edit your own posts');
+    const updateData: Prisma.PostUpdateInput = {};
+    if (dto.content !== undefined) updateData.content = dto.content;
 
-    const edited = await this.postsRepository.editPost(id, dto);
+    const edited = await this.postsRepository.editPost(id, updateData);
     await this.invalidateFeedAndPost(id);
     return PostResponseDto.fromPrisma(edited);
   }
@@ -436,7 +449,7 @@ export class PostsService {
     const mapped = posts.map((p) => ({
       ...p,
       isPinned: p.id === pinnedPostId,
-      pinnedAt: p.id === pinnedPostId ? p.createdAt : undefined,
+      pinnedAt: p.id === pinnedPostId ? p.createdAt : null,
     }));
 
     if (!after && pinnedPostId) {

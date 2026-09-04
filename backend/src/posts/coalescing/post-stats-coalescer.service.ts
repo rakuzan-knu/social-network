@@ -1,10 +1,10 @@
-import { Inject, Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { POSTS_REPOSITORY } from '../interfaces/posts-repository.interface';
 import type { IPostRepository } from '../interfaces/posts-repository.interface';
 import { WriteCoalescer } from '../../common/coalescing';
 
 @Injectable()
-export class PostStatsCoalescerService implements OnModuleDestroy {
+export class PostStatsCoalescerService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PostStatsCoalescerService.name);
   private readonly coalescer: WriteCoalescer<string, number>;
 
@@ -43,6 +43,10 @@ export class PostStatsCoalescerService implements OnModuleDestroy {
    */
   async flush(): Promise<void> {
     await this.coalescer.flush();
+  }
+
+  onModuleInit(): void {
+    this.logger.log('PostStatsCoalescerService initialized');
   }
 
   async onModuleDestroy(): Promise<void> {

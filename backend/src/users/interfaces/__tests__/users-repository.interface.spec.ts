@@ -21,6 +21,7 @@ describe('users-repository.interface', () => {
       bannerPosition: 50,
       isPrivate: false,
       isVerified: false,
+      flags: 0,
       primaryBadge: null,
       githubId: null,
       githubUsername: null,

@@ -61,10 +61,10 @@ export class StoriesRepository {
         authorId: data.authorId,
         mediaUrl: data.mediaUrl,
         mediaType: data.mediaType,
-        caption: data.caption,
-        overlays: data.overlays,
+        caption: data.caption ?? null,
         privacy: data.privacy,
         expiresAt: data.expiresAt,
+        ...(data.overlays !== undefined ? { overlays: data.overlays } : {}),
       },
       include: {
         author: {

@@ -1,4 +1,4 @@
-import { Injectable, Logger, Optional } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit, Optional } from '@nestjs/common';
 import type { Socket } from 'socket.io';
 
 export type EventPriority = 'ephemeral' | 'critical';
@@ -16,7 +16,7 @@ interface QueuedEvent {
 }
 
 @Injectable()
-export class WsBackpressureService {
+export class WsBackpressureService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(WsBackpressureService.name);
 
   private readonly maxWriteBufferPackets: number;
@@ -199,5 +199,14 @@ export class WsBackpressureService {
     } else {
       setTimeout(onDrain, 50);
     }
+  }
+
+  onModuleInit(): void {
+    this.logger.log('WsBackpressureService initialized');
+  }
+
+  onModuleDestroy(): void {
+    this.socketQueues.clear();
+    this.drainingSockets.clear();
   }
 }

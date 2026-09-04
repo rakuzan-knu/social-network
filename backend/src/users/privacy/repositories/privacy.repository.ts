@@ -5,6 +5,7 @@ import {
   type FollowStatus,
   type PrivacyDimension,
   type Prisma,
+  type UserPrivacy,
 } from '@prisma/client';
 import type { PrivacyExceptionUserDto } from '@common/contracts';
 import { chunkArray } from '@common/utils/batch-stream.util';
@@ -97,7 +98,7 @@ export class PrivacyRepository implements IPrivacyRepository {
     ownerIds: string[],
     viewerId: string | null,
   ): Promise<{
-    privacyRows: any[];
+    privacyRows: UserPrivacy[];
     exceptionRows: {
       ownerId: string;
       dimension: PrivacyDimension;
@@ -110,7 +111,7 @@ export class PrivacyRepository implements IPrivacyRepository {
     const uniqueOwners = [...new Set(ownerIds)];
     const ownerBatches = chunkArray(uniqueOwners, 500);
 
-    const privacyRows: any[] = [];
+    const privacyRows: UserPrivacy[] = [];
     const exceptionRows: {
       ownerId: string;
       dimension: PrivacyDimension;

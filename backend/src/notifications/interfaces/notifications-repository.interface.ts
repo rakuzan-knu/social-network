@@ -18,17 +18,17 @@ export interface INotificationsRepository {
   findRecentMatching(params: {
     userId: string;
     type: NotificationType;
-    postId?: string | null;
-    commentId?: string | null;
-    withinSeconds?: number;
+    postId?: string | null | undefined;
+    commentId?: string | null | undefined;
+    withinSeconds?: number | undefined;
   }): Promise<NotificationWithRelations | null>;
   update(id: string, data: Prisma.NotificationUpdateInput): Promise<NotificationWithRelations>;
   findById(id: string): Promise<NotificationWithRelations | null>;
   findMany(params: {
     userId: string;
-    types?: NotificationType[];
+    types?: NotificationType[] | undefined;
     limit: number;
-    cursor?: string;
+    cursor?: string | undefined;
   }): Promise<NotificationWithRelations[]>;
   markAsRead(id: string, userId: string): Promise<NotificationWithRelations | null>;
   markAllAsRead(userId: string, types?: NotificationType[]): Promise<number>;

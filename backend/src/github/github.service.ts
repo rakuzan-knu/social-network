@@ -11,6 +11,7 @@ import { CircuitBreaker } from '../common/resilience/circuit-breaker';
 import { safeJsonParse } from '../common/utils/json.util';
 import { TraceContext } from '../common/tracing/trace-context';
 import * as crypto from 'crypto';
+import { timingSafeEqual } from '../common/crypto/timing-safe';
 import type { Request, Response } from 'express';
 import {
   GITHUB_REPOSITORY,
@@ -50,11 +51,11 @@ export class GithubService {
   }
 
   private get clientId(): string {
-    return this.config.get<string>('GITHUB_CLIENT_ID') || '9407946148e4d58d7030';
+    return this.config.get<string>('GITHUB_CLIENT_ID') || '';
   }
 
   private get clientSecret(): string {
-    return this.config.get<string>('GITHUB_CLIENT_SECRET') || 'mock_github_client_secret';
+    return this.config.get<string>('GITHUB_CLIENT_SECRET') || '';
   }
 
   private get callbackUrl(): string {
@@ -85,8 +86,7 @@ export class GithubService {
       try {
         const parts = rawToken.split('.');
         if (parts.length === 3) {
-          const rawPayload = Buffer.from(parts[1], 'base64url').toString('utf8');
-          const payload = safeJsonParse<{ sub?: string }>(rawPayload);
+          const payload = safeJsonParse<{ sub?: string }>(Buffer.from(parts[1], 'base64url'));
           if (payload?.sub) userIdParam = String(payload.sub);
         }
       } catch (e) {
@@ -141,7 +141,7 @@ export class GithubService {
       const abortSignal = TraceContext.getAbortSignal();
       const tokenRes = await fetch('https://github.com/login/oauth/access_token', {
         method: 'POST',
-        signal: abortSignal,
+        ...(abortSignal ? { signal: abortSignal } : {}),
         headers: {
           'Content-Type': 'application/json',
           Accept: 'application/json',
@@ -162,7 +162,7 @@ export class GithubService {
       }
 
       const userRes = await fetch('https://api.github.com/user', {
-        signal: abortSignal,
+        ...(abortSignal ? { signal: abortSignal } : {}),
         headers: {
           Authorization: `Bearer ${accessToken}`,
           'User-Agent': 'SocialNetwork-App',
@@ -240,7 +240,7 @@ export class GithubService {
 
           const abortSignal = TraceContext.getAbortSignal();
           const refreshRes = await fetch(`https://api.github.com/user/${user.githubId}`, {
-            signal: abortSignal,
+            ...(abortSignal ? { signal: abortSignal } : {}),
             headers,
           });
 
@@ -280,7 +280,10 @@ export class GithubService {
               currentGithubUsername,
             )}`;
 
-            const searchRes = await fetch(queryUrl, { signal: abortSignal, headers });
+            const searchRes = await fetch(queryUrl, {
+              ...(abortSignal ? { signal: abortSignal } : {}),
+              headers,
+            });
             if (searchRes.ok) {
               const searchData = (await searchRes.json()) as { total_count?: number };
               if (typeof searchData.total_count === 'number') {
@@ -337,9 +340,7 @@ export class GithubService {
     const expectedSignature = `sha256=${hmac.update(rawBody).digest('hex')}`;
 
     try {
-      const a = Buffer.from(signatureHeader);
-      const b = Buffer.from(expectedSignature);
-      return a.length === b.length && crypto.timingSafeEqual(a, b);
+      return timingSafeEqual(signatureHeader, expectedSignature);
     } catch {
       return false;
     }

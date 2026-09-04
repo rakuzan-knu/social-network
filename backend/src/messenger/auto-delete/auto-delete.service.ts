@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import { AutoDeletePeriod } from '@prisma/client';
@@ -16,7 +16,7 @@ const PAGE_SIZE = 200;
 const USER_BATCH_SIZE = 500;
 
 @Injectable()
-export class AutoDeleteService {
+export class AutoDeleteService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(AutoDeleteService.name);
   private readonly bucket: string;
   private readonly publicUrl: string;
@@ -120,5 +120,13 @@ export class AutoDeleteService {
     const key = url.slice(prefix.length);
     if (!key) return;
     await this.s3.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
+  }
+
+  onModuleInit(): void {
+    this.logger.log('AutoDeleteService initialized');
+  }
+
+  onModuleDestroy(): void {
+    this.running = false;
   }
 }

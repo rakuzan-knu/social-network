@@ -27,6 +27,8 @@ import { OpenGraphModule } from '../opengraph/opengraph.module';
 import { MessengerLinkPreviewController } from './link-preview.controller';
 import { SnowflakeModule } from '../common/id/snowflake.module';
 
+import { FastPathChatService } from './services/fast-path-chat.service';
+
 @Module({
   imports: [
     PrismaModule,
@@ -49,6 +51,7 @@ import { SnowflakeModule } from '../common/id/snowflake.module';
     },
     ConversationsService,
     MessagesService,
+    FastPathChatService,
     MessengerMapper,
     PresenceEngineService,
     WsDrainingService,
@@ -62,6 +65,7 @@ import { SnowflakeModule } from '../common/id/snowflake.module';
     MESSAGES_REPOSITORY,
     ConversationsService,
     MessagesService,
+    FastPathChatService,
     MessengerGateway,
     PresenceEngineService,
     WsDrainingService,

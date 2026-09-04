@@ -61,11 +61,11 @@ export class PollRepository implements IPollRepository {
     await this.prisma.poll.create({
       data: {
         authorId: authorId,
-        description: dto.description,
+        description: dto.description ?? null,
         title: dto.title,
         postId: dto.postId,
-        isMultiple: dto.isMultiple,
-        expiresAt: dto.expiresAt,
+        isMultiple: dto.isMultiple ?? false,
+        expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
         options: {
           createMany: {
             data: dto.options.map((text, index) => ({

@@ -40,7 +40,7 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
       !redisUrl ||
       redisUrl.startsWith('memory://') ||
       process.env.REDIS_IN_MEMORY === 'true' ||
-      process.env.NODE_ENV === 'test'
+      (process.env.NODE_ENV === 'test' && process.env.TEST_BULLMQ !== 'true')
     ) {
       this.logger.log('BullMQ Queues running in passive in-memory test fallback mode.');
       return;

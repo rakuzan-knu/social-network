@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { StoriesRepository } from '../stories.repository';
 import { WriteCoalescer } from '../../common/coalescing';
 
@@ -9,7 +9,7 @@ export interface StoryViewEntry {
 }
 
 @Injectable()
-export class StoryViewsCoalescerService implements OnModuleDestroy {
+export class StoryViewsCoalescerService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(StoryViewsCoalescerService.name);
   private readonly coalescer: WriteCoalescer<string, StoryViewEntry>;
 
@@ -42,6 +42,10 @@ export class StoryViewsCoalescerService implements OnModuleDestroy {
    */
   async flush(): Promise<void> {
     await this.coalescer.flush();
+  }
+
+  onModuleInit(): void {
+    this.logger.log('StoryViewsCoalescerService initialized');
   }
 
   async onModuleDestroy(): Promise<void> {

@@ -160,7 +160,7 @@ export class PostsRepository implements IPostRepository {
             isVerified: authorRecord.isVerified ?? false,
             primaryBadge: authorRecord.primaryBadge ?? null,
           }
-        : undefined,
+        : null,
       createdAt: post.createdAt,
       updatedAt: post.updatedAt,
       media: post.media ?? [],
@@ -204,7 +204,7 @@ export class PostsRepository implements IPostRepository {
       const post = await tx.post.create({
         data: {
           ...data,
-          id: postId,
+          ...(postId ? { id: postId } : {}),
         },
         include: this.postInclude(),
       });
@@ -237,10 +237,10 @@ export class PostsRepository implements IPostRepository {
     const blockedIds = viewerId ? await this.getBlockedUserIds(viewerId) : [];
 
     const posts = await this.prisma.post.findMany({
-      where: blockedIds.length > 0 ? { authorId: { notIn: blockedIds } } : undefined,
+      ...(blockedIds.length > 0 ? { where: { authorId: { notIn: blockedIds } } } : {}),
       take: limit + 1,
       skip: after ? 1 : 0,
-      cursor: after ? { id: after } : undefined,
+      ...(after ? { cursor: { id: after } } : {}),
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       include: this.postInclude(viewerId),
     });
@@ -277,7 +277,7 @@ export class PostsRepository implements IPostRepository {
       where: { authorId: userId },
       take: limit + 1,
       skip: after ? 1 : 0,
-      cursor: after ? { id: after } : undefined,
+      ...(after ? { cursor: { id: after } } : {}),
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       include: this.postInclude(viewerId),
     });
@@ -300,7 +300,7 @@ export class PostsRepository implements IPostRepository {
       where: { userId },
       take: limit + 1,
       skip: after ? 1 : 0,
-      cursor: after ? { id: after } : undefined,
+      ...(after ? { cursor: { id: after } } : {}),
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       include: {
         post: {
@@ -325,11 +325,11 @@ export class PostsRepository implements IPostRepository {
     const saved = await this.prisma.savedPost.findMany({
       where: {
         userId,
-        post: blockedIds.length > 0 ? { authorId: { notIn: blockedIds } } : undefined,
+        ...(blockedIds.length > 0 ? { post: { authorId: { notIn: blockedIds } } } : {}),
       },
       take: limit + 1,
       skip: after ? 1 : 0,
-      cursor: after ? { id: after } : undefined,
+      ...(after ? { cursor: { id: after } } : {}),
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       include: {
         post: {
@@ -376,7 +376,7 @@ export class PostsRepository implements IPostRepository {
       where: { AND: andFilters },
       take: limit + 1,
       skip: after ? 1 : 0,
-      cursor: after ? { id: after } : undefined,
+      ...(after ? { cursor: { id: after } } : {}),
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       include: this.postInclude(viewerId),
     });
@@ -405,7 +405,7 @@ export class PostsRepository implements IPostRepository {
       }
 
       const fallbackPosts = await this.prisma.post.findMany({
-        where: fallbackFilters.length > 0 ? { AND: fallbackFilters } : undefined,
+        ...(fallbackFilters.length > 0 ? { where: { AND: fallbackFilters } } : {}),
         take: limit + 1,
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         include: this.postInclude(viewerId),
@@ -459,7 +459,7 @@ export class PostsRepository implements IPostRepository {
         where: whereClause,
         take: limit + 1,
         skip: after ? 1 : 0,
-        cursor: after ? { id: after } : undefined,
+        ...(after ? { cursor: { id: after } } : {}),
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         include: this.postInclude(viewerId),
       }),
@@ -518,7 +518,7 @@ export class PostsRepository implements IPostRepository {
       where: { AND: andFilters },
       take: limit + 1,
       skip: after ? 1 : 0,
-      cursor: after ? { id: after } : undefined,
+      ...(after ? { cursor: { id: after } } : {}),
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       include: this.postInclude(viewerId),
     });
@@ -585,7 +585,7 @@ export class PostsRepository implements IPostRepository {
         reportedId: post.authorId,
         postId,
         category,
-        details,
+        details: details ?? null,
       },
       select: { id: true },
     });

@@ -36,6 +36,7 @@ import { ShowcaseModule } from './showcase/showcase.module';
 import { StoriesModule } from './stories/stories.module';
 import { WorkersModule } from './common/workers';
 import { MemoryModule } from './common/memory/memory.module';
+import { E2eeModule } from './crypto/e2ee/e2ee.module';
 import { OutboxModule } from './common/outbox/outbox.module';
 import { LockModule } from './common/lock';
 import { IdempotencyModule } from './common/idempotency/idempotency.module';
@@ -49,6 +50,8 @@ import {
 } from './common/resilience';
 import { VersioningModule, DeprecationInterceptor } from './common/versioning';
 import { SerializationModule } from './common/serialization';
+import { CrdtModule } from './common/crdt/crdt.module';
+import { BloomModule } from './common/bloom/bloom.module';
 
 import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware';
 
@@ -66,7 +69,6 @@ import type { MiddlewareConsumer, NestModule } from '@nestjs/common';
         return {
           pinoHttp: {
             level: isTest ? 'silent' : isProduction ? 'info' : 'debug',
-            transport: undefined,
             genReqId: (req: IncomingMessage) => {
               const headerVal =
                 req.headers['x-trace-id'] ||
@@ -204,6 +206,7 @@ import type { MiddlewareConsumer, NestModule } from '@nestjs/common';
     StoriesModule,
     WorkersModule,
     MemoryModule,
+    E2eeModule,
     OutboxModule,
     LockModule,
     IdempotencyModule,
@@ -211,6 +214,8 @@ import type { MiddlewareConsumer, NestModule } from '@nestjs/common';
     ResilienceModule,
     VersioningModule,
     SerializationModule,
+    CrdtModule,
+    BloomModule,
   ],
 
   controllers: [],

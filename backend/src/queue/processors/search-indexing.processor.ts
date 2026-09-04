@@ -57,6 +57,7 @@ export class SearchIndexingProcessor implements OnModuleInit, OnModuleDestroy {
               reqMethod: 'BULLMQ_JOB',
               reqUrl: `queue:${QUEUE_SEARCH_INDEXING}:${job.name}`,
               startTime: Date.now(),
+              startHrTime: process.hrtime.bigint(),
             },
             async () => {
               await this.processJob(job);

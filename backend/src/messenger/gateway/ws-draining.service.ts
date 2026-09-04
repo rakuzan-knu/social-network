@@ -78,14 +78,15 @@ export class WsDrainingService {
       `Starting smooth connection draining for ${totalSockets} sockets at ~${drainRatePerSec} sockets/sec...`,
     );
 
-    const startTime = Date.now();
+    const startTime = process.hrtime.bigint();
     const batchIntervalMs = 200; // process 5 batches per second
     const batchSize = Math.max(1, Math.ceil((drainRatePerSec * batchIntervalMs) / 1000));
 
     let processedCount = 0;
 
     for (let i = 0; i < totalSockets; i += batchSize) {
-      const remainingTime = maxDurationMs - (Date.now() - startTime);
+      const elapsedMs = Number(process.hrtime.bigint() - startTime) / 1_000_000;
+      const remainingTime = maxDurationMs - elapsedMs;
       if (remainingTime <= 0) {
         this.logger.warn(
           `Draining timeout reached (${maxDurationMs}ms). Disconnecting remaining ${totalSockets - processedCount} sockets immediately.`,
@@ -120,7 +121,7 @@ export class WsDrainingService {
       }
     }
 
-    const elapsed = Date.now() - startTime;
+    const elapsed = Math.round(Number(process.hrtime.bigint() - startTime) / 1_000_000);
     this.logger.log(
       `Successfully drained ${processedCount} sockets in ${elapsed}ms without thundering herd.`,
     );

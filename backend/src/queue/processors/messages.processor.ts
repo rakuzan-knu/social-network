@@ -83,6 +83,7 @@ export class MessagesProcessor implements OnModuleInit, OnModuleDestroy {
               reqMethod: 'BULLMQ_JOB',
               reqUrl: `queue:${QUEUE_MESSAGES}:${job.name}`,
               startTime: Date.now(),
+              startHrTime: process.hrtime.bigint(),
             },
             async () => {
               await this.processJob(job);

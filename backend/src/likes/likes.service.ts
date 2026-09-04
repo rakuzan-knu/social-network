@@ -19,6 +19,8 @@ import {
   CreateNotificationEvent,
   NOTIFICATION_EVENTS,
 } from '../notifications/events/notification.events';
+import { CrdtRegistryService } from '../common/crdt/crdt-registry.service';
+import { makeUserBasic, makeSocialNotification } from '../common/v8/shape-stable';
 
 @Injectable()
 export class LikesService {
@@ -34,6 +36,8 @@ export class LikesService {
     private readonly gateway?: MessengerGateway,
     @Optional()
     private readonly eventEmitter?: EventEmitter2,
+    @Optional()
+    private readonly crdtRegistry?: CrdtRegistryService,
   ) {}
 
   async likePost(postId: string, userId: string): Promise<Like> {
@@ -43,6 +47,12 @@ export class LikesService {
     }
     try {
       const like = await this.likesRepository.createLike(postId, userId);
+
+      // Increment PN-Counter in memory (O(1), zero DB lock)
+      // Flushed to Redis asynchronously by the background flush loop
+      if (this.crdtRegistry) {
+        this.crdtRegistry.getPNCounter(`likes:${postId}`).increment();
+      }
 
       // Emit asynchronous notification event to post author
       if (post.authorId !== userId) {
@@ -62,18 +72,21 @@ export class LikesService {
               this.postsRepository.findUserBasic(post.authorId),
             ]);
             if (actor) {
-              this.gateway.emitToUser(post.authorId, WS_EVENTS.SOCIAL_NOTIFICATION, {
-                type: 'LIKE',
-                actor: {
-                  id: actor.id,
-                  username: actor.username,
-                  displayName: actor.displayName || actor.username,
-                  avatar: actor.avatar,
-                },
-                postId: post.id,
-                authorUsername: author?.username || '',
-                message: 'liked your post',
-              });
+              // Shape-stable payload — same hidden class on every call
+              const actorShape = makeUserBasic(
+                actor.id,
+                actor.username,
+                actor.displayName,
+                actor.avatar,
+              );
+              const notification = makeSocialNotification(
+                'LIKE',
+                actorShape,
+                post.id,
+                author?.username ?? '',
+                'liked your post',
+              );
+              this.gateway.emitToUser(post.authorId, WS_EVENTS.SOCIAL_NOTIFICATION, notification);
             }
           } catch (e) {
             this.logger.warn(
@@ -95,6 +108,11 @@ export class LikesService {
   async unlikePost(postId: string, userId: string): Promise<void> {
     try {
       await this.likesRepository.deleteLike(postId, userId);
+
+      // Decrement PN-Counter in memory (O(1), zero DB lock)
+      if (this.crdtRegistry) {
+        this.crdtRegistry.getPNCounter(`likes:${postId}`).decrement();
+      }
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {
         throw new NotFoundException('Like not found');

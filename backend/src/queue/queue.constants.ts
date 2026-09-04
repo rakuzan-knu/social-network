@@ -10,11 +10,11 @@ export interface DeadLetterJobData {
   jobName: string;
   data: unknown;
   failedReason: string;
-  stackTrace?: string;
+  stackTrace?: string | undefined;
   attemptsMade: number;
   failedAt: string;
-  traceId?: string;
-  isPoisonPill?: boolean;
+  traceId?: string | undefined;
+  isPoisonPill?: boolean | undefined;
 }
 
 export enum NotificationJobType {

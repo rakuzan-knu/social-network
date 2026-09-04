@@ -1,5 +1,6 @@
 import type { MessageReaction, ConversationParticipant } from '@prisma/client';
 import type { MessageWithDetails } from './types';
+import type { ChatActivityMap } from '@common/contracts';
 
 export const MESSAGES_REPOSITORY = 'MESSAGES_REPOSITORY';
 
@@ -7,20 +8,20 @@ export interface IMessagesRepository {
   create(data: {
     conversationId: string;
     senderId: string;
-    body?: string;
-    clientSeq?: number;
-    messageType?: string;
-    replyToId?: string;
-    forwardedFromId?: string;
+    body?: string | undefined;
+    clientSeq?: number | undefined;
+    messageType?: string | undefined;
+    replyToId?: string | undefined;
+    forwardedFromId?: string | undefined;
   }): Promise<MessageWithDetails>;
 
   findMany(params: {
     conversationId: string;
     requestingUserId: string;
-    before?: string;
-    after?: string;
+    before?: string | undefined;
+    after?: string | undefined;
     limit: number;
-    hiddenUserIds?: string[];
+    hiddenUserIds?: string[] | undefined;
   }): Promise<MessageWithDetails[]>;
 
   findAround(params: {
@@ -28,7 +29,7 @@ export interface IMessagesRepository {
     targetMessageId: string;
     requestingUserId: string;
     limit: number;
-    hiddenUserIds?: string[];
+    hiddenUserIds?: string[] | undefined;
   }): Promise<MessageWithDetails[]>;
 
   findAroundDate(params: {
@@ -36,28 +37,17 @@ export interface IMessagesRepository {
     targetDate: Date;
     requestingUserId: string;
     limit: number;
-    hiddenUserIds?: string[];
+    hiddenUserIds?: string[] | undefined;
   }): Promise<MessageWithDetails[]>;
 
   getActivityMap(params: {
     conversationId: string;
     year: number;
     month: number;
-    timezone?: string;
+    timezone?: string | undefined;
     requestingUserId: string;
-    hiddenUserIds?: string[];
-  }): Promise<
-    Record<
-      string,
-      {
-        messageCount: number;
-        previewMediaUrl?: string;
-        firstMessageSnippet?: string;
-        firstMessageId?: string;
-        mediaCount?: number;
-      }
-    >
-  >;
+    hiddenUserIds?: string[] | undefined;
+  }): Promise<ChatActivityMap>;
 
   findOne(messageId: string, requestingUserId: string): Promise<MessageWithDetails | null>;
 
