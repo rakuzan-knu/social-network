@@ -8,8 +8,10 @@
 /docker-compose.prod.yml    @subvincdebian
 /docker-compose.dev.yml     @subvincdebian
 /vercel.json                @subvincdebian
+/render.yaml                @subvincdebian
 /package.json               @subvincdebian @chupikx228
-/package-lock.json          @subvincdebian @chupikx228
+/pnpm-lock.yaml             @subvincdebian @chupikx228
+/pnpm-workspace.yaml        @subvincdebian @chupikx228
 /scripts/                   @subvincdebian
 /.npmrc                     @subvincdebian
 /SECURITY.md                @subvincdebian

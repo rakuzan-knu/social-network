@@ -1,6 +1,6 @@
 # 🤖 GitOps Infrastructure Automation & OIDC Setup
 
-This guide details how infrastructure inside `infrastructure/` is managed using **Terraform** and **OpenID Connect (OIDC)** via GitHub Actions (`.github/workflows/terraform.yml`).
+This guide details how infrastructure inside `infrastructure/terraform/` is managed using **Terraform** and **OpenID Connect (OIDC)** via GitHub Actions (`.github/workflows/terraform.yml`).
 
 ---
 
@@ -64,7 +64,7 @@ Create an IAM OIDC Identity Provider for `https://token.actions.githubuserconten
 State locking prevents concurrent Terraform executions from corrupting infrastructure state:
 
 ```hcl
-// infrastructure/main.tf
+// infrastructure/terraform/main.tf
 terraform {
   backend "s3" {
     bucket         = "social-network-tf-state"

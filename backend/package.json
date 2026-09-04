@@ -10,9 +10,9 @@
   "scripts": {
     "postinstall": "prisma generate",
     "build": "nest build",
-    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "format": "prettier --write . --ignore-unknown --no-error-on-unmatched-pattern",
     "lint": "eslint . --ignore-pattern \"src/coverage\" --cache --cache-location .eslintcache",
-    "lint:fix": "eslint \"{src,apps,libs,test}/**/*.ts\" --ignore-pattern \"src/coverage\" --fix",
+    "lint:fix": "eslint . --ignore-pattern \"src/coverage\" --fix --cache --cache-location .eslintcache",
     "start": "node --max-old-space-size=2048 --expose-gc dist/main",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
@@ -30,12 +30,12 @@
     "test:pact:verify": "tsx test/pact-verify.ts",
     "test:ci": "jest --ci --forceExit --passWithNoTests --detectOpenHandles",
     "test:cov:ci": "jest --coverage --ci --forceExit --passWithNoTests --detectOpenHandles",
-    "benchmark": "node ../scripts/run-stress-tests.cjs",
-    "benchmark:k6": "node ../scripts/run-k6.cjs",
-    "benchmark:autocannon": "node ../benchmarks/autocannon/run-benchmarks.cjs",
-    "benchmark:clinic": "node ../scripts/run-clinic-profile.cjs",
-    "benchmark:flame": "node ../scripts/run-clinic-profile.cjs --flame",
-    "benchmark:doctor": "node ../scripts/run-clinic-profile.cjs --doctor"
+    "benchmark": "node ../scripts/bench/run-stress-tests.cjs",
+    "benchmark:k6": "node ../scripts/bench/run-k6.cjs",
+    "benchmark:autocannon": "node ../scripts/bench/run-autocannon.cjs",
+    "benchmark:clinic": "node ../scripts/bench/run-clinic-profile.cjs",
+    "benchmark:flame": "node ../scripts/bench/run-clinic-profile.cjs --flame",
+    "benchmark:doctor": "node ../scripts/bench/run-clinic-profile.cjs --doctor"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1113.0",

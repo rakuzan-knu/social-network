@@ -18,6 +18,14 @@ package-lock.json
 pnpm-lock.yaml
 yarn.lock
 bun.lockb
+benchmarks/k6/tokens.json
+benchmarks/reports/
+.clinic/
+*.clinic-*
+codeql-alerts.json
+graphify-out/
+.nx/
+.agents/
 .git
 .github
 CHANGELOG.md

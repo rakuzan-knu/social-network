@@ -80,14 +80,14 @@ pnpm format:check
 pnpm knip
 ```
 
-### Cleanup Utility (`scripts/clean.js`)
+### Cleanup Utility (`scripts/utils/clean.js`)
 
 ```bash
 # Remove node_modules, build outputs (dist), coverage, and cache
 pnpm clean
 
 # Dry-run preview of files that would be deleted
-node scripts/clean.js --dry-run
+node scripts/utils/clean.js --dry-run
 
 # Clean project artifacts and prune Docker storage simultaneously
 pnpm clean:prune
@@ -104,7 +104,7 @@ Inconsistent line endings (`CRLF` vs `LF`) cause noisy diffs and break bash scri
    - Explicit text declarations for `.ts`, `.tsx`, `.js`, `.json`, `.md`, `.yml`, and `.sql`.
    - Comprehensive binary patterns for fonts, archives, media files, and lockfiles to suppress noisy diffs.
 2. **Local Pre-Commit Hook (`.husky/pre-commit`)**:
-   - Executes `scripts/validate-eol.js` prior to `lint-staged`.
+   - Executes `scripts/ci/validate-eol.js` prior to `lint-staged`.
    - Blocks commits immediately if CRLF characters are introduced.
 3. **CI Pipeline Gate**:
    - Dedicated `validate-eol` job executes in parallel on every pull request.

@@ -48,7 +48,7 @@ social-network/
 ├── backend/                 # NestJS API application & Prisma schema
 ├── frontend/                # React + Vite application (Feature-Sliced Design)
 ├── docs/                    # Technical documentation, architecture & runbooks
-├── scripts/                 # Root maintenance & postinstall scripts
+├── scripts/                 # CI/CD, deploy, db, bench, secrets & utility scripts
 ├── .dockerignore            # Docker build exclusion rules
 ├── .editorconfig            # Cross-editor indentation & formatting rules
 ├── .gitattributes          # Git line endings (LF) normalization settings

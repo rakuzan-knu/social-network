@@ -30,4 +30,4 @@ Set the target backup bucket in `docker-compose.prod.yml` or production environm
 BACKUP_S3_BUCKET=s3://social-network-backups-dr
 ```
 
-When `BACKUP_S3_BUCKET` is present, `scripts/backup-db.sh` automatically syncs verified encrypted archives using `rclone` or `aws s3 sync`.
+When `BACKUP_S3_BUCKET` is present, `scripts/db/backup-db.sh` automatically syncs verified encrypted archives using `rclone` or `aws s3 sync`.

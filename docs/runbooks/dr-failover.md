@@ -20,16 +20,16 @@ Emergency failover is initiated when:
 
 ---
 
-## 🛠️ 2. Automated Runbook Execution (`scripts/execute-dr-failover.cjs`)
+## 🛠️ 2. Automated Runbook Execution (`scripts/deploy/execute-dr-failover.cjs`)
 
 To execute an emergency failover or periodic DR drill, run the automated failover tool:
 
 ```bash
 # Test failover execution in dry-run mode
-node scripts/execute-dr-failover.cjs --dry-run
+node scripts/deploy/execute-dr-failover.cjs --dry-run
 
 # Trigger active failover to Secondary EU Region
-node scripts/execute-dr-failover.cjs --target-region=eu-secondary
+node scripts/deploy/execute-dr-failover.cjs --target-region=eu-secondary
 ```
 
 ### Script Execution Sequence:
@@ -46,7 +46,7 @@ node scripts/execute-dr-failover.cjs --target-region=eu-secondary
 Once primary region health is fully restored:
 
 ```bash
-node scripts/execute-dr-failover.cjs --target-region=us-primary
+node scripts/deploy/execute-dr-failover.cjs --target-region=us-primary
 ```
 
 ---

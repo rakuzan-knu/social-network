@@ -41,7 +41,7 @@ The monorepo uses **pnpm workspaces** with strict engine enforcement:
 pnpm install
 ```
 
-_(This automatically triggers `scripts/postinstall.js` and initializes Git pre-commit hooks via Husky)._
+_(This automatically triggers `scripts/utils/postinstall.js` and initializes Git pre-commit hooks via Husky)._
 
 ### 3. Configure Environment Variables
 

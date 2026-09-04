@@ -32,7 +32,7 @@ This section contains operational guidelines, resilience policies, zero-downtime
 To support uninterrupted social networking operations worldwide, all deployments and schema modifications adhere to:
 
 1. **Non-Breaking Schema Evolution**: Never execute destructive DDL (`DROP COLUMN`, `RENAME COLUMN`, `SET NOT NULL` without `DEFAULT`) in active production without following the Expand/Contract cycle.
-2. **Automated Pre-Merge Migration Linting**: Pull requests with SQL migrations must pass `node scripts/validate-prisma-migrations.js` in CI.
+2. **Automated Pre-Merge Migration Linting**: Pull requests with SQL migrations must pass `node scripts/db/validate-prisma-migrations.cjs` in CI.
 3. **Graceful Connection Draining**: Fastify and Socket.IO servers listen for `SIGTERM` signals, stop accepting new connections, drain existing WebSocket rooms, and flush queue jobs cleanly before terminating.
 
 ---

@@ -54,6 +54,12 @@
     "editor.defaultFormatter": "esbenp.prettier-vscode",
     "files.trimTrailingWhitespace": false
   },
+  "[yaml]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "yaml.schemas": {
+    "none": ["render.yaml"]
+  },
 
   "files.eol": "\n",
   "files.insertFinalNewline": true,

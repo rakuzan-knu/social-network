@@ -97,9 +97,11 @@ social-network/
 │       └── shared/                # UI kit, API clients, helpers, hooks
 │
 ├── docs/                          # Comprehensive system documentation (this repository)
-├── infrastructure/                # Terraform modules & AWS OIDC setup
-├── monitoring/                    # Prometheus, Grafana, Loki & Tempo configurations
-├── scripts/                       # CI/CD, backup, load-testing & verification scripts
+├── infrastructure/                # Infrastructure-as-Code & Observability
+│   ├── terraform/                 # Terraform modules & cloud provider setup
+│   ├── kubernetes/                # Kubernetes manifests (base, policies, overlays)
+│   └── monitoring/                # Prometheus, Grafana, Loki & Tempo configurations
+├── scripts/                       # Categorized CI/CD, DB, bench, deploy & secret scripts
 ├── nx.json                        # Nx workspace task pipeline configuration
 ├── package.json                   # Root package definition & scripts
 └── pnpm-workspace.yaml            # Monorepo member definitions

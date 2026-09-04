@@ -73,7 +73,7 @@ The monorepo uses GitHub Actions with a staged pipeline architecture engineered 
 ### validate-eol
 
 - **Purpose**: Check all tracked files for CRLF line endings
-- **Script**: `scripts/validate-eol.js`
+- **Script**: `scripts/ci/validate-eol.js`
 - **Timeout**: 5 min
 
 ### format-check

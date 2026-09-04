@@ -12,7 +12,7 @@ This Runbook defines the automated Self-Healing Runbook and AI Agent Ops protoco
 
 - **Automated Trigger**: When Redis memory utilization $\ge 90\%$ (configurable via `REDIS_MEMORY_EVICTION_THRESHOLD`, default `0.90`).
 - **Health Check Integration**: `/health` and `/health/ready` actively sample memory stats and automatically trigger self-healing.
-- **Manual / AI Agent Ops Trigger**: When invoked via CLI `node scripts/self-healing-redis.cjs --force` or HTTP endpoint `POST /health/self-heal`.
+- **Manual / AI Agent Ops Trigger**: When invoked via CLI `node scripts/utils/self-healing-redis.cjs --force` or HTTP endpoint `POST /health/self-heal`.
 
 ---
 
@@ -46,16 +46,16 @@ This Runbook defines the automated Self-Healing Runbook and AI Agent Ops protoco
 
 ```bash
 # Check memory status and run eviction if >= 90%
-node scripts/self-healing-redis.cjs
+node scripts/utils/self-healing-redis.cjs
 
 # Force immediate self-healing eviction
-node scripts/self-healing-redis.cjs --force
+node scripts/utils/self-healing-redis.cjs --force
 
 # Dry-run inspection
-node scripts/self-healing-redis.cjs --dry-run
+node scripts/utils/self-healing-redis.cjs --dry-run
 
 # Custom threshold and custom patterns
-node scripts/self-healing-redis.cjs --threshold=85 --patterns="cache:feed:*,cache:posts:*" --json
+node scripts/utils/self-healing-redis.cjs --threshold=85 --patterns="cache:feed:*,cache:posts:*" --json
 ```
 
 ### B. HTTP API Execution (Curl / AI Agent Ops)

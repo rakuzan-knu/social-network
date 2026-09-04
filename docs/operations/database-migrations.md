@@ -40,12 +40,12 @@ To achieve continuous deployment without downtime, all database schema updates a
 
 ---
 
-## 🛡️ Static Migration Linting (`scripts/validate-prisma-migrations.js`)
+## 🛡️ Static Migration Linting (`scripts/db/validate-prisma-migrations.cjs`)
 
 In our CI/CD pipeline, every pull request containing migration files is statically scanned for illegal destructive patterns:
 
 ```bash
-node scripts/validate-prisma-migrations.js
+node scripts/db/validate-prisma-migrations.cjs
 ```
 
 ### Prohibited Patterns:

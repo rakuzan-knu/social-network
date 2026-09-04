@@ -146,4 +146,4 @@ model Story {
 
 ## 🛡️ Database Migrations & Governance
 
-All schema evolutions must adhere to the **Expand / Contract** pattern (see [Database Migrations Guide](../operations/database-migrations.md)). Direct destructive DDL operations (`DROP COLUMN`, renaming tables) are blocked in CI by static migration linting (`scripts/validate-prisma-migrations.js`).
+All schema evolutions must adhere to the **Expand / Contract** pattern (see [Database Migrations Guide](../operations/database-migrations.md)). Direct destructive DDL operations (`DROP COLUMN`, renaming tables) are blocked in CI by static migration linting (`scripts/db/validate-prisma-migrations.cjs`).

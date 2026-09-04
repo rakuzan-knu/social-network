@@ -70,8 +70,8 @@ jobs:
           MINIO_BUCKET: ${{ secrets.MINIO_BUCKET || 'avatars' }}
           MINIO_PUBLIC_URL: ${{ secrets.MINIO_PUBLIC_URL }}
         run: |
-          chmod +x scripts/sync-render-secrets.sh
-          ./scripts/sync-render-secrets.sh
+          chmod +x scripts/secrets/sync-render-secrets.sh
+          ./scripts/secrets/sync-render-secrets.sh
 
       - name: Trigger Render Deployment
         if: env.RENDER_DEPLOY_HOOK_URL != ''
@@ -91,7 +91,7 @@ jobs:
           SMOKE_DELAY_MS: 10000
         run: |
           echo "🧪 Running post-deploy canary smoke test..."
-          node scripts/smoke-test-backend.js
+          node scripts/deploy/smoke-test-backend.js
 
       - name: Rollback Deployment on Failure
         if: failure() && env.RENDER_SERVICE_ID != '' && env.RENDER_API_KEY != ''

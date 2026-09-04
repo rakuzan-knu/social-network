@@ -13,7 +13,7 @@ This document outlines our operational architecture for high availability, fault
 
 ---
 
-## 🔒 Backup Encryption at Rest (`scripts/backup-db.sh`)
+## 🔒 Backup Encryption at Rest (`scripts/db/backup-db.sh`)
 
 All database backups are encrypted at rest using **AES-256-CBC** with PBKDF2 key derivation:
 
@@ -22,7 +22,7 @@ pg_dump ... | gzip | openssl enc -aes-256-cbc -pbkdf2 -iter 100000 -pass env:BAC
 ```
 
 - Plaintext database dumps are never written unencrypted to disk.
-- Backups are automatically verified through in-memory restore testing (`scripts/verify-backup.sh`).
+- Backups are automatically verified through in-memory restore testing (`scripts/db/verify-backup.sh`).
 
 ---
 
@@ -43,4 +43,4 @@ graph TD
 
 1. Primary API backend `/api/health` probes fail continuously for 60 seconds (2 consecutive check intervals).
 2. Primary cloud provider availability zone undergoes critical infrastructure outage.
-3. Automated runbook (`scripts/execute-dr-failover.cjs`) executes to promote secondary read-replica and re-route Cloudflare DNS traffic.
+3. Automated runbook (`scripts/deploy/execute-dr-failover.cjs`) executes to promote secondary read-replica and re-route Cloudflare DNS traffic.

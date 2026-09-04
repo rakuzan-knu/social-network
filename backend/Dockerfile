@@ -82,14 +82,14 @@ RUN if [ -d ./backend/node_modules ]; then cp -rn ./backend/node_modules/* ./nod
 COPY --from=builder /app/backend/dist ./backend/dist
 COPY --from=prod-deps /app/backend/prisma ./backend/prisma
 COPY --from=prod-deps /app/backend/prisma.config.ts ./backend/prisma.config.ts
-COPY --from=builder /app/scripts/backup-db.sh ./scripts/backup-db.sh
+COPY --from=builder /app/scripts/db/backup-db.sh ./scripts/db/backup-db.sh
 
 RUN chown -R appuser:appgroup /app
 USER appuser
 
 EXPOSE 7860 3000
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["sh", "-c", "export NODE_OPTIONS=$(echo \"${NODE_OPTIONS:-}\" | sed 's/--optimize-for-size//g'); export DIRECT_URL=\"${DIRECT_URL:-$DATABASE_URL}\"; export DATABASE_URL=\"${DATABASE_URL}\"; if [ -n \"$DATABASE_URL\" ] && [ \"$AUTO_MIGRATE\" != \"false\" ]; then echo '🚀 Applying Prisma database migrations via Direct URL...'; npx prisma migrate deploy --schema=./backend/prisma/schema.prisma || npx prisma db push --schema=./backend/prisma/schema.prisma --accept-data-loss || echo '⚠️ Database migration notice: proceed to startup'; fi; if [ -f backend/dist/backend/src/main.js ]; then node backend/dist/backend/src/main; elif [ -f backend/dist/src/main.js ]; then node backend/dist/src/main; else node backend/dist/main; fi"]
+CMD ["sh", "-c", "export NODE_OPTIONS=$(echo \"${NODE_OPTIONS:-}\" | sed 's/--optimize-for-size//g'); export DIRECT_URL=\"${DIRECT_URL:-$DATABASE_URL}\"; export DATABASE_URL=\"${DATABASE_URL}\"; if [ -n \"$DATABASE_URL\" ] && [ \"$AUTO_MIGRATE\" != \"false\" ]; then echo '🚀 Applying Prisma database migrations via Direct URL...'; npx prisma migrate deploy --schema=./backend/prisma/schema.prisma; fi; if [ -f backend/dist/backend/src/main.js ]; then node backend/dist/backend/src/main; elif [ -f backend/dist/src/main.js ]; then node backend/dist/src/main; else node backend/dist/main; fi"]
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD sh -c "export NODE_OPTIONS=\$(echo \"\${NODE_OPTIONS:-}\" | sed 's/--optimize-for-size//g'); node -e \"require('http').get('http://localhost:' + (process.env.PORT || 7860) + '/health', (r) => r.statusCode === 200 ? process.exit(0) : process.exit(1))\""
