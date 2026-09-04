@@ -47,6 +47,7 @@ social-network/
 ├── .husky/                  # Git hooks (commit-msg, pre-commit, pre-push)
 ├── backend/                 # NestJS API application & Prisma schema
 ├── frontend/                # React + Vite application (Feature-Sliced Design)
+├── docs/                    # Technical documentation, architecture & runbooks
 ├── scripts/                 # Root maintenance & postinstall scripts
 ├── .dockerignore            # Docker build exclusion rules
 ├── .editorconfig            # Cross-editor indentation & formatting rules
@@ -80,6 +81,25 @@ Ensure your system meets the minimum requirements specified in `package.json`:
 - **pnpm:** `>=10.0.0` (Recommended: `pnpm@10.5.2`)
 
 > ⚠️ Note: `pnpm install` enforces strict Node engine checks (`engine-strict=true`). Make sure to use the correct Node version (`nvm use`).
+
+---
+
+## 📚 Documentation
+
+Detailed documentation, architecture deep dives, API specs, and runbooks are available in the [`docs/`](./docs/README.md) directory:
+
+- 🏛️ **[System Architecture](./docs/architecture/README.md)** — C4 topology, monorepo design, data flow
+- ⚙️ **[Backend Architecture](./docs/architecture/backend.md)** — NestJS 11 + Fastify, 4-tier layering & BullMQ
+- 🎨 **[Frontend Architecture](./docs/architecture/frontend.md)** — React 19 + Feature-Sliced Design & TanStack Query
+- 🗄️ **[Database Architecture & ERD](./docs/architecture/database.md)** — PostgreSQL 16 schema & relational models
+- ⚡ **[Real-time WebSocket Gateway](./docs/architecture/realtime.md)** & **[WebSocket Protocol](./docs/api/websocket.md)** — Socket.IO `/messenger` gateway & events
+- 🔐 **[Security & Privacy Architecture](./docs/architecture/security.md)** — Auth, Argon2, E2EE, rate limiting & Cosign
+- 📡 **[REST API Reference](./docs/api/http-api.md)** & **[Zod Contracts](./docs/api/contracts.md)**
+- 🤝 **[Contributor Guide](./docs/contributing/README.md)** & **[Contribution Workflow](./docs/contributing/workflow.md)**
+- 🧪 **[Testing Handbook](./docs/contributing/testing.md)** — Backend Jest E2E, Vitest, Stryker & k6
+- 🚀 **[Deployment Guides](./docs/deployment/README.md)** — Multi-stage Docker & Cloud environments
+- ⚙️ **[Operations & SRE Handbook](./docs/operations/README.md)** — Resilience, zero-downtime migrations & SLAs
+- 📖 **[Operational Runbooks](./docs/runbooks/README.md)** — SRE emergency playbooks & incident triage
 
 ---
 
@@ -180,10 +200,10 @@ Don't stay blocked—communication keeps the velocity high! 🚀
 
 ## 🤝 Contributing
 
-Before contributing, please read our detailed [CONTRIBUTING.md](./CONTRIBUTING.md) guide covering:
+Before contributing, please read our detailed [CONTRIBUTING.md](./CONTRIBUTING.md) and [Contribution Workflow](./docs/contributing/workflow.md) covering:
 
-- Jira task workflow
-- Git branch naming conventions (`feat/SOC-XXX-...`, `fix/SOC-XXX-...`)
+- GitHub Issues and proposal workflow
+- Git branch naming conventions (`feat/<issue>-...`, `fix/<issue>-...`)
 - Commit message guidelines & scope rules
-- Architectural standards (NestJS Modules & Feature-Sliced Design)
+- Architectural standards (NestJS 4-Tier & Feature-Sliced Design)
 - Pull Request approval guidelines and automated release flow

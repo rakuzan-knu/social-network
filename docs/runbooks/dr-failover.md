@@ -1,4 +1,4 @@
-# 🚨 Emergency Operating Procedure: Multi-Region Disaster Recovery (DR) Failover Runbook
+# 🚨 Emergency Procedure: Multi-Region Disaster Recovery (DR) Failover Runbook
 
 This runbook outlines the step-by-step procedure for executing an automated or manual cross-region Disaster Recovery failover in response to a primary cloud region outage (e.g. AWS `us-east-1` or Render Primary region failure).
 
@@ -6,8 +6,8 @@ This runbook outlines the step-by-step procedure for executing an automated or m
 
 ## 🎯 Emergency Recovery Objectives
 
-- **Recovery Time Objective (RTO)**: < 2 minutes (Automated via Cloudflare Anycast & Health Monitors).
-- **Recovery Point Objective (RPO)**: < 1 minute (Asynchronous Database & Storage Replication).
+- **Recovery Time Objective (RTO)**: `< 2 minutes` (Automated via Cloudflare Anycast & Health Monitors).
+- **Recovery Point Objective (RPO)**: `< 1 minute` (Asynchronous Database & Storage Replication).
 
 ---
 
