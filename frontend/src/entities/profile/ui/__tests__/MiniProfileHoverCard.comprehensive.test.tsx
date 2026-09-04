@@ -58,6 +58,19 @@ describe('MiniProfileHoverCard (Comprehensive Suite)', () => {
       updatedAt: new Date().toISOString(),
       media: [{ type: 'image', url: 'https://example.com/tree.jpg' }],
     },
+    {
+      id: 'post-2',
+      authorId: 'user-42',
+      text: 'Video post',
+      likes: 50,
+      media: [{ type: 'video', url: 'https://example.com/tree.mp4' }],
+    },
+    {
+      id: 'post-3',
+      authorId: 'user-42',
+      text: 'Text only post preview',
+      likes: 10,
+    },
   ];
 
   beforeEach(() => {
@@ -73,7 +86,7 @@ describe('MiniProfileHoverCard (Comprehensive Suite)', () => {
 
   it('renders children trigger and opens card on hover after delay', async () => {
     renderWithProviders(
-      <MiniProfileHoverCard username="bob_ross">
+      <MiniProfileHoverCard username="bob_ross" side="bottom" align="center">
         <span>Hover Me</span>
       </MiniProfileHoverCard>,
     );
@@ -84,9 +97,9 @@ describe('MiniProfileHoverCard (Comprehensive Suite)', () => {
     await waitFor(() => {
       expect(screen.getByText('Bob Ross')).toBeInTheDocument();
       expect(screen.getByText('Happy little clouds and trees')).toBeInTheDocument();
+      expect(screen.getByText('15.4K')).toBeInTheDocument();
+      expect(screen.getByText('Text only post preview')).toBeInTheDocument();
     });
-
-    expect(screen.getByText('15.4K')).toBeInTheDocument(); // formatted followers
   });
 
   it('navigates to conversation when message button is clicked', async () => {
@@ -127,5 +140,51 @@ describe('MiniProfileHoverCard (Comprehensive Suite)', () => {
     fireEvent.click(postThumb);
 
     expect(openCommentModalSpy).toHaveBeenCalled();
+  });
+
+  it('handles side="left" and side="right" positioning and null profile state', async () => {
+    vi.spyOn(api, 'get').mockResolvedValueOnce({ data: null });
+
+    renderWithProviders(
+      <MiniProfileHoverCard username="unknown_user" side="left">
+        <span>Hover Left</span>
+      </MiniProfileHoverCard>,
+    );
+
+    fireEvent.mouseEnter(screen.getByText('Hover Left'));
+
+    await waitFor(() => {
+      expect(screen.getByText('User not found')).toBeInTheDocument();
+    });
+  });
+
+  it('handles follow click, avatar-only ambient background, and direct message error fallback', async () => {
+    vi.spyOn(api, 'get').mockResolvedValueOnce({
+      data: { ...mockProfile, banner: null, avatar: 'https://avatar.png' },
+    });
+    vi.spyOn(api, 'post').mockResolvedValueOnce({ data: { success: true } });
+    vi.spyOn(chatApi, 'createDirectConversation').mockRejectedValueOnce(new Error('Network error'));
+
+    renderWithProviders(
+      <MiniProfileHoverCard username="bob_ross">
+        <span>Hover Bob</span>
+      </MiniProfileHoverCard>,
+    );
+
+    fireEvent.mouseEnter(screen.getByText('Hover Bob'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Follow')).toBeInTheDocument();
+    });
+
+    const followBtn = screen.getByText('Follow');
+    fireEvent.click(followBtn);
+
+    const messageBtn = screen.getByRole('button', { name: /message/i });
+    fireEvent.click(messageBtn);
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith('/messages');
+    });
   });
 });

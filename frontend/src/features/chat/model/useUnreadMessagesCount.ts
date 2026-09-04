@@ -21,11 +21,11 @@ export function useUnreadMessagesCount(
 
   return useMemo(
     () =>
-      conversations?.reduce((total: number, conversation: ConversationView) => {
+      (conversations?.reduce((total: number, conversation: ConversationView) => {
         if (conversation.id === activeConversationId) return total;
         if (conversation.isArchived) return total;
-        return total + Math.max(0, conversation.unreadCount || 0);
-      }, 0) ?? 0,
+        return (total + Math.max(0, conversation.unreadCount | 0)) | 0;
+      }, 0) ?? 0) | 0,
     [activeConversationId, conversations],
   );
 }

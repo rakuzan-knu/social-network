@@ -17,6 +17,13 @@ export function useChatTheme(
   });
   const [isLoading, setIsLoading] = useState(true);
   const activeBlobUrlRef = useRef<string | null>(null);
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   // Load and resolve theme with 5-tier priority hierarchy
   const resolveAndApplyTheme = useCallback(async () => {
@@ -28,16 +35,20 @@ export function useChatTheme(
         );
         if (localChatIdb) {
           const parsed = parseChatTheme(localChatIdb);
-          setThemeState(parsed);
-          setIsLoading(false);
+          if (isMountedRef.current) {
+            setThemeState(parsed);
+            setIsLoading(false);
+          }
           return;
         }
 
         const localChatLs = localStorage.getItem(`${LOCAL_CHAT_PREFIX}${conversationId}`);
         if (localChatLs) {
           const parsed = parseChatTheme(localChatLs);
-          setThemeState(parsed);
-          setIsLoading(false);
+          if (isMountedRef.current) {
+            setThemeState(parsed);
+            setIsLoading(false);
+          }
           return;
         }
       }
@@ -46,42 +57,56 @@ export function useChatTheme(
       const localGlobalIdb = await idbGet<ChatThemeConfig | string>(LOCAL_GLOBAL_KEY);
       if (localGlobalIdb) {
         const parsed = parseChatTheme(localGlobalIdb);
-        setThemeState(parsed);
-        setIsLoading(false);
+        if (isMountedRef.current) {
+          setThemeState(parsed);
+          setIsLoading(false);
+        }
         return;
       }
 
       const localGlobalLs = localStorage.getItem(LOCAL_GLOBAL_KEY);
       if (localGlobalLs) {
         const parsed = parseChatTheme(localGlobalLs);
-        setThemeState(parsed);
-        setIsLoading(false);
+        if (isMountedRef.current) {
+          setThemeState(parsed);
+          setIsLoading(false);
+        }
         return;
       }
 
       // 3. Shared Conversation Theme (agreed between both participants)
       if (sharedTheme && sharedTheme !== 'default') {
         const parsed = parseChatTheme(sharedTheme);
-        setThemeState(parsed);
-        setIsLoading(false);
+        if (isMountedRef.current) {
+          setThemeState(parsed);
+          setIsLoading(false);
+        }
         return;
       }
 
       // 4. Server theme (conversation participant theme or User.defaultChatTheme)
       if (serverTheme && serverTheme !== 'default') {
         const parsed = parseChatTheme(serverTheme);
-        setThemeState(parsed);
-        setIsLoading(false);
+        if (isMountedRef.current) {
+          setThemeState(parsed);
+          setIsLoading(false);
+        }
         return;
       }
 
       // 5. Default Dark Eternal theme
-      setThemeState(DEFAULT_DARK_THEME_CONFIG);
+      if (isMountedRef.current) {
+        setThemeState(DEFAULT_DARK_THEME_CONFIG);
+      }
     } catch (err) {
       console.warn('[useChatTheme] Error resolving theme:', err);
-      setThemeState(DEFAULT_DARK_THEME_CONFIG);
+      if (isMountedRef.current) {
+        setThemeState(DEFAULT_DARK_THEME_CONFIG);
+      }
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
     }
   }, [conversationId, serverTheme, sharedTheme]);
 
@@ -127,7 +152,11 @@ export function useChatTheme(
         payload.conversationId === conversationId ||
         payload.conversationId === 'global'
       ) {
-        resolveAndApplyTheme();
+        if (payload.theme) {
+          setThemeState(payload.theme);
+        } else {
+          resolveAndApplyTheme();
+        }
       }
     };
 

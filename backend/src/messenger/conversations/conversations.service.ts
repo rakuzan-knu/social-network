@@ -4,6 +4,7 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  OnModuleDestroy,
   Optional,
   forwardRef,
 } from '@nestjs/common';
@@ -13,8 +14,10 @@ import {
   optimizeGroupAvatar,
   uploadToStorageWithFallback,
 } from '../../common/media/image-processor';
+import { safeJsonParse } from '../../common/utils/json.util';
 import { UsersService } from '../../users/users.service';
 import { PrismaService } from '@common/prisma';
+import { RedisService } from '../../redis/redis.service';
 import { MessengerGateway } from '../gateway/messenger.gateway';
 import { CONVERSATIONS_REPOSITORY } from '../interfaces/conversations-repository.interface';
 import type { IConversationsRepository } from '../interfaces/conversations-repository.interface';
@@ -35,14 +38,29 @@ import type {
   UserSnapshot,
   ReportDto,
 } from '@common/contracts';
+import {
+  Permission,
+  DEFAULT_ADMIN_PERMISSIONS,
+  DEFAULT_MEMBER_PERMISSIONS,
+  DEFAULT_OWNER_PERMISSIONS,
+  adminPermissionsToMask,
+  maskToAdminPermissions,
+} from '@common/contracts';
 import { MessengerMapper } from '../messenger.mapper';
 import type { ReportCategory } from '@prisma/client';
 import { WS_EVENTS } from '../events/ws-events';
 import { messageInclude } from '../interfaces/types';
 
+import { DataLoaderService } from '../../common/dataloader';
+import { QueueService } from '../../queue/queue.service';
+
 @Injectable()
-export class ConversationsService {
+export class ConversationsService implements OnModuleDestroy {
   private readonly s3: S3Client;
+
+  onModuleDestroy(): void {
+    this.s3.destroy();
+  }
 
   constructor(
     @Inject(CONVERSATIONS_REPOSITORY)
@@ -54,9 +72,14 @@ export class ConversationsService {
     private readonly mapper: MessengerMapper,
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
+    private readonly redis: RedisService,
     @Optional()
     @Inject(forwardRef(() => MessengerGateway))
     private readonly gateway?: MessengerGateway,
+    @Optional()
+    private readonly dataLoaderService?: DataLoaderService,
+    @Optional()
+    private readonly queueService?: QueueService,
   ) {
     this.s3 = new S3Client({
       endpoint:
@@ -84,12 +107,33 @@ export class ConversationsService {
       this.getBlockRelationships(userId),
     ]);
     const hiddenUserIds = [...blockCtx.blockedByMe, ...blockCtx.blockingMe];
+    const unreadLoader = this.dataLoaderService
+      ? this.dataLoaderService.createUnreadCountLoader()
+      : null;
 
-    return Promise.all(
+    const unreadCounts = await Promise.all(
       convs.map(async (conv) => {
-        const unread = await this.convsRepo.countUnread(conv.id, userId, hiddenUserIds);
-        return this.mapper.mapConversation(conv, userId, unread, blockCtx);
+        const participant = conv.participants.find((p) => p.userId === userId);
+        if (!participant || !participant.joinedAt) return 0;
+        try {
+          if (unreadLoader) {
+            return await unreadLoader.load({
+              conversationId: conv.id,
+              userId,
+              joinedAt: participant.joinedAt,
+              lastReadAt: participant.lastReadAt,
+              hiddenUserIds,
+            });
+          }
+          return await this.convsRepo.countUnread(conv.id, userId, hiddenUserIds);
+        } catch {
+          return 0;
+        }
       }),
+    );
+
+    return convs.map((conv, index) =>
+      this.mapper.mapConversation(conv, userId, unreadCounts[index], blockCtx),
     );
   }
 
@@ -98,7 +142,12 @@ export class ConversationsService {
     if (!conv) throw new NotFoundException('Conversation not found');
     const blockCtx = await this.getBlockRelationships(userId);
     const hiddenUserIds = [...blockCtx.blockedByMe, ...blockCtx.blockingMe];
-    const unread = await this.convsRepo.countUnread(conv.id, userId, hiddenUserIds);
+    let unread = 0;
+    try {
+      unread = await this.convsRepo.countUnread(conv.id, userId, hiddenUserIds);
+    } catch {
+      unread = 0;
+    }
     return this.mapper.mapConversation(conv, userId, unread, blockCtx);
   }
 
@@ -201,21 +250,22 @@ export class ConversationsService {
       });
 
       const mapped = this.mapper.mapMessage(sysMsg, userId, new Set());
-      for (const pid of participantIds) {
-        this.gateway?.emitToUser(pid, WS_EVENTS.NEW_MESSAGE, {
-          conversationId,
-          message: mapped,
-        });
-      }
+      await this.broadcastToParticipants(conversationId, participantIds, WS_EVENTS.NEW_MESSAGE, {
+        conversationId,
+        message: mapped,
+      });
     }
 
-    for (const pid of participantIds) {
-      this.gateway?.emitToUser(pid, WS_EVENTS.CONVERSATION_UPDATED, {
+    await this.broadcastToParticipants(
+      conversationId,
+      participantIds,
+      WS_EVENTS.CONVERSATION_UPDATED,
+      {
         id: conversationId,
         ...(dto.name ? { name: dto.name } : {}),
         ...(dto.description !== undefined ? { description: dto.description } : {}),
-      });
-    }
+      },
+    );
 
     return this.getConversation(conversationId, userId);
   }
@@ -225,31 +275,48 @@ export class ConversationsService {
     userId: string,
     dto: AddMembersDto,
   ): Promise<ConversationView> {
-    const conv = await this.convsRepo.findOneForUser(conversationId, userId);
-    if (!conv) throw new NotFoundException('Conversation not found');
-    if (conv.type !== 'GROUP') throw new BadRequestException('Not a group');
+    return this.redis.withLock(`lock:conversation:${conversationId}:members`, async () => {
+      const conv = await this.convsRepo.findOneForUser(conversationId, userId);
+      if (!conv) throw new NotFoundException('Conversation not found');
+      if (conv.type !== 'GROUP') throw new BadRequestException('Not a group');
 
-    await this.assertMember(conversationId, userId);
+      await this.assertMember(conversationId, userId);
 
-    const existingUsersCount = await this.prisma.user.count({
-      where: { id: { in: dto.memberIds } },
+      const inviter = conv.participants.find((p) => p.userId === userId);
+      if (inviter) {
+        const inviterFlags =
+          (inviter as unknown as { permissions?: number }).permissions ??
+          (inviter.role === 'OWNER'
+            ? DEFAULT_OWNER_PERMISSIONS
+            : inviter.role === 'ADMIN'
+              ? DEFAULT_ADMIN_PERMISSIONS
+              : DEFAULT_MEMBER_PERMISSIONS);
+        if (inviter.role !== 'OWNER' && (inviterFlags & Permission.CAN_INVITE_USERS) === 0) {
+          throw new ForbiddenException('You do not have permission to invite users');
+        }
+      }
+
+      const existingUsersCount = await this.prisma.user.count({
+        where: { id: { in: dto.memberIds } },
+      });
+      if (existingUsersCount !== dto.memberIds.length) {
+        throw new NotFoundException('One or more users not found');
+      }
+
+      const block = await this.prisma.userBlock.findFirst({
+        where: {
+          OR: [
+            { blockerId: { in: dto.memberIds }, blockedId: userId },
+            { blockerId: userId, blockedId: { in: dto.memberIds } },
+          ],
+        },
+      });
+      if (block)
+        throw new ForbiddenException('Cannot add members due to privacy settings / blocks');
+
+      await this.convsRepo.addParticipants(conversationId, dto.memberIds);
+      return this.getConversation(conversationId, userId);
     });
-    if (existingUsersCount !== dto.memberIds.length) {
-      throw new NotFoundException('One or more users not found');
-    }
-
-    const block = await this.prisma.userBlock.findFirst({
-      where: {
-        OR: [
-          { blockerId: { in: dto.memberIds }, blockedId: userId },
-          { blockerId: userId, blockedId: { in: dto.memberIds } },
-        ],
-      },
-    });
-    if (block) throw new ForbiddenException('Cannot add members due to privacy settings / blocks');
-
-    await this.convsRepo.addParticipants(conversationId, dto.memberIds);
-    return this.getConversation(conversationId, userId);
   }
 
   async removeMember(conversationId: string, adminId: string, targetUserId: string): Promise<void> {
@@ -258,7 +325,18 @@ export class ConversationsService {
     if (conv.type !== 'GROUP') throw new BadRequestException('Not a group');
 
     const admin = conv.participants.find((p) => p.userId === adminId);
-    if (!admin || (admin.role !== 'ADMIN' && admin.role !== 'OWNER')) {
+    if (!admin) {
+      throw new ForbiddenException('Only admins can remove members');
+    }
+    const adminFlags =
+      (admin as unknown as { permissions?: number }).permissions ??
+      (admin.role === 'OWNER'
+        ? DEFAULT_OWNER_PERMISSIONS
+        : admin.role === 'ADMIN'
+          ? DEFAULT_ADMIN_PERMISSIONS
+          : DEFAULT_MEMBER_PERMISSIONS);
+
+    if (admin.role !== 'OWNER' && (adminFlags & Permission.CAN_MANAGE_MEMBERS) === 0) {
       throw new ForbiddenException('Only admins can remove members');
     }
 
@@ -279,13 +357,14 @@ export class ConversationsService {
     ownerId: string,
     targetUserId: string,
     permissions: {
-      canEditGroup?: boolean;
-      canDeleteMessages?: boolean;
-      canManageMembers?: boolean;
-      canPinMessages?: boolean;
-      canInviteUsers?: boolean;
+      permissions?: number | undefined;
+      canEditGroup?: boolean | undefined;
+      canDeleteMessages?: boolean | undefined;
+      canManageMembers?: boolean | undefined;
+      canPinMessages?: boolean | undefined;
+      canInviteUsers?: boolean | undefined;
     },
-  ): Promise<{ success: boolean; permissions: Record<string, boolean> }> {
+  ): Promise<{ success: boolean; permissions: Record<string, boolean>; permissionsMask: number }> {
     const conv = await this.convsRepo.findOneForUser(conversationId, ownerId);
     if (!conv) throw new NotFoundException('Conversation not found');
     if (conv.type !== 'GROUP') {
@@ -303,15 +382,28 @@ export class ConversationsService {
       throw new BadRequestException('Target user must have ADMIN role');
     }
 
+    const currentMask =
+      (target as unknown as { permissions?: number }).permissions ?? DEFAULT_ADMIN_PERMISSIONS;
+
+    const finalMask =
+      permissions.permissions !== undefined
+        ? permissions.permissions
+        : adminPermissionsToMask(permissions, currentMask);
+
+    await this.convsRepo.updateParticipant(conversationId, targetUserId, {
+      permissions: finalMask,
+    });
+
+    const flags = maskToAdminPermissions(finalMask);
+
     return {
       success: true,
+      permissionsMask: finalMask,
       permissions: {
-        canEditGroup: permissions.canEditGroup ?? true,
-        canDeleteMessages: permissions.canDeleteMessages ?? true,
-        canManageMembers: permissions.canManageMembers ?? true,
-        canPinMessages: permissions.canPinMessages ?? true,
-        canInviteUsers: permissions.canInviteUsers ?? true,
+        ...flags,
+        mask: finalMask as unknown as boolean,
       },
+      ...flags,
     };
   }
 
@@ -348,14 +440,17 @@ export class ConversationsService {
     });
 
     const participantIds = await this.convsRepo.findParticipantIds(conversationId);
-    const remainingParticipantIds = participantIds.filter((id) => id !== userId);
     const mapped = this.mapper.mapMessage(sysMsg, userId, new Set());
-    for (const remId of remainingParticipantIds) {
-      this.gateway?.emitToUser(remId, WS_EVENTS.NEW_MESSAGE, {
+    await this.broadcastToParticipants(
+      conversationId,
+      participantIds,
+      WS_EVENTS.NEW_MESSAGE,
+      {
         conversationId,
         message: mapped,
-      });
-    }
+      },
+      userId,
+    );
     this.gateway?.emitConversationDeleted(conversationId, [userId]);
   }
 
@@ -527,7 +622,21 @@ export class ConversationsService {
   private async assertGroupAdmin(conversationId: string, userId: string): Promise<void> {
     const participants = await this.convsRepo.findParticipants(conversationId);
     const p = participants.find((p) => p.userId === userId);
-    if (!p || (p.role !== 'ADMIN' && p.role !== 'OWNER')) {
+    if (!p) {
+      throw new ForbiddenException('Only admins can perform this action');
+    }
+    const pFlags =
+      (p as unknown as { permissions?: number }).permissions ??
+      (p.role === 'OWNER'
+        ? DEFAULT_OWNER_PERMISSIONS
+        : p.role === 'ADMIN'
+          ? DEFAULT_ADMIN_PERMISSIONS
+          : DEFAULT_MEMBER_PERMISSIONS);
+    if (
+      p.role !== 'OWNER' &&
+      (pFlags & Permission.IS_ADMIN) === 0 &&
+      (pFlags & Permission.CAN_EDIT) === 0
+    ) {
       throw new ForbiddenException('Only admins can perform this action');
     }
   }
@@ -750,16 +859,19 @@ export class ConversationsService {
 
     const participantIds = await this.convsRepo.findParticipantIds(conversationId);
     const mapped = this.mapper.mapMessage(sysMsg, userId, new Set());
-    for (const pid of participantIds) {
-      this.gateway?.emitToUser(pid, WS_EVENTS.NEW_MESSAGE, {
-        conversationId,
-        message: mapped,
-      });
-      this.gateway?.emitToUser(pid, WS_EVENTS.CONVERSATION_UPDATED, {
+    await this.broadcastToParticipants(conversationId, participantIds, WS_EVENTS.NEW_MESSAGE, {
+      conversationId,
+      message: mapped,
+    });
+    await this.broadcastToParticipants(
+      conversationId,
+      participantIds,
+      WS_EVENTS.CONVERSATION_UPDATED,
+      {
         id: conversationId,
         avatar: avatarUrl,
-      });
-    }
+      },
+    );
 
     return { avatarUrl };
   }
@@ -864,10 +976,8 @@ export class ConversationsService {
       throw new BadRequestException('Message is not a theme proposal');
     }
 
-    let proposalData: ThemeProposalData;
-    try {
-      proposalData = JSON.parse(msg.body);
-    } catch {
+    const proposalData = safeJsonParse<ThemeProposalData>(msg.body, { strict: false });
+    if (!proposalData) {
       throw new BadRequestException('Corrupted theme proposal payload');
     }
 
@@ -946,5 +1056,34 @@ export class ConversationsService {
     }
 
     return { success: true };
+  }
+
+  private async broadcastToParticipants(
+    conversationId: string,
+    participantIds: string[],
+    event: string,
+    payload: unknown,
+    excludedUserId?: string,
+  ): Promise<void> {
+    const DIRECT_FANOUT_THRESHOLD = 100;
+    const targetIds = excludedUserId
+      ? participantIds.filter((id) => id !== excludedUserId)
+      : participantIds;
+
+    if (targetIds.length > DIRECT_FANOUT_THRESHOLD && this.queueService) {
+      await this.queueService.addGlobalEntityFanoutJob(
+        conversationId,
+        event,
+        payload,
+        excludedUserId,
+      );
+      return;
+    }
+
+    if (this.gateway) {
+      for (const pid of targetIds) {
+        this.gateway.emitToUser(pid, event, payload);
+      }
+    }
   }
 }

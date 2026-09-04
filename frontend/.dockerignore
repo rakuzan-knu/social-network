@@ -29,3 +29,13 @@ vitest.config.ts
 docs/
 src/**/*.spec.ts
 src/**/*.spec.tsx
+storybook-static/
+benchmarks/
+infrastructure/
+.nx/
+.clinic/
+*.clinic-*/
+*.clinic-*
+reports/
+.stryker-tmp/
+

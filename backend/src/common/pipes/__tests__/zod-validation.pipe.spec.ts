@@ -55,4 +55,21 @@ describe('ZodValidationPipe', () => {
     const customPipe = new ZodValidationPipe(throwingSchema);
     expect(() => customPipe.transform({ foo: 'bar' })).toThrow(RangeError);
   });
+
+  it('rejects payload with prototype pollution properties (__proto__, constructor, prototype)', () => {
+    const pollutedPayload1 = JSON.parse(
+      '{"__proto__": {"isAdmin": true}, "username": "alice", "age": 25}',
+    );
+    expect(() => pipe.transform(pollutedPayload1)).toThrow(BadRequestException);
+
+    const pollutedPayload2 = JSON.parse(
+      '{"constructor": {"prototype": {"isAdmin": true}}, "username": "alice", "age": 25}',
+    );
+    expect(() => pipe.transform(pollutedPayload2)).toThrow(BadRequestException);
+
+    const pollutedNested = JSON.parse(
+      '{"username": "alice", "age": 25, "nested": {"__proto__": {"isAdmin": true}}}',
+    );
+    expect(() => pipe.transform(pollutedNested)).toThrow(BadRequestException);
+  });
 });

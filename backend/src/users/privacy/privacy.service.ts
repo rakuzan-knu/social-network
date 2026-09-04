@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import {
   AutoDeletePeriod,
   ExceptionMode,
@@ -7,14 +7,16 @@ import {
   UserPrivacy,
   Visibility,
 } from '@prisma/client';
-import { PrismaService } from '@common/prisma';
 import { RedisService } from '../../redis/redis.service';
 import {
   type DimensionExceptionsDto,
-  type PrivacyExceptionUserDto,
   type PrivacySettingsDto,
   type UpdatePrivacyDto,
 } from '@common/contracts';
+import {
+  PRIVACY_REPOSITORY,
+  type IPrivacyRepository,
+} from './interfaces/privacy-repository.interface';
 
 const DEFAULT_PRIVACY: Omit<PrivacySettingsDto, 'isPrivate' | 'autoDeletePeriod'> = {
   lastSeen: Visibility.EVERYBODY,
@@ -45,18 +47,13 @@ const VISIBILITY_KEYS = [
 @Injectable()
 export class PrivacyService {
   constructor(
-    private readonly prisma: PrismaService,
+    @Inject(PRIVACY_REPOSITORY)
+    private readonly privacyRepo: IPrivacyRepository,
     private readonly redis: RedisService,
   ) {}
 
   async getMyPrivacy(userId: string): Promise<PrivacySettingsDto> {
-    const [privacy, user] = await Promise.all([
-      this.prisma.userPrivacy.findUnique({ where: { userId } }),
-      this.prisma.user.findUnique({
-        where: { id: userId },
-        select: { isPrivate: true, autoDeletePeriod: true },
-      }),
-    ]);
+    const { privacy, user } = await this.privacyRepo.getUserPrivacyAndUser(userId);
 
     return this.toSettingsDto(
       privacy,
@@ -85,18 +82,12 @@ export class PrivacyService {
       privacyUpdate.allowNearbyRecommendations = dto.allowNearbyRecommendations;
     }
 
-    const [privacy, user] = await this.prisma.$transaction([
-      this.prisma.userPrivacy.upsert({
-        where: { userId },
-        create: privacyData,
-        update: privacyUpdate,
-      }),
-      this.prisma.user.update({
-        where: { id: userId },
-        data: userData,
-        select: { isPrivate: true, autoDeletePeriod: true },
-      }),
-    ]);
+    const { privacy, user } = await this.privacyRepo.upsertPrivacyAndUser(
+      userId,
+      privacyData,
+      privacyUpdate,
+      userData,
+    );
 
     await this.redis.del(`user${userId}`);
     return this.toSettingsDto(privacy, user.isPrivate, user.autoDeletePeriod);
@@ -106,21 +97,7 @@ export class PrivacyService {
     userId: string,
     dimension: PrivacyDimension,
   ): Promise<DimensionExceptionsDto> {
-    const rows = await this.prisma.privacyException.findMany({
-      where: { ownerId: userId, dimension },
-      select: {
-        mode: true,
-        target: { select: { id: true, username: true, displayName: true, avatar: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    const allow: PrivacyExceptionUserDto[] = [];
-    const deny: PrivacyExceptionUserDto[] = [];
-    for (const row of rows) {
-      (row.mode === ExceptionMode.ALLOW ? allow : deny).push(row.target);
-    }
-    return { allow, deny };
+    return this.privacyRepo.listExceptions(userId, dimension);
   }
 
   async addException(
@@ -129,11 +106,7 @@ export class PrivacyService {
     targetId: string,
     mode: ExceptionMode,
   ): Promise<void> {
-    await this.prisma.privacyException.upsert({
-      where: { ownerId_dimension_targetId: { ownerId: userId, dimension, targetId } },
-      create: { ownerId: userId, dimension, targetId, mode },
-      update: { mode },
-    });
+    await this.privacyRepo.upsertException(userId, dimension, targetId, mode);
     await this.redis.del(`user${userId}`);
   }
 
@@ -142,9 +115,7 @@ export class PrivacyService {
     dimension: PrivacyDimension,
     targetId: string,
   ): Promise<void> {
-    await this.prisma.privacyException.deleteMany({
-      where: { ownerId: userId, dimension, targetId },
-    });
+    await this.privacyRepo.deleteException(userId, dimension, targetId);
     await this.redis.del(`user${userId}`);
   }
 

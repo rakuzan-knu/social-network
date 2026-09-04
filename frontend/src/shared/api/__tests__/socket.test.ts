@@ -46,4 +46,37 @@ describe('socket', () => {
     getSocket();
     expect(io).toHaveBeenCalledTimes(2);
   });
+
+  it('disconnectSocket handles when socket is already null', () => {
+    disconnectSocket();
+    expect(() => disconnectSocket()).not.toThrow();
+  });
+
+  it('uses default url http://localhost:3000 when VITE_API_URL is unset', () => {
+    vi.stubEnv('VITE_API_URL', '');
+    disconnectSocket();
+    getSocket();
+    expect(io).toHaveBeenCalledWith(
+      expect.stringContaining('http://localhost:3000/messenger'),
+      expect.any(Object),
+    );
+    vi.unstubAllEnvs();
+  });
+
+  it('covers the || fallback in getSocketBaseUrl when VITE_API_URL is undefined (line 6)', () => {
+    // Explicitly stub to undefined to ensure the right side of || is evaluated
+    vi.stubEnv('VITE_API_URL', undefined as any);
+    disconnectSocket();
+    getSocket();
+    expect(io).toHaveBeenCalledWith(expect.stringContaining('/messenger'), expect.any(Object));
+    vi.unstubAllEnvs();
+  });
+
+  it('strips trailing /api/ from base url', () => {
+    vi.stubEnv('VITE_API_URL', 'https://api.example.com/api/');
+    disconnectSocket();
+    getSocket();
+    expect(io).toHaveBeenCalledWith('https://api.example.com/messenger', expect.any(Object));
+    vi.unstubAllEnvs();
+  });
 });

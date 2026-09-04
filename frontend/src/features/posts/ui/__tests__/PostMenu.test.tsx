@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { PostMenu } from '../PostMenu';
 import { useHiddenPostsStore } from '@/shared/model/useHiddenPostsStore';
 
@@ -36,18 +36,27 @@ describe('PostMenu', () => {
     expect(onSave).toHaveBeenCalled();
   });
 
-  it('renders owner-specific menu items for owner with Delete your post at bottom', () => {
+  it('renders owner-specific menu items for owner with Delete your post at bottom and handles copy link & pin', async () => {
     const onDelete = vi.fn();
     const onEdit = vi.fn();
+    const onTogglePin = vi.fn();
     const onToggleHideLikes = vi.fn();
     const onToggleDisableComments = vi.fn();
+
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: vi.fn().mockResolvedValue(undefined),
+      },
+    });
 
     render(
       <PostMenu
         postId="post-100"
         isOwner={true}
+        isPinned={true}
         onDelete={onDelete}
         onEdit={onEdit}
+        onTogglePin={onTogglePin}
         onToggleHideLikes={onToggleHideLikes}
         onToggleDisableComments={onToggleDisableComments}
       />,
@@ -56,29 +65,43 @@ describe('PostMenu', () => {
     const trigger = screen.getByRole('button', { name: /more options/i });
     fireEvent.click(trigger);
 
+    expect(screen.getByText('Unpin from profile')).toBeInTheDocument();
     expect(screen.getByText('Edit post')).toBeInTheDocument();
     expect(screen.getByText('Hide like count')).toBeInTheDocument();
     expect(screen.getByText('Disable commenting')).toBeInTheDocument();
-    expect(screen.getByText('Save post')).toBeInTheDocument();
-    expect(screen.getByText('Copy link')).toBeInTheDocument();
-    expect(screen.getByText('Delete your post')).toBeInTheDocument();
-    expect(screen.queryByText('Hide post')).not.toBeInTheDocument();
-    expect(screen.queryByText('Report')).not.toBeInTheDocument();
 
-    const buttons = screen.getAllByRole('button');
-    // The last item in the dropdown should be Delete your post
-    expect(buttons[buttons.length - 1]).toHaveTextContent('Delete your post');
+    // Toggle Pin
+    fireEvent.click(screen.getByText('Unpin from profile'));
+    expect(onTogglePin).toHaveBeenCalled();
 
-    fireEvent.click(screen.getByText('Delete your post'));
-    expect(onDelete).toHaveBeenCalled();
+    // Reopen and copy link
+    fireEvent.click(trigger);
+    await act(async () => {
+      fireEvent.click(screen.getByText('Copy link'));
+    });
+    expect(navigator.clipboard.writeText).toHaveBeenCalled();
   });
 
-  it('hides post when clicking Hide post on non-owner post', () => {
+  it('hides post when clicking Hide post on non-owner post and handles Escape key and outside click', () => {
     render(<PostMenu postId="post-200" isOwner={false} />);
 
-    fireEvent.click(screen.getByRole('button', { name: /more options/i }));
-    fireEvent.click(screen.getByText('Hide post'));
+    const trigger = screen.getByRole('button', { name: /more options/i });
+    fireEvent.click(trigger);
+    expect(screen.getByText('Hide post')).toBeInTheDocument();
 
+    // Escape key
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByText('Hide post')).not.toBeInTheDocument();
+
+    // Outside click
+    fireEvent.click(trigger);
+    expect(screen.getByText('Hide post')).toBeInTheDocument();
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByText('Hide post')).not.toBeInTheDocument();
+
+    // Hide post action
+    fireEvent.click(trigger);
+    fireEvent.click(screen.getByText('Hide post'));
     expect(useHiddenPostsStore.getState().hiddenIds.has('post-200')).toBe(true);
   });
 });

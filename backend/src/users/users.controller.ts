@@ -21,22 +21,35 @@ import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 import {
   type DeleteAccountDto,
   type GetPostsQueryDto,
+  type GetSuggestedUsersQueryDto,
+  type GetTopUsersQueryDto,
+  type GetTrendingHashtagsQueryDto,
+  type SearchHashtagsQueryDto,
+  type SearchUsersQueryDto,
   type SetUserAliasDto,
   type UpdatePrimaryBadgeDto,
   type UpdateUserDto,
   type UserProfileDto,
   deleteAccountSchema,
   getPostsQuerySchema,
+  getSuggestedUsersQuerySchema,
+  getTopUsersQuerySchema,
+  getTrendingHashtagsQuerySchema,
+  searchHashtagsQuerySchema,
+  searchUsersQuerySchema,
   setUserAliasSchema,
   updatePrimaryBadgeSchema,
   updateUserSchema,
 } from '@common/contracts';
+import { LowPriority } from '../common/resilience/request-priority.decorator';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
+import { DeprecatedEndpoint } from '../common/versioning';
 import { UsersService } from './users.service';
 import { PostsService } from '../posts/posts.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/interfaces/jwt-payload.interface';
 import type { Request } from 'express';
+import { ConditionalHttpCache } from '../common/cache/etag.interceptor';
 
 @ApiTags('Users')
 @Controller('users')
@@ -46,6 +59,29 @@ export class UsersController {
     private readonly postsService: PostsService,
   ) {}
 
+  @Get('legacy/lookup')
+  @DeprecatedEndpoint({
+    sunsetDate: '2026-12-31T23:59:59Z',
+    deprecationDate: true,
+    successor: '/v1/users/search',
+    docUrl: 'https://api.socialnetwork.com/docs/deprecations#legacy-lookup',
+    message: 'users/legacy/lookup is deprecated. Migrate to /v1/users/search immediately.',
+    alertOnMobile: true,
+    minSupportedClientVersion: '2.0.0',
+  })
+  @UseGuards(OptionalJwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Deprecated legacy user lookup endpoint (RFC 8594)' })
+  @ApiResponse({ status: 200, description: 'Matching users retrieved' })
+  legacyLookup(
+    @Query(new ZodValidationPipe(searchUsersQuerySchema)) query: SearchUsersQueryDto,
+    @CurrentUser() viewer?: RequestUser,
+  ): Promise<UserProfileDto[]> {
+    const safeQuery = typeof query.q === 'string' ? query.q : '';
+    return this.usersService.searchUsers(safeQuery, viewer?.id ?? null);
+  }
+
   @Get('search')
   @UseGuards(OptionalJwtAuthGuard)
   @ApiBearerAuth()
@@ -53,10 +89,10 @@ export class UsersController {
   @ApiOperation({ summary: 'Search users by username or display name' })
   @ApiResponse({ status: 200, description: 'Matching users retrieved' })
   searchUsers(
-    @Query('q') q: string,
+    @Query(new ZodValidationPipe(searchUsersQuerySchema)) query: SearchUsersQueryDto,
     @CurrentUser() viewer?: RequestUser,
   ): Promise<UserProfileDto[]> {
-    const safeQuery = typeof q === 'string' ? q : '';
+    const safeQuery = typeof query.q === 'string' ? query.q : '';
     return this.usersService.searchUsers(safeQuery, viewer?.id ?? null);
   }
 
@@ -69,44 +105,43 @@ export class UsersController {
   })
   @ApiResponse({ status: 200, description: 'Matching users retrieved' })
   searchMentionSuggestions(
-    @Query('q') q: string,
+    @Query(new ZodValidationPipe(searchUsersQuerySchema)) query: SearchUsersQueryDto,
     @CurrentUser() viewer?: RequestUser,
   ): Promise<UserProfileDto[]> {
-    const safeQuery = typeof q === 'string' ? q : '';
+    const safeQuery = typeof query.q === 'string' ? query.q : '';
     return this.usersService.searchMentionSuggestions(safeQuery, viewer?.id ?? null);
   }
 
   @Get('top')
+  @ConditionalHttpCache()
   @UseGuards(OptionalJwtAuthGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get top creators sorted by follower count' })
   @ApiResponse({ status: 200, description: 'Top users retrieved' })
   getTopUsers(
-    @Query('limit') limit?: string,
+    @Query(new ZodValidationPipe(getTopUsersQuerySchema)) query: GetTopUsersQueryDto,
     @CurrentUser() viewer?: RequestUser,
   ): Promise<UserProfileDto[]> {
-    return this.usersService.getTopFollowedUsers(
-      limit ? parseInt(limit, 10) : 5,
-      viewer?.id ?? null,
-    );
+    return this.usersService.getTopFollowedUsers(query.limit ?? 5, viewer?.id ?? null);
   }
 
   @Get('suggested')
+  @LowPriority()
   @UseGuards(OptionalJwtAuthGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get suggested users for viewer' })
   @ApiResponse({ status: 200, description: 'Suggested users retrieved' })
   getSuggestedUsers(
-    @Query('limit') limit?: string,
+    @Query(new ZodValidationPipe(getSuggestedUsersQuerySchema)) query: GetSuggestedUsersQueryDto,
     @CurrentUser() viewer?: RequestUser,
     @Req() req?: Request,
   ): Promise<UserProfileDto[]> {
     const clientIp = req?.ip ?? null;
     return this.usersService.getSuggestedUsers(
       viewer?.id ?? null,
-      limit ? parseInt(limit, 10) : 5,
+      query.limit ?? 5,
       clientIp,
       req?.headers,
     );
@@ -127,22 +162,31 @@ export class UsersController {
   }
 
   @Get('hashtags')
+  @LowPriority()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Search hashtags' })
   @ApiResponse({ status: 200, description: 'Matching hashtags with post counts' })
-  searchHashtags(@Query('q') q: string): Promise<{ tag: string; count: number }[]> {
-    return this.usersService.searchHashtags(q || '');
+  searchHashtags(
+    @Query(new ZodValidationPipe(searchHashtagsQuerySchema)) query: SearchHashtagsQueryDto,
+  ): Promise<{ tag: string; count: number }[]> {
+    return this.usersService.searchHashtags(query.q || '');
   }
 
   @Get('trending-hashtags')
+  @ConditionalHttpCache()
+  @LowPriority()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get trending hashtags from recent posts' })
   @ApiResponse({ status: 200, description: 'Trending hashtags retrieved' })
-  getTrendingHashtags(@Query('limit') limit?: string): Promise<{ tag: string; count: number }[]> {
-    return this.usersService.getTrendingHashtags(limit ? parseInt(limit, 10) : 6);
+  getTrendingHashtags(
+    @Query(new ZodValidationPipe(getTrendingHashtagsQuerySchema))
+    query: GetTrendingHashtagsQueryDto,
+  ): Promise<{ tag: string; count: number }[]> {
+    return this.usersService.getTrendingHashtags(query.limit ?? 6);
   }
 
   @Get('by-username/:username')
+  @ConditionalHttpCache()
   @UseGuards(OptionalJwtAuthGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
@@ -269,6 +313,7 @@ export class UsersController {
   }
 
   @Get(':id')
+  @ConditionalHttpCache()
   @UseGuards(OptionalAuthGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)

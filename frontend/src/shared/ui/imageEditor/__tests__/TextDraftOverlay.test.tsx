@@ -39,4 +39,19 @@ describe('TextDraftOverlay', () => {
 
     document.body.removeChild(parent);
   });
+
+  it('handles null canvasRef gracefully', () => {
+    const canvasRef = { current: null };
+    render(
+      <TextDraftOverlay
+        canvasRef={canvasRef}
+        draft={{ x: 10, y: 20, value: 'Initial text' }}
+        color="#ffffff"
+        fontSize={16}
+        onChange={vi.fn()}
+        onCommit={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('textbox')).toBeInTheDocument();
+  });
 });

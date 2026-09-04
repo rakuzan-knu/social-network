@@ -1,4 +1,4 @@
-import { Injectable, Inject, NotFoundException, Optional } from '@nestjs/common';
+import { Injectable, Inject, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { S3Client } from '@aws-sdk/client-s3';
 import { BANNER_S3_CLIENT } from './s3-provider';
@@ -13,6 +13,7 @@ import {
 
 @Injectable()
 export class BannersService {
+  private readonly logger = new Logger(BannersService.name);
   private readonly bucket: string;
   private readonly publicUrl: string;
 
@@ -44,7 +45,9 @@ export class BannersService {
         url: user.banner,
         bucket: this.bucket,
         publicUrl: this.publicUrl,
-      }).catch(() => {});
+      }).catch((e) => {
+        this.logger.warn(`Failed to delete old banner storage file for ${userId}: ${String(e)}`);
+      });
     }
 
     const { buffer: uploadBuffer, contentType, ext } = await optimizeBanner(file.buffer);
@@ -62,8 +65,8 @@ export class BannersService {
     try {
       await this.redis?.del(`user:${userId}`);
       await this.redis?.del(`user${userId}`);
-    } catch {
-      // Safe non-blocking cache invalidation
+    } catch (e) {
+      this.logger.warn(`Failed to invalidate user banner cache for ${userId}: ${String(e)}`);
     }
     return view;
   }
@@ -79,15 +82,17 @@ export class BannersService {
         url: user.banner,
         bucket: this.bucket,
         publicUrl: this.publicUrl,
-      }).catch(() => {});
+      }).catch((e) => {
+        this.logger.warn(`Failed to delete banner storage file for ${userId}: ${String(e)}`);
+      });
     }
 
     const view = await this.bannerRepository.updateBanner(userId, null);
     try {
       await this.redis?.del(`user:${userId}`);
       await this.redis?.del(`user${userId}`);
-    } catch {
-      // Safe non-blocking cache invalidation
+    } catch (e) {
+      this.logger.warn(`Failed to invalidate user banner cache for ${userId}: ${String(e)}`);
     }
     return view;
   }

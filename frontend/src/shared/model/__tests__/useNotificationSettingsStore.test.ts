@@ -1,9 +1,17 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useNotificationSettingsStore } from '../useNotificationSettingsStore';
+import * as notificationApi from '@/entities/notification/api/notificationApi';
+
+vi.mock('@/entities/notification/api/notificationApi', () => ({
+  muteNotificationAuthor: vi.fn().mockResolvedValue(undefined),
+  unmuteNotificationAuthor: vi.fn().mockResolvedValue(undefined),
+  updateNotificationSettings: vi.fn().mockResolvedValue({}),
+}));
 
 describe('useNotificationSettingsStore', () => {
   beforeEach(() => {
     localStorage.clear();
+    vi.clearAllMocks();
   });
 
   it('updates notification toggles and fields correctly', () => {
@@ -39,6 +47,12 @@ describe('useNotificationSettingsStore', () => {
     store.setFollowers(false);
     expect(useNotificationSettingsStore.getState().followers).toBe(false);
 
+    store.setMentions(false);
+    expect(useNotificationSettingsStore.getState().mentions).toBe(false);
+
+    store.setSystem(false);
+    expect(useNotificationSettingsStore.getState().system).toBe(false);
+
     store.setToastPosition('top-left');
     expect(useNotificationSettingsStore.getState().toastPosition).toBe('top-left');
 
@@ -58,5 +72,69 @@ describe('useNotificationSettingsStore', () => {
     store.setShowText(true);
     expect(useNotificationSettingsStore.getState().showName).toBe(true);
     expect(useNotificationSettingsStore.getState().showText).toBe(true);
+
+    // Turning off showText directly
+    store.setShowText(false);
+    expect(useNotificationSettingsStore.getState().showText).toBe(false);
+    expect(useNotificationSettingsStore.getState().showName).toBe(true);
+
+    // Turning on showName when true
+    store.setShowName(true);
+    expect(useNotificationSettingsStore.getState().showName).toBe(true);
+  });
+
+  it('handles setDoNotDisturb presets', () => {
+    const store = useNotificationSettingsStore.getState();
+
+    store.setDoNotDisturb('1h');
+    expect(useNotificationSettingsStore.getState().dndUntil).not.toBeNull();
+
+    store.setDoNotDisturb('8h');
+    expect(useNotificationSettingsStore.getState().dndUntil).not.toBeNull();
+
+    store.setDoNotDisturb('tomorrow');
+    expect(useNotificationSettingsStore.getState().dndUntil).not.toBeNull();
+
+    store.setDoNotDisturb('off');
+    expect(useNotificationSettingsStore.getState().dndUntil).toBeNull();
+  });
+
+  it('mutes and unmutes notification authors with API integration', async () => {
+    const store = useNotificationSettingsStore.getState();
+    const actor = { id: 'usr-1', username: 'alice', displayName: 'Alice' };
+
+    await store.muteAuthor('usr-1', actor);
+    expect(useNotificationSettingsStore.getState().mutedActorIds).toContain('usr-1');
+    expect(useNotificationSettingsStore.getState().mutedActors).toEqual([actor]);
+    expect(notificationApi.muteNotificationAuthor).toHaveBeenCalledWith('usr-1');
+
+    // Mute another author without actorInfo
+    await store.muteAuthor('usr-2');
+    expect(useNotificationSettingsStore.getState().mutedActorIds).toContain('usr-2');
+
+    // Unmute author
+    await store.unmuteAuthor('usr-1');
+    expect(useNotificationSettingsStore.getState().mutedActorIds).not.toContain('usr-1');
+    expect(notificationApi.unmuteNotificationAuthor).toHaveBeenCalledWith('usr-1');
+  });
+
+  it('handles errors when mute/unmute API fails', async () => {
+    vi.mocked(notificationApi.muteNotificationAuthor).mockRejectedValueOnce(new Error('Mute err'));
+    vi.mocked(notificationApi.unmuteNotificationAuthor).mockRejectedValueOnce(
+      new Error('Unmute err'),
+    );
+
+    const store = useNotificationSettingsStore.getState();
+    await expect(store.muteAuthor('usr-3')).resolves.toBeUndefined();
+    await expect(store.unmuteAuthor('usr-3')).resolves.toBeUndefined();
+  });
+
+  it('sets all settings at once', () => {
+    useNotificationSettingsStore.getState().setAllSettings({
+      allowSound: false,
+      volume: 40,
+    });
+    expect(useNotificationSettingsStore.getState().allowSound).toBe(false);
+    expect(useNotificationSettingsStore.getState().volume).toBe(40);
   });
 });

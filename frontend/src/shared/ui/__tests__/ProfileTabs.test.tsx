@@ -18,6 +18,24 @@ describe('ProfileTabs', () => {
     expect(screen.getByRole('button', { name: /^posts$/i })).toHaveClass('text-gray-500');
   });
 
+  it('renders and interacts with saved tab when showSavedTab is true', async () => {
+    const setActiveTab = vi.fn();
+    const user = userEvent.setup();
+    const { rerender } = render(
+      <ProfileTabs activeTab="posts" setActiveTab={setActiveTab} showSavedTab={true} />,
+    );
+
+    const savedTab = screen.getByRole('button', { name: /^saved$/i });
+    expect(savedTab).toBeInTheDocument();
+    expect(savedTab).toHaveClass('text-gray-500');
+
+    await user.click(savedTab);
+    expect(setActiveTab).toHaveBeenCalledWith('saved');
+
+    rerender(<ProfileTabs activeTab="saved" setActiveTab={setActiveTab} showSavedTab={true} />);
+    expect(screen.getByRole('button', { name: /^saved$/i })).toHaveClass('text-white');
+  });
+
   it('calls setActiveTab("reposts") when the reposts tab is clicked', async () => {
     const setActiveTab = vi.fn();
     const user = userEvent.setup();

@@ -156,7 +156,7 @@ export async function optimizeGroupAvatar(buffer: Buffer): Promise<ProcessedImag
 }
 
 /**
- * Uploads a buffer to S3/MinIO with automatic retry and resilient data-URI fallback
+ * Uploads a buffer to S3/MinIO/R2 with automatic retry and resilient data-URI fallback
  */
 export async function uploadToStorageWithFallback(
   s3: S3Client,
@@ -179,7 +179,22 @@ export async function uploadToStorageWithFallback(
         ContentType: contentType,
       }),
     );
-    return `${publicUrl}/${bucket}/${key}`;
+
+    const cleanPublicUrl = publicUrl.replace(/\/+$/, '');
+    const cleanKey = key.replace(/^\/+/, '');
+
+    // Cloudflare R2 bucket domains (e.g. .r2.dev or custom domain mapped to bucket)
+    // or when S3_FORCE_PATH_STYLE is explicitly disabled
+    const isDirectBucketDomain =
+      cleanPublicUrl.includes('.r2.dev') ||
+      cleanPublicUrl.endsWith(`/${bucket}`) ||
+      process.env.S3_FORCE_PATH_STYLE === 'false';
+
+    if (isDirectBucketDomain) {
+      return `${cleanPublicUrl}/${cleanKey}`;
+    }
+
+    return `${cleanPublicUrl}/${bucket}/${cleanKey}`;
   } catch {
     // Resilient fallback for local / offline / memory storage
     return `data:${contentType};base64,${buffer.toString('base64')}`;
@@ -187,7 +202,7 @@ export async function uploadToStorageWithFallback(
 }
 
 /**
- * Deletes an object by public URL from S3/MinIO
+ * Deletes an object by public URL from S3/MinIO/R2
  */
 export async function deleteFromStorage(
   s3: S3Client,
@@ -199,6 +214,11 @@ export async function deleteFromStorage(
 ): Promise<void> {
   const { url, bucket, publicUrl } = params;
   if (!url || url.startsWith('data:') || !url.startsWith(publicUrl)) return;
-  const key = url.replace(`${publicUrl}/${bucket}/`, '');
-  await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key })).catch(() => {});
+  const cleanPublicUrl = publicUrl.replace(/\/+$/, '');
+  const key = url.replace(`${cleanPublicUrl}/${bucket}/`, '').replace(`${cleanPublicUrl}/`, '');
+  try {
+    await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+  } catch {
+    // Graceful no-op on non-existent storage objects
+  }
 }

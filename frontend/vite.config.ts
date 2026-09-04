@@ -1,4 +1,3 @@
-/// <reference types="vitest" />
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react-swc';
 import tailwindcss from '@tailwindcss/vite';
@@ -8,6 +7,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   esbuild: {
     target: 'es2022',
+    legalComments: 'none',
   },
   optimizeDeps: {
     esbuildOptions: {
@@ -79,9 +79,34 @@ export default defineConfig({
               normalizedId.includes('/unist-') ||
               normalizedId.includes('/vfile') ||
               normalizedId.includes('/mdast-') ||
-              normalizedId.includes('/hast-')
+              normalizedId.includes('/hast-') ||
+              normalizedId.includes('/property-information/') ||
+              normalizedId.includes('/comma-separated-tokens/') ||
+              normalizedId.includes('/space-separated-tokens/') ||
+              normalizedId.includes('/decode-named-character-reference/') ||
+              normalizedId.includes('/character-entities') ||
+              normalizedId.includes('/trough/') ||
+              normalizedId.includes('/zwitch/') ||
+              normalizedId.includes('/ccount/') ||
+              normalizedId.includes('/devlop/') ||
+              normalizedId.includes('/trim-lines/') ||
+              normalizedId.includes('/bail/') ||
+              normalizedId.includes('/is-plain-obj/') ||
+              normalizedId.includes('/markdown-table/')
             ) {
               return 'vendor-markdown';
+            }
+            if (normalizedId.includes('/html-to-image/')) {
+              return 'vendor-html-to-image';
+            }
+            if (
+              normalizedId.includes('/prismjs/') ||
+              normalizedId.includes('/prism-react-renderer/')
+            ) {
+              return 'vendor-prism';
+            }
+            if (normalizedId.includes('/axios/')) {
+              return 'vendor-axios';
             }
             if (normalizedId.includes('/wavesurfer.js/')) {
               return 'vendor-wavesurfer';
@@ -92,27 +117,8 @@ export default defineConfig({
             if (normalizedId.includes('/framer-motion/') || normalizedId.includes('/motion/')) {
               return 'vendor-motion';
             }
-            return 'vendor-libs';
           }
         },
-      },
-    },
-  },
-  test: {
-    globals: true,
-    environment: 'jsdom',
-    pool: 'forks',
-    setupFiles: ['./src/test/polyfills.ts', './src/test/setup.ts'],
-    coverage: {
-      provider: 'v8',
-      reporter: ['text', 'lcov', 'html'],
-      include: ['src/**/*.{ts,tsx}'],
-      exclude: ['src/test/**', 'src/**/*.d.ts', 'src/main.tsx', 'src/vite-env.d.ts'],
-      thresholds: {
-        lines: 70,
-        functions: 70,
-        branches: 65,
-        statements: 70,
       },
     },
   },

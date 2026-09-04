@@ -73,11 +73,13 @@ describe('AllExceptionsFilter', () => {
     expect(statusArg).toBe(HttpStatus.NOT_FOUND);
     expect(bodyArg).toMatchObject({
       statusCode: HttpStatus.NOT_FOUND,
+      errorCode: 'NOT_FOUND',
       error: 'NotFoundException',
       message: 'Resource was not found',
       path: '/api/test-path',
     });
     expect(typeof (bodyArg as { timestamp: string }).timestamp).toBe('string');
+    expect(typeof (bodyArg as { traceId: string }).traceId).toBe('string');
   });
 
   it('handles HttpException with structured object response and string message', () => {
@@ -95,6 +97,7 @@ describe('AllExceptionsFilter', () => {
     expect(statusArg).toBe(HttpStatus.BAD_REQUEST);
     expect(bodyArg).toMatchObject({
       statusCode: HttpStatus.BAD_REQUEST,
+      errorCode: 'BAD_REQUEST',
       error: 'BadRequestException',
       message: 'Field validation error',
       path: '/api/test-path',
@@ -113,6 +116,7 @@ describe('AllExceptionsFilter', () => {
     expect(statusArg).toBe(HttpStatus.BAD_REQUEST);
     expect(bodyArg).toMatchObject({
       statusCode: 400,
+      errorCode: 'BAD_REQUEST',
       message: ['Email is invalid', 'Password too short'],
       path: '/api/test-path',
     });
@@ -127,6 +131,7 @@ describe('AllExceptionsFilter', () => {
     expect(statusArg).toBe(HttpStatus.FORBIDDEN);
     expect(bodyArg).toMatchObject({
       statusCode: HttpStatus.FORBIDDEN,
+      errorCode: 'FORBIDDEN',
       message: exception.message,
     });
   });
@@ -140,6 +145,7 @@ describe('AllExceptionsFilter', () => {
     expect(statusArg).toBe(HttpStatus.INTERNAL_SERVER_ERROR);
     expect(bodyArg).toMatchObject({
       statusCode: 500,
+      errorCode: 'INTERNAL_SERVER_ERROR',
       error: 'InternalServerErrorException',
       message: 'Database failure',
     });
@@ -157,6 +163,7 @@ describe('AllExceptionsFilter', () => {
       expect(statusArg).toBe(500);
       expect(bodyArg).toMatchObject({
         statusCode: 500,
+        errorCode: 'INTERNAL_SERVER_ERROR',
         error: 'InternalServerError',
         message: 'Unexpected runtime crash',
       });
@@ -177,8 +184,9 @@ describe('AllExceptionsFilter', () => {
       expect(statusArg).toBe(500);
       expect(bodyArg).toMatchObject({
         statusCode: 500,
+        errorCode: 'INTERNAL_SERVER_ERROR',
         error: 'InternalServerError',
-        message: 'Internal server error',
+        message: 'An unexpected error occurred',
       });
     } finally {
       process.env.NODE_ENV = originalEnv;
@@ -192,8 +200,9 @@ describe('AllExceptionsFilter', () => {
     expect(statusArg).toBe(500);
     expect(bodyArg).toMatchObject({
       statusCode: 500,
+      errorCode: 'INTERNAL_SERVER_ERROR',
       error: 'InternalServerError',
-      message: 'Internal server error',
+      message: 'An unexpected error occurred',
     });
   });
 

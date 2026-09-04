@@ -5,65 +5,53 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PollService } from '../poll.service';
-import type { PrismaService } from '@common/prisma';
+import type { IPollRepository } from '../interfaces/poll-repository.interface';
+import type { RedisService } from '../../redis/redis.service';
 
 describe('PollService', () => {
   let service: PollService;
-  let mockPollRepository: {
-    getPollByPostId: jest.Mock;
-    addPoll: jest.Mock;
-    deletePoll: jest.Mock;
-    addVote: jest.Mock;
-    deleteVote: jest.Mock;
-  };
-  let mockPrisma: {
-    post: {
-      findUnique: jest.Mock;
-    };
-    poll: {
-      findUnique: jest.Mock;
-    };
-    vote: {
-      findMany: jest.Mock;
-      findUnique: jest.Mock;
-    };
+  let mockPollRepository: Record<keyof IPollRepository, jest.Mock>;
+  let mockRedis: {
+    withLock: jest.Mock;
   };
 
   const samplePoll = {
     id: 'poll-1',
     postId: 'post-100',
+    userId: 'usr-author',
     authorId: 'usr-author',
+    question: 'Favorite language?',
+    isClosed: false,
     isActive: true,
-    expiresAt: null,
+    closedAt: null,
+    expiresAt: new Date(Date.now() + 86400000),
+    allowMultiple: false,
     options: [
-      { id: 'opt-1', optionText: 'Option 1' },
-      { id: 'opt-2', optionText: 'Option 2' },
+      { id: 'opt-1', text: 'TypeScript', voteCount: 5 },
+      { id: 'opt-2', text: 'Rust', voteCount: 3 },
     ],
   };
 
   beforeEach(() => {
     mockPollRepository = {
-      getPollByPostId: jest.fn(),
-      addPoll: jest.fn().mockResolvedValue(undefined),
-      deletePoll: jest.fn().mockResolvedValue(undefined),
-      addVote: jest.fn().mockResolvedValue(undefined),
-      deleteVote: jest.fn().mockResolvedValue(undefined),
+      getPollByPostId: jest.fn().mockResolvedValue(samplePoll),
+      addPoll: jest.fn().mockResolvedValue(samplePoll),
+      deletePoll: jest.fn().mockResolvedValue(samplePoll),
+      addVote: jest.fn().mockResolvedValue({ id: 'vote-1' }),
+      deleteVote: jest.fn().mockResolvedValue({ count: 1 }),
+      findPostById: jest.fn().mockResolvedValue({ id: 'post-100', authorId: 'usr-author' }),
+      findPollById: jest.fn().mockResolvedValue(samplePoll),
+      findVoters: jest.fn().mockResolvedValue([]),
+      findVote: jest.fn().mockResolvedValue(null),
     };
 
-    mockPrisma = {
-      post: {
-        findUnique: jest.fn(),
-      },
-      poll: {
-        findUnique: jest.fn(),
-      },
-      vote: {
-        findMany: jest.fn().mockResolvedValue([]),
-        findUnique: jest.fn(),
-      },
+    mockRedis = {
+      withLock: jest
+        .fn()
+        .mockImplementation((_k: string, action: () => Promise<unknown>) => action()),
     };
 
-    service = new PollService(mockPollRepository, mockPrisma as unknown as PrismaService);
+    service = new PollService(mockPollRepository, mockRedis as unknown as RedisService);
   });
 
   describe('getPollByPostId', () => {
@@ -90,13 +78,13 @@ describe('PollService', () => {
     };
 
     it('throws NotFoundException if post not found', async () => {
-      mockPrisma.post.findUnique.mockResolvedValueOnce(null);
+      mockPollRepository.findPostById.mockResolvedValueOnce(null);
 
       await expect(service.addPoll('usr-author', dto)).rejects.toThrow(NotFoundException);
     });
 
     it('throws ForbiddenException if caller is not post author', async () => {
-      mockPrisma.post.findUnique.mockResolvedValueOnce({
+      mockPollRepository.findPostById.mockResolvedValueOnce({
         id: 'post-100',
         authorId: 'other-author',
       });
@@ -107,7 +95,10 @@ describe('PollService', () => {
     });
 
     it('throws ConflictException if post already has a poll', async () => {
-      mockPrisma.post.findUnique.mockResolvedValueOnce({ id: 'post-100', authorId: 'usr-author' });
+      mockPollRepository.findPostById.mockResolvedValueOnce({
+        id: 'post-100',
+        authorId: 'usr-author',
+      });
       mockPollRepository.getPollByPostId.mockResolvedValueOnce(samplePoll);
 
       await expect(service.addPoll('usr-author', dto)).rejects.toThrow(
@@ -116,7 +107,10 @@ describe('PollService', () => {
     });
 
     it('creates poll when validation passes', async () => {
-      mockPrisma.post.findUnique.mockResolvedValueOnce({ id: 'post-100', authorId: 'usr-author' });
+      mockPollRepository.findPostById.mockResolvedValueOnce({
+        id: 'post-100',
+        authorId: 'usr-author',
+      });
       mockPollRepository.getPollByPostId.mockResolvedValueOnce(null);
 
       await service.addPoll('usr-author', dto);
@@ -126,17 +120,19 @@ describe('PollService', () => {
   });
 
   describe('getVoters & deletePoll', () => {
-    it('getVoters throws ForbiddenException if requester is not poll author', async () => {
-      mockPrisma.poll.findUnique.mockResolvedValueOnce(samplePoll);
+    it('getVoters throws NotFoundException if poll missing and ForbiddenException if not author', async () => {
+      mockPollRepository.findPollById.mockResolvedValueOnce(null);
+      await expect(service.getVoters('poll-missing', 'usr-1')).rejects.toThrow(NotFoundException);
 
+      mockPollRepository.findPollById.mockResolvedValueOnce(samplePoll);
       await expect(service.getVoters('poll-1', 'other-user')).rejects.toThrow(
         new ForbiddenException('Only the poll author can view voters'),
       );
     });
 
     it('getVoters returns votes when requester is poll author', async () => {
-      mockPrisma.poll.findUnique.mockResolvedValueOnce(samplePoll);
-      mockPrisma.vote.findMany.mockResolvedValueOnce([
+      mockPollRepository.findPollById.mockResolvedValueOnce(samplePoll);
+      mockPollRepository.findVoters.mockResolvedValueOnce([
         { optionId: 'opt-1', user: { id: 'usr-voter', username: 'voter' } },
       ]);
 
@@ -144,16 +140,18 @@ describe('PollService', () => {
       expect(voters).toHaveLength(1);
     });
 
-    it('deletePoll throws ForbiddenException if requester is not author', async () => {
-      mockPrisma.poll.findUnique.mockResolvedValueOnce(samplePoll);
+    it('deletePoll throws NotFoundException if poll missing and ForbiddenException if requester is not author', async () => {
+      mockPollRepository.findPollById.mockResolvedValueOnce(null);
+      await expect(service.deletePoll('poll-missing', 'usr-1')).rejects.toThrow(NotFoundException);
 
+      mockPollRepository.findPollById.mockResolvedValueOnce(samplePoll);
       await expect(service.deletePoll('poll-1', 'other-user')).rejects.toThrow(
         new ForbiddenException('You can only delete your own poll'),
       );
     });
 
     it('deletePoll deletes poll when requester is author', async () => {
-      mockPrisma.poll.findUnique.mockResolvedValueOnce(samplePoll);
+      mockPollRepository.findPollById.mockResolvedValueOnce(samplePoll);
 
       await service.deletePoll('poll-1', 'usr-author');
 
@@ -162,12 +160,24 @@ describe('PollService', () => {
   });
 
   describe('addVote & deleteVote', () => {
+    it('addVote throws NotFoundException if poll missing or option not in poll', async () => {
+      mockPollRepository.findPollById.mockResolvedValueOnce(null);
+      await expect(service.addVote('poll-missing', 'opt-1', 'usr-1')).rejects.toThrow(
+        NotFoundException,
+      );
+
+      mockPollRepository.findPollById.mockResolvedValueOnce(samplePoll);
+      await expect(service.addVote('poll-1', 'opt-invalid', 'usr-1')).rejects.toThrow(
+        new NotFoundException('Option not found in this poll'),
+      );
+    });
+
     it('addVote throws GoneException if poll is inactive or expired', async () => {
-      mockPrisma.poll.findUnique.mockResolvedValueOnce({ ...samplePoll, isActive: false });
+      mockPollRepository.findPollById.mockResolvedValueOnce({ ...samplePoll, isActive: false });
 
       await expect(service.addVote('poll-1', 'opt-1', 'usr-1')).rejects.toThrow(GoneException);
 
-      mockPrisma.poll.findUnique.mockResolvedValueOnce({
+      mockPollRepository.findPollById.mockResolvedValueOnce({
         ...samplePoll,
         expiresAt: new Date('2020-01-01'),
       });
@@ -178,8 +188,8 @@ describe('PollService', () => {
     });
 
     it('addVote throws ConflictException if user already voted', async () => {
-      mockPrisma.poll.findUnique.mockResolvedValueOnce(samplePoll);
-      mockPrisma.vote.findUnique.mockResolvedValueOnce({ id: 'vote-1' });
+      mockPollRepository.findPollById.mockResolvedValueOnce(samplePoll);
+      mockPollRepository.findVote.mockResolvedValueOnce({ id: 'vote-1' });
 
       await expect(service.addVote('poll-1', 'opt-1', 'usr-1')).rejects.toThrow(
         new ConflictException('You have already voted in this poll'),
@@ -187,8 +197,8 @@ describe('PollService', () => {
     });
 
     it('addVote records vote when valid', async () => {
-      mockPrisma.poll.findUnique.mockResolvedValueOnce(samplePoll);
-      mockPrisma.vote.findUnique.mockResolvedValueOnce(null);
+      mockPollRepository.findPollById.mockResolvedValueOnce(samplePoll);
+      mockPollRepository.findVote.mockResolvedValueOnce(null);
 
       await service.addVote('poll-1', 'opt-1', 'usr-1');
 
@@ -196,13 +206,13 @@ describe('PollService', () => {
     });
 
     it('deleteVote throws NotFoundException if vote does not exist', async () => {
-      mockPrisma.vote.findUnique.mockResolvedValueOnce(null);
+      mockPollRepository.findVote.mockResolvedValueOnce(null);
 
       await expect(service.deleteVote('poll-1', 'usr-1')).rejects.toThrow(NotFoundException);
     });
 
     it('deleteVote deletes vote when vote exists', async () => {
-      mockPrisma.vote.findUnique.mockResolvedValueOnce({ id: 'vote-1' });
+      mockPollRepository.findVote.mockResolvedValueOnce({ id: 'vote-1' });
 
       await service.deleteVote('poll-1', 'usr-1');
 

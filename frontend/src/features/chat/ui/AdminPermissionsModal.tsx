@@ -3,6 +3,13 @@ import { ShieldCheck, Edit, Trash2, UserX, Pin, UserPlus, Loader2, Check, X } fr
 import Modal from '@/shared/ui/Modal';
 import Avatar from '@/shared/ui/Avatar';
 import { ConversationParticipantView } from '@/entities/chat/model/types';
+import {
+  Permission,
+  DEFAULT_ADMIN_PERMISSIONS,
+  adminPermissionsToMask,
+  maskToAdminPermissions,
+  togglePermission as bitwiseToggle,
+} from '@/shared/lib/permissions';
 import { chatApi } from '../api/chatApi';
 
 export interface AdminPermissions {
@@ -19,6 +26,7 @@ interface AdminPermissionsModalProps {
   conversationId: string;
   adminParticipant: ConversationParticipantView;
   initialPermissions?: Partial<AdminPermissions>;
+  initialMask?: number;
   onSuccess?: () => void;
 }
 
@@ -28,14 +36,18 @@ export default function AdminPermissionsModal({
   conversationId,
   adminParticipant,
   initialPermissions,
+  initialMask,
   onSuccess,
 }: AdminPermissionsModalProps) {
-  const [permissions, setPermissions] = useState<AdminPermissions>({
-    canEditGroup: initialPermissions?.canEditGroup ?? true,
-    canDeleteMessages: initialPermissions?.canDeleteMessages ?? true,
-    canManageMembers: initialPermissions?.canManageMembers ?? true,
-    canPinMessages: initialPermissions?.canPinMessages ?? true,
-    canInviteUsers: initialPermissions?.canInviteUsers ?? true,
+  const [permissionsMask, setPermissionsMask] = useState<number>(() => {
+    if (initialMask !== undefined) return initialMask;
+    if (adminParticipant.permissions !== undefined && adminParticipant.permissions !== 0) {
+      return adminParticipant.permissions;
+    }
+    if (initialPermissions) {
+      return adminPermissionsToMask(initialPermissions);
+    }
+    return DEFAULT_ADMIN_PERMISSIONS;
   });
 
   const [isSaving, setIsSaving] = useState(false);
@@ -44,15 +56,19 @@ export default function AdminPermissionsModal({
 
   if (!isOpen) return null;
 
-  const togglePermission = (key: keyof AdminPermissions) => {
-    setPermissions((prev) => ({ ...prev, [key]: !prev[key] }));
+  const toggleBit = (flag: Permission) => {
+    setPermissionsMask((prev) => bitwiseToggle(prev, flag));
   };
 
   const handleSave = async () => {
     setIsSaving(true);
     setError(null);
     try {
-      await chatApi.updateAdminPermissions(conversationId, adminParticipant.userId, permissions);
+      const permsObject = maskToAdminPermissions(permissionsMask);
+      await chatApi.updateAdminPermissions(conversationId, adminParticipant.userId, {
+        permissions: permissionsMask,
+        ...permsObject,
+      });
       setSaveSuccess(true);
       setTimeout(() => {
         setSaveSuccess(false);
@@ -74,36 +90,42 @@ export default function AdminPermissionsModal({
 
   const PERMISSION_ITEMS: Array<{
     key: keyof AdminPermissions;
+    flag: Permission;
     label: string;
     description: string;
     icon: React.ComponentType<{ size?: number; className?: string }>;
   }> = [
     {
       key: 'canEditGroup',
+      flag: Permission.CAN_EDIT,
       label: 'Edit group profile',
       description: 'Change name, avatar, description, and group settings',
       icon: Edit,
     },
     {
       key: 'canDeleteMessages',
+      flag: Permission.CAN_DELETE,
       label: "Delete other people's messages",
       description: 'Delete messages posted by any regular group member',
       icon: Trash2,
     },
     {
       key: 'canManageMembers',
+      flag: Permission.CAN_MANAGE_MEMBERS,
       label: 'Block/mute members',
       description: 'Mute, ban, or kick regular participants who violate rules',
       icon: UserX,
     },
     {
       key: 'canPinMessages',
+      flag: Permission.CAN_PIN_MESSAGES,
       label: 'Pin messages',
       description: 'Pin or unpin important group notices and announcements',
       icon: Pin,
     },
     {
       key: 'canInviteUsers',
+      flag: Permission.CAN_INVITE_USERS,
       label: 'Invite members',
       description: 'Generate group invite links and add new members',
       icon: UserPlus,
@@ -127,7 +149,7 @@ export default function AdminPermissionsModal({
           </div>
 
           {/* Admin Member Card */}
-          <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-white/[0.04] border border-white/10 backdrop-blur-md">
+          <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-white/4 border border-white/10 backdrop-blur-md">
             <div className="relative">
               <Avatar
                 src={adminParticipant.user.avatar}
@@ -160,11 +182,11 @@ export default function AdminPermissionsModal({
           <div className="flex flex-col gap-2">
             {PERMISSION_ITEMS.map((item) => {
               const Icon = item.icon;
-              const isChecked = permissions[item.key];
+              const isChecked = (permissionsMask & item.flag) !== 0;
               return (
                 <div
                   key={item.key}
-                  onClick={() => togglePermission(item.key)}
+                  onClick={() => toggleBit(item.flag)}
                   className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-[#151622]/80 hover:bg-[#181928] border border-white/10 hover:border-purple-500/30 transition-all cursor-pointer group"
                 >
                   <div className="flex items-start gap-3 min-w-0 flex-1">
@@ -222,7 +244,7 @@ export default function AdminPermissionsModal({
               type="button"
               onClick={handleSave}
               disabled={isSaving || saveSuccess}
-              className="px-5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-sm font-semibold text-white shadow-[0_0_15px_rgba(168,85,247,0.4)] transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center min-w-[90px]"
+              className="px-5 py-2 rounded-xl bg-linear-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-sm font-semibold text-white shadow-[0_0_15px_rgba(168,85,247,0.4)] transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center min-w-22.5"
             >
               {isSaving ? (
                 <Loader2 size={15} className="animate-spin" />

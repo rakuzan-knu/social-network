@@ -8,12 +8,13 @@ describe('CodeBlock', () => {
     vi.clearAllMocks();
   });
 
-  it('renders language badge and lines count', () => {
-    const code = 'const greeting = "Hello world";\nconsole.log(greeting);';
+  it('renders language badge and lines count with KB formatting', () => {
+    // Generate code >= 1024 bytes
+    const code = 'const largeCodeChunk = "' + 'x'.repeat(1500) + '";\nconsole.log(largeCodeChunk);';
     render(<CodeBlock language="typescript" value={code} />);
 
     expect(screen.getByText('TypeScript')).toBeInTheDocument();
-    expect(screen.getByText(/2 lines/)).toBeInTheDocument();
+    expect(screen.getByText(/KB/)).toBeInTheDocument();
   });
 
   it('copies raw code to clipboard on Copy button click', async () => {
@@ -38,7 +39,29 @@ describe('CodeBlock', () => {
     expect(screen.getByText('Copied!')).toBeInTheDocument();
   });
 
-  it('triggers download with correct file extension', () => {
+  it('uses fallback execCommand copy when clipboard API fails', async () => {
+    const code = 'const x = 10;';
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: vi.fn().mockRejectedValue(new Error('Permission denied')),
+      },
+    });
+    const originalExecCommand = document.execCommand;
+    document.execCommand = vi.fn().mockReturnValue(true);
+
+    render(<CodeBlock language="javascript" value={code} />);
+
+    const copyBtn = screen.getByRole('button', { name: /copy/i });
+    await act(async () => {
+      fireEvent.click(copyBtn);
+    });
+
+    expect(document.execCommand).toHaveBeenCalledWith('copy');
+    expect(screen.getByText('Copied!')).toBeInTheDocument();
+    document.execCommand = originalExecCommand;
+  });
+
+  it('triggers download with correct file extension and handles errors', () => {
     const code = '#include <iostream>\nint main() { return 0; }';
     const createObjectURLMock = vi.fn().mockReturnValue('blob:mock-url');
     const revokeObjectURLMock = vi.fn();
@@ -55,6 +78,15 @@ describe('CodeBlock', () => {
     fireEvent.click(downloadBtn);
     expect(createObjectURLMock).toHaveBeenCalled();
     expect(clickSpy).toHaveBeenCalled();
+
+    // Test download error handling
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    window.URL.createObjectURL = vi.fn().mockImplementation(() => {
+      throw new Error('Blob error');
+    });
+    expect(() => fireEvent.click(downloadBtn)).not.toThrow();
+    consoleErrorSpy.mockRestore();
+
     clickSpy.mockRestore();
   });
 
@@ -99,5 +131,16 @@ describe('CodeBlock', () => {
     expect(rows[0]).toHaveClass('bg-purple-500/10');
     expect(rows[1]).toHaveClass('bg-rose-500/10');
     expect(rows[2]).toHaveClass('bg-emerald-500/10');
+  });
+
+  it('handles unknown language, empty language, and undefined value gracefully', () => {
+    const { rerender } = render(<CodeBlock language="" value={undefined as any} />);
+    expect(screen.getByText('CODE')).toBeInTheDocument();
+
+    rerender(<CodeBlock language="customlang" value="sample code" />);
+    expect(screen.getByText('CUSTOMLANG')).toBeInTheDocument();
+
+    rerender(<CodeBlock language="patch" value="@@ -1,1 +1,1 @@\n+added in patch" />);
+    expect(screen.getByText('Patch')).toBeInTheDocument();
   });
 });

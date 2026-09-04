@@ -3,6 +3,7 @@ import {
   ConflictException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
   Optional,
   forwardRef,
@@ -22,7 +23,6 @@ import type {
 } from './types/followers.types';
 import { paginate } from '../common/pagination';
 import { RedisService } from '../redis/redis.service';
-import { PrismaService } from '@common/prisma';
 import { MessengerGateway } from '../messenger/gateway/messenger.gateway';
 import { WS_EVENTS } from '../messenger/events/ws-events';
 import { toUserProfileDto } from './followers.mapper';
@@ -30,11 +30,12 @@ import type { UserProfileDto } from '@common/contracts';
 
 @Injectable()
 export class FollowersService {
+  private readonly logger = new Logger(FollowersService.name);
+
   constructor(
     @Inject(FOLLOWERS_REPOSITORY)
     private readonly followersRepository: IFollowersRepository,
     private readonly redis: RedisService,
-    private readonly prisma: PrismaService,
     @Inject(forwardRef(() => MessengerGateway))
     @Optional()
     private readonly gateway?: MessengerGateway,
@@ -61,26 +62,12 @@ export class FollowersService {
       let myFollowersSet = new Set<string>();
 
       if (currentUserId && userIds.length > 0) {
-        const [myFollowings, myFollowers] = await Promise.all([
-          this.prisma.follow.findMany({
-            where: {
-              followerId: currentUserId,
-              followingId: { in: userIds },
-              status: FollowStatus.ACCEPTED,
-            },
-            select: { followingId: true },
-          }),
-          this.prisma.follow.findMany({
-            where: {
-              followingId: currentUserId,
-              followerId: { in: userIds },
-              status: FollowStatus.ACCEPTED,
-            },
-            select: { followerId: true },
-          }),
-        ]);
-        myFollowingsSet = new Set(myFollowings.map((f) => f.followingId));
-        myFollowersSet = new Set(myFollowers.map((f) => f.followerId));
+        const { myFollowings, myFollowers } = await this.followersRepository.getFollowStatusSets(
+          currentUserId,
+          userIds,
+        );
+        myFollowingsSet = new Set(myFollowings);
+        myFollowersSet = new Set(myFollowers);
       }
 
       return paginate(rows, limit, (row) => {
@@ -110,26 +97,12 @@ export class FollowersService {
       let myFollowersSet = new Set<string>();
 
       if (currentUserId && userIds.length > 0) {
-        const [myFollowings, myFollowers] = await Promise.all([
-          this.prisma.follow.findMany({
-            where: {
-              followerId: currentUserId,
-              followingId: { in: userIds },
-              status: FollowStatus.ACCEPTED,
-            },
-            select: { followingId: true },
-          }),
-          this.prisma.follow.findMany({
-            where: {
-              followingId: currentUserId,
-              followerId: { in: userIds },
-              status: FollowStatus.ACCEPTED,
-            },
-            select: { followerId: true },
-          }),
-        ]);
-        myFollowingsSet = new Set(myFollowings.map((f) => f.followingId));
-        myFollowersSet = new Set(myFollowers.map((f) => f.followerId));
+        const { myFollowings, myFollowers } = await this.followersRepository.getFollowStatusSets(
+          currentUserId,
+          userIds,
+        );
+        myFollowingsSet = new Set(myFollowings);
+        myFollowersSet = new Set(myFollowers);
       }
 
       return paginate(rows, limit, (row) => {
@@ -149,45 +122,16 @@ export class FollowersService {
 
     return this.redis.getOrSet(cacheKey, 30, async () => {
       // 1. Find all users I follow with ACCEPTED status
-      const following = await this.prisma.follow.findMany({
-        where: {
-          followerId: userId,
-          status: FollowStatus.ACCEPTED,
-        },
-        select: { followingId: true },
-      });
-      const followingIds = following.map((f) => f.followingId);
+      const followingIds = await this.followersRepository.getFollowingIds(userId);
       if (followingIds.length === 0) return [];
 
       // 2. Find which of these users also follow me with ACCEPTED status (mutual)
-      const mutualFollows = await this.prisma.follow.findMany({
-        where: {
-          followerId: { in: followingIds },
-          followingId: userId,
-          status: FollowStatus.ACCEPTED,
-        },
-        include: {
-          follower: {
-            select: {
-              id: true,
-              username: true,
-              displayName: true,
-              avatar: true,
-              bio: true,
-              isPrivate: true,
-              isVerified: true,
-              primaryBadge: true,
-              badges: true,
-              githubUsername: true,
-              mergedPrsCount: true,
-              createdAt: true,
-              updatedAt: true,
-            },
-          },
-        },
-      });
-
-      return mutualFollows.map((mf) => toUserProfileDto(mf.follower, true, true));
+      const mutualRows = await this.followersRepository.getMutualFollowers(
+        userId,
+        followingIds,
+        100,
+      );
+      return mutualRows.map((r) => toUserProfileDto(r.user, true, true));
     });
   }
 
@@ -225,10 +169,7 @@ export class FollowersService {
         }
         if (this.gateway) {
           try {
-            const follower = await this.prisma.user.findUnique({
-              where: { id: followerId },
-              select: { id: true, username: true, displayName: true, avatar: true },
-            });
+            const follower = await this.followersRepository.findUserBasic(followerId);
             if (follower) {
               this.gateway?.emitToUser(followingId, WS_EVENTS.NEW_FOLLOWER, {
                 follower: {
@@ -244,8 +185,8 @@ export class FollowersService {
                     : 'subscribed to you',
               });
             }
-          } catch {
-            // Non-blocking
+          } catch (e) {
+            this.logger.warn(`Failed to emit real-time follower notification: ${String(e)}`);
           }
         }
       }
@@ -304,10 +245,7 @@ export class FollowersService {
 
     // Emit real-time notification to follower that their request was accepted
     try {
-      const owner = await this.prisma.user.findUnique({
-        where: { id: ownerId },
-        select: { id: true, username: true, displayName: true, avatar: true },
-      });
+      const owner = await this.followersRepository.findUserBasic(ownerId);
       if (owner) {
         this.gateway?.emitToUser(followerId, WS_EVENTS.NEW_FOLLOWER, {
           follower: {
@@ -320,8 +258,10 @@ export class FollowersService {
           message: 'accepted your follow request',
         });
       }
-    } catch {
-      // Non-blocking notification emission
+    } catch (e) {
+      this.logger.warn(
+        `Failed to emit follow request accepted notification to ${followerId}: ${String(e)}`,
+      );
     }
   }
 
@@ -345,8 +285,10 @@ export class FollowersService {
         this.redis.del(`user${followerId}`),
         this.redis.del(`user${followingId}`),
       ]);
-    } catch {
-      // Safe non-blocking cache invalidation
+    } catch (e) {
+      this.logger.warn(
+        `Failed to invalidate follow caches for ${followerId} and ${followingId}: ${String(e)}`,
+      );
     }
   }
 }

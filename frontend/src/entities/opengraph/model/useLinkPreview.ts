@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/shared/api/httpClient';
-import type { LinkEmbedData, OpenGraphData } from './types';
+import type { LinkEmbedData } from './types';
 
 export type { LinkEmbedData, OpenGraphData } from './types';
 

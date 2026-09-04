@@ -1,4 +1,3 @@
-// @ts-check
 import eslint from '@eslint/js';
 import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended';
 import globals from 'globals';
@@ -17,6 +16,9 @@ export default tseslint.config(
       '**/.eslintcache',
       '**/*.log',
       '**/node_modules/**',
+      'prisma.config.js',
+      'prisma.config.js.map',
+      'prisma.config.d.ts',
     ],
   },
   eslint.configs.recommended,
@@ -51,14 +53,26 @@ export default tseslint.config(
         'error',
         { prefer: 'type-imports', fixStyle: 'inline-type-imports' },
       ],
+      'no-sync': 'error',
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            'CallExpression[callee.property.name=/^(readFileSync|writeFileSync|existsSync|statSync|mkdirSync|readdirSync|unlinkSync|appendFileSync|rmdirSync|rmSync|copyFileSync|chmodSync|chownSync|accessSync|truncateSync|openSync|closeSync|readSync|writeSync|execSync|spawnSync|execFileSync|pbkdf2Sync|scryptSync)$/]',
+          message:
+            'Synchronous blocking operations (fs.*Sync, child_process.*Sync, crypto.*Sync) block the Node.js Event Loop. Use asynchronous non-blocking APIs or Worker Threads.',
+        },
+      ],
       'prettier/prettier': ['error', { endOfLine: 'auto' }],
     },
   },
   {
-    files: ['**/*.spec.ts', '**/__tests__/**/*.ts'],
+    files: ['**/*.spec.ts', '**/__tests__/**/*.ts', 'test/**/*.ts'],
     rules: {
       '@typescript-eslint/unbound-method': 'off',
       '@typescript-eslint/require-await': 'off',
+      'no-sync': 'off',
+      'no-restricted-syntax': 'off',
     },
   },
 );

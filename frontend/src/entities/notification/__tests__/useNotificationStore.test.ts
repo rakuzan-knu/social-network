@@ -65,4 +65,18 @@ describe('useNotificationStore', () => {
 
     expect(useNotificationStore.getState().unreadCounts.total).toBe(0);
   });
+
+  it('handles resetUnreadCountForFilter with undefined category count and default isLoading in setOptimisticFollow', () => {
+    useNotificationStore.getState().setOptimisticFollow('user-2', false);
+    expect(useNotificationStore.getState().optimisticFollows['user-2']).toEqual({
+      isFollowing: false,
+      isLoading: false,
+    });
+
+    useNotificationStore.setState({
+      unreadCounts: { total: 4 } as any,
+    });
+    useNotificationStore.getState().resetUnreadCountForFilter('mentions');
+    expect(useNotificationStore.getState().unreadCounts.mentions).toBe(0);
+  });
 });

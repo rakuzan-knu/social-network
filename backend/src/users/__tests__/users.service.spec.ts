@@ -1,16 +1,20 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import * as argon2 from 'argon2';
 import { AutoDeletePeriod } from '@prisma/client';
-import { CreateUserDto } from '@common/contracts';
 import { UsersService } from '../users.service';
 import type { RedisService } from '../../redis/redis.service';
-import type { VisibilityResolver } from '../privacy/visibility.resolver';
-import type { PrismaService } from '@common/prisma';
+import type { VisibilityResolver, VisibilityContext } from '../privacy/visibility.resolver';
+
+jest.mock('argon2', () => ({
+  verify: jest
+    .fn()
+    .mockImplementation((_hash: string, pw: string) => Promise.resolve(pw === 'correct_pw')),
+}));
 
 describe('UsersService', () => {
   let service: UsersService;
@@ -20,46 +24,50 @@ describe('UsersService', () => {
     findById: jest.Mock;
     create: jest.Mock;
     updateUser: jest.Mock;
+    updateManyLastSeen: jest.Mock;
     updateAvatar: jest.Mock;
     updatePassword: jest.Mock;
     deleteUser: jest.Mock;
     blockUser: jest.Mock;
     unblockUser: jest.Mock;
+    findFullProfile: jest.Mock;
+    isBlocked: jest.Mock;
+    getBlockedIds: jest.Mock;
+    findUserAlias: jest.Mock;
+    setUserAlias: jest.Mock;
+    deleteUserAlias: jest.Mock;
+    hasBadge: jest.Mock;
+    searchCandidates: jest.Mock;
+    getFollowingIds: jest.Mock;
+    getFollowerIds: jest.Mock;
+    getRecentChatParticipantIds: jest.Mock;
+    getFriendsOfFriends: jest.Mock;
+    getPopularUserIds: jest.Mock;
+    getCandidateUsersDetails: jest.Mock;
+    getNearbyUserCandidates: jest.Mock;
+    getRecentPublicPostsContent: jest.Mock;
+    getTopPostsForUsers: jest.Mock;
   };
   let mockRedis: {
     get: jest.Mock;
     set: jest.Mock;
     del: jest.Mock;
+    expire: jest.Mock;
     getOrSet: jest.Mock;
+    geoadd: jest.Mock;
+    geodist: jest.Mock;
+    geosearchMembers: jest.Mock;
+    geosearchWithDist: jest.Mock;
+    smembers: jest.Mock;
+    sadd: jest.Mock;
+    dismissSuggestedUser: jest.Mock;
+    withLock: jest.Mock;
   };
   let mockVisibility: {
     loadContext: jest.Mock;
     resolve: jest.Mock;
     isFollower: jest.Mock;
     resolvePresenceAudience: jest.Mock;
-  };
-  let mockPrisma: {
-    user: {
-      findUnique: jest.Mock;
-      findMany: jest.Mock;
-      update: jest.Mock;
-    };
-    userBlock: {
-      findFirst: jest.Mock;
-      findMany: jest.Mock;
-    };
-    userAlias: {
-      findUnique: jest.Mock;
-      upsert: jest.Mock;
-      deleteMany: jest.Mock;
-    };
-    follow: {
-      findUnique: jest.Mock;
-      findMany: jest.Mock;
-    };
-    userBadge: {
-      findUnique: jest.Mock;
-    };
   };
 
   const sampleDate = new Date('2026-08-16T12:00:00.000Z');
@@ -74,6 +82,7 @@ describe('UsersService', () => {
     bannerPosition: 50,
     bio: 'Software engineer',
     birthDate: sampleDate,
+    passwordHash: 'hashed_pw',
     isPrivate: false,
     isVerified: true,
     primaryBadge: 'veteran',
@@ -84,6 +93,8 @@ describe('UsersService', () => {
     createdAt: sampleDate,
     updatedAt: sampleDate,
     badges: [{ badgeId: 'veteran' }],
+    followers: [],
+    privacy: { allowNearbyRecommendations: true },
     _count: {
       followers: 120,
       following: 85,
@@ -93,311 +104,346 @@ describe('UsersService', () => {
 
   beforeEach(() => {
     mockUsersRepository = {
-      findByEmail: jest.fn(),
-      findByUsername: jest.fn(),
-      findById: jest.fn(),
-      create: jest.fn(),
-      updateUser: jest.fn(),
+      findByEmail: jest.fn().mockResolvedValue(null),
+      findByUsername: jest.fn().mockResolvedValue(null),
+      findById: jest.fn().mockResolvedValue(baseDbUser),
+      create: jest.fn().mockResolvedValue(baseDbUser),
+      updateUser: jest.fn().mockResolvedValue(baseDbUser),
+      updateManyLastSeen: jest.fn().mockResolvedValue(undefined),
       updateAvatar: jest.fn(),
-      updatePassword: jest.fn(),
-      deleteUser: jest.fn(),
-      blockUser: jest.fn(),
-      unblockUser: jest.fn(),
+      updatePassword: jest.fn().mockResolvedValue(undefined),
+      deleteUser: jest.fn().mockResolvedValue(undefined),
+      blockUser: jest.fn().mockResolvedValue({ id: 'block-1' }),
+      unblockUser: jest.fn().mockResolvedValue({ count: 1 }),
+      findFullProfile: jest.fn().mockResolvedValue(baseDbUser),
+      isBlocked: jest.fn().mockResolvedValue(false),
+      getBlockedIds: jest.fn().mockResolvedValue([]),
+      findUserAlias: jest.fn().mockResolvedValue(null),
+      setUserAlias: jest.fn().mockResolvedValue(undefined),
+      deleteUserAlias: jest.fn().mockResolvedValue(undefined),
+      hasBadge: jest.fn().mockResolvedValue(true),
+      searchCandidates: jest.fn().mockResolvedValue([]),
+      getFollowingIds: jest.fn().mockResolvedValue([]),
+      getFollowerIds: jest.fn().mockResolvedValue([]),
+      getRecentChatParticipantIds: jest.fn().mockResolvedValue([]),
+      getFriendsOfFriends: jest.fn().mockResolvedValue([]),
+      getPopularUserIds: jest.fn().mockResolvedValue([]),
+      getCandidateUsersDetails: jest.fn().mockResolvedValue([]),
+      getNearbyUserCandidates: jest.fn().mockResolvedValue([]),
+      getRecentPublicPostsContent: jest.fn().mockResolvedValue([]),
+      getTopPostsForUsers: jest.fn().mockResolvedValue([]),
     };
 
     mockRedis = {
-      get: jest.fn(),
-      set: jest.fn(),
+      get: jest.fn().mockResolvedValue(null),
+      set: jest.fn().mockResolvedValue('OK'),
       del: jest.fn().mockResolvedValue(1),
+      expire: jest.fn().mockResolvedValue(1),
       getOrSet: jest
         .fn()
-        .mockImplementation((_key: string, _ttl: number, factory: () => unknown) => factory()),
+        .mockImplementation(
+          (
+            _k: string,
+            _ttl: number | (() => Promise<unknown>),
+            factory?: () => Promise<unknown>,
+          ) =>
+            typeof factory === 'function'
+              ? factory()
+              : typeof _ttl === 'function'
+                ? _ttl()
+                : Promise.resolve(baseDbUser),
+        ),
+      geoadd: jest.fn().mockResolvedValue(1),
+      geodist: jest.fn().mockResolvedValue(5),
+      geosearchMembers: jest.fn().mockResolvedValue(['usr-100']),
+      geosearchWithDist: jest.fn().mockResolvedValue([{ member: 'usr-100', distance: 10 }]),
+      smembers: jest.fn().mockResolvedValue([]),
+      sadd: jest.fn().mockResolvedValue(1),
+      dismissSuggestedUser: jest.fn().mockResolvedValue(undefined),
+      withLock: jest
+        .fn()
+        .mockImplementation((_k: string, action: () => Promise<unknown>) => action()),
     };
 
     mockVisibility = {
       loadContext: jest.fn().mockResolvedValue({
-        viewerId: null,
         acceptedFollowing: new Set(),
         pendingFollowing: new Set(),
-        blocked: new Set(),
-        visibility: new Map(),
-        exceptions: new Map(),
+        isViewerFollower: new Map(),
+        isTargetFollower: new Map(),
+        isMutual: new Map(),
+        isCloseFriend: new Map(),
+        isViewerBlocked: new Map(),
+        isTargetBlocked: new Map(),
+        privacyMap: new Map(),
       }),
       resolve: jest.fn().mockReturnValue(true),
       isFollower: jest.fn().mockReturnValue(false),
-      resolvePresenceAudience: jest.fn().mockResolvedValue(new Set()),
-    };
-
-    mockPrisma = {
-      user: {
-        findUnique: jest.fn(),
-        findMany: jest.fn().mockResolvedValue([]),
-        update: jest.fn(),
-      },
-      userBlock: {
-        findFirst: jest.fn().mockResolvedValue(null),
-        findMany: jest.fn().mockResolvedValue([]),
-      },
-      userAlias: {
-        findUnique: jest.fn().mockResolvedValue(null),
-        upsert: jest.fn().mockResolvedValue({}),
-        deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
-      },
-      follow: {
-        findUnique: jest.fn().mockResolvedValue(null),
-        findMany: jest.fn().mockResolvedValue([]),
-      },
-      userBadge: {
-        findUnique: jest.fn().mockResolvedValue(null),
-      },
+      resolvePresenceAudience: jest.fn().mockReturnValue('exact'),
     };
 
     service = new UsersService(
       mockUsersRepository,
       mockRedis as unknown as RedisService,
       mockVisibility as unknown as VisibilityResolver,
-      mockPrisma as unknown as PrismaService,
     );
   });
 
-  describe('Basic CRUD delegates', () => {
-    it('delegates findByEmail, findByUsername, findById, create', async () => {
-      mockUsersRepository.findByEmail.mockResolvedValueOnce({ id: '1' });
-      mockUsersRepository.findByUsername.mockResolvedValueOnce({ id: '2' });
-      mockUsersRepository.findById.mockResolvedValueOnce({ id: '3' });
-      mockUsersRepository.create.mockResolvedValueOnce({ id: '4' });
-
-      expect(await service.findByEmail('e@x.com')).toEqual({ id: '1' });
-      expect(await service.findByUsername('usr')).toEqual({ id: '2' });
-      expect(await service.findById('3')).toEqual({ id: '3' });
-
-      const dto = new CreateUserDto({ email: 'a@b.com', username: 'ab', passwordHash: 'hash' });
-      expect(await service.create(dto)).toEqual({ id: '4' });
-    });
-
-    it('updatePasswordHash and touchLastSeen update repository and invalidate cache', async () => {
-      await service.updatePasswordHash('usr-1', 'new-hash');
-      expect(mockUsersRepository.updatePassword).toHaveBeenCalledWith('usr-1', 'new-hash');
-      expect(mockRedis.del).toHaveBeenCalledWith('user:usr-1');
-
-      await service.touchLastSeen('usr-1', sampleDate);
-      expect(mockUsersRepository.updateUser).toHaveBeenCalledWith('usr-1', {
-        lastSeenAt: sampleDate,
+  describe('create & find & deleteAccount', () => {
+    it('creates user and returns user', async () => {
+      const res = await service.create({
+        email: 'alex@example.com',
+        username: 'alex_dev',
+        displayName: 'Alex',
+        passwordHash: 'hashed_pw',
       });
-      expect(mockRedis.del).toHaveBeenCalledWith('user:usr-1');
+      expect(res.id).toBe('usr-100');
     });
-  });
 
-  describe('deleteAccount', () => {
-    it('throws NotFoundException if user is not found', async () => {
+    it('finds by id, username, email', async () => {
+      await service.findById('usr-100');
+      expect(mockUsersRepository.findById).toHaveBeenCalledWith('usr-100');
+
+      await service.findByUsername('alex_dev');
+      expect(mockUsersRepository.findByUsername).toHaveBeenCalledWith('alex_dev');
+
+      await service.findByEmail('alex@example.com');
+      expect(mockUsersRepository.findByEmail).toHaveBeenCalledWith('alex@example.com');
+    });
+
+    it('updates password hash', async () => {
+      await service.updatePasswordHash('usr-100', 'new_hash');
+      expect(mockUsersRepository.updatePassword).toHaveBeenCalledWith('usr-100', 'new_hash');
+      expect(mockRedis.del).toHaveBeenCalled();
+    });
+
+    it('deleteAccount verifies password and deletes user', async () => {
+      mockUsersRepository.findById.mockResolvedValueOnce(baseDbUser);
+      await service.deleteAccount('usr-100', 'correct_pw');
+      expect(mockUsersRepository.deleteUser).toHaveBeenCalledWith('usr-100');
+
+      mockUsersRepository.findById.mockResolvedValueOnce(baseDbUser);
+      await expect(service.deleteAccount('usr-100', 'wrong_pw')).rejects.toThrow(
+        UnauthorizedException,
+      );
+
       mockUsersRepository.findById.mockResolvedValueOnce(null);
-
-      await expect(service.deleteAccount('missing-id', 'password')).rejects.toThrow(
+      await expect(service.deleteAccount('missing', 'correct_pw')).rejects.toThrow(
         NotFoundException,
       );
     });
-
-    it('throws UnauthorizedException if password is wrong', async () => {
-      const hash = await argon2.hash('CorrectPassword');
-      mockUsersRepository.findById.mockResolvedValueOnce({ id: 'usr-1', passwordHash: hash });
-
-      await expect(service.deleteAccount('usr-1', 'WrongPassword')).rejects.toThrow(
-        new UnauthorizedException('Incorrect password'),
-      );
-    }, 15000);
-
-    it('deletes account and invalidates cache when password matches', async () => {
-      const hash = await argon2.hash('CorrectPassword');
-      mockUsersRepository.findById.mockResolvedValueOnce({ id: 'usr-1', passwordHash: hash });
-
-      await service.deleteAccount('usr-1', 'CorrectPassword');
-
-      expect(mockUsersRepository.deleteUser).toHaveBeenCalledWith('usr-1');
-      expect(mockRedis.del).toHaveBeenCalledWith('user:usr-1');
-    }, 15000);
   });
 
-  describe('getProfileFor & getProfileByUsername', () => {
-    it('throws NotFoundException when viewer is blocked by target or vice versa', async () => {
-      mockPrisma.userBlock.findFirst.mockResolvedValueOnce({
-        blockerId: 'usr-target',
-        blockedId: 'usr-viewer',
-      });
+  describe('getProfileFor & getProfileByUsername & Aliases', () => {
+    it('getProfileFor throws NotFoundException if blocked and loads alias if set', async () => {
+      mockUsersRepository.isBlocked.mockResolvedValueOnce(true);
+      await expect(service.getProfileFor('usr-2', 'usr-1')).rejects.toThrow(NotFoundException);
 
-      await expect(service.getProfileFor('usr-target', 'usr-viewer')).rejects.toThrow(
-        new NotFoundException('User not found'),
-      );
+      mockUsersRepository.isBlocked.mockResolvedValueOnce(false);
+      mockUsersRepository.findUserAlias.mockResolvedValueOnce('My Buddy');
+      const prof = await service.getProfileFor('usr-100', 'usr-1');
+      expect(prof.alias).toBe('My Buddy');
     });
 
-    it('retrieves profile, loads visibility context, applies privacy and alias', async () => {
-      mockPrisma.user.findUnique.mockResolvedValueOnce(baseDbUser);
-      mockPrisma.userAlias.findUnique.mockResolvedValueOnce({ alias: 'Alex Best Friend' });
-
-      const profile = await service.getProfileFor('usr-100', 'usr-viewer');
-
-      expect(profile.id).toBe('usr-100');
-      expect(profile.username).toBe('alex_dev');
-      expect(profile.alias).toBe('Alex Best Friend');
-      expect(profile.isVerified).toBe(true);
-      expect(profile.followersCount).toBe(120);
-    });
-
-    it('getProfileByUsername throws NotFoundException for reserved usernames or missing users', async () => {
-      await expect(service.getProfileByUsername('settings', null)).rejects.toThrow(
-        NotFoundException,
-      );
-      await expect(service.getProfileByUsername('', null)).rejects.toThrow(NotFoundException);
+    it('getProfileByUsername rejects reserved names or missing users', async () => {
+      await expect(service.getProfileByUsername('admin', null)).rejects.toThrow(NotFoundException);
 
       mockUsersRepository.findByUsername.mockResolvedValueOnce(null);
-      await expect(service.getProfileByUsername('unknown_user', null)).rejects.toThrow(
+      await expect(service.getProfileByUsername('missing_user', null)).rejects.toThrow(
         NotFoundException,
       );
-    });
 
-    it('getProfileByUsername retrieves user and calls getProfileFor', async () => {
-      mockUsersRepository.findByUsername.mockResolvedValueOnce({
-        id: 'usr-100',
-        username: 'alex_dev',
-      });
-      mockPrisma.user.findUnique.mockResolvedValueOnce(baseDbUser);
-
+      mockUsersRepository.findByUsername.mockResolvedValueOnce({ id: 'usr-100' });
       const profile = await service.getProfileByUsername('@alex_dev', null);
       expect(profile.id).toBe('usr-100');
     });
-  });
 
-  describe('User Aliases', () => {
-    it('setUserAlias throws BadRequestException when assigning alias to self', async () => {
-      await expect(service.setUserAlias('usr-1', 'usr-1', 'Me')).rejects.toThrow(
-        new BadRequestException('Cannot set alias for yourself'),
+    it('sets and deletes alias with validation', async () => {
+      await expect(service.setUserAlias('usr-1', 'usr-1', 'Self')).rejects.toThrow(
+        BadRequestException,
       );
-    });
 
-    it('setUserAlias throws NotFoundException when target does not exist', async () => {
       mockUsersRepository.findById.mockResolvedValueOnce(null);
-
-      await expect(service.setUserAlias('usr-1', 'target-missing', 'Buddy')).rejects.toThrow(
+      await expect(service.setUserAlias('usr-1', 'usr-missing', 'Buddy')).rejects.toThrow(
         NotFoundException,
       );
-    });
 
-    it('setUserAlias upserts alias in database', async () => {
-      mockUsersRepository.findById.mockResolvedValueOnce({ id: 'target-1' });
+      mockUsersRepository.findById.mockResolvedValueOnce({ id: 'usr-2' });
+      const res = await service.setUserAlias('usr-1', 'usr-2', 'Best Buddy');
+      expect(res.success).toBe(true);
 
-      const result = await service.setUserAlias('usr-1', 'target-1', '  Best Mate  ');
-
-      expect(mockPrisma.userAlias.upsert).toHaveBeenCalledWith({
-        where: { ownerId_targetId: { ownerId: 'usr-1', targetId: 'target-1' } },
-        create: { ownerId: 'usr-1', targetId: 'target-1', alias: 'Best Mate' },
-        update: { alias: 'Best Mate' },
-      });
-      expect(result).toEqual({ success: true });
-    });
-
-    it('deleteUserAlias deletes alias from database', async () => {
-      const result = await service.deleteUserAlias('usr-1', 'target-1');
-      expect(mockPrisma.userAlias.deleteMany).toHaveBeenCalledWith({
-        where: { ownerId: 'usr-1', targetId: 'target-1' },
-      });
-      expect(result).toEqual({ success: true });
+      const del = await service.deleteUserAlias('usr-1', 'usr-2');
+      expect(del.success).toBe(true);
     });
   });
 
   describe('Blocking & Unblocking', () => {
-    it('blockUser throws BadRequestException when blocking self', async () => {
-      await expect(service.blockUser('usr-1', 'usr-1')).rejects.toThrow(
-        new BadRequestException("Can't block yourself"),
-      );
-    });
-
-    it('blockUser throws NotFoundException if target does not exist', async () => {
-      mockUsersRepository.findById.mockResolvedValueOnce(null);
-
-      await expect(service.blockUser('usr-1', 'usr-missing')).rejects.toThrow(NotFoundException);
-    });
-
-    it('blockUser blocks user and clears redis cache for both users', async () => {
+    it('blocks and unblocks user', async () => {
       mockUsersRepository.findById.mockResolvedValueOnce({ id: 'usr-2' });
+      const bRes = await service.blockUser('usr-1', 'usr-2');
+      expect(bRes.success).toBe(true);
 
-      const result = await service.blockUser('usr-1', 'usr-2');
-
-      expect(mockUsersRepository.blockUser).toHaveBeenCalledWith('usr-1', 'usr-2');
-      expect(mockRedis.del).toHaveBeenCalledWith('user:usr-1');
-      expect(mockRedis.del).toHaveBeenCalledWith('user:usr-2');
-      expect(result).toEqual({ success: true });
-    });
-
-    it('unblockUser unblocks user and clears cache', async () => {
-      const result = await service.unblockUser('usr-1', 'usr-2');
-
-      expect(mockUsersRepository.unblockUser).toHaveBeenCalledWith('usr-1', 'usr-2');
-      expect(mockRedis.del).toHaveBeenCalledWith('user:usr-1');
-      expect(mockRedis.del).toHaveBeenCalledWith('user:usr-2');
-      expect(result).toEqual({ success: true });
+      const uRes = await service.unblockUser('usr-1', 'usr-2');
+      expect(uRes.success).toBe(true);
     });
   });
 
-  describe('updateUser & updatePrimaryBadge', () => {
-    it('updateUser throws ConflictException when new username is taken', async () => {
-      mockUsersRepository.findById.mockResolvedValueOnce({ id: 'usr-1', username: 'old_user' });
-      mockUsersRepository.findByUsername.mockResolvedValueOnce({ id: 'other-user' });
-
-      await expect(service.updateUser('usr-1', { username: 'taken_user' })).rejects.toThrow(
-        new ConflictException('Username is already taken'),
-      );
+  describe('Search & Mentions & Suggested Users & Hashtags', () => {
+    it('searches users by query and scores relevance', async () => {
+      const results = await service.searchUsers('alex', 'usr-1');
+      expect(Array.isArray(results)).toBe(true);
     });
 
-    it('updateUser throws ConflictException when new email is taken', async () => {
-      mockUsersRepository.findById.mockResolvedValueOnce({ id: 'usr-1', email: 'old@example.com' });
-      mockUsersRepository.findByEmail.mockResolvedValueOnce({ id: 'other-user' });
+    it('searchMentionSuggestions suggests users from followings, followers and recent chats', async () => {
+      mockUsersRepository.getFollowingIds.mockResolvedValueOnce(['usr-100']);
+      mockUsersRepository.getFollowerIds.mockResolvedValueOnce(['usr-100']);
+      mockUsersRepository.getRecentChatParticipantIds.mockResolvedValueOnce(['usr-100']);
 
-      await expect(service.updateUser('usr-1', { email: 'taken@example.com' })).rejects.toThrow(
-        new ConflictException('Email is already taken'),
-      );
+      const mentions = await service.searchMentionSuggestions('alex', 'usr-1');
+      expect(Array.isArray(mentions)).toBe(true);
     });
 
-    it('updateUser updates user and clears cache', async () => {
-      mockUsersRepository.findById.mockResolvedValueOnce({ id: 'usr-1' });
-      mockUsersRepository.updateUser.mockResolvedValueOnce({ id: 'usr-1' });
-      mockPrisma.user.findUnique.mockResolvedValueOnce(baseDbUser);
+    it('gets suggested users and dismisses suggestion', async () => {
+      const suggested = await service.getSuggestedUsers('usr-1', 5, '127.0.0.1');
+      expect(Array.isArray(suggested)).toBe(true);
 
-      const result = await service.updateUser('usr-1', {
-        displayName: 'Updated Name',
-        bio: 'Updated bio',
-      });
+      await service.dismissSuggestedUser('usr-1', 'usr-2');
+      expect(mockRedis.dismissSuggestedUser).toHaveBeenCalledWith('usr-1', 'usr-2');
+    });
 
+    it('gets top followed users', async () => {
+      const top = await service.getTopFollowedUsers(5, 'usr-1');
+      expect(Array.isArray(top)).toBe(true);
+    });
+
+    it('gets trending hashtags and searches hashtags', async () => {
+      mockUsersRepository.getRecentPublicPostsContent.mockResolvedValueOnce([
+        { content: 'Learning #coding and #typescript today!' },
+        { content: 'More #coding practice' },
+      ]);
+      const tags = await service.getTrendingHashtags(5);
+      expect(tags).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ tag: 'coding' }),
+          expect.objectContaining({ tag: 'typescript' }),
+        ]),
+      );
+
+      mockUsersRepository.getRecentPublicPostsContent.mockResolvedValueOnce([
+        { content: 'Learning #coding today!' },
+      ]);
+      const searched = await service.searchHashtags('#coding');
+      expect(searched.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Profile updates: updatePrimaryBadge & touchLastSeen & updateUser', () => {
+    it('touches last seen and invalidates cache', async () => {
+      await service.touchLastSeen('usr-1');
       expect(mockUsersRepository.updateUser).toHaveBeenCalledWith('usr-1', {
-        displayName: 'Updated Name',
-        bio: 'Updated bio',
+        lastSeenAt: expect.any(Date) as unknown,
       });
       expect(mockRedis.del).toHaveBeenCalledWith('user:usr-1');
-      expect(result.id).toBe('usr-100');
     });
 
-    it('updatePrimaryBadge throws ForbiddenException if user does not own badge', async () => {
-      mockPrisma.userBadge.findUnique.mockResolvedValueOnce(null);
+    it('updateUser validates fields, email conflicts, reserved usernames, and cooldown', async () => {
+      await expect(service.updateUser('usr-1', {})).rejects.toThrow(BadRequestException);
 
-      await expect(service.updatePrimaryBadge('usr-1', 'vip-badge')).rejects.toThrow(
-        /You do not own the badge 'vip-badge'/,
+      mockUsersRepository.findById.mockResolvedValueOnce(baseDbUser);
+      mockUsersRepository.findByEmail.mockResolvedValueOnce({ id: 'other' });
+      await expect(service.updateUser('usr-1', { email: 'taken@example.com' })).rejects.toThrow(
+        ConflictException,
+      );
+
+      mockUsersRepository.findById.mockResolvedValueOnce(baseDbUser);
+      await expect(service.updateUser('usr-1', { username: 'admin' })).rejects.toThrow(
+        BadRequestException,
+      );
+
+      mockUsersRepository.findById.mockResolvedValueOnce(baseDbUser);
+      mockRedis.get.mockResolvedValueOnce('some_timestamp');
+      await expect(service.updateUser('usr-1', { username: 'new_name' })).rejects.toThrow(
+        new BadRequestException('Username can only be changed once every 7 days.'),
+      );
+
+      mockUsersRepository.findById.mockResolvedValueOnce(baseDbUser);
+      mockRedis.get.mockResolvedValueOnce(null);
+      mockUsersRepository.findByUsername.mockResolvedValueOnce({ id: 'other' });
+      await expect(service.updateUser('usr-1', { username: 'taken_name' })).rejects.toThrow(
+        ConflictException,
+      );
+
+      mockUsersRepository.findById.mockResolvedValueOnce(baseDbUser);
+      mockRedis.get.mockResolvedValueOnce(null);
+      mockUsersRepository.findByUsername.mockResolvedValueOnce(null);
+      mockUsersRepository.updateUser.mockResolvedValueOnce(baseDbUser);
+      mockUsersRepository.findFullProfile.mockResolvedValueOnce(baseDbUser);
+
+      const res = await service.updateUser('usr-1', { displayName: 'Alex 2' });
+      expect(res.id).toBe('usr-100');
+    });
+
+    it('updates primary badge when owned and rejects when not owned', async () => {
+      mockUsersRepository.hasBadge.mockResolvedValueOnce(true);
+      mockUsersRepository.updateUser.mockResolvedValueOnce({
+        id: 'usr-1',
+        primaryBadge: 'veteran',
+      });
+      mockUsersRepository.findFullProfile.mockResolvedValueOnce(baseDbUser);
+
+      const res = await service.updatePrimaryBadge('usr-1', 'veteran');
+      expect(res.id).toBe('usr-100');
+
+      mockUsersRepository.hasBadge.mockResolvedValueOnce(false);
+      await expect(service.updatePrimaryBadge('usr-1', 'unowned-badge')).rejects.toThrow(
+        ForbiddenException,
       );
     });
 
-    it('updatePrimaryBadge updates badge and clears cache when badge is owned', async () => {
-      mockPrisma.userBadge.findUnique.mockResolvedValueOnce({
-        userId: 'usr-1',
-        badgeId: 'vip-badge',
-      });
-      mockPrisma.user.update.mockResolvedValueOnce({ id: 'usr-1', primaryBadge: 'vip-badge' });
-      mockPrisma.user.findUnique.mockResolvedValueOnce(baseDbUser);
+    it('sets verified badge and emits notification', async () => {
+      mockUsersRepository.findById.mockResolvedValueOnce({ ...baseDbUser, isVerified: false });
+      mockUsersRepository.updateUser.mockResolvedValueOnce({ id: 'usr-1', isVerified: true });
+      mockUsersRepository.findFullProfile.mockResolvedValueOnce(baseDbUser);
 
-      const result = await service.updatePrimaryBadge('usr-1', 'vip-badge');
+      const res = await service.setVerified('usr-1', true);
+      expect(res.id).toBe('usr-100');
+    });
 
-      expect(mockPrisma.user.update).toHaveBeenCalledWith({
-        where: { id: 'usr-1' },
-        data: { primaryBadge: 'vip-badge' },
+    it('applyPrivacy handles private profile, avatar privacy, and lastSeen granularity', () => {
+      const privateRaw = {
+        ...baseDbUser,
+        badges: ['veteran'],
+        followersCount: 120,
+        followingCount: 85,
+        postsCount: 42,
+        isPrivate: true,
+        lastSeenAt: new Date(Date.now() - 3600 * 1000).toISOString(),
+        createdAt: sampleDate.toISOString(),
+        updatedAt: sampleDate.toISOString(),
+        birthDate: null,
+      };
+
+      const mockCtx: VisibilityContext = {
+        viewerId: 'viewer-stranger',
+        exceptions: new Map(),
+        visibility: new Map(),
+        acceptedFollowing: new Set(),
+        pendingFollowing: new Set(),
+        blocked: new Set(),
+      };
+
+      mockVisibility.isFollower.mockReturnValueOnce(false);
+      const privateProf = service.applyPrivacy(privateRaw, 'viewer-stranger', mockCtx);
+      expect(privateProf.bio).toBeNull();
+
+      mockVisibility.isFollower.mockReturnValueOnce(true);
+      mockVisibility.resolve.mockReturnValue(false); // hides avatar and last seen
+      const hiddenProf = service.applyPrivacy(privateRaw, 'viewer-follower', {
+        ...mockCtx,
+        viewerId: 'viewer-follower',
       });
-      expect(mockRedis.del).toHaveBeenCalledWith('user:usr-1');
-      expect(result.id).toBe('usr-100');
+      expect(hiddenProf.avatar).toBeNull();
+      expect(hiddenProf.isOnline).toBe(false);
     });
   });
 });

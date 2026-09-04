@@ -1,6 +1,7 @@
 import { HealthService } from '../health.service';
 import type { HealthRepository } from '../health.repository';
 import type { RedisService } from '../../redis/redis.service';
+import type { RedisSelfHealingService } from '../../redis/redis-self-healing.service';
 
 describe('HealthService', () => {
   let service: HealthService;
@@ -12,6 +13,11 @@ describe('HealthService', () => {
   };
   let mockRedisClient: {
     ping: jest.Mock;
+  };
+  let mockRedisSelfHealingService: {
+    getRedisMemoryInfo: jest.Mock;
+    getLastEvictionInfo: jest.Mock;
+    checkAndSelfHeal: jest.Mock;
   };
 
   beforeEach(() => {
@@ -27,9 +33,28 @@ describe('HealthService', () => {
       getClient: jest.fn().mockReturnValue(mockRedisClient),
     };
 
+    mockRedisSelfHealingService = {
+      getRedisMemoryInfo: jest.fn().mockResolvedValue({
+        usedMemoryBytes: 1000,
+        usedMemoryHuman: '1 KB',
+        maxMemoryBytes: 100000,
+        maxMemoryHuman: '100 KB',
+        memoryRatio: 0.01,
+        memoryUsagePercent: 1.0,
+        isHighMemory: false,
+        thresholdRatio: 0.9,
+      }),
+      getLastEvictionInfo: jest.fn().mockReturnValue({
+        lastEvictionTimestamp: undefined,
+        lastEvictedKeysCount: 0,
+      }),
+      checkAndSelfHeal: jest.fn(),
+    };
+
     service = new HealthService(
       mockHealthRepo as unknown as HealthRepository,
       mockRedisService as unknown as RedisService,
+      mockRedisSelfHealingService as unknown as RedisSelfHealingService,
     );
   });
 
@@ -65,6 +90,32 @@ describe('HealthService', () => {
       expect(response.status).toBe('degraded');
       expect(response.services.database).toBe('ok');
       expect(response.services.redis).toBe('error');
+
+      mockHealthRepo.pingDatabase.mockResolvedValueOnce(false);
+      mockRedisClient.ping.mockResolvedValueOnce('PONG');
+      const dbFail = await service.getReadiness();
+      expect(dbFail.isHealthy).toBe(false);
+      expect(dbFail.response.services.database).toBe('error');
+    });
+
+    it('returns degraded when memoryLeakDetector reports isReadyForTraffic() === false', async () => {
+      mockHealthRepo.pingDatabase.mockResolvedValue(true);
+      mockRedisClient.ping.mockResolvedValue('PONG');
+
+      const mockMemoryDetector = {
+        isReadyForTraffic: jest.fn().mockReturnValue(false),
+      };
+
+      const healthServiceWithLeak = new HealthService(
+        mockHealthRepo as unknown as HealthRepository,
+        mockRedisService as unknown as RedisService,
+        mockRedisSelfHealingService as unknown as RedisSelfHealingService,
+        mockMemoryDetector as any,
+      );
+
+      const { isHealthy, response } = await healthServiceWithLeak.getReadiness();
+      expect(isHealthy).toBe(false);
+      expect(response.status).toBe('degraded');
     });
   });
 });

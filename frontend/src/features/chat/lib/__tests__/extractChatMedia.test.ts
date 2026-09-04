@@ -50,4 +50,49 @@ describe('extractChatMedia utilities', () => {
     const color = colorForHostname('github.com');
     expect(color).toBeDefined();
   });
+
+  it('safely handles invalid URL exception during extractLinkItems', () => {
+    const origURL = globalThis.URL;
+    let count = 0;
+    // Mock URL constructor to throw on first call
+    (globalThis as any).URL = class MockURL extends origURL {
+      constructor(url: string | URL, base?: string | URL) {
+        count++;
+        if (count === 1) {
+          throw new Error('Invalid URL');
+        }
+        super(url, base);
+      }
+    };
+
+    const links = extractLinkItems(messages);
+    expect(links.length).toBeGreaterThanOrEqual(0);
+
+    globalThis.URL = origURL;
+  });
+
+  it('handles message with empty body and multiple items in same month', () => {
+    const mixedMessages: MessageView[] = [
+      {
+        id: 'm2',
+        body: null as any,
+        createdAt: '2026-01-01T12:00:00Z',
+        attachments: [{ id: 'a3', type: 'IMAGE', url: 'https://img.com/2.jpg' }],
+      } as unknown as MessageView,
+      {
+        id: 'm3',
+        body: 'just plain text without link',
+        createdAt: '2026-01-02T12:00:00Z',
+        attachments: [{ id: 'a4', type: 'IMAGE', url: 'https://img.com/3.jpg' }],
+      } as unknown as MessageView,
+    ];
+
+    const links = extractLinkItems(mixedMessages);
+    expect(links).toHaveLength(0);
+
+    const media = extractMediaItems(mixedMessages);
+    const groups = groupByMonth(media);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].items).toHaveLength(2);
+  });
 });

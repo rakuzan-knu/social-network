@@ -97,7 +97,7 @@ export const WaveformRenderer = React.memo(function WaveformRenderer({
     onHoverFractionChange?.(null);
   };
 
-  const handlePointerLeave = (e: React.PointerEvent<HTMLDivElement>) => {
+  const handlePointerLeave = () => {
     if (!isScrubbing) {
       setIsHovered(false);
       setHoverFraction(null);
@@ -117,7 +117,7 @@ export const WaveformRenderer = React.memo(function WaveformRenderer({
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerCancel}
       onPointerLeave={handlePointerLeave}
-      className="group relative flex items-center justify-between gap-[2px] h-[24px] w-full min-w-0 cursor-pointer select-none touch-none py-1"
+      className="group relative flex items-center justify-between gap-0.5 h-6 w-full min-w-0 cursor-pointer select-none touch-none py-1"
       title={totalDuration > 0 ? `Duration: ${formatVoiceTime(totalDuration)}` : undefined}
     >
       {/* Floating Seek Tooltip on Hover / Drag */}
@@ -162,7 +162,7 @@ export const WaveformRenderer = React.memo(function WaveformRenderer({
           <div
             key={idx}
             data-testid={`waveform-bar-${idx}`}
-            className="flex-1 flex items-center justify-center h-full min-w-[2px] pointer-events-none"
+            className="flex-1 flex items-center justify-center h-full min-w-0.5 pointer-events-none"
           >
             <span
               className={`w-full rounded-full transition-colors duration-75 ${barColorClass}`}

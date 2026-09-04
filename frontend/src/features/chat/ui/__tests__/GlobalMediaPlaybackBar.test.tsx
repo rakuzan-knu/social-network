@@ -110,4 +110,64 @@ describe('GlobalMediaPlaybackBar', () => {
 
     expect(useActiveMediaPlaybackStore.getState().activeMediaId).toBeNull();
   });
+
+  it('handles volume hover, slider change, and mute toggle', () => {
+    useActiveMediaPlaybackStore.getState().setActiveMedia({
+      id: 'media-123',
+      mediaType: 'voice',
+      url: 'https://example.com/voice.webm',
+      senderName: 'Ayate',
+      sentAt: '20:34',
+      duration: 20,
+    });
+
+    const { container } = render(<GlobalMediaPlaybackBar />);
+
+    const muteBtn = screen.getByTitle('Mute');
+    fireEvent.click(muteBtn);
+    expect(useActiveMediaPlaybackStore.getState().isMuted).toBe(true);
+
+    // Hover volume container to reveal slider
+    const volumeContainer = muteBtn.parentElement!;
+    fireEvent.mouseEnter(volumeContainer);
+
+    const slider = container.querySelector('input[type="range"]');
+    if (slider) {
+      fireEvent.change(slider, { target: { value: '0.8' } });
+      expect(useActiveMediaPlaybackStore.getState().volume).toBe(0.8);
+    }
+  });
+
+  it('triggers audio events: loadedmetadata, timeupdate, ended, and onNearQueueEnd callback', () => {
+    const onNearQueueEnd = vi.fn();
+    const item1 = { id: 'm1', mediaType: 'voice' as const, url: 'a.mp3', senderName: 'Alice' };
+    const item2 = { id: 'm2', mediaType: 'voice' as const, url: 'b.mp3', senderName: 'Bob' };
+
+    useActiveMediaPlaybackStore.getState().setPlaylist([item1, item2]);
+    useActiveMediaPlaybackStore.getState().setActiveMedia(item1);
+
+    const { container } = render(<GlobalMediaPlaybackBar onNearQueueEnd={onNearQueueEnd} />);
+
+    expect(onNearQueueEnd).toHaveBeenCalled();
+
+    const audio = container.querySelector('audio')!;
+
+    // 1. loadedmetadata
+    Object.defineProperty(audio, 'duration', { value: 45, configurable: true });
+    fireEvent.loadedMetadata(audio);
+    expect(useActiveMediaPlaybackStore.getState().duration).toBe(45);
+
+    // 2. timeupdate
+    Object.defineProperty(audio, 'currentTime', { value: 12, configurable: true });
+    fireEvent.timeUpdate(audio);
+    expect(useActiveMediaPlaybackStore.getState().currentTime).toBe(12);
+
+    // 3. ended -> advances to item2
+    fireEvent.ended(audio);
+    expect(useActiveMediaPlaybackStore.getState().activeMediaId).toBe('m2');
+
+    // 4. ended on last item -> stops
+    fireEvent.ended(audio);
+    expect(useActiveMediaPlaybackStore.getState().isPlaying).toBe(false);
+  });
 });

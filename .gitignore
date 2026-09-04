@@ -162,14 +162,15 @@ frontend/storybook-static/
 # Lighthouse
 .lighthouseci/
 
+# Agents
 .agents/
 .antigravityignore
 GEMINI.md
 
+# SVG
 *.svg
 
-graphify-out/cache/
-graphify-out/20*
+# Graphify
 graphify-out/
 
 # Nx / Turbo / Workspace Build
@@ -178,4 +179,22 @@ graphify-out/
 apps/*/dist/
 apps/*/coverage/
 
+# CodeQL
 codeql-alerts.json
+
+# Benchmarks & Load Testing
+benchmarks/reports/
+benchmarks/k6/tokens.json
+
+# Clinic.js profiling output
+*.clinic-*/
+*.clinic-*
+.clinic/
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log

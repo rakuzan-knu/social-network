@@ -2,7 +2,6 @@ import React, { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { MessageSquare, Repeat, Heart, Share, Bookmark, ChevronDown, Pin } from 'lucide-react';
 
-import Avatar from '@/shared/ui/Avatar';
 import StoryAvatar from '@/shared/ui/StoryAvatar';
 import { ExpandableText } from '@/shared/ui/ExpandableText';
 import { PostMenu } from '@/features/posts/ui/PostMenu';
@@ -66,7 +65,19 @@ export function PostCard({ post, queryKey }: PostCardProps) {
     (currentUser?.username && post.handle?.toLowerCase() === currentUser.username.toLowerCase()),
   );
 
-  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const likeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const repostTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  React.useEffect(() => {
+    return () => {
+      if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+      if (likeTimerRef.current) clearTimeout(likeTimerRef.current);
+      if (repostTimerRef.current) clearTimeout(repostTimerRef.current);
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    };
+  }, []);
 
   const openCommentModal = useUIStore((state) => state.openCommentModal);
   const openShareModal = useUIStore((state) => state.openShareModal);
@@ -89,13 +100,15 @@ export function PostCard({ post, queryKey }: PostCardProps) {
 
   const handleLike = () => {
     setIsLikePopping(true);
-    setTimeout(() => setIsLikePopping(false), 400);
+    if (likeTimerRef.current) clearTimeout(likeTimerRef.current);
+    likeTimerRef.current = setTimeout(() => setIsLikePopping(false), 400);
     likeMutation.mutate();
   };
 
   const handleRepost = () => {
     setIsRepostSpinning(true);
-    setTimeout(() => setIsRepostSpinning(false), 400);
+    if (repostTimerRef.current) clearTimeout(repostTimerRef.current);
+    repostTimerRef.current = setTimeout(() => setIsRepostSpinning(false), 400);
     repostMutation.mutate();
   };
 
@@ -107,13 +120,15 @@ export function PostCard({ post, queryKey }: PostCardProps) {
   const handleHidePost = () => {
     setIsCollapsing(true);
     showUndo(post.id);
-    setTimeout(() => {
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    hideTimerRef.current = setTimeout(() => {
       hidePost(post.id);
       setIsCollapsing(false);
     }, 300);
   };
 
   const handleTouchStart = () => {
+    if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
     longPressTimerRef.current = setTimeout(() => {
       setIsPopoverOpen(true);
     }, 450);
@@ -122,6 +137,7 @@ export function PostCard({ post, queryKey }: PostCardProps) {
   const handleTouchEnd = () => {
     if (longPressTimerRef.current) {
       clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
     }
   };
 

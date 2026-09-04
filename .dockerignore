@@ -59,13 +59,44 @@ ehthumbs.db
 *.sublime-project
 .vscode-settings.json
 
-# Misc
+# Misc & Documentation
 README.md
 CHANGELOG.md
 CONTRIBUTING.md
 LICENSE
+SECURITY.md
+SUPPORT.md
 .dockerignore
-Docker file*
+Dockerfile*
 docker-compose*.yml
 .husky
 docs/
+
+# Infrastructure & Benchmarks (Blackbox testing / GitOps)
+infrastructure/
+benchmarks/
+
+# Agents & AI Tooling
+.agents/
+.antigravityignore
+GEMINI.md
+graphify-out/
+
+# Monorepo & Static Analysis Caches
+.nx/
+.clinic/
+*.clinic-*/
+*.clinic-*
+codeql-alerts.json
+.gitleaks.toml
+.lighthouserc.json
+knip.json
+.lintstagedrc*
+commitlint.config.*
+.prettier*
+.eslint*
+playwright-report/
+test-results/
+.stryker-tmp/
+**/.stryker-tmp/
+

@@ -1,5 +1,6 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { PrismaService } from '@common/prisma';
+import { SnowflakeService } from '../common/id/snowflake.service';
 import type { ICommentsRepository } from './interfaces/comments-repository.interface';
 import type { CreateCommentDto, CommentWithUser } from '@common/contracts';
 
@@ -21,7 +22,11 @@ const replyToUserSelect = {
 
 @Injectable()
 export class CommentsRepository implements ICommentsRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional()
+    private readonly snowflake?: SnowflakeService,
+  ) {}
 
   async addComment(
     postId: string,
@@ -56,6 +61,7 @@ export class CommentsRepository implements ICommentsRepository {
         rootParentId,
         replyToUserId,
         mediaUrl: dto.mediaUrl || null,
+        ...(this.snowflake ? { id: this.snowflake.generate() } : {}),
       },
       include: {
         user: { select: userSelect },
@@ -79,8 +85,8 @@ export class CommentsRepository implements ICommentsRepository {
       },
       take: limit + 1,
       skip: after ? 1 : 0,
-      cursor: after ? { id: after } : undefined,
       orderBy: [{ isPinned: 'desc' }, { createdAt: 'asc' }, { id: 'asc' }],
+      ...(after ? { cursor: { id: after } } : {}),
       include: {
         user: { select: userSelect },
         replyToUser: { select: replyToUserSelect },
@@ -125,8 +131,8 @@ export class CommentsRepository implements ICommentsRepository {
       },
       take: limit + 1,
       skip: after ? 1 : 0,
-      cursor: after ? { id: after } : undefined,
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      ...(after ? { cursor: { id: after } } : {}),
       include: {
         user: { select: userSelect },
         replyToUser: { select: replyToUserSelect },
@@ -256,6 +262,61 @@ export class CommentsRepository implements ICommentsRepository {
         likes: { select: { userId: true } },
         _count: { select: { likes: true, replies: true } },
       },
+    });
+  }
+
+  async findRecentDuplicate(
+    userId: string,
+    postId: string,
+    text: string,
+    since: Date,
+  ): Promise<boolean> {
+    const duplicate = await this.prisma.comment.findFirst({
+      where: {
+        userId,
+        postId,
+        text: text.trim(),
+        createdAt: { gte: since },
+      },
+      select: { id: true },
+    });
+    return duplicate !== null;
+  }
+
+  async findPostBasic(postId: string) {
+    return this.prisma.post.findUnique({
+      where: { id: postId },
+      select: { id: true, authorId: true, author: { select: { username: true } } },
+    });
+  }
+
+  async isBlocked(userA: string, userB: string): Promise<boolean> {
+    const block = await this.prisma.userBlock.findFirst({
+      where: {
+        OR: [
+          { blockerId: userA, blockedId: userB },
+          { blockerId: userB, blockedId: userA },
+        ],
+      },
+      select: { blockerId: true },
+    });
+    return block !== null;
+  }
+
+  async findUserBasic(userId: string) {
+    return this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, username: true, displayName: true, avatar: true },
+    });
+  }
+
+  async findMentionedUsers(usernames: string[], excludeUserId: string) {
+    return this.prisma.user.findMany({
+      where: {
+        username: { in: usernames, mode: 'insensitive' },
+        id: { not: excludeUserId },
+      },
+      select: { id: true, username: true },
     });
   }
 }

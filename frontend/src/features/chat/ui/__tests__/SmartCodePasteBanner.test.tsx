@@ -75,4 +75,17 @@ describe('SmartCodePasteBanner', () => {
     fireEvent.click(dismissBtn);
     expect(handleDismiss).toHaveBeenCalledTimes(1);
   });
+
+  it('renders CODE label fallback when snippet language is undefined', () => {
+    render(
+      <SmartCodePasteBanner
+        snippet={{ ...sampleSnippet, language: undefined as any }}
+        onFormatMarkdown={vi.fn()}
+        onAttachAsFile={vi.fn()}
+        onDismiss={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('CODE')).toBeInTheDocument();
+  });
 });

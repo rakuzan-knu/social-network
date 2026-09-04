@@ -32,3 +32,12 @@ docs/
 test/
 src/**/*.spec.ts
 frontend/
+benchmarks/
+infrastructure/
+.nx/
+.clinic/
+*.clinic-*/
+*.clinic-*
+reports/
+.stryker-tmp/
+

@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   X,
   Type,
-  Smile,
   Mic,
   MicOff,
   Image as ImageIcon,
@@ -13,7 +12,6 @@ import {
   AtSign,
   Palette,
   Trash2,
-  Check,
   Music,
   Star,
   Loader2,
@@ -22,7 +20,6 @@ import { useStoryEditorStore } from '../model/useStoryEditorStore';
 import { useCreateStory } from '../model/useStories';
 import { uid } from 'uid';
 import type {
-  StoryOverlay,
   TextOverlay,
   PollOverlay,
   LinkOverlay,
@@ -67,7 +64,6 @@ export function StoryEditorModal() {
     addOverlay,
     updateOverlay,
     removeOverlay,
-    setPrivacy,
     setBackgroundColor,
     setActiveTool,
   } = useStoryEditorStore();
@@ -380,7 +376,7 @@ export function StoryEditorModal() {
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 backdrop-blur-2xl p-4 animate-fadeIn select-none">
+    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/90 backdrop-blur-2xl p-4 animate-fadeIn select-none">
       {/* Hidden file picker input */}
       <input
         ref={fileInputRef}
@@ -502,7 +498,7 @@ export function StoryEditorModal() {
           style={{
             background: mediaUrl ? '#09090b' : backgroundColor,
           }}
-          className="relative w-full max-w-[380px] aspect-[9/16] max-h-[74vh] rounded-3xl overflow-hidden border border-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.8)] flex items-center justify-center"
+          className="relative w-full max-w-95 aspect-9/16 max-h-[74vh] rounded-3xl overflow-hidden border border-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.8)] flex items-center justify-center"
         >
           {/* Media Background */}
           {mediaUrl && mediaType === 'IMAGE' && (
@@ -568,7 +564,7 @@ export function StoryEditorModal() {
                   style={{
                     color: overlay.color,
                   }}
-                  className={`px-4 py-2 rounded-2xl text-center whitespace-pre-wrap select-none font-bold text-lg max-w-[280px] leading-snug ${
+                  className={`px-4 py-2 rounded-2xl text-center whitespace-pre-wrap select-none font-bold text-lg max-w-70 leading-snug ${
                     overlay.fontFamily === 'neon'
                       ? 'drop-shadow-[0_0_12px_rgba(236,72,153,0.85)] font-sans'
                       : overlay.fontFamily === 'cyberpunk'
@@ -594,7 +590,7 @@ export function StoryEditorModal() {
 
               {/* 2. Poll Overlay */}
               {overlay.type === 'poll' && (
-                <div className="w-[260px] bg-[#14141c]/95 backdrop-blur-2xl border border-white/15 rounded-3xl p-4 shadow-2xl flex flex-col gap-2.5">
+                <div className="w-65 bg-[#14141c]/95 backdrop-blur-2xl border border-white/15 rounded-3xl p-4 shadow-2xl flex flex-col gap-2.5">
                   <span className="text-sm font-bold text-white text-center">
                     {overlay.question}
                   </span>
@@ -614,14 +610,14 @@ export function StoryEditorModal() {
               {/* 3. Link Overlay */}
               {overlay.type === 'link' && (
                 <div className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white text-black font-extrabold text-xs shadow-[0_8px_25px_rgba(255,255,255,0.3)] tracking-wide">
-                  <LinkIcon size={14} className="stroke-[3]" />
+                  <LinkIcon size={14} className="stroke-3" />
                   <span>{overlay.title}</span>
                 </div>
               )}
 
               {/* 4. Mention Overlay */}
               {overlay.type === 'mention' && (
-                <div className="flex items-center gap-1 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold text-xs shadow-lg">
+                <div className="flex items-center gap-1 px-3.5 py-1.5 rounded-full bg-linear-to-r from-purple-600 to-pink-600 text-white font-bold text-xs shadow-lg">
                   <AtSign size={13} />
                   <span>{overlay.username}</span>
                 </div>
@@ -726,7 +722,7 @@ export function StoryEditorModal() {
           {/* Poll Editor Dialog */}
           {activeTool === 'poll' && (
             <div className="absolute inset-0 z-40 bg-black/85 backdrop-blur-xl flex flex-col justify-center items-center p-4 animate-fadeIn">
-              <div className="w-full max-w-[280px] bg-[#16161f] border border-white/15 rounded-3xl p-4 shadow-2xl flex flex-col gap-3">
+              <div className="w-full max-w-70 bg-[#16161f] border border-white/15 rounded-3xl p-4 shadow-2xl flex flex-col gap-3">
                 <span className="text-xs font-bold text-purple-400 uppercase tracking-wider text-center">
                   Новый опрос
                 </span>
@@ -779,7 +775,7 @@ export function StoryEditorModal() {
           {/* Link Editor Dialog */}
           {activeTool === 'link' && (
             <div className="absolute inset-0 z-40 bg-black/85 backdrop-blur-xl flex flex-col justify-center items-center p-4 animate-fadeIn">
-              <div className="w-full max-w-[280px] bg-[#16161f] border border-white/15 rounded-3xl p-4 shadow-2xl flex flex-col gap-3">
+              <div className="w-full max-w-70 bg-[#16161f] border border-white/15 rounded-3xl p-4 shadow-2xl flex flex-col gap-3">
                 <span className="text-xs font-bold text-pink-400 uppercase tracking-wider text-center">
                   Стикер ссылки
                 </span>
@@ -821,7 +817,7 @@ export function StoryEditorModal() {
           {/* Mention Editor Dialog */}
           {activeTool === 'mention' && (
             <div className="absolute inset-0 z-40 bg-black/85 backdrop-blur-xl flex flex-col justify-center items-center p-4 animate-fadeIn">
-              <div className="w-full max-w-[280px] bg-[#16161f] border border-white/15 rounded-3xl p-4 shadow-2xl flex flex-col gap-3">
+              <div className="w-full max-w-70 bg-[#16161f] border border-white/15 rounded-3xl p-4 shadow-2xl flex flex-col gap-3">
                 <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider text-center">
                   Упоминание
                 </span>
@@ -887,7 +883,7 @@ export function StoryEditorModal() {
             type="button"
             disabled={createStoryMutation.isPending}
             onClick={() => handlePublish()}
-            className="w-12 h-12 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center transition-all hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(139,92,246,0.5)] cursor-pointer disabled:opacity-50 shrink-0"
+            className="w-12 h-12 rounded-full bg-linear-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center transition-all hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(139,92,246,0.5)] cursor-pointer disabled:opacity-50 shrink-0"
             title="Опубликовать"
           >
             <Send size={18} className="translate-x-0.5" />

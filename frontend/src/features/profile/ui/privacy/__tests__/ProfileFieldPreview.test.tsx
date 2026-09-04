@@ -27,5 +27,25 @@ describe('ProfileFieldPreview', () => {
       <ProfileFieldPreview dimension="BIO" hidden={true} value="NOBODY" currentUser={mockUser} />,
     );
     expect(screen.getByText('Hidden profile description')).toBeInTheDocument();
+
+    rerender(
+      <ProfileFieldPreview
+        dimension="AVATAR"
+        hidden={true}
+        value="CONTACTS"
+        currentUser={mockUser}
+      />,
+    );
+    expect(screen.getByText('How subscribers see it')).toBeInTheDocument();
+
+    rerender(
+      <ProfileFieldPreview
+        dimension="BANNER"
+        hidden={true}
+        value="NOBODY"
+        currentUser={mockUser}
+      />,
+    );
+    expect(screen.getByText('How others see it')).toBeInTheDocument();
   });
 });

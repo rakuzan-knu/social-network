@@ -14,6 +14,15 @@ import {
 } from '../../../entities/chat/model/types';
 import { AckResponse } from './chatSocketTypes';
 
+const clientSeqMap = new Map<string, number>();
+
+function getNextClientSeq(convId: string): number {
+  const current = (clientSeqMap.get(convId) ?? 0) | 0;
+  const next = (current + 1) | 0;
+  clientSeqMap.set(convId, next);
+  return next;
+}
+
 function emitWithAck<T = unknown>(
   socket: ReturnType<typeof useChatSocket>,
   event: string,
@@ -89,11 +98,13 @@ export function useMessageActions(conversationId: string | null) {
                     ? 'FILE'
                     : 'TEXT';
 
+      const clientSeq = getNextClientSeq(conversationId);
       const optimisticId = `client_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
       const optimisticMessage: MessageView = {
         id: optimisticId,
         tempId: optimisticId,
         clientMessageId: optimisticId,
+        clientSeq: clientSeq | 0,
         status: 'SENDING',
         conversationId,
         sender: { id: userId ?? '', username: '', displayName: null, avatar: null },
@@ -107,12 +118,12 @@ export function useMessageActions(conversationId: string | null) {
           url: a.url,
           fileName: a.fileName ?? null,
           mimeType: a.mimeType ?? null,
-          size: a.size != null ? Math.round(a.size) : null,
-          width: a.width != null ? Math.round(a.width) : null,
-          height: a.height != null ? Math.round(a.height) : null,
-          duration: a.duration != null ? Math.round(a.duration) : null,
+          size: a.size != null ? a.size | 0 : null,
+          width: a.width != null ? a.width | 0 : null,
+          height: a.height != null ? a.height | 0 : null,
+          duration: a.duration != null ? a.duration | 0 : null,
           waveform: a.waveform,
-          isSpoiler: a.isSpoiler,
+          isSpoiler: Boolean(a.isSpoiler),
           thumbnailUrl: a.thumbnailUrl ?? null,
         })) as AttachmentView[],
         reactions: [],
@@ -140,6 +151,7 @@ export function useMessageActions(conversationId: string | null) {
           replyToId,
           attachments,
           clientMessageId: optimisticId,
+          clientSeq,
         });
         if (res.message) {
           const real = { ...res.message, status: 'SENT' as const };
@@ -160,6 +172,7 @@ export function useMessageActions(conversationId: string | null) {
             replyToId,
             attachments,
             clientMessageId: optimisticId,
+            clientSeq,
           });
           if (fallbackRes) {
             const real = { ...(fallbackRes as MessageView), status: 'SENT' as const };
@@ -188,6 +201,116 @@ export function useMessageActions(conversationId: string | null) {
       }
     },
     [conversationId, socket, updatePages, userId],
+  );
+
+  const retrySendMessage = useCallback(
+    async (failedMessageId: string) => {
+      if (!conversationId) return;
+      const data = queryClient.getQueryData<InfiniteMessagesData>([
+        CONVERSATION_MESSAGES_KEY,
+        conversationId,
+      ]);
+      const targetMessage = data?.pages
+        .flatMap((p) => p.data)
+        .find(
+          (m) =>
+            m.id === failedMessageId ||
+            m.tempId === failedMessageId ||
+            m.clientMessageId === failedMessageId,
+        );
+
+      if (!targetMessage) return;
+
+      const optimisticId = targetMessage.clientMessageId || targetMessage.id;
+      const text = targetMessage.body || '';
+      const replyToId = targetMessage.replyTo?.id;
+      const attachments = (targetMessage.attachments || []).map((a) => ({
+        type: a.type,
+        url: a.url,
+        fileName: a.fileName || undefined,
+        mimeType: a.mimeType || undefined,
+        size: a.size ?? undefined,
+        width: a.width ?? undefined,
+        height: a.height ?? undefined,
+        duration: a.duration ?? undefined,
+        waveform: a.waveform ?? undefined,
+        isSpoiler: a.isSpoiler ?? undefined,
+        thumbnailUrl: a.thumbnailUrl || undefined,
+      })) as OutgoingAttachment[];
+
+      updatePages((pages) =>
+        pages.map((p) => ({
+          ...p,
+          data: p.data.map((m) =>
+            m.id === failedMessageId || m.tempId === failedMessageId
+              ? { ...m, status: 'SENDING' as const }
+              : m,
+          ),
+        })),
+      );
+
+      try {
+        const res = await emitWithAck<MessageView>(socket, 'sendMessage', {
+          conversationId,
+          text: text || undefined,
+          messageType: targetMessage.messageType,
+          replyToId,
+          attachments: attachments.length > 0 ? attachments : undefined,
+          clientMessageId: optimisticId,
+        });
+        if (res.message) {
+          const real = { ...res.message, status: 'SENT' as const };
+          updatePages((pages) =>
+            pages.map((p) => ({
+              ...p,
+              data: p.data.map((m) =>
+                m.id === optimisticId || m.tempId === optimisticId || m.id === failedMessageId
+                  ? real
+                  : m,
+              ),
+            })),
+          );
+        }
+      } catch (err) {
+        try {
+          const fallbackRes = await chatApi.sendMessage(conversationId, {
+            text: text || undefined,
+            messageType: targetMessage.messageType,
+            replyToId,
+            attachments: attachments.length > 0 ? attachments : undefined,
+            clientMessageId: optimisticId,
+          });
+          if (fallbackRes) {
+            const real = { ...(fallbackRes as MessageView), status: 'SENT' as const };
+            updatePages((pages) =>
+              pages.map((p) => ({
+                ...p,
+                data: p.data.map((m) =>
+                  m.id === optimisticId || m.tempId === optimisticId || m.id === failedMessageId
+                    ? real
+                    : m,
+                ),
+              })),
+            );
+            return;
+          }
+        } catch {
+          // fallback failed
+        }
+        updatePages((pages) =>
+          pages.map((p) => ({
+            ...p,
+            data: p.data.map((m) =>
+              m.id === failedMessageId || m.tempId === failedMessageId
+                ? { ...m, status: 'ERROR' as const }
+                : m,
+            ),
+          })),
+        );
+        throw err;
+      }
+    },
+    [conversationId, queryClient, socket, updatePages],
   );
 
   const editMessage = useCallback(
@@ -379,7 +502,7 @@ export function useMessageActions(conversationId: string | null) {
             ),
         );
         socket.emit('markRead', { conversationId, messageId: lastReadMessageId });
-        chatApi.markRead(conversationId).catch(() => {});
+        chatApi.markRead?.(conversationId)?.catch?.(() => {});
       }, 350);
     },
     [socket, conversationId, queryClient],
@@ -507,6 +630,7 @@ export function useMessageActions(conversationId: string | null) {
 
   return {
     sendMessage,
+    retrySendMessage,
     editMessage,
     deleteMessage,
     batchDeleteMessages,

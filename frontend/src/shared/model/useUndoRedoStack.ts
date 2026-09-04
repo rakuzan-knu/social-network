@@ -6,9 +6,13 @@ export function useUndoRedoStack<T>() {
   const [redoStack, setRedoStack] = useState<T[]>([]);
 
   const commit = (next: T) => {
-    if (current) setUndoStack((prev) => [...prev, current]);
+    setCurrent((prevCurrent) => {
+      if (prevCurrent !== null) {
+        setUndoStack((prevUndo) => [...prevUndo, prevCurrent]);
+      }
+      return next;
+    });
     setRedoStack([]);
-    setCurrent(next);
   };
 
   const undo = useCallback(() => {

@@ -2,12 +2,8 @@ import React, { lazy, Suspense } from 'react';
 import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
 
 import Sidebar from '../widgets/sidebar/ui/Sidebar';
-import { UndoHideSnackbar } from '../features/posts/ui/UndoHideSnackbar';
-import { UndoClearHistorySnackbar } from '../features/chat/ui/UndoClearHistorySnackbar';
 import DeviceLockGate from '../features/profile/ui/security/DeviceLockGate';
 import MessageToastViewport from '../features/chat/ui/MessageToastViewport';
-import FloatingVideoNotePiP from '../features/chat/ui/FloatingVideoNotePiP';
-import ReactionBurstCanvas from '../features/chat/ui/ReactionBurstCanvas';
 
 import { useUIStore } from '../shared/model/useUIStore';
 import { useAuthStore } from '../shared/model/useAuthStore';
@@ -25,6 +21,16 @@ const StoryViewerModal = lazy(() =>
 const StoryEditorModal = lazy(() =>
   import('../features/stories/ui/StoryEditorModal').then((m) => ({ default: m.StoryEditorModal })),
 );
+const UndoHideSnackbar = lazy(() =>
+  import('../features/posts/ui/UndoHideSnackbar').then((m) => ({ default: m.UndoHideSnackbar })),
+);
+const UndoClearHistorySnackbar = lazy(() =>
+  import('../features/chat/ui/UndoClearHistorySnackbar').then((m) => ({
+    default: m.UndoClearHistorySnackbar,
+  })),
+);
+const FloatingVideoNotePiP = lazy(() => import('../features/chat/ui/FloatingVideoNotePiP'));
+const ReactionBurstCanvas = lazy(() => import('../features/chat/ui/ReactionBurstCanvas'));
 
 const FeedPage = lazy(() => import('../pages/Feed/Feed'));
 const ProfilePage = lazy(() => import('../pages/Profile/Profile'));
@@ -121,11 +127,11 @@ export default function App() {
           <CommentModal />
           <StoryViewerModal />
           <StoryEditorModal />
+          <UndoHideSnackbar />
+          <UndoClearHistorySnackbar />
+          <FloatingVideoNotePiP />
+          <ReactionBurstCanvas />
         </Suspense>
-        <UndoHideSnackbar />
-        <UndoClearHistorySnackbar />
-        <FloatingVideoNotePiP />
-        <ReactionBurstCanvas />
         {!isMessengerRoute && <MessageToastViewport />}
 
         <main

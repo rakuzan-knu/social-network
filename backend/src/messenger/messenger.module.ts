@@ -18,17 +18,26 @@ import { MessengerGateway } from './gateway/messenger.gateway';
 import { MessengerMapper } from './messenger.mapper';
 import { AutoDeleteService } from './auto-delete/auto-delete.service';
 import { autoDeleteS3Provider } from './auto-delete/s3-provider';
+import { PresenceEngineService } from './presence/presence-engine.service';
+import { WsDrainingService } from './gateway/ws-draining.service';
+import { WsBackpressureService } from './gateway/ws-backpressure.service';
 
+import { RedisModule } from '../redis/redis.module';
 import { OpenGraphModule } from '../opengraph/opengraph.module';
 import { MessengerLinkPreviewController } from './link-preview.controller';
+import { SnowflakeModule } from '../common/id/snowflake.module';
+
+import { FastPathChatService } from './services/fast-path-chat.service';
 
 @Module({
   imports: [
     PrismaModule,
+    RedisModule,
     forwardRef(() => UsersModule),
     ConfigModule,
     JwtModule.register({}),
     OpenGraphModule,
+    SnowflakeModule,
   ],
   controllers: [ConversationsController, MessagesController, MessengerLinkPreviewController],
   providers: [
@@ -42,11 +51,25 @@ import { MessengerLinkPreviewController } from './link-preview.controller';
     },
     ConversationsService,
     MessagesService,
+    FastPathChatService,
     MessengerMapper,
+    PresenceEngineService,
+    WsDrainingService,
+    WsBackpressureService,
     MessengerGateway,
     AutoDeleteService,
     autoDeleteS3Provider,
   ],
-  exports: [ConversationsService, MessagesService, MessengerGateway],
+  exports: [
+    CONVERSATIONS_REPOSITORY,
+    MESSAGES_REPOSITORY,
+    ConversationsService,
+    MessagesService,
+    FastPathChatService,
+    MessengerGateway,
+    PresenceEngineService,
+    WsDrainingService,
+    WsBackpressureService,
+  ],
 })
 export class MessengerModule {}

@@ -4,17 +4,21 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  OnModuleDestroy,
+  Optional,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AttachmentType, MessageType } from '@prisma/client';
+import { AttachmentType, MessageType, type Prisma } from '@prisma/client';
 import { S3Client } from '@aws-sdk/client-s3';
 import { uid } from 'uid';
 import { PrismaService } from '@common/prisma';
+import { SnowflakeService } from '../../common/id/snowflake.service';
 import { uploadToStorageWithFallback } from '../../common/media/image-processor';
 import { CONVERSATIONS_REPOSITORY } from '../interfaces/conversations-repository.interface';
 import type { IConversationsRepository } from '../interfaces/conversations-repository.interface';
 import { MESSAGES_REPOSITORY } from '../interfaces/messages-repository.interface';
 import type { IMessagesRepository } from '../interfaces/messages-repository.interface';
+import { messageInclude } from '../interfaces/types';
 import { MessengerMapper } from '../messenger.mapper';
 import type {
   GetMessagesQueryDto,
@@ -30,10 +34,22 @@ import type {
   PaginatedMessages,
   ChatActivityMap,
 } from '@common/contracts';
+import {
+  Permission,
+  DEFAULT_ADMIN_PERMISSIONS,
+  DEFAULT_MEMBER_PERMISSIONS,
+  DEFAULT_OWNER_PERMISSIONS,
+} from '@common/contracts';
+
+import { FastPathChatService } from '../services/fast-path-chat.service';
 
 @Injectable()
-export class MessagesService {
+export class MessagesService implements OnModuleDestroy {
   private readonly s3: S3Client;
+
+  onModuleDestroy(): void {
+    this.s3.destroy();
+  }
 
   constructor(
     @Inject(CONVERSATIONS_REPOSITORY)
@@ -43,6 +59,10 @@ export class MessagesService {
     private readonly mapper: MessengerMapper,
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
+    @Optional()
+    private readonly snowflake?: SnowflakeService,
+    @Optional()
+    private readonly fastPath?: FastPathChatService,
   ) {
     this.s3 = new S3Client({
       endpoint:
@@ -143,8 +163,55 @@ export class MessagesService {
   }
 
   async send(conversationId: string, senderId: string, dto: SendMessageDto): Promise<MessageView> {
-    await this.assertMember(conversationId, senderId);
-    await this.assertNotBlockedDirect(conversationId, senderId);
+    const requiredPerm =
+      dto.attachments && dto.attachments.length > 0
+        ? Permission.CAN_SEND_MEDIA
+        : Permission.CAN_SEND_TEXT;
+
+    // Fast-Path: single CPU instruction bitwise check in memory (~0.00001 ms)
+    const fastCheck = this.fastPath?.checkFastPath(conversationId, senderId, requiredPerm);
+
+    if (fastCheck === false) {
+      throw new ForbiddenException(
+        'You do not have permission to send messages in this conversation',
+      );
+    }
+
+    if (fastCheck !== true) {
+      // Slow-Path: full DB member, block and role resolution
+      await this.assertMember(conversationId, senderId);
+      await this.assertNotBlockedDirect(conversationId, senderId);
+
+      const senderParticipant = await this.convsRepo.findParticipant(conversationId, senderId);
+      if (senderParticipant) {
+        const pFlags =
+          (senderParticipant as unknown as { permissions?: number }).permissions ??
+          (senderParticipant.role === 'OWNER'
+            ? DEFAULT_OWNER_PERMISSIONS
+            : senderParticipant.role === 'ADMIN'
+              ? DEFAULT_ADMIN_PERMISSIONS
+              : DEFAULT_MEMBER_PERMISSIONS);
+
+        this.fastPath?.setPermissions(conversationId, senderId, pFlags);
+
+        if ((pFlags & Permission.IS_BANNED) !== 0) {
+          throw new ForbiddenException('You are banned from sending messages in this conversation');
+        }
+        if ((pFlags & Permission.IS_MUTED) !== 0) {
+          throw new ForbiddenException('You are muted in this conversation');
+        }
+        if (dto.text && (pFlags & Permission.CAN_SEND_TEXT) === 0) {
+          throw new ForbiddenException('You do not have permission to send text messages');
+        }
+        if (
+          dto.attachments &&
+          dto.attachments.length > 0 &&
+          (pFlags & Permission.CAN_SEND_MEDIA) === 0
+        ) {
+          throw new ForbiddenException('You do not have permission to send media');
+        }
+      }
+    }
 
     let finalMessageType = dto.messageType || MessageType.TEXT;
     if (
@@ -183,72 +250,71 @@ export class MessagesService {
       }
     }
 
-    const message = await this.prisma.message.create({
-      data: {
-        conversationId,
-        senderId,
-        body: dto.text || null,
-        messageType: finalMessageType,
-        replyToId: dto.replyToId || undefined,
-        forwardedFromId: dto.forwardedFromId || undefined,
-        attachments:
-          dto.attachments && dto.attachments.length > 0
+    const participantIds = await this.convsRepo.findParticipantIds(conversationId);
+    const recipientIds = participantIds.filter((id) => id !== senderId);
+
+    const { mappedMessage } = await this.prisma.$transaction(async (tx) => {
+      const snowflakeId = this.snowflake ? this.snowflake.generate() : undefined;
+      const message = await tx.message.create({
+        data: {
+          conversationId,
+          senderId,
+          body: dto.text || null,
+          clientSeq: dto.clientSeq ?? null,
+          messageType: finalMessageType,
+          replyToId: dto.replyToId || null,
+          forwardedFromId: dto.forwardedFromId || null,
+          ...(snowflakeId ? { id: snowflakeId } : {}),
+          ...(dto.attachments && dto.attachments.length > 0
             ? {
-                create: dto.attachments.map((att) => ({
-                  type: att.type,
-                  url: att.url,
-                  fileName: att.fileName || null,
-                  mimeType: att.mimeType || null,
-                  size: att.size != null ? Math.round(att.size) : null,
-                  width: att.width != null ? Math.round(att.width) : null,
-                  height: att.height != null ? Math.round(att.height) : null,
-                  duration: att.duration != null ? Math.round(att.duration) : null,
-                  thumbnailUrl: att.thumbnailUrl || null,
-                })),
+                attachments: {
+                  create: dto.attachments.map((att) => ({
+                    type: att.type,
+                    url: att.url,
+                    fileName: att.fileName || null,
+                    mimeType: att.mimeType || null,
+                    size: att.size != null ? Math.round(att.size) : null,
+                    width: att.width != null ? Math.round(att.width) : null,
+                    height: att.height != null ? Math.round(att.height) : null,
+                    duration: att.duration != null ? Math.round(att.duration) : null,
+                    thumbnailUrl: att.thumbnailUrl || null,
+                  })),
+                },
               }
-            : undefined,
-      },
-      include: {
-        sender: true,
-        attachments: true,
-        conversation: {
-          include: {
-            participants: true,
-          },
+            : {}),
         },
-        replyTo: {
-          include: {
-            sender: true,
-            attachments: true,
+        include: messageInclude,
+      });
+
+      await tx.conversation.update({
+        where: { id: conversationId },
+        data: { updatedAt: new Date() },
+      });
+
+      const pinnedIds = await this.convsRepo.findPinnedMessages(conversationId);
+      const pinnedSet = new Set(pinnedIds);
+      const mapped = this.mapper.mapMessage(message, senderId, pinnedSet);
+
+      await tx.outboxEvent.create({
+        data: {
+          aggregateType: 'MESSAGE',
+          aggregateId: message.id,
+          eventType: 'MESSAGE_SENT',
+          payload: {
+            messageId: message.id,
+            conversationId,
+            senderId,
+            recipientIds,
+            messageView: JSON.parse(JSON.stringify(mapped)) as Prisma.InputJsonValue,
           },
+          status: 'PENDING',
         },
-        forwardedFrom: {
-          include: {
-            sender: true,
-            attachments: true,
-          },
-        },
-        reactions: {
-          include: {
-            user: true,
-          },
-        },
-        deletedFor: true,
-        pinnedIn: true,
-        replies: true,
-        forwards: true,
-      },
+      });
+
+      return { message, mappedMessage: mapped };
     });
 
-    await this.prisma.conversation.update({
-      where: { id: conversationId },
-      data: { updatedAt: new Date() },
-    });
-
-    const pinnedIds = await this.convsRepo.findPinnedMessages(conversationId);
-    const pinnedSet = new Set(pinnedIds);
-
-    return this.mapper.mapMessage(message, senderId, pinnedSet);
+    return mappedMessage;
   }
 
   async getMessages(
@@ -388,7 +454,15 @@ export class MessagesService {
     if (forAll) {
       if (msg.senderId !== userId) {
         const p = await this.convsRepo.findParticipant(msg.conversationId, userId);
-        if (!p || (p.role !== 'ADMIN' && p.role !== 'OWNER')) {
+        const pFlags =
+          (p as unknown as { permissions?: number })?.permissions ??
+          (p?.role === 'OWNER'
+            ? DEFAULT_OWNER_PERMISSIONS
+            : p?.role === 'ADMIN'
+              ? DEFAULT_ADMIN_PERMISSIONS
+              : DEFAULT_MEMBER_PERMISSIONS);
+
+        if (!p || (p.role !== 'OWNER' && (pFlags & Permission.CAN_DELETE) === 0)) {
           throw new ForbiddenException('Cannot delete message for everyone');
         }
 
@@ -439,8 +513,17 @@ export class MessagesService {
     const forAll = dto.forAll ?? false;
 
     if (forAll) {
+      const pFlags =
+        (participant as unknown as { permissions?: number }).permissions ??
+        (participant.role === 'OWNER'
+          ? DEFAULT_OWNER_PERMISSIONS
+          : participant.role === 'ADMIN'
+            ? DEFAULT_ADMIN_PERMISSIONS
+            : DEFAULT_MEMBER_PERMISSIONS);
+
       const isGroupAdminOrOwner =
-        conv.type === 'GROUP' && (participant.role === 'ADMIN' || participant.role === 'OWNER');
+        conv.type === 'GROUP' &&
+        (participant.role === 'OWNER' || (pFlags & Permission.CAN_DELETE) !== 0);
 
       const messages = await this.prisma.message.findMany({
         where: {
@@ -484,9 +567,11 @@ export class MessagesService {
     const original = await this.messagesRepo.findOne(messageId, userId);
     if (!original) throw new NotFoundException('Message not found');
 
-    const results: MessageView[] = [];
+    const totalConvs = dto.conversationIds.length;
+    const results: MessageView[] = new Array<MessageView>(totalConvs);
 
-    for (const conversationId of dto.conversationIds) {
+    for (let i = 0; i < totalConvs; i++) {
+      const conversationId = dto.conversationIds[i];
       await this.assertMember(conversationId, userId);
 
       const msg = await this.messagesRepo.create({
@@ -498,7 +583,7 @@ export class MessagesService {
       });
       await this.convsRepo.touchUpdatedAt(conversationId);
       const pinnedIds = await this.convsRepo.findPinnedMessages(conversationId);
-      results.push(this.mapper.mapMessage(msg, userId, new Set(pinnedIds)));
+      results[i] = this.mapper.mapMessage(msg, userId, new Set(pinnedIds));
     }
 
     return results;
@@ -522,10 +607,14 @@ export class MessagesService {
       orderBy: { createdAt: 'asc' },
     });
 
-    const results: MessageView[] = [];
+    const totalCount = dto.conversationIds.length * messages.length;
+    const results: MessageView[] = new Array<MessageView>(totalCount);
+    let resIndex = 0;
 
     for (const targetConvId of dto.conversationIds) {
       await this.assertMember(targetConvId, userId);
+      const pinnedIds = await this.convsRepo.findPinnedMessages(targetConvId);
+      const pinnedSet = new Set(pinnedIds);
 
       for (const msg of messages) {
         const created = await this.messagesRepo.create({
@@ -535,10 +624,9 @@ export class MessagesService {
           messageType: msg.messageType,
           forwardedFromId: dto.hideAuthor ? undefined : msg.id,
         });
-        await this.convsRepo.touchUpdatedAt(targetConvId);
-        const pinnedIds = await this.convsRepo.findPinnedMessages(targetConvId);
-        results.push(this.mapper.mapMessage(created, userId, new Set(pinnedIds)));
+        results[resIndex++] = this.mapper.mapMessage(created, userId, pinnedSet);
       }
+      await this.convsRepo.touchUpdatedAt(targetConvId);
     }
 
     return results;
@@ -552,6 +640,21 @@ export class MessagesService {
     const msg = await this.messagesRepo.findOne(messageId, userId);
     if (!msg) throw new NotFoundException('Message not found');
     await this.assertMember(msg.conversationId, userId);
+
+    const p = await this.convsRepo.findParticipant(msg.conversationId, userId);
+    if (p) {
+      const pFlags =
+        (p as unknown as { permissions?: number }).permissions ??
+        (p.role === 'OWNER'
+          ? DEFAULT_OWNER_PERMISSIONS
+          : p.role === 'ADMIN'
+            ? DEFAULT_ADMIN_PERMISSIONS
+            : DEFAULT_MEMBER_PERMISSIONS);
+
+      if ((pFlags & Permission.CAN_ADD_REACTIONS) === 0) {
+        throw new ForbiddenException('You do not have permission to react to messages');
+      }
+    }
 
     await this.messagesRepo.addReaction(messageId, userId, dto.emoji);
     const updated = await this.messagesRepo.findOne(messageId, userId);
@@ -576,11 +679,28 @@ export class MessagesService {
     const belongs = await this.messagesRepo.belongsToConversation(messageId, conversationId);
     if (!belongs) throw new NotFoundException('Message not found in this conversation');
 
+    const p = await this.convsRepo.findParticipant(conversationId, userId);
+    if (p && (p as unknown as { permissions?: number }).permissions !== undefined) {
+      const pFlags = (p as unknown as { permissions: number }).permissions;
+      if (p.role !== 'OWNER' && (pFlags & Permission.CAN_PIN_MESSAGES) === 0) {
+        throw new ForbiddenException('You do not have permission to pin messages');
+      }
+    }
+
     await this.convsRepo.pinMessage(conversationId, messageId, userId);
   }
 
   async unpinMessage(conversationId: string, messageId: string, userId: string): Promise<void> {
     await this.assertMember(conversationId, userId);
+
+    const p = await this.convsRepo.findParticipant(conversationId, userId);
+    if (p && (p as unknown as { permissions?: number }).permissions !== undefined) {
+      const pFlags = (p as unknown as { permissions: number }).permissions;
+      if (p.role !== 'OWNER' && (pFlags & Permission.CAN_PIN_MESSAGES) === 0) {
+        throw new ForbiddenException('You do not have permission to unpin messages');
+      }
+    }
+
     await this.convsRepo.unpinMessage(conversationId, messageId);
   }
 
@@ -631,8 +751,19 @@ export class MessagesService {
   }
 
   private async assertMember(conversationId: string, userId: string): Promise<void> {
+    const fast = this.fastPath?.checkFastPath(conversationId, userId, 0);
+    if (fast === true) return;
+
     const p = await this.convsRepo.findParticipant(conversationId, userId);
     if (!p) throw new ForbiddenException('Not a member of this conversation');
+
+    const mask = this.fastPath?.computeMask(
+      p.role,
+      (p as unknown as { permissions?: number }).permissions,
+    );
+    if (mask !== undefined) {
+      this.fastPath?.setPermissions(conversationId, userId, mask);
+    }
   }
 
   private async getHiddenUserIds(userId: string): Promise<string[]> {

@@ -59,7 +59,7 @@ const SpecularPosterSlot: React.FC<SpecularPosterSlotProps> = ({ item, isOwner, 
       onMouseMove={handleMouseMove}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className="relative aspect-[2/3] rounded-2xl overflow-hidden border border-white/[0.08] bg-[#121215] group/card transition-all duration-300 hover:scale-105 hover:border-indigo-500/50 hover:shadow-2xl cursor-pointer"
+      className="relative aspect-2/3 rounded-2xl overflow-hidden border border-white/8 bg-[#121215] group/card transition-all duration-300 hover:scale-105 hover:border-indigo-500/50 hover:shadow-2xl cursor-pointer"
     >
       <img
         src={item.posterUrl}
@@ -91,7 +91,7 @@ const SpecularPosterSlot: React.FC<SpecularPosterSlotProps> = ({ item, isOwner, 
       )}
 
       {/* Glass Tooltip / Overlay on Hover */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/65 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity p-2 flex flex-col justify-end text-left z-20">
+      <div className="absolute inset-0 bg-linear-to-t from-black/95 via-black/65 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity p-2 flex flex-col justify-end text-left z-20">
         <span className="text-[11px] font-extrabold text-white leading-tight line-clamp-2">
           {item.title}
         </span>
@@ -159,15 +159,16 @@ export const MediaShowcaseWidget: React.FC<MediaShowcaseWidgetProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>('GAMES');
   const accent = showcase.accentColor || '#6366f1';
+  const mediaItems = showcase.mediaItems || [];
 
   const filterMedia = (tab: TabType): ShowcaseMediaItemDto[] => {
     switch (tab) {
       case 'GAMES':
-        return showcase.mediaItems.filter((m) => m.type === ShowcaseMediaType.GAME);
+        return mediaItems.filter((m) => m.type === ShowcaseMediaType.GAME);
       case 'ANIME':
-        return showcase.mediaItems.filter((m) => m.type === ShowcaseMediaType.ANIME);
+        return mediaItems.filter((m) => m.type === ShowcaseMediaType.ANIME);
       case 'CINEMA':
-        return showcase.mediaItems.filter(
+        return mediaItems.filter(
           (m) => m.type === ShowcaseMediaType.MOVIE || m.type === ShowcaseMediaType.SERIES,
         );
       default:
@@ -176,7 +177,7 @@ export const MediaShowcaseWidget: React.FC<MediaShowcaseWidgetProps> = ({
   };
 
   const currentItems = filterMedia(activeTab);
-  const totalMediaCount = showcase.mediaItems.length;
+  const totalMediaCount = mediaItems.length;
 
   if (!isOwner && totalMediaCount === 0) {
     return null;
@@ -196,7 +197,7 @@ export const MediaShowcaseWidget: React.FC<MediaShowcaseWidgetProps> = ({
 
   return (
     <div
-      className="relative overflow-hidden rounded-3xl bg-white/[0.03] backdrop-blur-2xl border border-white/[0.08] p-4.5 transition-all duration-300 hover:border-white/[0.16] shadow-xl flex flex-col gap-3.5 group"
+      className="relative overflow-hidden rounded-3xl bg-white/3 backdrop-blur-2xl border border-white/8 p-4.5 transition-all duration-300 hover:border-white/16 shadow-xl flex flex-col gap-3.5 group"
       style={{ boxShadow: `0 8px 32px 0 rgba(0, 0, 0, 0.37)` }}
     >
       {/* Background Glow */}
@@ -206,8 +207,8 @@ export const MediaShowcaseWidget: React.FC<MediaShowcaseWidgetProps> = ({
       />
 
       {/* Header & Tabs */}
-      <div className="flex items-center justify-between pb-2 border-b border-white/[0.06] relative z-10">
-        <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-black/40 border border-white/[0.06]">
+      <div className="flex items-center justify-between pb-2 border-b border-white/6 relative z-10">
+        <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-black/40 border border-white/6">
           <button
             type="button"
             onClick={() => setActiveTab('GAMES')}
@@ -252,7 +253,7 @@ export const MediaShowcaseWidget: React.FC<MediaShowcaseWidgetProps> = ({
           <button
             type="button"
             onClick={onEditClick}
-            className="opacity-0 group-hover:opacity-100 p-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-gray-400 hover:text-white transition-all cursor-pointer"
+            className="opacity-0 group-hover:opacity-100 p-1.5 rounded-xl bg-white/6 hover:bg-white/12 text-gray-400 hover:text-white transition-all cursor-pointer"
             title="Edit Top 5 Showcase"
           >
             <Pencil size={13} />
@@ -280,7 +281,7 @@ export const MediaShowcaseWidget: React.FC<MediaShowcaseWidgetProps> = ({
                 key={`empty-${idx}`}
                 type="button"
                 onClick={() => onAddMediaClick?.(getActiveMediaType())}
-                className="aspect-[2/3] rounded-2xl border-2 border-dashed border-white/10 hover:border-white/25 hover:bg-white/[0.04] transition-all flex flex-col items-center justify-center gap-1 text-gray-500 hover:text-white cursor-pointer group/add"
+                className="aspect-2/3 rounded-2xl border-2 border-dashed border-white/10 hover:border-white/25 hover:bg-white/4 transition-all flex flex-col items-center justify-center gap-1 text-gray-500 hover:text-white cursor-pointer group/add"
                 title={`Add ${activeTab.toLowerCase()} title`}
               >
                 <Plus size={16} className="transition-transform group-hover/add:scale-110" />
@@ -292,7 +293,7 @@ export const MediaShowcaseWidget: React.FC<MediaShowcaseWidgetProps> = ({
           return (
             <div
               key={`placeholder-${idx}`}
-              className="aspect-[2/3] rounded-2xl border border-white/[0.03] bg-white/[0.01]"
+              className="aspect-2/3 rounded-2xl border border-white/3 bg-white/1"
             />
           );
         })}

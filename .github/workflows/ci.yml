@@ -28,10 +28,10 @@ jobs:
           node-version-file: '.nvmrc'
 
       - name: Check for CRLF line endings
-        run: node scripts/validate-eol.js
+        run: node scripts/ci/validate-eol.js
 
       - name: Run K8s Policy-as-Code verification script
-        run: node scripts/verify-k8s-policies.cjs
+        run: node scripts/ci/verify-k8s-policies.cjs
 
   plan:
     name: Plan — Changed Paths
@@ -199,6 +199,9 @@ jobs:
       - name: Run Nx Affected Tasks (Lint, Typecheck, Build)
         run: |
           npx nx run-many -t lint typecheck build --affected --base=${{ needs.plan.outputs.base-sha }} --parallel=3
+
+      - name: Run Knip (Unused Code & Dependency Analysis)
+        run: pnpm knip
 
   backend-unit-tests:
     name: Backend — Unit Tests
@@ -462,8 +465,8 @@ jobs:
             fi
             sleep 1
           done
-          node ../scripts/verify-api-contract.cjs
-          node ../scripts/verify-pact-contracts.cjs
+          node ../scripts/ci/verify-api-contract.cjs
+          node ../scripts/ci/verify-pact-contracts.cjs
           PACT_PROVIDER_URL=http://localhost:3000 pnpm test:pact:verify
           kill $SERVER_PID || true
         env:
@@ -595,7 +598,7 @@ jobs:
           VITE_API_URL: http://localhost:3000
 
       - name: Enforce bundle size budget
-        run: node scripts/check-bundle-size.cjs
+        run: node scripts/ci/check-bundle-size.cjs
 
       - name: Check bundle size changes
         uses: preactjs/compressed-size-action@f322c295dde06a1cb7ccaef105732dd8a726d1d9 # v2.10.0

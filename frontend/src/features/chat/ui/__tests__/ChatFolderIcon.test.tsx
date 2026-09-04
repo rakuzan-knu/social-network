@@ -12,4 +12,11 @@ describe('ChatFolderIcon', () => {
     const { container } = render(<ChatFolderIcon iconKey="folder" emoji={null} color="#3b82f6" />);
     expect(container.querySelector('svg')).toBeInTheDocument();
   });
+
+  it('renders default icon fallback when iconKey is unknown or null without emoji', () => {
+    const { container } = render(
+      <ChatFolderIcon iconKey="nonexistent-key" emoji={null} color="#3b82f6" />,
+    );
+    expect(container.querySelector('svg')).toBeInTheDocument();
+  });
 });

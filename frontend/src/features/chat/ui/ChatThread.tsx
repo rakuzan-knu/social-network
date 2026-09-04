@@ -44,6 +44,7 @@ export default function ChatThread({ conversation }: ChatThreadProps) {
     conversation.type === 'GROUP'
       ? undefined
       : conversation.participants.find((p) => p.userId !== userId);
+  const myParticipant = conversation.participants.find((p) => p.userId === userId);
 
   useQueryOnlineStatus(otherParticipant ? [otherParticipant.userId] : []);
 
@@ -446,6 +447,9 @@ export default function ChatThread({ conversation }: ChatThreadProps) {
                 if (messages.length > 0)
                   actions.loadNewerMessages(messages[messages.length - 1].id);
               }}
+              onRetry={(msgId) => {
+                actions.retrySendMessage(msgId).catch(() => {});
+              }}
             />
 
             {/* Copy Toast Feedback */}
@@ -512,7 +516,7 @@ export default function ChatThread({ conversation }: ChatThreadProps) {
             )}
 
             {isBlocked && otherParticipant ? (
-              <div className="w-full max-w-[960px] mx-auto px-2 sm:px-4">
+              <div className="w-full max-w-240 mx-auto px-2 sm:px-4">
                 <BlockedComposerBanner
                   otherUserId={otherParticipant.userId}
                   blockedByMe={conversation.blockedByMe}
@@ -520,7 +524,7 @@ export default function ChatThread({ conversation }: ChatThreadProps) {
                 />
               </div>
             ) : (
-              <div className="w-full max-w-[960px] mx-auto px-2 sm:px-4 pb-2">
+              <div className="w-full max-w-240 mx-auto px-2 sm:px-4 pb-2">
                 <MessageComposer
                   conversationId={conversation.id}
                   actions={actions}
@@ -535,6 +539,7 @@ export default function ChatThread({ conversation }: ChatThreadProps) {
                   onClearFiles={staged.clear}
                   onDismissFilesError={staged.dismissError}
                   isGroup={conversation.type === 'GROUP'}
+                  permissionsMask={myParticipant?.permissions}
                 />
               </div>
             )}

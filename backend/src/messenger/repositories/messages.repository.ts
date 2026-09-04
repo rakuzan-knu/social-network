@@ -1,31 +1,42 @@
-import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Injectable, Optional } from '@nestjs/common';
+import { MessageType } from '@prisma/client';
 import type { MessageReaction, ConversationParticipant } from '@prisma/client';
 import { PrismaService } from '@common/prisma';
+import { SnowflakeService } from '../../common/id/snowflake.service';
 import type { IMessagesRepository } from '../interfaces/messages-repository.interface';
 import type { MessageWithDetails } from '../interfaces/types';
 import { messageInclude } from '../interfaces/types';
+import type { ChatActivityMap } from '@common/contracts';
 
 @Injectable()
 export class MessagesRepository implements IMessagesRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional()
+    private readonly snowflake?: SnowflakeService,
+  ) {}
 
   async create(data: {
     conversationId: string;
     senderId: string;
-    body?: string;
-    messageType?: string;
-    replyToId?: string;
-    forwardedFromId?: string;
+    body?: string | undefined;
+    clientSeq?: number | undefined;
+    messageType?: string | undefined;
+    replyToId?: string | undefined;
+    forwardedFromId?: string | undefined;
+    id?: string | undefined;
   }): Promise<MessageWithDetails> {
+    const msgId = data.id ?? (this.snowflake ? this.snowflake.generate() : undefined);
     return this.prisma.message.create({
       data: {
         conversationId: data.conversationId,
         senderId: data.senderId,
         body: data.body ?? null,
-        messageType: (data.messageType ?? 'TEXT') as Prisma.MessageCreateInput['messageType'],
+        clientSeq: data.clientSeq ?? null,
+        messageType: (data.messageType as MessageType) || MessageType.TEXT,
         replyToId: data.replyToId ?? null,
         forwardedFromId: data.forwardedFromId ?? null,
+        ...(msgId ? { id: msgId } : {}),
       },
       include: messageInclude,
     });
@@ -52,10 +63,10 @@ export class MessagesRepository implements IMessagesRepository {
           ? { senderId: { notIn: hiddenUserIds } }
           : {}),
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { clientSeq: 'desc' }, { id: 'desc' }],
       take: take,
       skip: cursor ? 1 : 0,
-      cursor: cursor ? { id: cursor } : undefined,
+      ...(cursor ? { cursor: { id: cursor } } : {}),
       include: messageInclude,
     });
   }
@@ -65,7 +76,7 @@ export class MessagesRepository implements IMessagesRepository {
     targetMessageId: string;
     requestingUserId: string;
     limit: number;
-    hiddenUserIds?: string[];
+    hiddenUserIds?: string[] | undefined;
   }): Promise<MessageWithDetails[]> {
     const { conversationId, targetMessageId, requestingUserId, limit, hiddenUserIds } = params;
     const target = await this.prisma.message.findUnique({
@@ -169,21 +180,10 @@ export class MessagesRepository implements IMessagesRepository {
     conversationId: string;
     year: number;
     month: number;
-    timezone?: string;
+    timezone?: string | undefined;
     requestingUserId: string;
-    hiddenUserIds?: string[];
-  }): Promise<
-    Record<
-      string,
-      {
-        messageCount: number;
-        previewMediaUrl?: string;
-        firstMessageSnippet?: string;
-        firstMessageId?: string;
-        mediaCount?: number;
-      }
-    >
-  > {
+    hiddenUserIds?: string[] | undefined;
+  }): Promise<ChatActivityMap> {
     const {
       conversationId,
       year,
@@ -239,10 +239,10 @@ export class MessagesRepository implements IMessagesRepository {
       string,
       {
         messageCount: number;
-        previewMediaUrl?: string;
-        firstMessageSnippet?: string;
-        firstMessageId?: string;
-        mediaCount?: number;
+        previewMediaUrl?: string | undefined;
+        firstMessageSnippet?: string | undefined;
+        firstMessageId?: string | undefined;
+        mediaCount?: number | undefined;
       }
     > = {};
 

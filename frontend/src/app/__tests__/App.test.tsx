@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../App';
 import { renderWithProviders } from '../../test/renderWithProviders';
 import { useAuthStore } from '@/shared/model/useAuthStore';
+import { useUIStore } from '@/shared/model/useUIStore';
 
 vi.mock('@/features/chat/model/usePresence', () => ({
   useQueryOnlineStatus: vi.fn(),
@@ -21,10 +22,27 @@ vi.mock('@/pages/Feed/Feed', () => ({
   default: () => <div>Feed Content</div>,
 }));
 
+vi.mock('@/pages/Search/SearchPage', () => ({
+  default: () => <div>Search Page Content</div>,
+}));
+
+vi.mock('@/pages/Notifications/NotificationsPage', () => ({
+  NotificationsPage: () => <div>Notifications Content</div>,
+}));
+
+vi.mock('@/pages/Profile/Profile', () => ({
+  default: () => <div>Profile Page Content</div>,
+}));
+
+vi.mock('@/pages/Chat/Messenger', () => ({
+  default: () => <div>Messenger Content</div>,
+}));
+
 describe('App', () => {
   beforeEach(() => {
     act(() => {
       useAuthStore.getState().clearAuth();
+      useUIStore.getState().setSidebarExpanded(false);
     });
   });
 
@@ -82,5 +100,67 @@ describe('App', () => {
     renderWithProviders(<App />, { initialEntries: ['/register'] });
 
     expect(await screen.findByText('Feed Content')).toBeInTheDocument();
+  });
+
+  it('renders authenticated search route', async () => {
+    act(() => {
+      useAuthStore.getState().setAuth('user-123');
+    });
+
+    renderWithProviders(<App />, { initialEntries: ['/search'] });
+    expect(await screen.findByText('Search Page Content')).toBeInTheDocument();
+  });
+
+  it('renders authenticated notifications route', async () => {
+    act(() => {
+      useAuthStore.getState().setAuth('user-123');
+    });
+
+    renderWithProviders(<App />, { initialEntries: ['/notifications'] });
+    expect(await screen.findByText('Notifications Content')).toBeInTheDocument();
+  });
+
+  it('renders authenticated reels route', async () => {
+    act(() => {
+      useAuthStore.getState().setAuth('user-123');
+    });
+
+    renderWithProviders(<App />, { initialEntries: ['/reels'] });
+    expect(await screen.findByText('Reels page under development...')).toBeInTheDocument();
+  });
+
+  it('renders authenticated profile route', async () => {
+    act(() => {
+      useAuthStore.getState().setAuth('user-123');
+    });
+
+    renderWithProviders(<App />, { initialEntries: ['/profile'] });
+    expect(await screen.findByText('Profile Page Content')).toBeInTheDocument();
+  });
+
+  it('renders authenticated messenger route', async () => {
+    act(() => {
+      useAuthStore.getState().setAuth('user-123');
+    });
+
+    renderWithProviders(<App />, { initialEntries: ['/messages'] });
+    expect(await screen.findByText('Messenger Content', {}, { timeout: 4000 })).toBeInTheDocument();
+  });
+
+  it('handles sidebar expanded and collapsed main padding', async () => {
+    act(() => {
+      useAuthStore.getState().setAuth('user-123');
+      useUIStore.getState().setSidebarExpanded(true);
+    });
+
+    renderWithProviders(<App />, { initialEntries: ['/feed'] });
+    expect(await screen.findByText('Feed Content', {}, { timeout: 4000 })).toBeInTheDocument();
+    const main = document.querySelector('main');
+    expect(main).toHaveClass('pl-[232px]');
+
+    act(() => {
+      useUIStore.getState().setSidebarExpanded(false);
+    });
+    expect(main).toHaveClass('pl-24');
   });
 });

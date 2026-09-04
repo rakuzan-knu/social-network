@@ -22,6 +22,7 @@ export type UserSnapshot = BackendUserSnapshot & {
 };
 export type AttachmentView = BackendAttachmentView & {
   isSpoiler?: boolean;
+  waveform?: number[];
 };
 
 export interface OutgoingAttachment {
@@ -50,18 +51,19 @@ export interface MessageView extends Omit<
   replyTo: MessageView | null;
   tempId?: string;
   clientMessageId?: string;
-  status?: 'SENDING' | 'SENT' | 'ERROR';
+  status?: 'SENDING' | 'SENT' | 'DELIVERED' | 'READ' | 'ERROR';
   senderId?: string;
   type?: MessageType;
 }
 
 export interface ParticipantView extends Omit<
   BackendParticipantView,
-  'joinedAt' | 'mutedUntil' | 'role'
+  'joinedAt' | 'mutedUntil' | 'role' | 'permissions'
 > {
   userId: string;
   user: UserSnapshot;
   role: ParticipantRole;
+  permissions?: number;
   mutedUntil: string | null;
   joinedAt: string;
 }

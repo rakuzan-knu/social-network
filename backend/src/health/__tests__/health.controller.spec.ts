@@ -1,5 +1,6 @@
 import type { Response } from 'express';
 import { HttpStatus } from '@nestjs/common';
+import type { HealthCheckService } from '@nestjs/terminus';
 import { HealthController } from '../health.controller';
 import type { HealthService } from '../health.service';
 
@@ -28,11 +29,22 @@ describe('HealthController', () => {
       getReadiness: jest.fn(),
     };
 
+    const mockHealthCheckService = {
+      check: jest
+        .fn()
+        .mockImplementation((indicators: Array<() => unknown>) =>
+          Promise.all(indicators.map((i) => i())),
+        ),
+    };
+
     mockResponse = {
       status: jest.fn(),
     };
 
-    controller = new HealthController(mockHealthService as unknown as HealthService);
+    controller = new HealthController(
+      mockHealthService as unknown as HealthService,
+      mockHealthCheckService as unknown as HealthCheckService,
+    );
   });
 
   it('check and getReadiness return healthy response with status 200', async () => {
@@ -56,6 +68,23 @@ describe('HealthController', () => {
     const result = await controller.check(mockResponse as unknown as Response);
 
     expect(result.status).toBe('degraded');
+    expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.SERVICE_UNAVAILABLE);
+  });
+
+  it('getReadiness returns response and sets 503 when unhealthy', async () => {
+    mockHealthService.getReadiness.mockResolvedValueOnce({
+      isHealthy: true,
+      response: sampleHealthResponse,
+    });
+    const healthy = await controller.getReadiness(mockResponse as unknown as Response);
+    expect(healthy.status).toBe('ok');
+
+    mockHealthService.getReadiness.mockResolvedValueOnce({
+      isHealthy: false,
+      response: { ...sampleHealthResponse, status: 'degraded' },
+    });
+    const degraded = await controller.getReadiness(mockResponse as unknown as Response);
+    expect(degraded.status).toBe('degraded');
     expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.SERVICE_UNAVAILABLE);
   });
 

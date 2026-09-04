@@ -173,7 +173,7 @@ export function useMessengerRealtime(
                 unreadCount:
                   message.sender.id === userId || c.id === activeConversationId
                     ? 0
-                    : c.unreadCount + 1,
+                    : (c.unreadCount + 1) | 0,
               }
             : c,
         );

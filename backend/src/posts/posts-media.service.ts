@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { S3Client } from '@aws-sdk/client-s3';
 import { MediaType } from '@prisma/client';
@@ -14,7 +14,7 @@ export type ProcessedMedia = {
 };
 
 @Injectable()
-export class PostsMediaService {
+export class PostsMediaService implements OnModuleDestroy {
   private readonly bucket: string;
   private readonly publicUrl: string;
 
@@ -155,6 +155,12 @@ export class PostsMediaService {
   >();
 
   private readonly CHUNK_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours TTL for incomplete upload sessions
+  private readonly MAX_CONCURRENT_SESSIONS = 100;
+  private readonly MAX_TOTAL_CHUNKS = 50; // 50 * 5MB = 250MB max video assembly
+
+  onModuleDestroy(): void {
+    this.chunkStore.clear();
+  }
 
   private cleanupAbandonedChunks(): void {
     const now = Date.now();
@@ -173,11 +179,33 @@ export class PostsMediaService {
   ): Promise<{ complete: boolean; media?: ProcessedMedia; uploadedChunks: number[] }> {
     this.cleanupAbandonedChunks();
 
+    if (!uploadId || typeof uploadId !== 'string') {
+      throw new BadRequestException('Invalid uploadId');
+    }
+
+    if (
+      !Number.isInteger(chunkIndex) ||
+      !Number.isInteger(totalChunks) ||
+      totalChunks <= 0 ||
+      totalChunks > this.MAX_TOTAL_CHUNKS ||
+      chunkIndex < 0 ||
+      chunkIndex >= totalChunks
+    ) {
+      throw new BadRequestException(
+        `Invalid chunk parameters. totalChunks must be between 1 and ${this.MAX_TOTAL_CHUNKS}`,
+      );
+    }
+
     if (!this.isValidUploadedFile(file)) {
       throw new BadRequestException('Invalid chunk buffer');
     }
 
     if (!this.chunkStore.has(uploadId)) {
+      if (this.chunkStore.size >= this.MAX_CONCURRENT_SESSIONS) {
+        throw new BadRequestException(
+          'Server chunk upload capacity reached. Please try again later.',
+        );
+      }
       this.chunkStore.set(uploadId, {
         chunks: new Map(),
         totalChunks,

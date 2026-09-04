@@ -20,12 +20,15 @@ import { PrivacyService } from './privacy.service';
 import {
   type AddPrivacyExceptionDto,
   DimensionExceptionsDto,
+  type ListExceptionsQueryDto,
   type PrivacySettingsDto,
   type UpdatePrivacyDto,
   addPrivacyExceptionSchema,
+  listExceptionsQuerySchema,
   updatePrivacySchema,
 } from '@common/contracts';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
+import { ConditionalHttpCache } from '../../common/cache/etag.interceptor';
 
 @ApiTags('Privacy')
 @ApiBearerAuth()
@@ -35,6 +38,7 @@ export class PrivacyController {
   constructor(private readonly privacyService: PrivacyService) {}
 
   @Get()
+  @ConditionalHttpCache()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get my privacy settings' })
   @ApiResponse({ status: 200 })
@@ -54,15 +58,18 @@ export class PrivacyController {
   }
 
   @Get('exceptions')
+  @ConditionalHttpCache()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'List allow/deny exceptions for a dimension' })
   @ApiQuery({ name: 'dimension', enum: PrivacyDimension })
   @ApiResponse({ status: 200, type: DimensionExceptionsDto })
   listExceptions(
     @CurrentUser() user: RequestUser,
-    @Query('dimension') dimension: PrivacyDimension,
+    @Query(new ZodValidationPipe(listExceptionsQuerySchema))
+    query: ListExceptionsQueryDto | PrivacyDimension,
   ): Promise<DimensionExceptionsDto> {
-    return this.privacyService.listExceptions(user.id, dimension);
+    const dim = typeof query === 'string' ? query : query.dimension;
+    return this.privacyService.listExceptions(user.id, dim);
   }
 
   @Post('exceptions')

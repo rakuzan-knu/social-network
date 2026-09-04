@@ -23,4 +23,20 @@ describe('SettingsRow', () => {
     fireEvent.click(screen.getByRole('button'));
     expect(onClick).toHaveBeenCalledTimes(1);
   });
+
+  it('applies danger styles and handles last prop', () => {
+    render(
+      <SettingsRow
+        icon={<span>!</span>}
+        title="Delete Account"
+        onClick={vi.fn()}
+        danger={true}
+        last={true}
+      />,
+    );
+
+    const button = screen.getByRole('button');
+    expect(button).not.toHaveClass('border-b');
+    expect(screen.getByText('Delete Account')).toHaveClass('text-red-400');
+  });
 });

@@ -150,6 +150,39 @@ describe('PostsMediaService', () => {
       const result = await service.processUploadedFile(pngFile, 0);
       expect(result.url).toContain('data:image/webp;base64,');
     });
+
+    it('processUploadedFiles validates payload types and elements', async () => {
+      await expect(
+        service.processUploadedFiles(null as unknown as Express.Multer.File[]),
+      ).rejects.toThrow(new BadRequestException('Invalid media files payload'));
+
+      await expect(
+        service.processUploadedFiles([{ mimetype: 'image/png' } as Express.Multer.File]),
+      ).rejects.toThrow(new BadRequestException('Invalid media file payload'));
+    });
+
+    it('cleans up abandoned chunk sessions and validates chunk payload', async () => {
+      await expect(
+        service.uploadChunk('sess-1', 0, 2, { mimetype: 'image/png' } as Express.Multer.File),
+      ).rejects.toThrow(new BadRequestException('Invalid chunk buffer'));
+
+      // Seed old session in chunkStore
+      const oldTime = Date.now() - 3 * 60 * 60 * 1000;
+      (service as unknown as { chunkStore: Map<string, unknown> }).chunkStore.set('old-sess', {
+        chunks: new Map(),
+        totalChunks: 2,
+        fileName: 'old.png',
+        createdAt: oldTime,
+      });
+
+      const validChunk = {
+        buffer: pngHeader,
+        mimetype: 'image/png',
+      } as Express.Multer.File;
+
+      await service.uploadChunk('new-sess', 0, 2, validChunk);
+      expect(service.getChunkStatus('old-sess').totalChunks).toBe(0);
+    });
   });
 
   describe('Chunked upload and status', () => {

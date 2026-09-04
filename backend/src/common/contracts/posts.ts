@@ -1,4 +1,13 @@
 import { z } from 'zod';
+
+function safeJsonParse(raw: string): unknown {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
 export const MediaType = {
   IMAGE: 'IMAGE',
   VIDEO: 'VIDEO',
@@ -29,54 +38,53 @@ export type ReportCategory = (typeof ReportCategory)[keyof typeof ReportCategory
 
 export const mediaSchema = z.object({
   type: z.nativeEnum(MediaType),
-  url: z.string().url(),
-  poster: z.string().url().optional(),
-  order: z.number().int().optional(),
+  url: z.string().url().max(2048),
+  poster: z.string().url().max(2048).optional(),
+  order: z.number().int().min(0).max(100).optional(),
 });
 export type MediaDto = z.infer<typeof mediaSchema>;
 
 export const createPostSchema = z.object({
   content: z
     .string()
+    .max(10000)
     .transform((val) => val.trim())
     .optional(),
   media: z
     .preprocess((val) => {
       if (typeof val === 'string') {
-        try {
-          return JSON.parse(val);
-        } catch {
-          return val;
-        }
+        if (val.length > 64 * 1024) return val;
+        const parsed = safeJsonParse(val);
+        return parsed !== null ? parsed : val;
       }
       return val;
-    }, z.array(mediaSchema))
+    }, z.array(mediaSchema).max(10))
     .optional(),
   gifUrls: z
-    .preprocess((val) => {
-      if (typeof val === 'string') {
-        try {
-          const parsed: unknown = JSON.parse(val);
+    .preprocess(
+      (val) => {
+        if (typeof val === 'string') {
+          if (val.length > 64 * 1024) return [val];
+          const parsed = safeJsonParse(val);
           return Array.isArray(parsed) ? (parsed as string[]) : [val];
-        } catch {
-          return [val];
         }
-      }
-      return val;
-    }, z.array(z.string()))
+        return val;
+      },
+      z.array(z.string().max(2048)).max(10),
+    )
     .optional(),
   poll: z
-    .preprocess((val) => {
-      if (typeof val === 'string') {
-        try {
-          const parsed: unknown = JSON.parse(val);
+    .preprocess(
+      (val) => {
+        if (typeof val === 'string') {
+          if (val.length > 64 * 1024) return [val];
+          const parsed = safeJsonParse(val);
           return Array.isArray(parsed) ? (parsed as string[]) : [val];
-        } catch {
-          return [val];
         }
-      }
-      return val;
-    }, z.array(z.string()))
+        return val;
+      },
+      z.array(z.string().min(1).max(255)).max(10),
+    )
     .optional(),
 });
 export type CreatePostDto = z.infer<typeof createPostSchema>;
@@ -85,22 +93,23 @@ export const editPostSchema = z.object({
   content: z
     .string()
     .min(1)
+    .max(10000)
     .transform((val) => val.trim())
     .optional(),
-  image: z.string().url().optional(),
+  image: z.string().url().max(2048).optional(),
 });
 export type EditPostDto = z.infer<typeof editPostSchema>;
 
 export const getPostsQuerySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(100).default(20),
-  after: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+  after: z.string().max(128).optional(),
 });
 export type GetPostsQueryDto = z.infer<typeof getPostsQuerySchema>;
 
 export const searchPostsSchema = z.object({
-  q: z.string().optional(),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
-  after: z.string().optional(),
+  q: z.string().max(100).optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+  after: z.string().max(128).optional(),
   mediaOnly: z.preprocess((val) => val === 'true' || val === true, z.boolean()).optional(),
 });
 export type SearchPostsDto = z.infer<typeof searchPostsSchema>;
@@ -110,6 +119,18 @@ export const reportPostSchema = z.object({
   details: z.string().max(1000).optional(),
 });
 export type ReportPostDto = z.infer<typeof reportPostSchema>;
+
+export const uploadChunkSchema = z.object({
+  uploadId: z.string().min(1).max(128),
+  chunkIndex: z.coerce.number().int().min(0).max(10000),
+  totalChunks: z.coerce.number().int().min(1).max(10000),
+});
+export type UploadChunkDto = z.infer<typeof uploadChunkSchema>;
+
+export const votePostPollSchema = z.object({
+  optionId: z.string().min(1).max(64),
+});
+export type VotePostPollDto = z.infer<typeof votePostPollSchema>;
 
 export class PostMediaResponseDto {
   id!: string;
@@ -149,46 +170,54 @@ export class PostPollDto {
 export type PostWithRelations = {
   id: string;
   content: string;
-  sharesCount?: number;
+  sharesCount?: number | undefined;
   authorId: string;
-  author?: {
-    id: string;
-    username: string;
-    displayName?: string | null;
-    avatar?: string | null;
-    isVerified?: boolean;
-    primaryBadge?: string | null;
-    followers?: { id: string }[];
-  } | null;
+  author?:
+    | {
+        id: string;
+        username: string;
+        displayName?: string | null | undefined;
+        avatar?: string | null | undefined;
+        isVerified?: boolean | undefined;
+        primaryBadge?: string | null | undefined;
+        followers?: { id: string }[] | undefined;
+      }
+    | null
+    | undefined;
   createdAt: Date;
   updatedAt: Date;
-  media?: PostMedia[];
-  poll?: {
-    id: string;
-    title: string;
-    description?: string | null;
-    isMultiple: boolean;
-    isActive: boolean;
-    options: {
-      id: string;
-      optionText: string;
-      votesCount: number;
-    }[];
-    votes?: { optionId: string }[];
-  } | null;
-  isFollowing?: boolean;
-  isSaved?: boolean;
-  isReposted?: boolean;
-  isLiked?: boolean;
-  isOwner?: boolean;
-  isPinned?: boolean;
-  pinnedAt?: Date | null;
-  editedAt?: Date | string | null;
-  _count?: {
-    likes?: number;
-    reposts?: number;
-    comments?: number;
-  };
+  media?: PostMedia[] | undefined;
+  poll?:
+    | {
+        id: string;
+        title: string;
+        description?: string | null | undefined;
+        isMultiple: boolean;
+        isActive: boolean;
+        options: {
+          id: string;
+          optionText: string;
+          votesCount: number;
+        }[];
+        votes?: { optionId: string }[] | undefined;
+      }
+    | null
+    | undefined;
+  isFollowing?: boolean | undefined;
+  isSaved?: boolean | undefined;
+  isReposted?: boolean | undefined;
+  isLiked?: boolean | undefined;
+  isOwner?: boolean | undefined;
+  isPinned?: boolean | undefined;
+  pinnedAt?: Date | null | undefined;
+  editedAt?: Date | string | null | undefined;
+  _count?:
+    | {
+        likes?: number | undefined;
+        reposts?: number | undefined;
+        comments?: number | undefined;
+      }
+    | undefined;
 };
 
 function toSafeIsoString(val: unknown): string {

@@ -125,7 +125,7 @@ export class FollowersController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
-  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @Throttle({ default: { limit: 20, ttl: 60_000 }, sensitive: { limit: 20, ttl: 60_000 } })
   @ApiOperation({ summary: 'Follow a user (or request to follow if private)' })
   @ApiResponse({ status: 200, description: 'Followed or follow request created' })
   @ApiResponse({ status: 400, description: "Can't follow yourself" })

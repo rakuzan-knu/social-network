@@ -7,7 +7,9 @@ import axios from 'axios';
 import { Input } from '../../../shared/ui/Input';
 import { Button } from '../../../shared/ui/Button';
 import { Select } from '../../../shared/ui/Select';
+import { Turnstile } from '../../../shared/ui/Turnstile';
 import { useAuthMutations } from '../api/useAuth';
+
 import { RegisterPayload, AuthResponse } from '../api/authApi';
 import { registerSchema, type RegisterFields } from '../model/registerSchema';
 import { useCheckUsername } from '@/entities/profile/model/useCheckUsername';
@@ -157,6 +159,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
   const { registerMutation } = useAuthMutations();
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | undefined>(undefined);
 
   const navigate = useNavigate();
 
@@ -209,6 +212,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
       displayName,
       password: data.password,
       birthDate,
+      turnstileToken,
     };
 
     registerMutation.mutate(payload, {
@@ -272,7 +276,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
     >
       {serverError && (
         <div className="p-3.5 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-2.5 text-xs text-neutral-300 animate-fadeIn">
-          <AlertCircle size={16} className="text-red-500 mt-0.5 flex-shrink-0" />
+          <AlertCircle size={16} className="text-red-500 mt-0.5 shrink-0" />
           <div className="text-left leading-relaxed">{serverError}</div>
         </div>
       )}
@@ -373,6 +377,8 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
         </span>
         .
       </p>
+
+      <Turnstile onVerify={(token) => setTurnstileToken(token)} size="invisible" />
 
       <Button
         type="submit"
