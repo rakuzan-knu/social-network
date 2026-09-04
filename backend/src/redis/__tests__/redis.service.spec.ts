@@ -135,7 +135,7 @@ describe('RedisService', () => {
     await expect(service.set('key', 'val')).resolves.not.toThrow();
 
     mockRedisClient.get.mockRejectedValueOnce(new Error('fail'));
-    expect(await service.get('key')).toBeNull();
+    expect(await service.get('uncached-key')).toBeNull();
 
     mockRedisClient.del.mockRejectedValueOnce(new Error('fail'));
     await expect(service.del('key')).resolves.not.toThrow();
@@ -280,5 +280,37 @@ describe('RedisService', () => {
       throw new Error('multi fail');
     });
     await expect(service.dismissSuggestedUser('viewer-1', 'target-1')).resolves.not.toThrow();
+  });
+
+  describe('Degraded Mode & In-Memory LRU Fallback Cache', () => {
+    it('serves cached feed/data from local LRU cache when Redis throws error', async () => {
+      // 1. Initial write stores in local LRU fallback as well
+      await service.set('feed:user:123', JSON.stringify({ posts: ['p1', 'p2'] }), 300);
+
+      // 2. Redis goes down / throws
+      mockRedisClient.get.mockRejectedValue(new Error('Redis connection refused'));
+
+      // 3. Reads still succeed from local RAM without 500 error
+      const cached = await service.get('feed:user:123');
+      expect(cached).toBe(JSON.stringify({ posts: ['p1', 'p2'] }));
+      expect(service.isDegraded()).toBe(true);
+    });
+
+    it('getOrSet continues serving via loader and caching in local LRU when Redis is down', async () => {
+      mockRedisClient.get.mockRejectedValue(new Error('Connection is closed'));
+      mockRedisClient.set.mockRejectedValue(new Error('Connection is closed'));
+
+      const loader = jest.fn().mockResolvedValue({ message: 'Hello from DB fallback' });
+
+      // First call invokes loader and stores in local LRU
+      const result1 = await service.getOrSet('conv:msg:456', 60, loader);
+      expect(result1).toEqual({ message: 'Hello from DB fallback' });
+      expect(loader).toHaveBeenCalledTimes(1);
+
+      // Second call serves directly from in-memory LRU without re-hitting DB loader!
+      const result2 = await service.getOrSet('conv:msg:456', 60, loader);
+      expect(result2).toEqual({ message: 'Hello from DB fallback' });
+      expect(loader).toHaveBeenCalledTimes(1); // Not called again!
+    });
   });
 });

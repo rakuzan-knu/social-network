@@ -1,3 +1,5 @@
+import { withTimeBudget } from '../v8/time-budget';
+
 /**
  * Safe Linear-Time Text Processing & ReDoS-Free Parsers
  * Guarantees strictly linear O(N) time complexity with zero backtracking risks.
@@ -9,68 +11,82 @@ const MAX_HASHTAG_LEN = 100;
 
 /**
  * Extracts hashtags (#tag) in strict linear O(N) time without regular expression backtracking.
+ * Protected by a 5ms CPU time budget.
  */
 export function extractHashtags(text: string | null | undefined): string[] {
   if (!text || typeof text !== 'string') return [];
 
-  const input = text.length > MAX_SAFE_INPUT_LEN ? text.slice(0, MAX_SAFE_INPUT_LEN) : text;
-  const tags: string[] = [];
-  const len = input.length;
-  let i = 0;
+  return withTimeBudget(
+    () => {
+      const input = text.length > MAX_SAFE_INPUT_LEN ? text.slice(0, MAX_SAFE_INPUT_LEN) : text;
+      const tags: string[] = [];
+      const len = input.length;
+      let i = 0;
 
-  while (i < len) {
-    if (input[i] === '#') {
-      const start = i + 1;
-      let end = start;
+      while (i < len) {
+        if (input[i] === '#') {
+          const start = i + 1;
+          let end = start;
 
-      while (end < len && isHashtagChar(input[end])) {
-        if (end - start >= MAX_HASHTAG_LEN) break;
-        end++;
+          while (end < len && isHashtagChar(input[end])) {
+            if (end - start >= MAX_HASHTAG_LEN) break;
+            end++;
+          }
+
+          if (end > start) {
+            tags.push(input.slice(i, end));
+            i = end;
+            continue;
+          }
+        }
+        i++;
       }
 
-      if (end > start) {
-        tags.push(input.slice(i, end));
-        i = end;
-        continue;
-      }
-    }
-    i++;
-  }
-
-  return tags;
+      return tags;
+    },
+    5,
+    () => [],
+  );
 }
 
 /**
  * Extracts user mentions (@username) in strict linear O(N) time without regex backtracking.
+ * Protected by a 5ms CPU time budget.
  */
 export function extractMentions(text: string | null | undefined): string[] {
   if (!text || typeof text !== 'string') return [];
 
-  const input = text.length > MAX_SAFE_INPUT_LEN ? text.slice(0, MAX_SAFE_INPUT_LEN) : text;
-  const mentions: string[] = [];
-  const len = input.length;
-  let i = 0;
+  return withTimeBudget(
+    () => {
+      const input = text.length > MAX_SAFE_INPUT_LEN ? text.slice(0, MAX_SAFE_INPUT_LEN) : text;
+      const mentions: string[] = [];
+      const len = input.length;
+      let i = 0;
 
-  while (i < len) {
-    if (input[i] === '@' && (i === 0 || isWhitespaceOrPunctuation(input[i - 1]))) {
-      const start = i + 1;
-      let end = start;
+      while (i < len) {
+        if (input[i] === '@' && (i === 0 || isWhitespaceOrPunctuation(input[i - 1]))) {
+          const start = i + 1;
+          let end = start;
 
-      while (end < len && isUsernameChar(input[end])) {
-        if (end - start >= MAX_USERNAME_LEN) break;
-        end++;
+          while (end < len && isUsernameChar(input[end])) {
+            if (end - start >= MAX_USERNAME_LEN) break;
+            end++;
+          }
+
+          if (end > start) {
+            mentions.push(input.slice(start, end));
+            i = end;
+            continue;
+          }
+        }
+        i++;
       }
 
-      if (end > start) {
-        mentions.push(input.slice(start, end));
-        i = end;
-        continue;
-      }
-    }
-    i++;
-  }
-
-  return mentions;
+      return mentions;
+    },
+    5,
+    () => [],
+  );
 }
 
 /**
@@ -94,33 +110,40 @@ export function isSafeHttpUrl(url: string | null | undefined): boolean {
 
 /**
  * Linear-time OpenGraph / Meta tag parser without catastrophic regex backtracking.
+ * Protected by a 5ms CPU time budget.
  */
 export function extractMetaContentLinear(html: string, targetPropOrName: string): string | null {
   if (!html || !targetPropOrName) return null;
 
-  const targetLower = targetPropOrName.toLowerCase();
-  const maxScan = Math.min(html.length, 250_000); // 250KB ceiling
-  let pos = 0;
+  return withTimeBudget(
+    () => {
+      const targetLower = targetPropOrName.toLowerCase();
+      const maxScan = Math.min(html.length, 250_000); // 250KB ceiling
+      let pos = 0;
 
-  while (pos < maxScan) {
-    const tagStart = html.indexOf('<meta', pos);
-    if (tagStart === -1) break;
+      while (pos < maxScan) {
+        const tagStart = html.indexOf('<meta', pos);
+        if (tagStart === -1) break;
 
-    const tagEnd = html.indexOf('>', tagStart);
-    if (tagEnd === -1) break;
+        const tagEnd = html.indexOf('>', tagStart);
+        if (tagEnd === -1) break;
 
-    const metaSnippet = html.slice(tagStart, tagEnd + 1);
-    pos = tagEnd + 1;
+        const metaSnippet = html.slice(tagStart, tagEnd + 1);
+        pos = tagEnd + 1;
 
-    // Check if snippet matches the target property or name
-    const propVal = getAttrValue(metaSnippet, 'property') || getAttrValue(metaSnippet, 'name');
-    if (propVal && propVal.toLowerCase() === targetLower) {
-      const content = getAttrValue(metaSnippet, 'content');
-      if (content) return content.trim();
-    }
-  }
+        // Check if snippet matches the target property or name
+        const propVal = getAttrValue(metaSnippet, 'property') || getAttrValue(metaSnippet, 'name');
+        if (propVal && propVal.toLowerCase() === targetLower) {
+          const content = getAttrValue(metaSnippet, 'content');
+          if (content) return content.trim();
+        }
+      }
 
-  return null;
+      return null;
+    },
+    5,
+    () => null,
+  );
 }
 
 /**

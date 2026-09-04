@@ -53,7 +53,7 @@ export function createPgPool(
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PrismaService.name);
-  readonly pool?: Pool;
+  readonly pool?: Pool | undefined;
 
   constructor() {
     const rawUrl = process.env.DATABASE_URL;

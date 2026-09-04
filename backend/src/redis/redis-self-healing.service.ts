@@ -1,4 +1,11 @@
-import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+  Optional,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 import { REDIS_CLIENT } from './redis.constants';
@@ -36,7 +43,7 @@ function formatBytes(bytes: number): string {
 }
 
 @Injectable()
-export class RedisSelfHealingService {
+export class RedisSelfHealingService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(RedisSelfHealingService.name);
 
   private readonly defaultThresholdRatio: number;
@@ -66,7 +73,10 @@ export class RedisSelfHealingService {
     return this.defaultThresholdRatio;
   }
 
-  getLastEvictionInfo(): { lastEvictionTimestamp?: string; lastEvictedKeysCount: number } {
+  getLastEvictionInfo(): {
+    lastEvictionTimestamp?: string | undefined;
+    lastEvictedKeysCount: number;
+  } {
     return {
       lastEvictionTimestamp: this.lastEvictionTimestamp,
       lastEvictedKeysCount: this.lastEvictedKeysCount,
@@ -144,7 +154,7 @@ export class RedisSelfHealingService {
     reason = 'High Redis memory threshold exceeded',
     customPatterns?: string[],
   ): Promise<SelfHealResponseDto> {
-    const startTime = Date.now();
+    const startTime = process.hrtime.bigint();
     const memoryBefore = await this.getRedisMemoryInfo();
 
     const patternsToEvict =
@@ -156,13 +166,13 @@ export class RedisSelfHealingService {
       `[SELF-HEALING RUNBOOK] Starting Redis non-critical cache eviction (Reason: ${reason}, Memory: ${memoryBefore.memoryUsagePercent}% / Threshold: ${(memoryBefore.thresholdRatio * 100).toFixed(0)}%). Patterns: ${patternsToEvict.join(', ')}`,
     );
 
-    const evictedPatterns: Record<string, number> = {};
+    const evictedMap = new Map<string, number>();
     let totalEvicted = 0;
 
     for (const pattern of patternsToEvict) {
       try {
         const count = await this.unlinkPatternInBatches(pattern);
-        evictedPatterns[pattern] = count;
+        evictedMap.set(pattern, count);
         totalEvicted += count;
 
         if (this.metricsService && count > 0) {
@@ -173,11 +183,13 @@ export class RedisSelfHealingService {
           `Failed to evict pattern ${pattern}: ${(err as Error).message}`,
           (err as Error).stack,
         );
-        evictedPatterns[pattern] = 0;
+        evictedMap.set(pattern, 0);
       }
     }
 
-    const durationMs = Date.now() - startTime;
+    const evictedPatterns: Record<string, number> = Object.fromEntries(evictedMap);
+
+    const durationMs = Number(process.hrtime.bigint() - startTime) / 1_000_000;
     const memoryAfter = await this.getRedisMemoryInfo();
     const freedBytes = Math.max(0, memoryBefore.usedMemoryBytes - memoryAfter.usedMemoryBytes);
 
@@ -301,6 +313,10 @@ export class RedisSelfHealingService {
   }
 
   private isProtectedPattern(pattern: string): boolean {
+    if (typeof pattern !== 'string') return true;
+    if (pattern === '__proto__' || pattern === 'constructor' || pattern === 'prototype') {
+      return true;
+    }
     return PROTECTED_KEY_PREFIXES.some((prefix) => pattern.startsWith(prefix));
   }
 
@@ -313,7 +329,7 @@ export class RedisSelfHealingService {
     used_memory_rss: number;
     used_memory_peak: number;
     maxmemory: number;
-    mem_fragmentation_ratio?: number;
+    mem_fragmentation_ratio?: number | undefined;
   } {
     const lines = infoStr.split('\r\n');
     const map: Record<string, string> = {};
@@ -347,6 +363,14 @@ export class RedisSelfHealingService {
       isHighMemory: false,
       thresholdRatio: this.defaultThresholdRatio,
     };
+  }
+
+  onModuleInit(): void {
+    this.logger.log('RedisSelfHealingService initialized');
+  }
+
+  onModuleDestroy(): void {
+    this.simulatedMemoryRatio = null;
   }
 
   // Simulation hooks for automated e2e testing

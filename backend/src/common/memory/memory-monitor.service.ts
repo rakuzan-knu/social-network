@@ -22,7 +22,7 @@ export interface MemoryStatus {
 @Injectable()
 export class MemoryMonitorService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(MemoryMonitorService.name);
-  private checkInterval?: NodeJS.Timeout;
+  private checkInterval?: NodeJS.Timeout | undefined;
 
   private readonly dumpThresholdRatio: number;
   private readonly dumpCooldownMs: number;

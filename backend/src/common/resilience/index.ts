@@ -9,4 +9,5 @@ export * from './alerting.service';
 export * from './adaptive-throttler.guard';
 export * from './deadlock-timeout.decorator';
 export * from './deadlock-detection.interceptor';
+export * from './time-budget.interceptor';
 export * from './resilience.module';

@@ -30,11 +30,11 @@ export interface ServerHealthStatus {
 export class ServerHealthMonitorService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(ServerHealthMonitorService.name);
 
-  private histogram?: IntervalHistogram;
-  private monitorInterval?: NodeJS.Timeout;
+  private histogram?: IntervalHistogram | undefined;
+  private monitorInterval?: NodeJS.Timeout | undefined;
 
   private lastCpuUsage = process.cpuUsage();
-  private lastCpuTime = Date.now();
+  private lastCpuTime = process.hrtime.bigint();
   private currentCpuPercent = 0;
   private currentEventLoopDelayMs = 0;
   private currentHeapRatio = 0;
@@ -97,12 +97,11 @@ export class ServerHealthMonitorService implements OnModuleInit, OnModuleDestroy
     }
 
     // 2. Sample CPU Usage
-    const now = Date.now();
-    const elapsedMs = now - this.lastCpuTime;
-    if (elapsedMs > 0) {
+    const now = process.hrtime.bigint();
+    const elapsedMicros = Number(now - this.lastCpuTime) / 1000;
+    if (elapsedMicros > 0) {
       const currentUsage = process.cpuUsage(this.lastCpuUsage);
       const totalCpuTimeMicros = currentUsage.user + currentUsage.system;
-      const elapsedMicros = elapsedMs * 1000;
       const numCores = os.cpus().length || 1;
 
       // Normalized percentage 0..100% across all cores

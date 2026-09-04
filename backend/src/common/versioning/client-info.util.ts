@@ -1,8 +1,8 @@
 export interface ClientInfo {
   clientType: 'ios' | 'android' | 'web' | 'desktop' | 'unknown';
   isMobile: boolean;
-  clientVersion?: string;
-  apiVersion?: string;
+  clientVersion?: string | undefined;
+  apiVersion?: string | undefined;
   userAgent: string;
 }
 

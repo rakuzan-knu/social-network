@@ -1,8 +1,9 @@
-import { Inject, Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import Redis from 'ioredis';
 import { uid } from 'uid';
 import { REDIS_CLIENT } from './redis.constants';
 import { safeJsonParse } from '../common/utils/json.util';
+import { InMemoryLruCache, type LruCacheStats } from '../common/cache/in-memory-lru-cache';
 
 export interface CachePayload<T> {
   value: T;
@@ -12,15 +13,92 @@ export interface CachePayload<T> {
 }
 
 @Injectable()
-export class RedisService implements OnModuleDestroy {
+export class RedisService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(RedisService.name);
+  private readonly fallbackLru = new InMemoryLruCache<string, string>({
+    maxSize: 10_000,
+    defaultTtlSeconds: 300,
+  });
 
-  constructor(@Inject(REDIS_CLIENT) private readonly client: Redis) {}
+  constructor(@Inject(REDIS_CLIENT) private readonly client: Redis) {
+    this.setupRedisEventHandlers();
+  }
+
+  private readonly onRedisError = (err: Error) => {
+    if (!this.fallbackLru.isDegraded()) {
+      this.fallbackLru.setDegraded(true);
+      this.logger.warn(
+        `[Degraded Mode] Redis connection error: ${err.message}. Switched to In-Memory LRU Fallback Cache (Read-Only mode).`,
+      );
+    }
+  };
+
+  private readonly onRedisClose = () => {
+    if (!this.fallbackLru.isDegraded()) {
+      this.fallbackLru.setDegraded(true);
+      this.logger.warn(
+        `[Degraded Mode] Redis connection closed. Switched to In-Memory LRU Fallback Cache (Read-Only mode).`,
+      );
+    }
+  };
+
+  private readonly onRedisReady = () => {
+    if (this.fallbackLru.isDegraded()) {
+      this.fallbackLru.setDegraded(false);
+      this.logger.log(
+        `[Self-Healing] Redis connection recovered and ready. Exited degraded mode, resumed primary Redis operations.`,
+      );
+    }
+  };
+
+  private setupRedisEventHandlers(): void {
+    if (!this.client || typeof this.client.on !== 'function') return;
+    this.client.on('error', this.onRedisError);
+    this.client.on('close', this.onRedisClose);
+    this.client.on('ready', this.onRedisReady);
+  }
+
+  private isRedisReady(): boolean {
+    if (!this.client || typeof this.client.status !== 'string') return true;
+    const status = this.client.status;
+    return status === 'ready' || status === 'connect' || status === 'connecting';
+  }
+
+  private handleRedisFailure(error: unknown, op: string): void {
+    if (!this.fallbackLru.isDegraded()) {
+      this.fallbackLru.setDegraded(true);
+      this.logger.warn(
+        `[Degraded Mode] Redis operation ${op} failed: ${String(error)}. Fallback LRU cache engaged.`,
+      );
+    }
+  }
+
+  isDegraded(): boolean {
+    return this.fallbackLru.isDegraded();
+  }
+
+  getFallbackStats(): LruCacheStats {
+    return this.fallbackLru.getStats();
+  }
+
+  clearFallbackCache(): void {
+    this.fallbackLru.clear();
+  }
 
   private readonly inFlightLoads = new Map<string, Promise<unknown>>();
 
+  onModuleInit(): void {
+    this.logger.log('RedisService initialized');
+  }
+
   onModuleDestroy(): void {
+    if (this.client && typeof this.client.off === 'function') {
+      this.client.off('error', this.onRedisError);
+      this.client.off('close', this.onRedisClose);
+      this.client.off('ready', this.onRedisReady);
+    }
     this.inFlightLoads.clear();
+    this.fallbackLru.clear();
   }
 
   getClient(): Redis {
@@ -28,32 +106,47 @@ export class RedisService implements OnModuleDestroy {
   }
 
   async set(key: string, value: string, ttlSeconds: number = 86400): Promise<void> {
+    const safeTtl = Math.max(1, Math.floor(ttlSeconds));
+    this.fallbackLru.set(key, value, safeTtl);
+
     try {
-      const safeTtl = Math.max(1, Math.floor(ttlSeconds));
-      if (typeof this.client.setex === 'function') {
-        await this.client.setex(key, safeTtl, value);
-      } else {
-        await this.client.set(key, value, 'EX', safeTtl);
+      if (this.isRedisReady()) {
+        if (typeof this.client.setex === 'function') {
+          await this.client.setex(key, safeTtl, value);
+        } else {
+          await this.client.set(key, value, 'EX', safeTtl);
+        }
       }
     } catch (e) {
-      this.logger.warn(`Redis set failed for ${key}: ${String(e)}`);
+      this.handleRedisFailure(e, `set(${key})`);
     }
   }
 
   async get(key: string): Promise<string | null> {
     try {
-      return await this.client.get(key);
+      if (this.isRedisReady()) {
+        const result = await this.client.get(key);
+        if (result !== null) {
+          this.fallbackLru.set(key, result);
+          return result;
+        }
+      }
     } catch (e) {
-      this.logger.warn(`Redis get failed for ${key}: ${String(e)}`);
-      return null;
+      this.handleRedisFailure(e, `get(${key})`);
     }
+
+    const fallback = this.fallbackLru.get(key);
+    return fallback ?? null;
   }
 
   async del(key: string): Promise<void> {
+    this.fallbackLru.delete(key);
     try {
-      await this.client.del(key);
+      if (this.isRedisReady()) {
+        await this.client.del(key);
+      }
     } catch (e) {
-      this.logger.warn(`Redis del failed for ${key}: ${String(e)}`);
+      this.handleRedisFailure(e, `del(${key})`);
     }
   }
 
@@ -168,13 +261,25 @@ export class RedisService implements OnModuleDestroy {
    */
   async getOrSet<T>(key: string, ttlSeconds: number, loader: () => Promise<T>): Promise<T> {
     try {
-      const cached = await this.client.get(key);
-      if (cached) {
-        const parsed = safeJsonParse<T>(cached);
-        if (parsed !== null) return parsed;
+      if (this.isRedisReady()) {
+        const cached = await this.client.get(key);
+        if (cached) {
+          const parsed = safeJsonParse<T>(cached);
+          if (parsed !== null) {
+            this.fallbackLru.set(key, cached, ttlSeconds);
+            return parsed;
+          }
+        }
       }
     } catch (e) {
-      this.logger.warn(`Redis get failed for ${key}: ${String(e)}`);
+      this.handleRedisFailure(e, `getOrSet.read(${key})`);
+    }
+
+    // Check in-memory LRU fallback
+    const fallbackRaw = this.fallbackLru.get(key);
+    if (fallbackRaw) {
+      const parsed = safeJsonParse<T>(fallbackRaw);
+      if (parsed !== null) return parsed;
     }
 
     // Coalesce concurrent in-flight requests for the same key to prevent cache stampede / memory spikes
@@ -188,10 +293,17 @@ export class RedisService implements OnModuleDestroy {
         const value = await loader();
         const jitter = Math.floor(Math.random() * Math.min(15, Math.max(1, ttlSeconds * 0.1)));
         const ttl = ttlSeconds + jitter;
+        const serialized = JSON.stringify(value);
+
+        // Always populate in-memory fallback LRU
+        this.fallbackLru.set(key, serialized, ttl);
+
         try {
-          await this.client.set(key, JSON.stringify(value), 'EX', ttl);
+          if (this.isRedisReady()) {
+            await this.client.set(key, serialized, 'EX', ttl);
+          }
         } catch (e) {
-          this.logger.warn(`Redis set failed for ${key}: ${String(e)}`);
+          this.handleRedisFailure(e, `getOrSet.write(${key})`);
         }
         return value;
       } finally {
@@ -239,9 +351,9 @@ export class RedisService implements OnModuleDestroy {
             const token = await this.acquireLock(lockKey, 5000);
             if (!token) return;
             try {
-              const start = Date.now();
+              const start = process.hrtime.bigint();
               const freshValue = await loader();
-              const computeDuration = Date.now() - start;
+              const computeDuration = Number(process.hrtime.bigint() - start) / 1_000_000;
               const payload: CachePayload<T> = {
                 value: freshValue,
                 ttl: ttlSeconds,
@@ -265,9 +377,9 @@ export class RedisService implements OnModuleDestroy {
 
     // Cache miss: compute and save with metadata
     return this.getOrSet(key, ttlSeconds, async () => {
-      const start = Date.now();
+      const start = process.hrtime.bigint();
       const value = await loader();
-      const computeDuration = Date.now() - start;
+      const computeDuration = Number(process.hrtime.bigint() - start) / 1_000_000;
       const payload: CachePayload<T> = {
         value,
         ttl: ttlSeconds,

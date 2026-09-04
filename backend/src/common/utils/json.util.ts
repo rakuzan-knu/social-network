@@ -1,5 +1,6 @@
 import { sanitizeProtoPollution } from '../workers/compute-worker.tasks';
 import type { ComputeWorkerService } from '../workers/compute-worker.service';
+import { fastDecodeUtf8 } from '../v8/zero-alloc-parser';
 
 export interface SafeJsonParseOptions {
   /**
@@ -33,11 +34,33 @@ export function safeJsonParse<T = unknown>(
   }
 
   if (typeof payload !== 'string') {
+    if (Buffer.isBuffer(payload) || payload instanceof Uint8Array) {
+      const maxBytes = options?.maxSizeBytes ?? DEFAULT_MAX_SIZE_BYTES;
+      const byteLength = payload.byteLength;
+      if (byteLength > maxBytes) {
+        if (options?.strict) {
+          throw new Error(
+            `JSON payload size (${byteLength} bytes) exceeds limit of ${maxBytes} bytes`,
+          );
+        }
+        return fallback;
+      }
+      try {
+        const decoded = fastDecodeUtf8(payload);
+        const parsed = JSON.parse(decoded) as unknown;
+        return sanitizeProtoPollution(parsed) as T;
+      } catch (err) {
+        if (options?.strict) {
+          throw err;
+        }
+        return fallback;
+      }
+    }
     if (typeof payload === 'object') {
       return sanitizeProtoPollution(payload) as T;
     }
     if (options?.strict) {
-      throw new TypeError('Payload must be a string or object');
+      throw new TypeError('Payload must be a string, Buffer, or object');
     }
     return fallback;
   }
@@ -78,11 +101,15 @@ export async function safeJsonParseAsync<T = unknown>(
   }
 
   if (typeof payload !== 'string') {
+    if (Buffer.isBuffer(payload) || payload instanceof Uint8Array) {
+      const decoded = fastDecodeUtf8(payload);
+      return safeJsonParseAsync<T>(decoded, options, workerService, fallback);
+    }
     if (typeof payload === 'object') {
       return sanitizeProtoPollution(payload) as T;
     }
     if (options?.strict) {
-      throw new TypeError('Payload must be a string or object');
+      throw new TypeError('Payload must be a string, Buffer, or object');
     }
     return fallback;
   }

@@ -49,7 +49,9 @@ export function getInMemoryPgDb(): IMemoryDb {
       for (const folder of migrationFolders) {
         const sqlFile = path.join(migrationsDir, folder, 'migration.sql');
         if (fs.existsSync(sqlFile)) {
-          const sql = fs.readFileSync(sqlFile, 'utf8');
+          let sql = fs.readFileSync(sqlFile, 'utf8');
+          // Strip unsupported PL/pgSQL DO $$ blocks that hang pg-mem parser
+          sql = sql.replace(/DO\s+\$\$[\s\S]*?END\s+\$\$;/gi, '');
           try {
             db.public.none(sql);
           } catch {
@@ -58,6 +60,7 @@ export function getInMemoryPgDb(): IMemoryDb {
               .map((s) => s.trim())
               .filter(Boolean);
             for (const stmt of statements) {
+              if (/^DO\s+\$\$/i.test(stmt)) continue;
               try {
                 db.public.none(stmt);
               } catch {
@@ -111,9 +114,22 @@ export function createInMemoryRedisClient(): Redis {
  */
 export async function resetInMemoryTestState(): Promise<void> {
   if (sharedRedisClient) {
-    await sharedRedisClient.flushall();
+    try {
+      await sharedRedisClient.flushall();
+      sharedRedisClient.disconnect();
+    } catch {
+      // ignore
+    }
+    sharedRedisClient = null;
+  }
+  if (sharedPgPool) {
+    try {
+      await sharedPgPool.end();
+    } catch {
+      // ignore
+    }
+    sharedPgPool = null;
   }
   // Clear shared instances to re-seed clean state if needed
   sharedMemDb = null;
-  sharedPgPool = null;
 }

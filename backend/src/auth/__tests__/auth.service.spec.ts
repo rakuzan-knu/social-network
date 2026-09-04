@@ -8,6 +8,7 @@ import type { RedisService } from '../../redis/redis.service';
 import type { UsersService } from '../../users/users.service';
 import type { SessionsService } from '../../sessions/sessions.service';
 import type { TokenRevocationService } from '../token-revocation.service';
+import type { InMemoryBloomFilterService } from '../../common/bloom/in-memory-bloom-filter.service';
 
 jest.setTimeout(30000);
 
@@ -98,6 +99,14 @@ describe('AuthService', () => {
       mockRedisService as unknown as RedisService,
       mockTokenRevocationService as unknown as TokenRevocationService,
       mockSessionsService as unknown as SessionsService,
+      {
+        add: jest.fn(),
+        has: jest.fn().mockReturnValue(false),
+        definitelyAbsent: jest.fn().mockReturnValue(false),
+        clear: jest.fn(),
+        getFilter: jest.fn(),
+        getStats: jest.fn(),
+      } as unknown as InMemoryBloomFilterService,
     );
   });
 

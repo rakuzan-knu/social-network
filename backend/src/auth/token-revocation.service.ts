@@ -2,6 +2,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RedisService } from '../redis/redis.service';
 import { RedisBloomFilterService } from '../redis/redis-bloom-filter.service';
+import { InMemoryBloomFilterService } from '../common/bloom/in-memory-bloom-filter.service';
+import { InMemoryLruCache } from '../common/cache/in-memory-lru-cache';
 
 @Injectable()
 export class TokenRevocationService {
@@ -13,13 +15,20 @@ export class TokenRevocationService {
   public static readonly REVOKED_USER_PREFIX = 'trl:revoked:user:';
 
   private readonly defaultAccessTtlSeconds: number;
-  private readonly fallbackRevokedJtis = new Map<string, number>();
-  private readonly fallbackRevokedUsers = new Map<string, number>();
+  private readonly fallbackRevokedJtis = new InMemoryLruCache<string, number>({
+    maxSize: 50_000,
+    defaultTtlSeconds: 900,
+  });
+  private readonly fallbackRevokedUsers = new InMemoryLruCache<string, number>({
+    maxSize: 10_000,
+    defaultTtlSeconds: 86400,
+  });
 
   constructor(
     private readonly redisService: RedisService,
     private readonly bloomFilter: RedisBloomFilterService,
     private readonly configService: ConfigService,
+    private readonly localBloom: InMemoryBloomFilterService,
   ) {
     const rawTtl = this.configService.get<string>('JWT_ACCESS_TTL') || '15m';
     this.defaultAccessTtlSeconds = this.parseTtlToSeconds(rawTtl);
@@ -34,6 +43,8 @@ export class TokenRevocationService {
     const ttl = ttlSeconds ?? this.defaultAccessTtlSeconds;
 
     this.fallbackRevokedJtis.set(jti, Date.now() + ttl * 1000);
+    // Seed in-memory filter first for instant local lookup (zero I/O)
+    this.localBloom.add('jti', jti);
 
     try {
       // 1. Add to Bloom Filter for fast O(1) probabilistic rejection
@@ -58,6 +69,8 @@ export class TokenRevocationService {
     const expiresAt = Date.now() + ttl * 1000;
     for (const jti of jtis) {
       this.fallbackRevokedJtis.set(jti, expiresAt);
+      // Seed in-memory filter for each revoked JTI
+      this.localBloom.add('jti', jti);
     }
 
     try {
@@ -116,7 +129,7 @@ export class TokenRevocationService {
     if (!jti && !userId) return false;
 
     try {
-      // Step 1: Check JTI in Bloom Filter
+      // Step 1: Check JTI in Redis Bloom Filter
       if (jti) {
         const maybeJtiRevoked = await this.bloomFilter.has(
           TokenRevocationService.BLOOM_JTI_KEY,

@@ -29,10 +29,10 @@ export class DistributedLockService {
     }
 
     for (let attempt = 0; attempt <= retryCount; attempt++) {
-      const startTime = Date.now();
+      const startTime = process.hrtime.bigint();
       try {
         const result = await client.set(resource, token, 'PX', ttlMs, 'NX');
-        const elapsedTime = Date.now() - startTime;
+        const elapsedTime = Number(process.hrtime.bigint() - startTime) / 1_000_000;
         const drift = Math.round(LOCK_DEFAULTS.CLOCK_DRIFT_FACTOR * ttlMs) + 2;
         const validityTimeMs = ttlMs - elapsedTime - drift;
 

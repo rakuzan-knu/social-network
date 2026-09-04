@@ -32,6 +32,7 @@ export class WsTraceInterceptor implements NestInterceptor {
       reqMethod: 'WS_EVENT',
       reqUrl: context.getHandler()?.name || 'ws-event',
       startTime: Date.now(),
+      startHrTime: process.hrtime.bigint(),
     };
 
     return defer(() => TraceContext.runIsolated(store, () => next.handle()));

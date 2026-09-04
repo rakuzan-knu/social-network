@@ -7,7 +7,7 @@ export class MetricsMiddleware implements NestMiddleware {
   constructor(private readonly metricsService: MetricsService) {}
 
   use(req: Request, res: Response, next: NextFunction) {
-    const startTime = Date.now();
+    const startTime = process.hrtime.bigint();
     const route =
       (req.route as { path?: string } | undefined)?.path ||
       req.path ||
@@ -19,7 +19,7 @@ export class MetricsMiddleware implements NestMiddleware {
     const record = () => {
       if (recorded) return;
       recorded = true;
-      const duration = Date.now() - startTime;
+      const duration = Number(process.hrtime.bigint() - startTime) / 1_000_000;
       const statusCode = res.statusCode || 200;
 
       this.metricsService.recordHttpRequest(method, route, statusCode, duration);

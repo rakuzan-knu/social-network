@@ -21,8 +21,8 @@ export class OutboxRepository implements IOutboxRepository {
         aggregateId: data.aggregateId,
         eventType: data.eventType,
         payload: data.payload,
-        headers: data.headers ?? undefined,
         status: OutboxStatus.PENDING,
+        ...(data.headers !== undefined ? { headers: data.headers } : {}),
       },
     });
   }
@@ -41,8 +41,8 @@ export class OutboxRepository implements IOutboxRepository {
           aggregateId: item.aggregateId,
           eventType: item.eventType,
           payload: item.payload,
-          headers: item.headers ?? undefined,
           status: OutboxStatus.PENDING,
+          ...(item.headers !== undefined ? { headers: item.headers } : {}),
         },
       });
       events.push(created);

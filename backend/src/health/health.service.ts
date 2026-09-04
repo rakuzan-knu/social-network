@@ -1,6 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { RedisService } from '../redis/redis.service';
 import { RedisSelfHealingService } from '../redis/redis-self-healing.service';
+import { MemoryLeakDetectorService } from '../common/memory/memory-leak-detector.service';
+import { ServerHealthMonitorService } from '../common/resilience/server-health-monitor.service';
+import { MetricsService } from '../metrics/metrics.service';
 import {
   type HealthResponseDto,
   type PingResponseDto,
@@ -19,6 +22,12 @@ export class HealthService {
     private readonly healthRepository: HealthRepository,
     private readonly redisService: RedisService,
     private readonly redisSelfHealingService: RedisSelfHealingService,
+    @Optional()
+    private readonly memoryLeakDetector?: MemoryLeakDetectorService,
+    @Optional()
+    private readonly serverHealthMonitor?: ServerHealthMonitorService,
+    @Optional()
+    private readonly metricsService?: MetricsService,
   ) {}
 
   getLiveness(): PingResponseDto {
@@ -35,7 +44,12 @@ export class HealthService {
       this.redisSelfHealingService.getRedisMemoryInfo(),
     ]);
 
-    const isHealthy = dbOk && redisOk;
+    if (this.metricsService) {
+      this.metricsService.recordRedisConnected(redisOk);
+    }
+
+    const memoryOk = this.memoryLeakDetector ? this.memoryLeakDetector.isReadyForTraffic() : true;
+    const isHealthy = dbOk && redisOk && memoryOk;
 
     // Automated self-healing trigger: if Redis memory exceeds threshold (e.g. 90%), execute runbook
     if (memoryInfo.isHighMemory) {
@@ -59,6 +73,38 @@ export class HealthService {
       actionsExecuted: lastEviction.lastEvictionTimestamp ? ['EVICT_NON_CRITICAL_CACHE_KEYS'] : [],
     };
 
+    const healthStatus = this.serverHealthMonitor?.getHealthStatus();
+    const mem = process.memoryUsage();
+    const elLag = healthStatus?.eventLoopDelayMs ?? 0;
+    const isMemoryCritical = mem.heapUsed / mem.heapTotal > 0.95;
+    const isMemoryWarning = mem.heapUsed / mem.heapTotal > 0.85;
+
+    const resources = {
+      memory: {
+        heapUsed: Math.round(mem.heapUsed / 1024 / 1024),
+        heapTotal: Math.round(mem.heapTotal / 1024 / 1024),
+        rss: Math.round(mem.rss / 1024 / 1024),
+        status: isMemoryCritical
+          ? ('critical' as const)
+          : isMemoryWarning
+            ? ('warning' as const)
+            : ('ok' as const),
+      },
+      eventLoopLag: {
+        lagMs: Math.round(elLag * 100) / 100,
+        status:
+          elLag >= 100
+            ? ('critical' as const)
+            : elLag >= 30
+              ? ('warning' as const)
+              : ('ok' as const),
+      },
+      connections: {
+        database: dbOk ? 'connected' : 'disconnected',
+        redis: redisOk ? 'connected' : 'disconnected',
+      },
+    };
+
     const response: HealthResponseDto = {
       status: isHealthy ? 'ok' : 'degraded',
       timestamp: new Date().toISOString(),
@@ -68,6 +114,7 @@ export class HealthService {
         redis: redisOk ? 'ok' : 'error',
       },
       selfHealing,
+      resources,
     };
 
     return { isHealthy, response };

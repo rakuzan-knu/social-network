@@ -25,6 +25,9 @@ import { AccessTokenPayload, RefreshTokenPayload } from './interfaces/jwt-payloa
 import { PublicUser } from './interfaces/public-user.interface';
 import { TokenPair } from './interfaces/token-pair.interface';
 import { TokenRevocationService } from './token-revocation.service';
+import { InMemoryBloomFilterService } from '../common/bloom/in-memory-bloom-filter.service';
+import { makeJwtAccessPayload, makeJwtRefreshPayload } from '../common/v8/shape-stable';
+import { timingSafeEqual } from '../common/crypto/timing-safe';
 
 @Injectable()
 export class AuthService {
@@ -36,6 +39,7 @@ export class AuthService {
     private readonly tokenRevocationService: TokenRevocationService,
     @Inject(forwardRef(() => SessionsService))
     private readonly sessionsService: SessionsService,
+    private readonly bloomFilter: InMemoryBloomFilterService,
   ) {}
 
   async checkUsername(rawUsername: string): Promise<{ isAvailable: boolean }> {
@@ -84,6 +88,10 @@ export class AuthService {
     }
 
     const tokens = await this.issueTokenPair(user.id, user.email, user.username, meta);
+
+    // Seed Bloom Filter so future username/email checks hit the fast-path
+    this.bloomFilter.add('username', user.username.toLowerCase());
+    this.bloomFilter.add('email', user.email.toLowerCase());
 
     return {
       ...tokens,
@@ -143,7 +151,7 @@ export class AuthService {
   async logout(userId: string, refreshToken: string): Promise<void> {
     const payload = await this.verifyRefreshToken(refreshToken);
 
-    if (payload.sub !== userId) {
+    if (!timingSafeEqual(payload.sub, userId)) {
       throw new UnauthorizedException('Refresh token does not belong to the current user');
     }
 
@@ -203,13 +211,9 @@ export class AuthService {
     username: string,
     jti: string,
   ): Promise<string> {
-    const payload: AccessTokenPayload = {
-      type: 'access',
-      sub: userId,
-      email,
-      username,
-      jti,
-    };
+    // Shape-stable payload: always exactly {type, sub, email, username, jti}
+    // — V8 JIT compiles all call sites to the same monomorphic machine-code path
+    const payload = makeJwtAccessPayload(userId, email, username, jti);
     return this.jwtService.signAsync(payload, {
       secret: this.getRequiredEnv('JWT_ACCESS_SECRET'),
       expiresIn: this.getRequiredEnv('JWT_ACCESS_TTL') as StringValue,
@@ -220,7 +224,8 @@ export class AuthService {
     const jti = randomUUID();
     const ttl = this.getRequiredEnv('JWT_REFRESH_TTL');
 
-    const payload: RefreshTokenPayload = { type: 'refresh', sub: userId, jti };
+    // Shape-stable payload: always exactly {type, sub, jti}
+    const payload = makeJwtRefreshPayload(userId, jti);
     const token = await this.jwtService.signAsync(payload, {
       secret: this.getRequiredEnv('JWT_REFRESH_SECRET'),
       expiresIn: ttl as StringValue,

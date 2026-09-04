@@ -236,6 +236,7 @@ export const userProfileSchema = z.object({
   postsCount: z.number().optional(),
   followingCount: z.number().optional(),
   alias: z.string().nullable().optional(),
+  flags: z.number().optional(),
   recommendationReason: recommendationReasonSchema.optional(),
 });
 export type UserProfileDto = z.infer<typeof userProfileSchema>;
@@ -244,15 +245,15 @@ export class CreateUserDto {
   readonly email: string;
   readonly username: string;
   readonly passwordHash: string;
-  readonly displayName?: string;
-  readonly birthDate?: Date | null;
+  readonly displayName?: string | undefined;
+  readonly birthDate?: Date | null | undefined;
 
   constructor(props: {
     email: string;
     username: string;
     passwordHash: string;
-    displayName?: string;
-    birthDate?: Date | null;
+    displayName?: string | undefined;
+    birthDate?: Date | null | undefined;
   }) {
     this.email = props.email;
     this.username = props.username;

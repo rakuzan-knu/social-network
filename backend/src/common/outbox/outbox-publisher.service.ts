@@ -116,6 +116,7 @@ export class OutboxPublisherService implements OnModuleInit, OnModuleDestroy {
               reqMethod: 'OUTBOX_EVENT',
               reqUrl: `outbox:${event.aggregateType}:${event.eventType}`,
               startTime: Date.now(),
+              startHrTime: process.hrtime.bigint(),
             },
             async () => {
               await this.publishEvent(event);

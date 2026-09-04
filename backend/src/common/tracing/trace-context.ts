@@ -2,13 +2,14 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 
 export interface TraceStore {
   traceId: string;
-  correlationId?: string;
-  userId?: string;
-  reqMethod?: string;
-  reqUrl?: string;
-  startTime?: number;
-  abortSignal?: AbortSignal;
-  abortController?: AbortController;
+  correlationId?: string | undefined;
+  userId?: string | undefined;
+  reqMethod?: string | undefined;
+  reqUrl?: string | undefined;
+  startTime?: number | undefined;
+  startHrTime?: bigint | undefined;
+  abortSignal?: AbortSignal | undefined;
+  abortController?: AbortController | undefined;
 }
 
 export class TraceContext {

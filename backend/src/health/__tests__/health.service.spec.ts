@@ -97,5 +97,25 @@ describe('HealthService', () => {
       expect(dbFail.isHealthy).toBe(false);
       expect(dbFail.response.services.database).toBe('error');
     });
+
+    it('returns degraded when memoryLeakDetector reports isReadyForTraffic() === false', async () => {
+      mockHealthRepo.pingDatabase.mockResolvedValue(true);
+      mockRedisClient.ping.mockResolvedValue('PONG');
+
+      const mockMemoryDetector = {
+        isReadyForTraffic: jest.fn().mockReturnValue(false),
+      };
+
+      const healthServiceWithLeak = new HealthService(
+        mockHealthRepo as unknown as HealthRepository,
+        mockRedisService as unknown as RedisService,
+        mockRedisSelfHealingService as unknown as RedisSelfHealingService,
+        mockMemoryDetector as any,
+      );
+
+      const { isHealthy, response } = await healthServiceWithLeak.getReadiness();
+      expect(isHealthy).toBe(false);
+      expect(response.status).toBe('degraded');
+    });
   });
 });

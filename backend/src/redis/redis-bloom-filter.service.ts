@@ -1,10 +1,10 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import Redis from 'ioredis';
 import { createHash } from 'crypto';
 import { REDIS_CLIENT } from './redis.constants';
 
 @Injectable()
-export class RedisBloomFilterService {
+export class RedisBloomFilterService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(RedisBloomFilterService.name);
 
   // Bit array size: 1,048,576 bits (131 KB per filter)
@@ -180,5 +180,13 @@ export class RedisBloomFilterService {
     }
 
     return offsets;
+  }
+
+  onModuleInit(): void {
+    this.logger.log('RedisBloomFilterService initialized');
+  }
+
+  onModuleDestroy(): void {
+    this.localFallback.clear();
   }
 }

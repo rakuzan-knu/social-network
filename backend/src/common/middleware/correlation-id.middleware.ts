@@ -48,6 +48,7 @@ export class CorrelationIdMiddleware implements NestMiddleware {
         reqMethod: req.method,
         reqUrl: req.originalUrl || req.url,
         startTime: Date.now(),
+        startHrTime: process.hrtime.bigint(),
       },
       () => next(),
     );

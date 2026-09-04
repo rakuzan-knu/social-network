@@ -9,31 +9,31 @@ export interface DeadLetterAlertPayload {
   jobName: string;
   data: unknown;
   failedReason: string;
-  stackTrace?: string;
+  stackTrace?: string | undefined;
   attemptsMade: number;
   failedAt: string;
-  traceId?: string;
-  isPoisonPill?: boolean;
+  traceId?: string | undefined;
+  isPoisonPill?: boolean | undefined;
 }
 
 export interface DeprecatedApiAlertPayload {
   route: string;
   method: string;
-  apiVersion?: string;
+  apiVersion?: string | undefined;
   clientType: string;
-  clientVersion?: string;
-  userAgent?: string;
-  sunsetDate?: string;
-  successor?: string;
-  isOutdatedMobile?: boolean;
+  clientVersion?: string | undefined;
+  userAgent?: string | undefined;
+  sunsetDate?: string | undefined;
+  successor?: string | undefined;
+  isOutdatedMobile?: boolean | undefined;
 }
 
 @Injectable()
 export class AlertingService {
   private readonly logger = new Logger(AlertingService.name);
-  private readonly slackWebhookUrl?: string;
-  private readonly alertmanagerWebhookUrl?: string;
-  private readonly genericAlertWebhookUrl?: string;
+  private readonly slackWebhookUrl?: string | undefined;
+  private readonly alertmanagerWebhookUrl?: string | undefined;
+  private readonly genericAlertWebhookUrl?: string | undefined;
 
   private readonly slackCircuitBreaker = new CircuitBreaker({
     name: 'slack-alerts',

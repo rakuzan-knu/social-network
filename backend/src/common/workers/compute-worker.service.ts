@@ -32,7 +32,7 @@ function sanitizeProtoPollution(value) {
     if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
       delete record[key];
     } else {
-      record[key] = sanitizeProtoPollution(record[key]);
+      sanitizeProtoPollution(record[key]);
     }
   }
   return record;
@@ -46,7 +46,14 @@ function handleTask(type, payload) {
       if (Buffer.byteLength(jsonStr, 'utf8') > maxSizeBytes) {
         throw new Error('JSON payload exceeds maximum allowed size of ' + maxSizeBytes + ' bytes');
       }
-      return sanitizeProtoPollution(JSON.parse(jsonStr));
+      return sanitizeProtoPollution(
+        JSON.parse(jsonStr, (key, value) => {
+          if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+            return undefined;
+          }
+          return value;
+        }),
+      );
     }
     case 'STRINGIFY_JSON': {
       return JSON.stringify(payload.data, null, payload.space);

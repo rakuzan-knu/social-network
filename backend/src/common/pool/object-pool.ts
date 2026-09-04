@@ -1,9 +1,9 @@
 export interface ObjectPoolOptions<T> {
-  name?: string;
+  name?: string | undefined;
   factory: () => T;
-  resetFn?: (item: T) => void;
-  initialCapacity?: number;
-  maxCapacity?: number;
+  resetFn?: ((item: T) => void) | undefined;
+  initialCapacity?: number | undefined;
+  maxCapacity?: number | undefined;
 }
 
 /**
@@ -15,7 +15,7 @@ export interface ObjectPoolOptions<T> {
 export class ObjectPool<T> {
   private readonly items: T[] = [];
   private readonly factory: () => T;
-  private readonly resetFn?: (item: T) => void;
+  private readonly resetFn?: ((item: T) => void) | undefined;
   private readonly maxCapacity: number;
 
   constructor(options: ObjectPoolOptions<T>) {

@@ -1,6 +1,8 @@
 import * as crypto from 'node:crypto';
 import type {
   ComputeStatsResult,
+  CrdtMergePayload,
+  CrdtMergeResult,
   EncryptedMediaResult,
   ExportArchiveResult,
   GeneratePdfPayload,
@@ -31,7 +33,7 @@ export function sanitizeProtoPollution(value: unknown): unknown {
     if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
       delete record[key];
     } else {
-      record[key] = sanitizeProtoPollution(record[key]);
+      sanitizeProtoPollution(record[key]);
     }
   }
 
@@ -49,7 +51,12 @@ export function taskParseJson(payload: { jsonStr: string; maxSizeBytes?: number 
   if (Buffer.byteLength(jsonStr, 'utf8') > maxSizeBytes) {
     throw new Error(`JSON payload exceeds maximum allowed size of ${maxSizeBytes} bytes`);
   }
-  const parsed = JSON.parse(jsonStr) as unknown;
+  const parsed: unknown = JSON.parse(jsonStr, (key: string, value: unknown): unknown => {
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+      return undefined;
+    }
+    return value;
+  });
   return sanitizeProtoPollution(parsed);
 }
 
@@ -371,7 +378,72 @@ export function executeComputeTask(type: WorkerTaskType, payload: unknown): unkn
       return taskGenerateDataExport(payload as UserDataExportPayload);
     case 'GENERATE_PDF':
       return taskGeneratePdf(payload as GeneratePdfPayload);
+    case 'CRDT_MERGE':
+      return taskCrdtMerge(payload as CrdtMergePayload);
     default:
       throw new Error(`Unknown worker task type: ${String(type)}`);
   }
+}
+
+/**
+ * Merges multiple serialized CRDT state snapshots in a worker thread.
+ * For PN-Counters: element-wise max merge of P and N maps.
+ * For LWW-Sets: higher-timestamp-wins merge of all entries.
+ *
+ * Offloading to worker threads keeps the main event loop free during
+ * bulk CRDT reconciliation after Redis hydration or cluster sync.
+ */
+export function taskCrdtMerge(payload: CrdtMergePayload): CrdtMergeResult {
+  const { chunks, type } = payload;
+  if (!chunks || chunks.length === 0) {
+    return { merged: '{}' };
+  }
+
+  if (type === 'pn') {
+    // PN-Counter merge: element-wise max of P and N maps
+    const mergedP: Record<string, number> = Object.create(null) as Record<string, number>;
+    const mergedN: Record<string, number> = Object.create(null) as Record<string, number>;
+
+    for (let ci = 0; ci < chunks.length; ci++) {
+      const state = JSON.parse(chunks[ci]) as {
+        p: Record<string, number>;
+        n: Record<string, number>;
+      };
+      const pKeys = Object.keys(state.p);
+      for (let i = 0; i < pKeys.length; i++) {
+        const k = pKeys[i];
+        const v = state.p[k];
+        if (mergedP[k] === undefined || v > mergedP[k]) mergedP[k] = v;
+      }
+      const nKeys = Object.keys(state.n);
+      for (let i = 0; i < nKeys.length; i++) {
+        const k = nKeys[i];
+        const v = state.n[k];
+        if (mergedN[k] === undefined || v > mergedN[k]) mergedN[k] = v;
+      }
+    }
+
+    return { merged: JSON.stringify({ p: mergedP, n: mergedN }) };
+  }
+
+  // LWW merge: higher timestamp wins, bias = 'add' on tie
+  const mergedLww: Record<string, { ts: number; tomb: boolean }> = Object.create(null) as Record<
+    string,
+    { ts: number; tomb: boolean }
+  >;
+
+  for (let ci = 0; ci < chunks.length; ci++) {
+    const state = JSON.parse(chunks[ci]) as Record<string, { ts: number; tomb: boolean }>;
+    const keys = Object.keys(state);
+    for (let i = 0; i < keys.length; i++) {
+      const k = keys[i];
+      const remote = state[k];
+      const local = mergedLww[k];
+      if (local === undefined || remote.ts > local.ts) {
+        mergedLww[k] = { ts: remote.ts, tomb: remote.tomb };
+      }
+    }
+  }
+
+  return { merged: JSON.stringify(mergedLww) };
 }

@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import type { ThrottlerStorage } from '@nestjs/throttler';
 import Redis from 'ioredis';
 import { REDIS_CLIENT } from './redis.constants';
@@ -43,10 +43,18 @@ return { hits, math.max(0, keyTtl), 0, 0 }
 `;
 
 @Injectable()
-export class ThrottlerStorageRedisService implements ThrottlerStorage {
+export class ThrottlerStorageRedisService
+  implements ThrottlerStorage, OnModuleInit, OnModuleDestroy
+{
   private readonly logger = new Logger(ThrottlerStorageRedisService.name);
 
   constructor(@Inject(REDIS_CLIENT) private readonly client: Redis) {}
+
+  onModuleInit(): void {
+    this.logger.log('ThrottlerStorageRedisService initialized');
+  }
+
+  onModuleDestroy(): void {}
 
   async increment(
     key: string,

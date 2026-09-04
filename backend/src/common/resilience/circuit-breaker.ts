@@ -8,8 +8,8 @@ export interface CircuitBreakerOptions {
   failureThreshold?: number;
   resetTimeoutMs?: number;
   halfOpenSuccessThreshold?: number;
-  name?: string;
-  onStateChange?: (from: CircuitState, to: CircuitState) => void;
+  name?: string | undefined;
+  onStateChange?: ((from: CircuitState, to: CircuitState) => void) | undefined;
 }
 
 export class CircuitBreakerOpenException extends Error {
@@ -23,12 +23,12 @@ export class CircuitBreaker {
   private state: CircuitState = CircuitState.CLOSED;
   private failureCount = 0;
   private successCount = 0;
-  private nextAttempt = 0;
+  private nextAttemptNano = 0n;
   private readonly failureThreshold: number;
   private readonly resetTimeoutMs: number;
   private readonly halfOpenSuccessThreshold: number;
   private readonly name: string;
-  private readonly onStateChange?: (from: CircuitState, to: CircuitState) => void;
+  private readonly onStateChange?: ((from: CircuitState, to: CircuitState) => void) | undefined;
 
   constructor(options: CircuitBreakerOptions = {}) {
     this.failureThreshold = options.failureThreshold ?? 5;
@@ -39,7 +39,7 @@ export class CircuitBreaker {
   }
 
   getState(): CircuitState {
-    if (this.state === CircuitState.OPEN && Date.now() >= this.nextAttempt) {
+    if (this.state === CircuitState.OPEN && process.hrtime.bigint() >= this.nextAttemptNano) {
       this.transitionTo(CircuitState.HALF_OPEN);
     }
     return this.state;
@@ -93,7 +93,7 @@ export class CircuitBreaker {
     const oldState = this.state;
     this.state = newState;
     if (newState === CircuitState.OPEN) {
-      this.nextAttempt = Date.now() + this.resetTimeoutMs;
+      this.nextAttemptNano = process.hrtime.bigint() + BigInt(this.resetTimeoutMs) * 1_000_000n;
       this.successCount = 0;
     } else if (newState === CircuitState.CLOSED) {
       this.failureCount = 0;

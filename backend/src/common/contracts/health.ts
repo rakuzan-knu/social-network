@@ -20,10 +20,44 @@ export const selfHealingStatusSchema = z.object({
 
 export class SelfHealingStatusDto {
   status!: 'idle' | 'triggered' | 'completed' | 'error';
-  lastTriggeredAt?: string;
-  redisMemoryRatio?: number;
-  redisEvictedKeys?: number;
-  actionsExecuted?: string[];
+  lastTriggeredAt?: string | undefined;
+  redisMemoryRatio?: number | undefined;
+  redisEvictedKeys?: number | undefined;
+  actionsExecuted?: string[] | undefined;
+}
+
+export const healthResourcesSchema = z.object({
+  memory: z.object({
+    heapUsed: z.number(),
+    heapTotal: z.number(),
+    rss: z.number(),
+    status: z.enum(['ok', 'warning', 'critical']),
+  }),
+  eventLoopLag: z.object({
+    lagMs: z.number(),
+    status: z.enum(['ok', 'warning', 'critical']),
+  }),
+  connections: z.object({
+    database: z.string(),
+    redis: z.string(),
+  }),
+});
+
+export class HealthResourcesDto {
+  memory!: {
+    heapUsed: number;
+    heapTotal: number;
+    rss: number;
+    status: 'ok' | 'warning' | 'critical';
+  };
+  eventLoopLag!: {
+    lagMs: number;
+    status: 'ok' | 'warning' | 'critical';
+  };
+  connections!: {
+    database: string;
+    redis: string;
+  };
 }
 
 export const healthResponseSchema = z.object({
@@ -32,6 +66,7 @@ export const healthResponseSchema = z.object({
   uptime: z.number(),
   services: healthServicesStatusSchema,
   selfHealing: selfHealingStatusSchema.optional(),
+  resources: healthResourcesSchema.optional(),
 });
 
 export class HealthResponseDto {
@@ -39,7 +74,8 @@ export class HealthResponseDto {
   timestamp!: string;
   uptime!: number;
   services!: HealthServicesStatusDto;
-  selfHealing?: SelfHealingStatusDto;
+  selfHealing?: SelfHealingStatusDto | undefined;
+  resources?: HealthResourcesDto | undefined;
 }
 
 export const pingResponseSchema = z.object({
@@ -74,8 +110,8 @@ export class RedisMemoryInfoDto {
   memoryUsagePercent!: number;
   isHighMemory!: boolean;
   thresholdRatio!: number;
-  fragmentationRatio?: number;
-  peakMemoryBytes?: number;
+  fragmentationRatio?: number | undefined;
+  peakMemoryBytes?: number | undefined;
 }
 
 export const selfHealTriggerSchema = z.object({
@@ -86,10 +122,10 @@ export const selfHealTriggerSchema = z.object({
 });
 
 export class SelfHealTriggerDto {
-  force?: boolean;
-  threshold?: number;
-  patterns?: string[];
-  reason?: string;
+  force?: boolean | undefined;
+  threshold?: number | undefined;
+  patterns?: string[] | undefined;
+  reason?: string | undefined;
 }
 
 export const selfHealResponseSchema = z.object({

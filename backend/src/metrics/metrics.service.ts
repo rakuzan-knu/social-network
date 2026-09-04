@@ -1,4 +1,4 @@
-import { Injectable, OnModuleDestroy, Optional } from '@nestjs/common';
+import { Injectable, OnModuleDestroy, OnModuleInit, Optional } from '@nestjs/common';
 import * as promClient from 'prom-client';
 import * as v8 from 'node:v8';
 import {
@@ -14,7 +14,7 @@ import { MemoryMonitorService } from '../common/memory/memory-monitor.service';
 export type MetricCollectorFn = () => Promise<void> | void;
 
 @Injectable()
-export class MetricsService implements OnModuleDestroy {
+export class MetricsService implements OnModuleInit, OnModuleDestroy {
   private httpRequestDuration!: promClient.Histogram;
   private httpRequestTotal!: promClient.Counter;
   private httpRequestErrors!: promClient.Counter;
@@ -55,11 +55,12 @@ export class MetricsService implements OnModuleDestroy {
   private redisMemoryRatioGauge!: promClient.Gauge;
   private redisEvictedKeysTotal!: promClient.Counter<string>;
   private deadlockSuspectsTotal!: promClient.Counter<string>;
+  private redisConnectedGauge!: promClient.Gauge;
 
-  private elDelayHistogram?: IntervalHistogram;
-  private lastElu?: EventLoopUtilization;
+  private elDelayHistogram?: IntervalHistogram | undefined;
+  private lastElu?: EventLoopUtilization | undefined;
 
-  private uptimeInterval?: NodeJS.Timeout;
+  private uptimeInterval?: NodeJS.Timeout | undefined;
   private customCollectors: Set<MetricCollectorFn> = new Set();
 
   constructor(
@@ -239,6 +240,11 @@ export class MetricsService implements OnModuleDestroy {
       help: 'Total number of requests aborted due to hard application deadlock / timeout',
       labelNames: ['method', 'route', 'handler'],
     });
+
+    this.redisConnectedGauge = new promClient.Gauge({
+      name: 'app_redis_connected',
+      help: 'Redis connection status (1 = connected, 0 = disconnected)',
+    });
   }
 
   private setupDefaultMetrics(): void {
@@ -313,10 +319,10 @@ export class MetricsService implements OnModuleDestroy {
       // ignore
     }
 
-    // Instantaneous event loop lag measurement
-    const start = Date.now();
+    // Instantaneous event loop lag measurement using high-precision monotonic timer
+    const start = process.hrtime.bigint();
     setImmediate(() => {
-      const lag = (Date.now() - start) / 1000;
+      const lag = Number(process.hrtime.bigint() - start) / 1_000_000_000;
       this.eventLoopLag.set(lag);
     });
   }
@@ -420,10 +426,10 @@ export class MetricsService implements OnModuleDestroy {
   recordDeprecatedApiRequest(params: {
     method: string;
     route: string;
-    apiVersion?: string;
-    clientType?: string;
-    clientVersion?: string;
-    isMobile?: boolean;
+    apiVersion?: string | undefined;
+    clientType?: string | undefined;
+    clientVersion?: string | undefined;
+    isMobile?: boolean | undefined;
   }): void {
     this.deprecatedApiRequestsTotal.inc({
       method: params.method,
@@ -433,6 +439,10 @@ export class MetricsService implements OnModuleDestroy {
       client_version: params.clientVersion || 'unknown',
       is_mobile: params.isMobile ? 'true' : 'false',
     });
+  }
+
+  recordRedisConnected(connected: boolean): void {
+    this.redisConnectedGauge.set(connected ? 1 : 0);
   }
 
   recordRedisMemoryRatio(ratio: number): void {
@@ -447,6 +457,10 @@ export class MetricsService implements OnModuleDestroy {
 
   recordDeadlockSuspect(method: string, route: string, handler = 'unknown'): void {
     this.deadlockSuspectsTotal.inc({ method, route, handler });
+  }
+
+  onModuleInit(): void {
+    this.collectInternalMetrics();
   }
 
   onModuleDestroy(): void {

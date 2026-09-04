@@ -35,7 +35,7 @@ export const MuteLevel = {
 export type MuteLevel = (typeof MuteLevel)[keyof typeof MuteLevel];
 
 export const conversationIdSchema = z.object({
-  conversationId: z.string().min(1).max(128),
+  conversationId: z.string().uuid(),
 });
 export type ConversationIdDto = z.infer<typeof conversationIdSchema>;
 
@@ -181,10 +181,10 @@ export type GetMessagesAroundDateQueryDto = z.infer<typeof getMessagesAroundDate
 
 export interface DayActivityItem {
   messageCount: number;
-  previewMediaUrl?: string;
-  firstMessageSnippet?: string;
-  firstMessageId?: string;
-  mediaCount?: number;
+  previewMediaUrl?: string | undefined;
+  firstMessageSnippet?: string | undefined;
+  firstMessageId?: string | undefined;
+  mediaCount?: number | undefined;
 }
 
 export type ChatActivityMap = Record<string, DayActivityItem>;
@@ -221,6 +221,7 @@ export const updateGroupConversationSchema = z.object({
 export type UpdateGroupConversationDto = z.infer<typeof updateGroupConversationSchema>;
 
 export const updateAdminPermissionsSchema = z.object({
+  permissions: z.coerce.number().int().min(0).optional(),
   canEditGroup: z.boolean().optional(),
   canDeleteMessages: z.boolean().optional(),
   canManageMembers: z.boolean().optional(),
@@ -267,7 +268,8 @@ export interface UserSnapshot {
   username: string;
   displayName: string | null;
   avatar: string | null;
-  defaultChatTheme?: string | null;
+  defaultChatTheme?: string | null | undefined;
+  flags?: number | undefined;
 }
 
 export interface AttachmentView {
@@ -281,8 +283,8 @@ export interface AttachmentView {
   height: number | null;
   duration: number | null;
   thumbnailUrl: string | null;
-  waveform?: number[];
-  isSpoiler?: boolean;
+  waveform?: number[] | undefined;
+  isSpoiler?: boolean | undefined;
 }
 
 export interface ReactionSummary {
@@ -317,6 +319,7 @@ export interface ParticipantView {
   user: UserSnapshot;
   nickname: string | null;
   role: string;
+  permissions: number;
   theme: string;
   muteLevel: MuteLevel;
   mutedUntil: Date | null;

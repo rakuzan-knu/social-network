@@ -9,6 +9,7 @@ import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { TurnstileService } from './turnstile.service';
 import { TokenRevocationService } from './token-revocation.service';
+import { BloomModule } from '../common/bloom/bloom.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { TokenRevocationService } from './token-revocation.service';
     JwtModule.register({}),
     UsersModule,
     forwardRef(() => SessionsModule),
+    BloomModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, TurnstileService, TokenRevocationService],

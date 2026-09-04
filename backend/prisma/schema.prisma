@@ -18,6 +18,7 @@ model User {
   bannerPosition   Int              @default(50)
   isPrivate        Boolean          @default(false)
   isVerified       Boolean          @default(false) @map("is_verified")
+  flags            Int              @default(0)
   primaryBadge     String?          @map("primary_badge")
   githubId         String?          @unique @map("github_id")
   githubUsername   String?          @map("github_username")
@@ -261,6 +262,7 @@ model ConversationParticipant {
   userId         String
   nickname       String?
   role           ParticipantRole @default(MEMBER)
+  permissions    Int             @default(0)
   theme          String?         @default("default")
   muteLevel      MuteLevel       @default(NONE)
   mutedUntil     DateTime?

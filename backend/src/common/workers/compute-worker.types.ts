@@ -5,7 +5,20 @@ export type WorkerTaskType =
   | 'ENCRYPT_MEDIA'
   | 'DECRYPT_MEDIA'
   | 'GENERATE_DATA_EXPORT'
-  | 'GENERATE_PDF';
+  | 'GENERATE_PDF'
+  | 'CRDT_MERGE';
+
+/** Payload for CRDT_MERGE worker task */
+export interface CrdtMergePayload {
+  /** Serialized PNCounterState[] or LWWState[] chunks to merge */
+  chunks: string[];
+  type: 'pn' | 'lww';
+}
+
+/** Result of CRDT_MERGE task */
+export interface CrdtMergeResult {
+  merged: string; // JSON serialized merged state
+}
 
 export interface WorkerTaskRequest {
   id: string;

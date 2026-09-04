@@ -170,46 +170,54 @@ export class PostPollDto {
 export type PostWithRelations = {
   id: string;
   content: string;
-  sharesCount?: number;
+  sharesCount?: number | undefined;
   authorId: string;
-  author?: {
-    id: string;
-    username: string;
-    displayName?: string | null;
-    avatar?: string | null;
-    isVerified?: boolean;
-    primaryBadge?: string | null;
-    followers?: { id: string }[];
-  } | null;
+  author?:
+    | {
+        id: string;
+        username: string;
+        displayName?: string | null | undefined;
+        avatar?: string | null | undefined;
+        isVerified?: boolean | undefined;
+        primaryBadge?: string | null | undefined;
+        followers?: { id: string }[] | undefined;
+      }
+    | null
+    | undefined;
   createdAt: Date;
   updatedAt: Date;
-  media?: PostMedia[];
-  poll?: {
-    id: string;
-    title: string;
-    description?: string | null;
-    isMultiple: boolean;
-    isActive: boolean;
-    options: {
-      id: string;
-      optionText: string;
-      votesCount: number;
-    }[];
-    votes?: { optionId: string }[];
-  } | null;
-  isFollowing?: boolean;
-  isSaved?: boolean;
-  isReposted?: boolean;
-  isLiked?: boolean;
-  isOwner?: boolean;
-  isPinned?: boolean;
-  pinnedAt?: Date | null;
-  editedAt?: Date | string | null;
-  _count?: {
-    likes?: number;
-    reposts?: number;
-    comments?: number;
-  };
+  media?: PostMedia[] | undefined;
+  poll?:
+    | {
+        id: string;
+        title: string;
+        description?: string | null | undefined;
+        isMultiple: boolean;
+        isActive: boolean;
+        options: {
+          id: string;
+          optionText: string;
+          votesCount: number;
+        }[];
+        votes?: { optionId: string }[] | undefined;
+      }
+    | null
+    | undefined;
+  isFollowing?: boolean | undefined;
+  isSaved?: boolean | undefined;
+  isReposted?: boolean | undefined;
+  isLiked?: boolean | undefined;
+  isOwner?: boolean | undefined;
+  isPinned?: boolean | undefined;
+  pinnedAt?: Date | null | undefined;
+  editedAt?: Date | string | null | undefined;
+  _count?:
+    | {
+        likes?: number | undefined;
+        reposts?: number | undefined;
+        comments?: number | undefined;
+      }
+    | undefined;
 };
 
 function toSafeIsoString(val: unknown): string {
