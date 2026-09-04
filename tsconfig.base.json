@@ -6,6 +6,8 @@
     "moduleResolution": "NodeNext",
     "strict": true,
     "noImplicitAny": true,
+    "strictNullChecks": true,
+    "exactOptionalPropertyTypes": true,
     "strictBindCallApply": true,
     "noFallthroughCasesInSwitch": true,
     "forceConsistentCasingInFileNames": true,

@@ -33,12 +33,22 @@ function main() {
     process.exit(1);
   }
 
-  // Ensure tokens.json exists
+  // Ensure tokens.json exists without TOCTOU race conditions
   const tokensPath = path.resolve(__dirname, '../benchmarks/k6/tokens.json');
-  if (!fs.existsSync(tokensPath)) {
-    console.log('🔑 Generating tokens.json for 10,000 VUs...');
-    const users = generateUserTokens(10000);
-    fs.writeFileSync(tokensPath, JSON.stringify(users, null, 2), 'utf-8');
+  try {
+    const fd = fs.openSync(tokensPath, 'wx');
+    try {
+      console.log('🔑 Generating tokens.json for 10,000 VUs...');
+      const users = generateUserTokens(10000);
+      fs.writeFileSync(fd, JSON.stringify(users, null, 2), 'utf-8');
+    } finally {
+      fs.closeSync(fd);
+    }
+  } catch (err) {
+    if (err.code !== 'EEXIST') {
+      throw err;
+    }
+    // File already exists - no generation needed
   }
 
   if (!checkK6Installed()) {
