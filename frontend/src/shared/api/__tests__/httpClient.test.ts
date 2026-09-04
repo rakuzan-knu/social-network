@@ -195,6 +195,9 @@ describe('httpClient and session management', () => {
   });
 
   it('handles 429 status by honoring Retry-After and retrying request', async () => {
+    const originalAdapter = apiClient.defaults.adapter;
+    apiClient.defaults.adapter = vi.fn().mockResolvedValue({ status: 200, data: 'ok' });
+
     const mockRequest = {
       headers: {},
       _rateLimitRetryCount: 0,
@@ -204,7 +207,7 @@ describe('httpClient and session management', () => {
       config: mockRequest,
       response: {
         status: 429,
-        headers: { 'retry-after': '0.01' },
+        headers: { 'retry-after': '0.001' },
       },
     };
 
@@ -215,8 +218,11 @@ describe('httpClient and session management', () => {
     ).handlers[0]?.rejected;
     expect(responseInterceptor).toBeDefined();
 
-    responseInterceptor(mock429Error);
+    const promise = responseInterceptor(mock429Error);
     expect(mockRequest._rateLimitRetryCount).toBe(1);
+    await promise;
+
+    apiClient.defaults.adapter = originalAdapter;
   });
 
   it('preserves other saved accounts when refreshing token for active account', async () => {

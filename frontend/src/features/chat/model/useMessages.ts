@@ -20,13 +20,15 @@ export function useMessages(conversationId: string | null) {
     if (!query.data) return [];
     const raw = [...query.data.pages].reverse().flatMap((page) => [...page.data].reverse());
     const seen = new Set<string>();
-    const result: MessageView[] = [];
+    const result: MessageView[] = new Array<MessageView>(raw.length);
+    let count = 0;
     for (const m of raw) {
       const key = m.id || m.tempId || m.clientMessageId;
       if (key && seen.has(key)) continue;
       if (key) seen.add(key);
-      result.push(m);
+      result[count++] = m;
     }
+    result.length = count;
 
     result.sort((a, b) => {
       const timeA = new Date(a.createdAt).getTime();

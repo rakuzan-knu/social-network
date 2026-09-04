@@ -193,17 +193,22 @@ export const chatApi = {
   updateAdminPermissions: (
     conversationId: string,
     userId: string,
-    permissions: {
-      canEditGroup?: boolean;
-      canDeleteMessages?: boolean;
-      canManageMembers?: boolean;
-      canPinMessages?: boolean;
-      canInviteUsers?: boolean;
-    },
-  ) =>
-    api
-      .patch(`/conversations/${conversationId}/members/${userId}/permissions`, permissions)
-      .then((r) => r.data),
+    permissions:
+      | number
+      | {
+          permissions?: number;
+          canEditGroup?: boolean;
+          canDeleteMessages?: boolean;
+          canManageMembers?: boolean;
+          canPinMessages?: boolean;
+          canInviteUsers?: boolean;
+        },
+  ) => {
+    const payload = typeof permissions === 'number' ? { permissions } : permissions;
+    return api
+      .patch(`/conversations/${conversationId}/members/${userId}/permissions`, payload)
+      .then((r) => r.data);
+  },
 
   setTheme: (conversationId: string, theme: string | null, applyToAll?: boolean) =>
     api.patch(`/conversations/${conversationId}/theme`, { theme, applyToAll }).then((r) => r.data),

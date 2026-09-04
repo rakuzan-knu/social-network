@@ -19,6 +19,7 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
+    "exactOptionalPropertyTypes": false,
     "types": ["node", "vite/client"]
   },
   "include": ["src/**/*", ".storybook/**/*", "vite.config.ts", "playwright.config.ts", "e2e/**/*"]

@@ -29,8 +29,15 @@ export const useNotificationStore = create<NotificationState>((set) => ({
   setUnreadCounts: (counts) =>
     set((state) => ({
       unreadCounts: {
-        ...state.unreadCounts,
-        ...counts,
+        total: (counts.total !== undefined ? counts.total : state.unreadCounts.total) | 0,
+        likes: (counts.likes !== undefined ? counts.likes : state.unreadCounts.likes) | 0,
+        comments:
+          (counts.comments !== undefined ? counts.comments : state.unreadCounts.comments) | 0,
+        follows: (counts.follows !== undefined ? counts.follows : state.unreadCounts.follows) | 0,
+        mentions:
+          (counts.mentions !== undefined ? counts.mentions : state.unreadCounts.mentions) | 0,
+        reposts: (counts.reposts !== undefined ? counts.reposts : state.unreadCounts.reposts) | 0,
+        system: (counts.system !== undefined ? counts.system : state.unreadCounts.system) | 0,
       },
     })),
 
@@ -49,13 +56,17 @@ export const useNotificationStore = create<NotificationState>((set) => ({
       if (filter === 'all') {
         return { unreadCounts: { ...initialCounts } };
       }
-      const currentCategoryCount = state.unreadCounts[filter] || 0;
-      const newTotal = Math.max(0, state.unreadCounts.total - currentCategoryCount);
+      const currentCategoryCount = (state.unreadCounts[filter] || 0) | 0;
+      const newTotal = Math.max(0, state.unreadCounts.total - currentCategoryCount) | 0;
       return {
         unreadCounts: {
-          ...state.unreadCounts,
           total: newTotal,
-          [filter]: 0,
+          likes: filter === 'likes' ? 0 : state.unreadCounts.likes | 0,
+          comments: filter === 'comments' ? 0 : state.unreadCounts.comments | 0,
+          follows: filter === 'follows' ? 0 : state.unreadCounts.follows | 0,
+          mentions: filter === 'mentions' ? 0 : state.unreadCounts.mentions | 0,
+          reposts: filter === 'reposts' ? 0 : state.unreadCounts.reposts | 0,
+          system: filter === 'system' ? 0 : state.unreadCounts.system | 0,
         },
       };
     }),

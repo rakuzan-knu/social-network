@@ -17,8 +17,8 @@ import { AckResponse } from './chatSocketTypes';
 const clientSeqMap = new Map<string, number>();
 
 function getNextClientSeq(convId: string): number {
-  const current = clientSeqMap.get(convId) ?? 0;
-  const next = current + 1;
+  const current = (clientSeqMap.get(convId) ?? 0) | 0;
+  const next = (current + 1) | 0;
   clientSeqMap.set(convId, next);
   return next;
 }
@@ -104,7 +104,7 @@ export function useMessageActions(conversationId: string | null) {
         id: optimisticId,
         tempId: optimisticId,
         clientMessageId: optimisticId,
-        clientSeq,
+        clientSeq: clientSeq | 0,
         status: 'SENDING',
         conversationId,
         sender: { id: userId ?? '', username: '', displayName: null, avatar: null },
@@ -118,12 +118,12 @@ export function useMessageActions(conversationId: string | null) {
           url: a.url,
           fileName: a.fileName ?? null,
           mimeType: a.mimeType ?? null,
-          size: a.size != null ? Math.round(a.size) : null,
-          width: a.width != null ? Math.round(a.width) : null,
-          height: a.height != null ? Math.round(a.height) : null,
-          duration: a.duration != null ? Math.round(a.duration) : null,
+          size: a.size != null ? a.size | 0 : null,
+          width: a.width != null ? a.width | 0 : null,
+          height: a.height != null ? a.height | 0 : null,
+          duration: a.duration != null ? a.duration | 0 : null,
           waveform: a.waveform,
-          isSpoiler: a.isSpoiler,
+          isSpoiler: Boolean(a.isSpoiler),
           thumbnailUrl: a.thumbnailUrl ?? null,
         })) as AttachmentView[],
         reactions: [],

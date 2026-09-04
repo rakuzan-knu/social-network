@@ -58,11 +58,12 @@ export interface MessageView extends Omit<
 
 export interface ParticipantView extends Omit<
   BackendParticipantView,
-  'joinedAt' | 'mutedUntil' | 'role'
+  'joinedAt' | 'mutedUntil' | 'role' | 'permissions'
 > {
   userId: string;
   user: UserSnapshot;
   role: ParticipantRole;
+  permissions?: number;
   mutedUntil: string | null;
   joinedAt: string;
 }

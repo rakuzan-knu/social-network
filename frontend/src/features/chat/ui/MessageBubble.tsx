@@ -8,8 +8,10 @@ import {
   Clock,
   Pencil,
   AlertCircle,
+  Lock,
 } from 'lucide-react';
 import Avatar from '../../../shared/ui/Avatar';
+import { e2eeManager } from '../../../shared/lib/crypto/e2ee';
 import { MessageView } from '../../../entities/chat/model/types';
 import { formatMessageTime } from '../lib/groupMessagesByDate';
 import MessageReactionPicker from './MessageReactionPicker';
@@ -125,7 +127,19 @@ export default function MessageBubble({
   const bubbleContainerRef = useRef<HTMLDivElement | null>(null);
 
   const { displayText, postId: embeddedPostId } = extractPostInfo(message.body || '');
-  const firstExternalUrl = !embeddedPostId ? extractFirstUrl(message.body) : null;
+  const isE2ee = Boolean(message.body && e2eeManager.isEncrypted(message.body));
+  let resolvedDisplayText = displayText;
+  if (isE2ee && message.body) {
+    try {
+      const parsed = JSON.parse(message.body);
+      if (parsed.e2ee) {
+        resolvedDisplayText = parsed.text || 'End-to-End Encrypted message';
+      }
+    } catch {
+      resolvedDisplayText = 'End-to-End Encrypted message';
+    }
+  }
+  const firstExternalUrl = !embeddedPostId && !isE2ee ? extractFirstUrl(message.body) : null;
 
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [isSwiping, setIsSwiping] = useState(false);
@@ -701,12 +715,12 @@ export default function MessageBubble({
 
               {message.body && (
                 <div className="relative text-[14.5px] leading-[1.38] wrap-break-word">
-                  {displayText && (
+                  {resolvedDisplayText && (
                     <div
                       className="font-normal"
                       style={{ color: contrast ? contrast.textColor : undefined }}
                     >
-                      <MarkdownContent content={displayText} />
+                      <MarkdownContent content={resolvedDisplayText} />
                     </div>
                   )}
 
@@ -720,6 +734,14 @@ export default function MessageBubble({
                     className="float-right inline-flex items-center gap-1 ml-2.5 mt-0.5 select-none whitespace-nowrap text-[11px] leading-none"
                     style={{ color: contrast ? contrast.timeColor : undefined }}
                   >
+                    {isE2ee && (
+                      <span
+                        className="inline-flex items-center text-emerald-400 opacity-90 mr-0.5"
+                        title="End-to-End Encrypted (AES-GCM-256)"
+                      >
+                        <Lock size={10} className="stroke-[2.5]" />
+                      </span>
+                    )}
                     {message.isEdited && (
                       <span className="text-[10px] opacity-75 font-normal">edited</span>
                     )}

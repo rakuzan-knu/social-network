@@ -51,6 +51,7 @@ describe('AdminPermissionsModal', () => {
           canEditGroup: true,
           canDeleteMessages: true,
           canManageMembers: true,
+          permissions: expect.any(Number),
         }),
       );
     });

@@ -1,11 +1,11 @@
 import React from 'react';
 
 interface AvatarProps {
-  src?: string | null;
-  size?: '2xs' | 'xs' | 'sm' | 'md' | 'lg' | 'xl';
-  alt?: string;
-  className?: string;
-  name?: string;
+  src?: string | null | undefined;
+  size?: ('2xs' | 'xs' | 'sm' | 'md' | 'lg' | 'xl') | undefined;
+  alt?: string | undefined;
+  className?: string | undefined;
+  name?: string | undefined;
 }
 
 export default function Avatar({

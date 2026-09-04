@@ -6,19 +6,19 @@ import { STORIES_FEED_KEY } from '@/shared/api/queryKeys';
 import type { UserStoriesGroup } from '@/features/stories/model/types';
 
 export interface StoryAvatarProps {
-  src?: string | null;
-  size?: '2xs' | 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl';
-  alt?: string;
-  className?: string;
-  name?: string;
-  userId?: string;
-  username?: string;
-  hasStory?: boolean;
-  hasUnviewed?: boolean;
-  hasCloseFriendsStory?: boolean;
-  interactive?: boolean;
-  onClick?: (e: React.MouseEvent) => void;
-  showBadge?: boolean;
+  src?: string | null | undefined;
+  size?: ('2xs' | 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl') | undefined;
+  alt?: string | undefined;
+  className?: string | undefined;
+  name?: string | undefined;
+  userId?: string | undefined;
+  username?: string | undefined;
+  hasStory?: boolean | undefined;
+  hasUnviewed?: boolean | undefined;
+  hasCloseFriendsStory?: boolean | undefined;
+  interactive?: boolean | undefined;
+  onClick?: ((e: React.MouseEvent) => void) | undefined;
+  showBadge?: boolean | undefined;
 }
 
 export default function StoryAvatar({

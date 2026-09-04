@@ -15,6 +15,34 @@ interface ExtendedRequestConfig extends InternalAxiosRequestConfig {
 const MAX_429_RETRIES = 3;
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const getStoredItem = (key: string): string | null => {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      return window.localStorage.getItem(key);
+    }
+    if (typeof localStorage !== 'undefined') {
+      return localStorage.getItem(key);
+    }
+  } catch {
+    return null;
+  }
+  return null;
+};
+
+const setStoredItem = (key: string, value: string): void => {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem(key, value);
+      return;
+    }
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(key, value);
+    }
+  } catch {
+    // ignore
+  }
+};
+
 export const apiClient = axios.create({
   baseURL: (import.meta.env.VITE_API_URL || 'http://localhost:3000')
     .replace(/\/api\/?$/, '')
@@ -24,7 +52,7 @@ export const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('accessToken');
+  const token = getStoredItem('accessToken');
   if (token && config.headers) config.headers.Authorization = `Bearer ${token}`;
 
   const method = (config.method || '').toUpperCase();
@@ -44,7 +72,7 @@ apiClient.interceptors.request.use((config) => {
 let refreshPromise: Promise<string> | null = null;
 
 async function requestTokenRefresh(): Promise<string> {
-  const refreshToken = localStorage.getItem('refreshToken');
+  const refreshToken = getStoredItem('refreshToken');
   if (!refreshToken) throw new Error('No refresh token available');
 
   const base = (apiClient.defaults.baseURL || '').replace(/\/+$/, '');
@@ -52,8 +80,8 @@ async function requestTokenRefresh(): Promise<string> {
     refreshToken,
   });
   const { accessToken, refreshToken: newRefreshToken } = response.data;
-  localStorage.setItem('accessToken', accessToken);
-  if (newRefreshToken) localStorage.setItem('refreshToken', newRefreshToken);
+  setStoredItem('accessToken', accessToken);
+  if (newRefreshToken) setStoredItem('refreshToken', newRefreshToken);
 
   notifyAuthChange('TOKEN_REFRESH', { accessToken, refreshToken: newRefreshToken });
 

@@ -197,7 +197,6 @@ export default function ChatListPanel({
       openEditProfile('privacy');
       return;
     }
-    // TODO: wire the remaining sections to real routes/modals once they exist
   };
 
   const handleCreateFolder = () => {

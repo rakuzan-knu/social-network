@@ -8,7 +8,16 @@ import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import { Link } from 'react-router-dom';
 import CodeBlock from './CodeBlock';
 import { MiniProfileHoverCard } from '@/entities/profile/ui/MiniProfileHoverCard';
+import { CpuCircuitBreaker } from '@/shared/lib/v8/cpuCircuitBreaker';
 import 'katex/dist/katex.min.css';
+
+const markdownCircuitBreaker = new CpuCircuitBreaker('markdown-content', {
+  budgetMs: 5,
+  tripThreshold: 3,
+  cooldownMs: 8_000,
+});
+
+const HAS_SPECIAL_FORMATTING_REGEX = /[*_`#~|>$@[\]]/;
 
 interface MarkdownContentProps {
   content: string;
@@ -252,7 +261,41 @@ export function MarkdownContent({
 }: MarkdownContentProps) {
   if (!content) return null;
 
-  const processedContent = preprocessDiscordMarkdown(content);
+  // Fast-Path: If text does not contain any formatting tokens or links, render directly
+  if (
+    !HAS_SPECIAL_FORMATTING_REGEX.test(content) &&
+    !content.includes('http://') &&
+    !content.includes('https://') &&
+    !content.startsWith('-# ')
+  ) {
+    return (
+      <div
+        className={`markdown-content w-full min-w-0 max-w-full leading-relaxed select-text wrap-anywhere ${className}`}
+      >
+        <p className="my-1 text-white/90">{content}</p>
+      </div>
+    );
+  }
+
+  // CPU Circuit Breaker: Protect main thread against complex string/math execution spikes
+  let isTripped = false;
+  const processedContent = markdownCircuitBreaker.execute(
+    () => preprocessDiscordMarkdown(content),
+    () => {
+      isTripped = true;
+      return content;
+    },
+  );
+
+  if (isTripped) {
+    return (
+      <div
+        className={`markdown-content w-full min-w-0 max-w-full leading-relaxed select-text wrap-anywhere ${className}`}
+      >
+        <p className="my-1 text-white/80 whitespace-pre-wrap">{content}</p>
+      </div>
+    );
+  }
 
   const components: Components = {
     // Custom pre renderer (unwraps to avoid double <pre> nesting)

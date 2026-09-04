@@ -1,5 +1,4 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { toPng, toBlob } from 'html-to-image';
 import { X, Copy, Download, Check, Loader2, Share2, Sparkles, Flame, Star } from 'lucide-react';
 import type { ProfileShowcaseDto } from '@backend/common/contracts';
 import { useMessageToastStore } from '@/shared/model/useMessageToastStore';
@@ -13,10 +12,10 @@ interface ExportShowcaseModalProps {
     id: string;
     username: string;
     displayName: string;
-    avatar?: string | null;
-    banner?: string | null;
-    isVerified?: boolean;
-    primaryBadge?: string | null;
+    avatar?: string | null | undefined;
+    banner?: string | null | undefined;
+    isVerified?: boolean | undefined;
+    primaryBadge?: string | null | undefined;
   };
 }
 
@@ -39,6 +38,7 @@ export const ExportShowcaseModal: React.FC<ExportShowcaseModalProps> = ({
     setIsGenerating(true);
 
     try {
+      const { toPng } = await import('html-to-image');
       // 1. Tainted Canvas Protection options
       const dataUrl = await toPng(cardRef.current, {
         cacheBust: true,
@@ -87,6 +87,7 @@ export const ExportShowcaseModal: React.FC<ExportShowcaseModalProps> = ({
     if (!cardRef.current) return;
 
     try {
+      const { toBlob } = await import('html-to-image');
       const blob = await toBlob(cardRef.current, {
         cacheBust: true,
         pixelRatio: 2,

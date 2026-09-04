@@ -44,6 +44,7 @@ export default function ChatThread({ conversation }: ChatThreadProps) {
     conversation.type === 'GROUP'
       ? undefined
       : conversation.participants.find((p) => p.userId !== userId);
+  const myParticipant = conversation.participants.find((p) => p.userId === userId);
 
   useQueryOnlineStatus(otherParticipant ? [otherParticipant.userId] : []);
 
@@ -538,6 +539,7 @@ export default function ChatThread({ conversation }: ChatThreadProps) {
                   onClearFiles={staged.clear}
                   onDismissFilesError={staged.dismissError}
                   isGroup={conversation.type === 'GROUP'}
+                  permissionsMask={myParticipant?.permissions}
                 />
               </div>
             )}

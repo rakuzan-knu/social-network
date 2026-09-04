@@ -6,6 +6,7 @@ import MessageComposer from '../MessageComposer';
 import type { useMessageActions } from '../../model/useMessageActions';
 import { StagedFile } from '@/shared/model/useStagedAttachments';
 import * as linkPreviewHook from '@/entities/opengraph/model/useLinkPreview';
+import { Permission } from '@/shared/lib/permissions';
 
 function renderWithClient(ui: React.ReactElement) {
   const queryClient = new QueryClient({
@@ -427,5 +428,30 @@ describe('MessageComposer', () => {
 
     expect(onReplaceFile).toHaveBeenCalled();
     window.Image = originalImage;
+  });
+
+  it('respects permissionsMask bitwise flag disabling media', () => {
+    // Permission without CAN_SEND_MEDIA or CAN_SEND_POLLS
+    const mask = Permission.CAN_SEND_TEXT;
+    renderWithClient(
+      <MessageComposer
+        conversationId="conv-1"
+        actions={mockActions}
+        replyingTo={null}
+        onCancelReply={vi.fn()}
+        stagedFiles={[]}
+        stagedFilesError={null}
+        onAddFiles={vi.fn()}
+        onRemoveFile={vi.fn()}
+        onReplaceFile={vi.fn()}
+        onClearFiles={vi.fn()}
+        onDismissFilesError={vi.fn()}
+        isGroup={true}
+        permissionsMask={mask}
+      />,
+    );
+
+    const attachButton = screen.queryByTitle('Add attachments, photos, videos or files');
+    expect(attachButton).not.toBeInTheDocument();
   });
 });
