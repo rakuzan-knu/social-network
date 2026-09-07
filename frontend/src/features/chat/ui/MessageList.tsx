@@ -11,6 +11,7 @@ import { ChatThemeConfig } from '../model/chatTheme';
 
 import SystemMessageCluster from './SystemMessageCluster';
 import { ThemeProposalMessage } from './ThemeProposalMessage';
+import { CallHistoryItem } from './Call/CallHistoryItem';
 
 export type ClusterPosition = 'single' | 'first' | 'middle' | 'last';
 
@@ -445,6 +446,14 @@ export default function MessageList({
                   conversationId={conversationId || message.conversationId}
                   onThemeAccepted={onThemeAccepted}
                 />
+              </div>
+            );
+          }
+
+          if (message.messageType === 'CALL_LOG') {
+            return (
+              <div className="w-full max-w-240 mx-auto px-2 sm:px-4">
+                <CallHistoryItem key={message.id} message={message} currentUserId={currentUserId} />
               </div>
             );
           }

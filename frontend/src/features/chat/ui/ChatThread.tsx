@@ -11,6 +11,7 @@ import { useQueryOnlineStatus } from '../model/usePresence';
 import { useStagedAttachments } from '@/shared/model/useStagedAttachments';
 import { chatApi } from '../api/chatApi';
 import ChatThreadHeader from './ChatThreadHeader';
+import { CallHandoffBanner } from './Call/CallHandoffBanner';
 import GlobalMediaPlaybackBar from './GlobalMediaPlaybackBar';
 import { useActiveMediaPlaybackStore } from '@/shared/model/useActiveMediaPlaybackStore';
 import PinnedMessagesBar from './PinnedMessagesBar';
@@ -23,6 +24,7 @@ import BatchDeleteModal from './BatchDeleteModal';
 import AttachmentDropZone from '@/shared/ui/AttachmentDropZone';
 import ConversationDetailsPanel from './ConversationDetailsPanel';
 import MessageSearchPanel from './MessageSearchPanel';
+import { useCallManager } from '../model/useCallManager';
 import ChatDatePicker from './ChatDatePicker';
 import { formatMessageTime } from '../lib/groupMessagesByDate';
 import { useChatTheme } from '../model/useChatTheme';
@@ -69,6 +71,7 @@ export default function ChatThread({ conversation }: ChatThreadProps) {
   } = useMessages(conversation.id);
   const { typingUserIds } = useConversationRealtime(conversation.id);
   const actions = useMessageActions(conversation.id);
+  const { initiateCall } = useCallManager();
 
   const [replyingTo, setReplyingTo] = useState<MessageView | null>(null);
   const [forwardingMessage, setForwardingMessage] = useState<MessageView | null>(null);
@@ -349,6 +352,7 @@ export default function ChatThread({ conversation }: ChatThreadProps) {
     <div className="flex-1 flex h-full min-w-0">
       <div className="flex-1 flex flex-col h-full min-w-0">
         <ChatThreadHeader
+          conversationId={conversation.id}
           display={display}
           otherUserId={otherParticipant?.userId ?? null}
           isOtherTyping={isOtherTyping}
@@ -357,7 +361,18 @@ export default function ChatThread({ conversation }: ChatThreadProps) {
           isGroup={conversation.type === 'GROUP'}
           memberAvatars={conversation.participants.map((p) => p.user.avatar)}
           memberCount={conversation.participants.length}
+          onStartCall={(type) => {
+            if (otherParticipant?.user) {
+              void initiateCall({
+                conversationId: conversation.id,
+                callType: type,
+                remoteUser: otherParticipant.user,
+              });
+            }
+          }}
         />
+
+        <CallHandoffBanner />
 
         <GlobalMediaPlaybackBar
           onNearQueueEnd={hasNextPage && !isFetchingNextPage ? fetchNextPage : undefined}

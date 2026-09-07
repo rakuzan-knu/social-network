@@ -31,6 +31,24 @@ const UndoClearHistorySnackbar = lazy(() =>
 );
 const FloatingVideoNotePiP = lazy(() => import('../features/chat/ui/FloatingVideoNotePiP'));
 const ReactionBurstCanvas = lazy(() => import('../features/chat/ui/ReactionBurstCanvas'));
+const CallModal = lazy(() =>
+  import('../features/chat/ui/Call/CallModal').then((m) => ({ default: m.CallModal })),
+);
+const IncomingCallToast = lazy(() =>
+  import('../features/chat/ui/Call/IncomingCallToast').then((m) => ({
+    default: m.IncomingCallToast,
+  })),
+);
+const PictureInPicture = lazy(() =>
+  import('../features/chat/ui/Call/PictureInPicture').then((m) => ({
+    default: m.PictureInPicture,
+  })),
+);
+const VoiceChannelDock = lazy(() =>
+  import('../features/chat/ui/Call/VoiceChannelDock').then((m) => ({
+    default: m.VoiceChannelDock,
+  })),
+);
 
 const FeedPage = lazy(() => import('../pages/Feed/Feed'));
 const ProfilePage = lazy(() => import('../pages/Profile/Profile'));
@@ -131,6 +149,10 @@ export default function App() {
           <UndoClearHistorySnackbar />
           <FloatingVideoNotePiP />
           <ReactionBurstCanvas />
+          <CallModal />
+          <IncomingCallToast />
+          <PictureInPicture />
+          <VoiceChannelDock />
         </Suspense>
         {!isMessengerRoute && <MessageToastViewport />}
 

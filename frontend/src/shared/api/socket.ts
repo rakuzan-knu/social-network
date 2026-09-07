@@ -7,7 +7,10 @@ let isManagerSubscribed = false;
 
 function getSocketBaseUrl() {
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-  return apiUrl.replace(/\/api\/?$/, '').replace(/\/+$/, '');
+  return apiUrl
+    .replace(/\/v1\/?$/, '')
+    .replace(/\/api\/?$/, '')
+    .replace(/\/+$/, '');
 }
 
 export function getSocket(): Socket {
