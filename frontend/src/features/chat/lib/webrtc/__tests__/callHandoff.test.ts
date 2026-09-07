@@ -9,8 +9,14 @@ vi.mock('@/shared/api/socket', () => ({
   getSocket: vi.fn(),
 }));
 
+interface MockSocket {
+  on: ReturnType<typeof vi.fn>;
+  off: ReturnType<typeof vi.fn>;
+  emit: ReturnType<typeof vi.fn>;
+}
+
 describe('useCallHandoff', () => {
-  let mockSocket: Record<string, unknown>;
+  let mockSocket: MockSocket;
   let eventHandlers: Record<string, (...args: unknown[]) => void>;
 
   beforeEach(() => {
@@ -27,7 +33,7 @@ describe('useCallHandoff', () => {
       emit: vi.fn(),
     };
 
-    vi.mocked(getSocket).mockReturnValue(mockSocket);
+    vi.mocked(getSocket).mockReturnValue(mockSocket as unknown as ReturnType<typeof getSocket>);
   });
 
   it('receives handoff announcement when another device is in call', () => {
@@ -61,7 +67,7 @@ describe('useCallHandoff', () => {
     });
 
     mockSocket.emit.mockImplementation(
-      (event: string, payload: any, callback: (res: any) => void) => {
+      (event: string, _payload: unknown, callback: (res: unknown) => void) => {
         if (event === WS_EVENTS.CALL_HANDOFF_REQUEST) {
           callback({
             status: 'ok',

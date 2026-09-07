@@ -9,7 +9,7 @@
  * active speech, achieving 60 FPS performance without V8 GC churn.
  */
 
-import { useEffect, type RefObject } from 'react';
+import { useEffect, useRef, type RefObject } from 'react';
 
 export interface DirectAudioVisualizerOptions {
   fftSize?: number;
