@@ -67,6 +67,9 @@ model User {
   storyPollVotes           StoryPollVote[]
   closeFriends             CloseFriend[]             @relation("CloseFriendsOwner")
   closeFriendOf            CloseFriend[]             @relation("CloseFriendsTarget")
+  callsInitiated           Call[]                    @relation("CallInitiator")
+  callParticipations       CallParticipant[]
+  callTelemetries          CallTelemetry[]
 }
 
 model UserBadge {
@@ -246,6 +249,7 @@ model Conversation {
   participants   ConversationParticipant[]
   messages       Message[]
   pinnedMessages PinnedMessage[]
+  calls          Call[]
 
   @@index([createdAt])
   @@index([updatedAt, id])
@@ -874,4 +878,97 @@ model OutboxEvent {
   @@index([status, createdAt])
   @@index([aggregateType, aggregateId])
   @@map("outbox_events")
+}
+
+model Call {
+  id             String         @id @default(uuid())
+  conversationId String
+  type           CallType       @default(AUDIO)
+  status         CallStatus     @default(INITIATED)
+  initiatorId    String
+  startedAt      DateTime       @default(now())
+  endedAt        DateTime?
+  endedReason    CallEndReason?
+  durationMs     Int?
+  recordingUrl   String?
+  e2eeEnabled    Boolean        @default(true)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  conversation Conversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  initiator    User              @relation("CallInitiator", fields: [initiatorId], references: [id], onDelete: Cascade)
+  participants CallParticipant[]
+  telemetries  CallTelemetry[]
+
+  @@index([conversationId, startedAt])
+  @@index([initiatorId, startedAt])
+  @@map("calls")
+}
+
+model CallParticipant {
+  id          String          @id @default(uuid())
+  callId      String
+  userId      String
+  joinedAt    DateTime?
+  leftAt      DateTime?
+  muteState   Boolean         @default(false)
+  videoState  Boolean         @default(true)
+  screenShare Boolean         @default(false)
+  role        ParticipantRole @default(MEMBER)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  call Call @relation(fields: [callId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([callId, userId])
+  @@index([userId])
+  @@map("call_participants")
+}
+
+model CallTelemetry {
+  id              String   @id @default(uuid())
+  callId          String   @map("call_id")
+  userId          String   @map("user_id")
+  avgRttMs        Float    @map("avg_rtt_ms")
+  maxRttMs        Float?   @map("max_rtt_ms")
+  packetLossRatio Float    @map("packet_loss_ratio")
+  jitterMs        Float?   @map("jitter_ms")
+  audioCodec      String?  @map("audio_codec")
+  videoCodec      String?  @map("video_codec")
+  durationMs      Int      @map("duration_ms")
+  endReason       String?  @map("end_reason")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  call Call @relation(fields: [callId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([callId])
+  @@map("call_telemetries")
+}
+
+enum CallType {
+  AUDIO
+  VIDEO
+  SCREEN_SHARE
+}
+
+enum CallStatus {
+  INITIATED
+  RINGING
+  CONNECTED
+  ENDED
+  MISSED
+  DECLINED
+  FAILED
+}
+
+enum CallEndReason {
+  ENDED_BY_USER
+  MISSED
+  DECLINED
+  NETWORK_ERROR
+  PARTICIPANT_LEFT
+  SYSTEM
 }

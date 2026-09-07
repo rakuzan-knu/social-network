@@ -7,14 +7,30 @@ import {
   UseInterceptors,
   applyDecorators,
 } from '@nestjs/common';
-import type { Request, Response } from 'express';
-import { Observable, of } from 'rxjs';
+import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { createHash } from 'node:crypto';
 
 export interface ETagOptions {
   weak?: boolean;
   cacheControl?: string;
+}
+
+interface HttpRequestAdapter {
+  method?: string;
+  headers?: Record<string, unknown>;
+}
+
+interface HttpResponseAdapter {
+  headersSent?: boolean;
+  status?: (code: number) => unknown;
+  header?: (key: string, value: string) => unknown;
+  setHeader?: (key: string, value: string) => void;
+  getHeader?: (key: string) => unknown;
+  raw?: {
+    setHeader?: (key: string, value: string) => void;
+    getHeader?: (key: string) => unknown;
+  };
 }
 
 function toPrimitiveString(val: unknown): string {
@@ -78,10 +94,10 @@ export class ETagInterceptor implements NestInterceptor {
     },
   ) {}
 
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const http = context.switchToHttp();
-    const req = http.getRequest<Request>();
-    const res = http.getResponse<Response>();
+    const req = http.getRequest<HttpRequestAdapter>();
+    const res = http.getResponse<HttpResponseAdapter>();
 
     // ETags apply strictly to safe idempotent GET / HEAD requests
     if (req.method !== 'GET' && req.method !== 'HEAD') {
@@ -89,7 +105,7 @@ export class ETagInterceptor implements NestInterceptor {
     }
 
     return next.handle().pipe(
-      map((data) => {
+      map((data: unknown): unknown => {
         // If handler already handled or responded, pass through
         if (res.headersSent || data === undefined) {
           return data;
@@ -98,14 +114,38 @@ export class ETagInterceptor implements NestInterceptor {
         const etag = generateETag(data, this.options.weak ?? true);
         const cacheControl = this.options.cacheControl ?? 'private, no-cache';
 
-        res.setHeader('ETag', etag);
-        if (!res.getHeader('Cache-Control')) {
-          res.setHeader('Cache-Control', cacheControl);
+        const setHeader = (k: string, v: string): void => {
+          if (typeof res.setHeader === 'function') {
+            res.setHeader(k, v);
+          } else if (typeof res.header === 'function') {
+            res.header(k, v);
+          } else if (typeof res.raw?.setHeader === 'function') {
+            res.raw.setHeader(k, v);
+          }
+        };
+
+        const getHeader = (k: string): unknown => {
+          if (typeof res.getHeader === 'function') return res.getHeader(k);
+          if (typeof res.raw?.getHeader === 'function') return res.raw.getHeader(k);
+          return undefined;
+        };
+
+        setHeader('ETag', etag);
+        if (!getHeader('Cache-Control')) {
+          setHeader('Cache-Control', cacheControl);
         }
 
-        const ifNoneMatch = req.headers['if-none-match'];
+        const rawHeader: unknown = req.headers?.['if-none-match'];
+        const ifNoneMatch: string | undefined =
+          typeof rawHeader === 'string'
+            ? rawHeader
+            : Array.isArray(rawHeader) && typeof rawHeader[0] === 'string'
+              ? rawHeader[0]
+              : undefined;
         if (ifNoneMatch && isETagMatch(ifNoneMatch, etag)) {
-          res.status(HttpStatus.NOT_MODIFIED);
+          if (typeof res.status === 'function') {
+            res.status(HttpStatus.NOT_MODIFIED);
+          }
           // Return null / empty for 304 to avoid serialization & transfer overhead
           return null;
         }

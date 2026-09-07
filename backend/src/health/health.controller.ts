@@ -81,7 +81,7 @@ export class HealthController {
   }
 
   @SkipThrottle()
-  @Get(['ping', 'api/ping', 'health/ping'])
+  @Get(['/', 'ping', 'api/ping', 'health/ping'])
   @ApiOperation({ summary: 'Lightweight keep-alive ping for monitoring' })
   @ApiResponse({ status: 200, description: 'Ping successful', type: PingResponseDto })
   ping(): PingResponseDto {

@@ -151,7 +151,8 @@ function setupApiVersioning(app: NestFastifyApplication): void {
         !pathOnly.startsWith('/socket.io') &&
         !pathOnly.startsWith('/favicon.ico')
       ) {
-        req.raw.url = `/v1${pathOnly.startsWith('/') ? pathOnly : `/${pathOnly}`}${query ? `?${query}` : ''}`;
+        const newUrl = `/v1${pathOnly.startsWith('/') ? pathOnly : `/${pathOnly}`}${query ? `?${query}` : ''}`;
+        req.raw.url = newUrl;
         req.headers['x-legacy-unversioned'] = 'true';
       }
       return Promise.resolve();

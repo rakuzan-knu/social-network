@@ -50,6 +50,8 @@
     "benchmark:flame": "node scripts/bench/run-clinic-profile.cjs --flame",
     "benchmark:doctor": "node scripts/bench/run-clinic-profile.cjs --doctor",
     "benchmark:pre-release": "node scripts/bench/run-stress-tests.cjs --strict",
+    "benchmark:socket-storm": "k6 run benchmarks/k6/socket-reconnect-storm.js",
+    "benchmark:socket-signaling": "node benchmarks/socketio-signaling-bench.cjs",
     "perf:verify": "node scripts/ci/verify-performance-benchmarks.cjs",
     "validate": "pnpm validate:eol && pnpm validate:env && pnpm validate:actions && pnpm typecheck && pnpm lint && pnpm knip"
   },

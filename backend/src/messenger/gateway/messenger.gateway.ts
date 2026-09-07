@@ -23,9 +23,12 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { Subject, Subscription } from 'rxjs';
+import { bufferTime, filter, groupBy, mergeMap } from 'rxjs/operators';
 import { WS_EVENTS } from '../events/ws-events';
 import { MessagesService } from '../messages/messages.service';
 import { ConversationsService } from '../conversations/conversations.service';
+import { K8sPodMigrationService } from './k8s-pod-migration.service';
 import { RedisService } from '../../redis/redis.service';
 import { UsersService } from '../../users/users.service';
 import { VisibilityResolver } from '../../users/privacy/visibility.resolver';
@@ -59,7 +62,36 @@ import {
   reactToMessageSchema,
   sendMessageSchema,
   togglePinMessageSchema,
+  type InitiateCallDto,
+  type AcceptCallDto,
+  type RejectCallDto,
+  type EndCallDto,
+  type IceCandidateDto,
+  type MuteToggleDto,
+  type VideoToggleDto,
+  type ScreenShareDto,
+  type CallReconnectDto,
+  type IceRestartDto,
+  type IceRestartAnswerDto,
+  initiateCallSchema,
+  acceptCallSchema,
+  rejectCallSchema,
+  endCallSchema,
+  iceCandidateSchema,
+  muteToggleSchema,
+  videoToggleSchema,
+  screenShareSchema,
+  callReconnectSchema,
+  iceRestartSchema,
+  iceRestartAnswerSchema,
+  relayAnnounceSchema,
+  relayRequestSchema,
+  type RelayAnnounceDto,
+  type RelayRequestDto,
+  callHandoffRequestSchema,
+  type CallHandoffRequestDto,
 } from '@common/contracts';
+import { CallsService } from '../calls/calls.service';
 
 import { QueueService } from '../../queue/queue.service';
 import { MessageJobType, SearchJobType } from '../../queue/queue.constants';
@@ -123,8 +155,17 @@ export class MessengerGateway
   private readonly RATE_LIMIT = 20;
   private readonly RATE_WINDOW_MS = 10_000;
 
+  private readonly candidateSubject$ = new Subject<{
+    callId: string;
+    candidate: unknown;
+    senderUserId: string;
+    targetUserId?: string | undefined;
+  }>();
+  private candidateSub?: Subscription;
+
   onModuleInit(): void {
     this.logger.log('MessengerGateway initialized');
+    this.initRxCandidateBackpressure();
   }
 
   constructor(
@@ -147,6 +188,11 @@ export class MessengerGateway
     private readonly drainingService?: WsDrainingService,
     @Optional()
     private readonly backpressureService?: WsBackpressureService,
+    @Optional()
+    @Inject(forwardRef(() => CallsService))
+    private readonly callsService?: CallsService,
+    @Optional()
+    private readonly podMigrationService?: K8sPodMigrationService,
   ) {}
 
   afterInit() {
@@ -180,6 +226,7 @@ export class MessengerGateway
     }
     this.socketTimers.clear();
     this.onlineUsers.clear();
+    this.candidateSub?.unsubscribe();
     try {
       this.server?.disconnectSockets?.(true);
     } catch {
@@ -188,6 +235,9 @@ export class MessengerGateway
   }
 
   async drainSockets(options?: DrainOptions): Promise<void> {
+    if (this.podMigrationService) {
+      await this.podMigrationService.migrateRoomsOnShutdown(this.server);
+    }
     if (this.drainingService) {
       await this.drainingService.drainSockets(this.server, options);
     } else {
@@ -1161,6 +1211,550 @@ export class MessengerGateway
     });
 
     callback?.({ status: 'ok' });
+  }
+
+  @SubscribeMessage(WS_EVENTS.CALL_INITIATE)
+  async handleCallInitiate(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody(new ZodValidationPipe(initiateCallSchema)) payload: InitiateCallDto,
+    callback?: (res: { status: string; callId?: string; call?: unknown; error?: string }) => void,
+  ) {
+    if (!this.callsService) throw new WsException('CallsService not available');
+    try {
+      const result = await this.callsService.initiateCall(
+        client.userId,
+        payload.conversationId,
+        payload.callType,
+        payload.sdpOffer,
+        payload.iceCandidates,
+        payload.zkpProof,
+        payload.isGhostMode,
+      );
+
+      const callerInfo = payload.isGhostMode
+        ? {
+            id: client.userId,
+            username: payload.zkpProof?.anonymousAlias || 'Anonymous Caller (ZK-Verified)',
+            displayName: payload.zkpProof?.anonymousAlias || 'Anonymous Caller (ZK-Verified)',
+            avatar: null,
+            isOnline: true,
+          }
+        : result.call.initiator;
+
+      const incomingPayload = {
+        callId: result.call.id,
+        callerId: client.userId,
+        caller: callerInfo,
+        conversationId: payload.conversationId,
+        callType: payload.callType,
+        sdpOffer: payload.sdpOffer,
+        iceCandidates: payload.iceCandidates || [],
+        zkpProof: payload.zkpProof || null,
+        isGhostMode: Boolean(payload.isGhostMode),
+      };
+
+      for (const targetUserId of result.targetUserIds) {
+        this.emitToUser(targetUserId, WS_EVENTS.CALL_INCOMING, incomingPayload);
+      }
+
+      void this.podMigrationService?.registerRoom(result.call.id);
+      void this.podMigrationService?.recordSignal(
+        result.call.id,
+        WS_EVENTS.CALL_INITIATE,
+        incomingPayload,
+      );
+
+      const response = {
+        status: 'ok',
+        callId: result.call.id,
+        call: this.callsService.mapToView(result.call),
+      };
+      callback?.(response);
+      return response;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Call initiation failed';
+      this.logger.error(`Error in call:initiate by ${client.userId}: ${message}`);
+      const errResponse = { status: 'error', error: message };
+      callback?.(errResponse);
+      throw err;
+    }
+  }
+
+  @SubscribeMessage(WS_EVENTS.CALL_ACCEPT)
+  async handleCallAccept(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody(new ZodValidationPipe(acceptCallSchema)) payload: AcceptCallDto,
+    callback?: (res: { status: string; call?: unknown; error?: string }) => void,
+  ) {
+    if (!this.callsService) throw new WsException('CallsService not available');
+    try {
+      const result = await this.callsService.acceptCall(
+        client.userId,
+        payload.callId,
+        payload.sdpAnswer,
+        payload.iceCandidates,
+      );
+
+      const acceptedPayload = {
+        callId: payload.callId,
+        accepterId: client.userId,
+        sdpAnswer: payload.sdpAnswer,
+        iceCandidates: payload.iceCandidates || [],
+      };
+
+      this.emitToUser(result.initiatorId, WS_EVENTS.CALL_ACCEPTED, acceptedPayload);
+
+      for (const p of result.call.participants) {
+        if (p.userId !== client.userId && p.userId !== result.initiatorId) {
+          this.emitToUser(p.userId, WS_EVENTS.CALL_PARTICIPANT_JOINED, {
+            callId: payload.callId,
+            userId: client.userId,
+            joinedAt: new Date().toISOString(),
+          });
+        }
+      }
+
+      const response = {
+        status: 'ok',
+        call: this.callsService.mapToView(result.call),
+      };
+      callback?.(response);
+      return response;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Call accept failed';
+      this.logger.error(`Error in call:accept by ${client.userId}: ${message}`);
+      const errResponse = { status: 'error', error: message };
+      callback?.(errResponse);
+      throw err;
+    }
+  }
+
+  @SubscribeMessage(WS_EVENTS.CALL_REJECT)
+  async handleCallReject(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody(new ZodValidationPipe(rejectCallSchema)) payload: RejectCallDto,
+    callback?: (res: { status: string }) => void,
+  ) {
+    if (!this.callsService) throw new WsException('CallsService not available');
+    try {
+      const result = await this.callsService.rejectCall(
+        client.userId,
+        payload.callId,
+        payload.reason,
+      );
+
+      const endedPayload = {
+        callId: payload.callId,
+        reason: payload.reason || 'DECLINED',
+        declinedBy: client.userId,
+      };
+
+      for (const targetUserId of result.targetUserIds) {
+        this.emitToUser(targetUserId, WS_EVENTS.CALL_ENDED, endedPayload);
+      }
+
+      callback?.({ status: 'ok' });
+      return { status: 'ok' };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Call reject failed';
+      this.logger.error(`Error in call:reject by ${client.userId}: ${message}`);
+      callback?.({ status: 'error' });
+      throw err;
+    }
+  }
+
+  private initRxCandidateBackpressure(): void {
+    this.candidateSub = this.candidateSubject$
+      .pipe(
+        groupBy((item) => `${item.callId}_${item.targetUserId || 'broadcast'}`),
+        mergeMap((group$) =>
+          group$.pipe(
+            bufferTime(100),
+            filter((batch) => batch.length > 0),
+          ),
+        ),
+      )
+      .subscribe((batch) => {
+        void this.flushCandidateBatch(batch);
+      });
+  }
+
+  private async flushCandidateBatch(
+    batch: Array<{
+      callId: string;
+      candidate: unknown;
+      senderUserId: string;
+      targetUserId?: string | undefined;
+    }>,
+  ): Promise<void> {
+    if (batch.length === 0) return;
+
+    const first = batch[0];
+    const callId = first.callId;
+
+    // Cache batch in Redis to avoid losing candidates during bursts
+    try {
+      const redisClient = this.redisService.getClient();
+      if (redisClient && typeof redisClient.rpush === 'function') {
+        const rawItems = batch.map((item) => JSON.stringify(item));
+        await redisClient.rpush(`calls:candidates:${callId}`, ...rawItems);
+        await redisClient.expire(`calls:candidates:${callId}`, 300);
+      }
+    } catch {
+      // Redis optional fallback
+    }
+
+    // Forward batched candidates
+    for (const item of batch) {
+      const candidatePayload = {
+        callId: item.callId,
+        candidate: item.candidate,
+        senderUserId: item.senderUserId,
+      };
+
+      if (item.targetUserId) {
+        this.emitToUser(item.targetUserId, WS_EVENTS.CALL_ICE_CANDIDATE, candidatePayload);
+      } else {
+        const call = await this.callsService
+          ?.getCallById(item.callId, item.senderUserId)
+          .catch(() => null);
+        if (call) {
+          for (const p of call.participants) {
+            if (p.userId !== item.senderUserId) {
+              this.emitToUser(p.userId, WS_EVENTS.CALL_ICE_CANDIDATE, candidatePayload);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  @SubscribeMessage(WS_EVENTS.CALL_ICE_CANDIDATE)
+  handleCallIceCandidate(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody(new ZodValidationPipe(iceCandidateSchema)) payload: IceCandidateDto,
+  ) {
+    this.candidateSubject$.next({
+      callId: payload.callId,
+      candidate: payload.candidate,
+      senderUserId: client.userId,
+      targetUserId: payload.targetUserId,
+    });
+  }
+
+  @SubscribeMessage(WS_EVENTS.CALL_END)
+  async handleCallEnd(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody(new ZodValidationPipe(endCallSchema)) payload: EndCallDto,
+    callback?: (res: { status: string }) => void,
+  ) {
+    if (!this.callsService) throw new WsException('CallsService not available');
+    try {
+      const result = await this.callsService.endCall(
+        client.userId,
+        payload.callId,
+        payload.reason,
+        payload.durationMs,
+      );
+
+      const endedPayload = {
+        callId: payload.callId,
+        reason: payload.reason || 'ENDED_BY_USER',
+        durationMs: result.durationMs,
+        endedBy: client.userId,
+      };
+
+      for (const targetUserId of result.targetUserIds) {
+        this.emitToUser(targetUserId, WS_EVENTS.CALL_ENDED, endedPayload);
+      }
+
+      void this.podMigrationService?.unregisterRoom(payload.callId);
+
+      callback?.({ status: 'ok' });
+      return { status: 'ok' };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Call end failed';
+      this.logger.error(`Error in call:end by ${client.userId}: ${message}`);
+      callback?.({ status: 'error' });
+      throw err;
+    }
+  }
+
+  @SubscribeMessage(WS_EVENTS.CALL_MUTE)
+  async handleCallMute(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody(new ZodValidationPipe(muteToggleSchema)) payload: MuteToggleDto,
+  ) {
+    if (!this.callsService) return;
+    const call = await this.callsService.toggleMedia(
+      client.userId,
+      payload.callId,
+      'mute',
+      payload.isMuted,
+    );
+    for (const p of call.participants) {
+      if (p.userId !== client.userId) {
+        this.emitToUser(p.userId, payload.isMuted ? WS_EVENTS.CALL_MUTE : WS_EVENTS.CALL_UNMUTE, {
+          callId: payload.callId,
+          userId: client.userId,
+          isMuted: payload.isMuted,
+        });
+      }
+    }
+  }
+
+  @SubscribeMessage(WS_EVENTS.CALL_UNMUTE)
+  async handleCallUnmute(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody(new ZodValidationPipe(muteToggleSchema)) payload: MuteToggleDto,
+  ) {
+    return this.handleCallMute(client, { ...payload, isMuted: false });
+  }
+
+  @SubscribeMessage(WS_EVENTS.CALL_VIDEO_TOGGLE)
+  async handleCallVideoToggle(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody(new ZodValidationPipe(videoToggleSchema)) payload: VideoToggleDto,
+  ) {
+    if (!this.callsService) return;
+    const call = await this.callsService.toggleMedia(
+      client.userId,
+      payload.callId,
+      'video',
+      payload.isVideoOff,
+    );
+    for (const p of call.participants) {
+      if (p.userId !== client.userId) {
+        this.emitToUser(p.userId, WS_EVENTS.CALL_VIDEO_TOGGLE, {
+          callId: payload.callId,
+          userId: client.userId,
+          isVideoOff: payload.isVideoOff,
+        });
+      }
+    }
+  }
+
+  @SubscribeMessage(WS_EVENTS.CALL_SCREEN_SHARE_START)
+  async handleCallScreenShareStart(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody(new ZodValidationPipe(screenShareSchema)) payload: ScreenShareDto,
+  ) {
+    if (!this.callsService) return;
+    const call = await this.callsService.toggleMedia(
+      client.userId,
+      payload.callId,
+      'screenShare',
+      true,
+    );
+    for (const p of call.participants) {
+      if (p.userId !== client.userId) {
+        this.emitToUser(p.userId, WS_EVENTS.CALL_SCREEN_SHARE_START, {
+          callId: payload.callId,
+          userId: client.userId,
+        });
+      }
+    }
+  }
+
+  @SubscribeMessage(WS_EVENTS.CALL_SCREEN_SHARE_STOP)
+  async handleCallScreenShareStop(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody(new ZodValidationPipe(screenShareSchema)) payload: ScreenShareDto,
+  ) {
+    if (!this.callsService) return;
+    const call = await this.callsService.toggleMedia(
+      client.userId,
+      payload.callId,
+      'screenShare',
+      false,
+    );
+    for (const p of call.participants) {
+      if (p.userId !== client.userId) {
+        this.emitToUser(p.userId, WS_EVENTS.CALL_SCREEN_SHARE_STOP, {
+          callId: payload.callId,
+          userId: client.userId,
+        });
+      }
+    }
+  }
+
+  @SubscribeMessage(WS_EVENTS.CALL_RECONNECT)
+  async handleCallReconnect(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody(new ZodValidationPipe(callReconnectSchema)) payload: CallReconnectDto,
+  ) {
+    if (!this.callsService) return;
+    const call = await this.callsService
+      .getCallById(payload.callId, client.userId)
+      .catch(() => null);
+    if (!call) return;
+    for (const p of call.participants) {
+      if (p.userId !== client.userId) {
+        this.emitToUser(p.userId, WS_EVENTS.CALL_RECONNECT, {
+          callId: payload.callId,
+          userId: client.userId,
+        });
+      }
+    }
+  }
+
+  @SubscribeMessage(WS_EVENTS.CALL_ICE_RESTART)
+  async handleCallIceRestart(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody(new ZodValidationPipe(iceRestartSchema)) payload: IceRestartDto,
+    callback?: (res: { status: string }) => void,
+  ) {
+    const restartPayload = {
+      callId: payload.callId,
+      senderUserId: client.userId,
+      sdpOffer: payload.sdpOffer,
+    };
+    if (payload.targetUserId) {
+      this.emitToUser(payload.targetUserId, WS_EVENTS.CALL_ICE_RESTART, restartPayload);
+    } else {
+      const call = await this.callsService
+        ?.getCallById(payload.callId, client.userId)
+        .catch(() => null);
+      if (call) {
+        for (const p of call.participants) {
+          if (p.userId !== client.userId) {
+            this.emitToUser(p.userId, WS_EVENTS.CALL_ICE_RESTART, restartPayload);
+          }
+        }
+      }
+    }
+    callback?.({ status: 'ok' });
+    return { status: 'ok' };
+  }
+
+  @SubscribeMessage(WS_EVENTS.CALL_ICE_RESTART_ANSWER)
+  async handleCallIceRestartAnswer(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody(new ZodValidationPipe(iceRestartAnswerSchema)) payload: IceRestartAnswerDto,
+    callback?: (res: { status: string }) => void,
+  ) {
+    const answerPayload = {
+      callId: payload.callId,
+      senderUserId: client.userId,
+      sdpAnswer: payload.sdpAnswer,
+    };
+    if (payload.targetUserId) {
+      this.emitToUser(payload.targetUserId, WS_EVENTS.CALL_ICE_RESTART_ANSWER, answerPayload);
+    } else {
+      const call = await this.callsService
+        ?.getCallById(payload.callId, client.userId)
+        .catch(() => null);
+      if (call) {
+        for (const p of call.participants) {
+          if (p.userId !== client.userId) {
+            this.emitToUser(p.userId, WS_EVENTS.CALL_ICE_RESTART_ANSWER, answerPayload);
+          }
+        }
+      }
+    }
+    callback?.({ status: 'ok' });
+    return { status: 'ok' };
+  }
+
+  @SubscribeMessage(WS_EVENTS.CALL_RELAY_ANNOUNCE)
+  async handleCallRelayAnnounce(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody(new ZodValidationPipe(relayAnnounceSchema)) payload: RelayAnnounceDto,
+    callback?: (res: { status: string }) => void,
+  ) {
+    if (this.callsService) {
+      await this.callsService.registerRelayNode(client.userId, payload.natType, payload.maxSlots);
+    }
+    callback?.({ status: 'ok' });
+    return { status: 'ok' };
+  }
+
+  @SubscribeMessage(WS_EVENTS.CALL_RELAY_REQUEST)
+  async handleCallRelayRequest(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody(new ZodValidationPipe(relayRequestSchema)) payload: RelayRequestDto,
+    callback?: (res: { status: string; relay?: unknown; error?: string }) => void,
+  ) {
+    if (!this.callsService) throw new WsException('CallsService not available');
+    const allocation = await this.callsService.allocateRelayNode(
+      payload.callId,
+      client.userId,
+      payload.targetUserId,
+    );
+    if (!allocation) {
+      callback?.({ status: 'error', error: 'No relay peer available' });
+      return { status: 'error', error: 'No relay peer available' };
+    }
+
+    const assignedPayload = {
+      callId: payload.callId,
+      relaySessionId: allocation.relaySessionId,
+      relayUserId: allocation.relayUserId,
+      callerId: client.userId,
+      calleeId: payload.targetUserId,
+    };
+
+    // Notify caller, callee, and the relay node
+    this.emitToUser(client.userId, WS_EVENTS.CALL_RELAY_ASSIGNED, {
+      ...assignedPayload,
+      isInitiator: true,
+    });
+    this.emitToUser(payload.targetUserId, WS_EVENTS.CALL_RELAY_ASSIGNED, {
+      ...assignedPayload,
+      isInitiator: false,
+    });
+    this.emitToUser(allocation.relayUserId, WS_EVENTS.CALL_RELAY_ASSIGNED, {
+      ...assignedPayload,
+      isRelayNode: true,
+    });
+
+    callback?.({ status: 'ok', relay: assignedPayload });
+    return { status: 'ok', relay: assignedPayload };
+  }
+
+  @SubscribeMessage(WS_EVENTS.CALL_HANDOFF_REQUEST)
+  async handleCallHandoffRequest(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody(new ZodValidationPipe(callHandoffRequestSchema)) payload: CallHandoffRequestDto,
+    callback?: (res: { status: string; call?: unknown; error?: string }) => void,
+  ) {
+    if (!this.callsService) throw new WsException('CallsService not available');
+    try {
+      const call = await this.callsService.getCallById(payload.callId, client.userId);
+      if (call.status !== 'CONNECTED' && call.status !== 'RINGING' && call.status !== 'INITIATED') {
+        callback?.({ status: 'error', error: 'Call is no longer active' });
+        return { status: 'error', error: 'Call is no longer active' };
+      }
+
+      // Notify this new client with PREPARE event
+      client.emit(WS_EVENTS.CALL_HANDOFF_PREPARE, {
+        callId: payload.callId,
+        conversationId: call.conversationId,
+        call,
+      });
+
+      // Instruct other device(s) of this user to gracefully hand off and release media
+      const userSockets = this.onlineUsers.get(client.userId);
+      if (userSockets) {
+        for (const socketId of userSockets) {
+          if (socketId !== client.id) {
+            this.server?.to(socketId).emit(WS_EVENTS.CALL_HANDOFF_COMPLETE, {
+              callId: payload.callId,
+              newSocketId: client.id,
+              reason: 'HANDED_OFF_TO_ANOTHER_DEVICE',
+            });
+          }
+        }
+      }
+
+      callback?.({ status: 'ok', call });
+      return { status: 'ok', call };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Handoff failed';
+      this.logger.error(`Error in call:handoff-request by ${client.userId}: ${message}`);
+      callback?.({ status: 'error', error: message });
+      return { status: 'error', error: message };
+    }
   }
 
   private extractToken(client: Socket): string | null {

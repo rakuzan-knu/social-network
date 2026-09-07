@@ -21,6 +21,7 @@ import { autoDeleteS3Provider } from './auto-delete/s3-provider';
 import { PresenceEngineService } from './presence/presence-engine.service';
 import { WsDrainingService } from './gateway/ws-draining.service';
 import { WsBackpressureService } from './gateway/ws-backpressure.service';
+import { K8sPodMigrationService } from './gateway/k8s-pod-migration.service';
 
 import { RedisModule } from '../redis/redis.module';
 import { OpenGraphModule } from '../opengraph/opengraph.module';
@@ -28,6 +29,13 @@ import { MessengerLinkPreviewController } from './link-preview.controller';
 import { SnowflakeModule } from '../common/id/snowflake.module';
 
 import { FastPathChatService } from './services/fast-path-chat.service';
+import { OffHeapBufferPoolService } from './services/off-heap-buffer-pool.service';
+import { CallsController } from './calls/calls.controller';
+import { CallsService } from './calls/calls.service';
+import { CallsCDCService } from './calls/calls-cdc.service';
+import { CallsStepUpService } from './calls/calls-step-up.service';
+import { CallsRepository } from './repositories/calls.repository';
+import { CALLS_REPOSITORY } from './interfaces/calls-repository.interface';
 
 @Module({
   imports: [
@@ -39,7 +47,12 @@ import { FastPathChatService } from './services/fast-path-chat.service';
     OpenGraphModule,
     SnowflakeModule,
   ],
-  controllers: [ConversationsController, MessagesController, MessengerLinkPreviewController],
+  controllers: [
+    ConversationsController,
+    MessagesController,
+    MessengerLinkPreviewController,
+    CallsController,
+  ],
   providers: [
     {
       provide: CONVERSATIONS_REPOSITORY,
@@ -49,13 +62,22 @@ import { FastPathChatService } from './services/fast-path-chat.service';
       provide: MESSAGES_REPOSITORY,
       useClass: MessagesRepository,
     },
+    {
+      provide: CALLS_REPOSITORY,
+      useClass: CallsRepository,
+    },
     ConversationsService,
     MessagesService,
+    CallsService,
+    CallsCDCService,
+    CallsStepUpService,
     FastPathChatService,
     MessengerMapper,
     PresenceEngineService,
     WsDrainingService,
     WsBackpressureService,
+    K8sPodMigrationService,
+    OffHeapBufferPoolService,
     MessengerGateway,
     AutoDeleteService,
     autoDeleteS3Provider,
@@ -63,13 +85,19 @@ import { FastPathChatService } from './services/fast-path-chat.service';
   exports: [
     CONVERSATIONS_REPOSITORY,
     MESSAGES_REPOSITORY,
+    CALLS_REPOSITORY,
     ConversationsService,
     MessagesService,
+    CallsService,
+    CallsCDCService,
+    CallsStepUpService,
     FastPathChatService,
     MessengerGateway,
     PresenceEngineService,
     WsDrainingService,
     WsBackpressureService,
+    K8sPodMigrationService,
+    OffHeapBufferPoolService,
   ],
 })
 export class MessengerModule {}
