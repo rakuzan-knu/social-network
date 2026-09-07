@@ -15,7 +15,7 @@ describe('In-Memory Test Infrastructure (pg-mem & ioredis-mock)', () => {
       const db = getInMemoryPgDb();
       expect(db).toBeDefined();
 
-      const result = db.public.one('SELECT 1 + 1 AS sum');
+      const result = db.public.one('SELECT 1 + 1 AS sum') as { sum: number };
       expect(result).toEqual({ sum: 2 });
     });
 
@@ -25,8 +25,8 @@ describe('In-Memory Test Infrastructure (pg-mem & ioredis-mock)', () => {
 
       const client = await pool.connect();
       try {
-        const res = await client.query('SELECT 42 AS value');
-        expect(res.rows[0].value).toBe(42);
+        const res = await client.query<{ value: number }>('SELECT 42 AS value');
+        expect(res.rows[0]?.value).toBe(42);
       } finally {
         client.release();
       }

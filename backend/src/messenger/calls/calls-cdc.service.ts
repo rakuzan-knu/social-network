@@ -35,7 +35,8 @@ export class CallsCDCService implements OnModuleInit, OnModuleDestroy {
 
   constructor(
     private readonly configService: ConfigService,
-    private readonly eventEmitter: EventEmitter2,
+    @Optional()
+    private readonly eventEmitter?: EventEmitter2,
     @Optional()
     private readonly redisService?: RedisService,
   ) {}
@@ -123,7 +124,7 @@ export class CallsCDCService implements OnModuleInit, OnModuleDestroy {
           : CALLS_CDC_EVENTS.ROOM_CHANGED;
 
     // 1. Emit internal NestJS event
-    this.eventEmitter.emit(eventName, payload);
+    this.eventEmitter?.emit(eventName, payload);
 
     // 2. Broadcast via Redis Pub/Sub for distributed horizontal gateway instances
     try {

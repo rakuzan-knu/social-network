@@ -111,7 +111,7 @@ export default function SystemMessageCluster({
                   src={user.avatar}
                   name={user.name}
                   size="xs"
-                  className="w-[18px] h-[18px] rounded-full"
+                  className="w-4.5 h-4.5 rounded-full"
                 />
               </div>
             ))}

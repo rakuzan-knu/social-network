@@ -122,7 +122,6 @@ export class SharedAudioRingBuffer {
     this.payload.set(samples.subarray(0, firstChunk), writePtr);
 
     if (toWrite > firstChunk) {
-      const secondChunk = toWrite - firstChunk;
       this.payload.set(samples.subarray(firstChunk, toWrite), 0);
     }
 

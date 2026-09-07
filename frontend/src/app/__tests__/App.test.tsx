@@ -156,7 +156,7 @@ describe('App', () => {
     renderWithProviders(<App />, { initialEntries: ['/feed'] });
     expect(await screen.findByText('Feed Content', {}, { timeout: 4000 })).toBeInTheDocument();
     const main = document.querySelector('main');
-    expect(main).toHaveClass('pl-[232px]');
+    expect(main).toHaveClass('pl-58');
 
     act(() => {
       useUIStore.getState().setSidebarExpanded(false);

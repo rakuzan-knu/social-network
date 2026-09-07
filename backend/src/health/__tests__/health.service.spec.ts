@@ -2,6 +2,7 @@ import { HealthService } from '../health.service';
 import type { HealthRepository } from '../health.repository';
 import type { RedisService } from '../../redis/redis.service';
 import type { RedisSelfHealingService } from '../../redis/redis-self-healing.service';
+import type { MemoryLeakDetectorService } from '../../common/memory/memory-leak-detector.service';
 
 describe('HealthService', () => {
   let service: HealthService;
@@ -110,7 +111,7 @@ describe('HealthService', () => {
         mockHealthRepo as unknown as HealthRepository,
         mockRedisService as unknown as RedisService,
         mockRedisSelfHealingService as unknown as RedisSelfHealingService,
-        mockMemoryDetector as any,
+        mockMemoryDetector as unknown as MemoryLeakDetectorService,
       );
 
       const { isHealthy, response } = await healthServiceWithLeak.getReadiness();

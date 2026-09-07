@@ -70,12 +70,12 @@ describe('Resiliency & Traffic Control (e2e)', () => {
         statusCode: 503,
         errorCode: 'SERVICE_DEGRADED',
       });
-      expect(res.body.message).toContain('Low-priority request shed');
+      expect((res.body as { message: string }).message).toContain('Low-priority request shed');
 
       // But critical/normal requests (e.g. health liveness) remain accessible
       const healthRes = await request(app.getHttpServer()).get('/health/live');
       expect(healthRes.status).toBe(200);
-      expect(healthRes.body.status).toBe('ok');
+      expect((healthRes.body as { status: string }).status).toBe('ok');
     });
 
     it('recovers immediately once server health returns to NORMAL', async () => {
@@ -138,7 +138,9 @@ describe('Resiliency & Traffic Control (e2e)', () => {
         statusCode: 400,
         errorCode: 'QUERY_DEPTH_LIMIT_EXCEEDED',
       });
-      expect(res.body.message).toContain('exceeds the maximum allowed limit of 5');
+      expect((res.body as { message: string }).message).toContain(
+        'exceeds the maximum allowed limit of 5',
+      );
     });
 
     it('rejects query complexity exceeding allowed complexity score limit with 400 QUERY_COMPLEXITY_LIMIT_EXCEEDED', async () => {
@@ -164,7 +166,7 @@ describe('Resiliency & Traffic Control (e2e)', () => {
         statusCode: 400,
         errorCode: 'QUERY_COMPLEXITY_LIMIT_EXCEEDED',
       });
-      expect(res.body.message).toContain('Query complexity score of');
+      expect((res.body as { message: string }).message).toContain('Query complexity score of');
     });
   });
 

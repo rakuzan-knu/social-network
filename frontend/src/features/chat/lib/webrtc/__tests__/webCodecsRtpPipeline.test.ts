@@ -7,7 +7,6 @@ import {
   RTP_MAGIC,
   FLAG_KEYFRAME,
   FLAG_END_OF_FRAME,
-  MAX_RTP_PAYLOAD_SIZE,
 } from '../webCodecsRtpPipeline';
 
 describe('webCodecsRtpPipeline', () => {

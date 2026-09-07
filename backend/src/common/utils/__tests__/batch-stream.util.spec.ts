@@ -54,9 +54,10 @@ describe('batch-stream.util', () => {
         { id: 'e', val: 5 },
       ];
 
-      const fetcher = jest.fn((cursor?: string, take = 2): Promise<typeof data> => {
+      const fetcher = jest.fn((cursor?: string, take?: number): Promise<typeof data> => {
+        const limit = take ?? 2;
         const startIndex = cursor ? data.findIndex((d) => d.id === cursor) + 1 : 0;
-        return Promise.resolve(data.slice(startIndex, startIndex + take));
+        return Promise.resolve(data.slice(startIndex, startIndex + limit));
       });
 
       const collected: typeof data = [];

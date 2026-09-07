@@ -1,5 +1,6 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { SessionsService } from '../sessions.service';
+import type { RedisService } from '../../redis/redis.service';
 
 describe('SessionsService', () => {
   let service: SessionsService;
@@ -47,10 +48,12 @@ describe('SessionsService', () => {
     };
 
     const mockRedis = {
-      withLock: jest.fn((_key, action) => action()),
+      withLock: jest.fn(<T>(_key: string, action: () => Promise<T> | T): Promise<T> | T =>
+        action(),
+      ),
     };
 
-    service = new SessionsService(mockSessionsRepo, mockRedis as any);
+    service = new SessionsService(mockSessionsRepo, mockRedis as unknown as RedisService);
   });
 
   describe('create', () => {

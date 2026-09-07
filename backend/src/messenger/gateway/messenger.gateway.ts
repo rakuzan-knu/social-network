@@ -106,7 +106,7 @@ import { typingEventPool, readReceiptPool } from './ws-event-pools';
 import { buildWsFrameString } from '../../common/v8/zero-alloc-parser';
 import { makeWsEvent } from '../../common/v8/shape-stable';
 
-interface AuthenticatedSocket extends Socket {
+export interface AuthenticatedSocket extends Socket {
   userId: string;
   traceId?: string | undefined;
 }

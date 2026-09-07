@@ -108,12 +108,14 @@ describe('PresenceEngineService', () => {
 
     service.flushPresenceBatch();
 
+    const anyOnline: unknown = expect.arrayContaining(['user-1', 'user-2']);
+    const anyNumber: unknown = expect.any(Number);
     expect(mockServer.emit).toHaveBeenCalledWith(
       WS_EVENTS.PRESENCE_BATCH,
       expect.objectContaining({
-        online: expect.arrayContaining(['user-1', 'user-2']),
+        online: anyOnline,
         offline: ['user-3'],
-        timestamp: expect.any(Number),
+        timestamp: anyNumber,
       }),
     );
   });

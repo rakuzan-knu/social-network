@@ -2,7 +2,7 @@ import type { JwtService } from '@nestjs/jwt';
 import type { ConfigService } from '@nestjs/config';
 import type { Socket, Server } from 'socket.io';
 import { MessageType } from '@prisma/client';
-import { MessengerGateway } from '../messenger.gateway';
+import { MessengerGateway, type AuthenticatedSocket } from '../messenger.gateway';
 import type { MessagesService } from '../../messages/messages.service';
 import type { ConversationsService } from '../../conversations/conversations.service';
 import type { RedisService } from '../../../redis/redis.service';
@@ -452,7 +452,7 @@ describe('MessengerGateway', () => {
     it('handleMessageDelivered broadcasts messageDelivered receipt to conversation', async () => {
       const cb = jest.fn();
       await gateway.handleMessageDelivered(
-        mockSocket as unknown as any,
+        mockSocket as unknown as AuthenticatedSocket,
         { conversationId: 'c1111111-1111-1111-1111-111111111111', messageId: 'msg-100' },
         cb,
       );
@@ -476,13 +476,17 @@ describe('MessengerGateway', () => {
 
     it('handleClientHibernate and handleClientWake manage Redis hibernation flags and sequence numbers', async () => {
       const cbHibernate = jest.fn();
-      await gateway.handleClientHibernate(mockSocket as unknown as any, {}, cbHibernate);
+      await gateway.handleClientHibernate(
+        mockSocket as unknown as AuthenticatedSocket,
+        {},
+        cbHibernate,
+      );
       expect(mockRedisService.set).toHaveBeenCalledWith('user:hibernated:usr-1:sock-1', '1', 300);
       expect(cbHibernate).toHaveBeenCalledWith({ status: 'ok' });
 
       mockRedisService.get.mockResolvedValueOnce('42');
       const cbWake = jest.fn();
-      await gateway.handleClientWake(mockSocket as unknown as any, cbWake);
+      await gateway.handleClientWake(mockSocket as unknown as AuthenticatedSocket, cbWake);
       expect(mockRedisService.del).toHaveBeenCalledWith('user:hibernated:usr-1:sock-1');
       expect(mockRedisService.set).toHaveBeenCalledWith('user:presence:usr-1', 'online', 60);
       expect(cbWake).toHaveBeenCalledWith({ status: 'ok', currentSeq: 42 });

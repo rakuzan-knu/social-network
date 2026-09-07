@@ -6,7 +6,6 @@ import { rnnoiseManager, type DenoisedStreamHandle } from '../lib/rnnoise/rnnois
 import {
   deriveCallCryptoKey,
   attachSenderEncryption,
-  attachReceiverDecryption,
   isInsertableStreamsSupported,
 } from '../lib/e2ee/frameCrypto';
 import {
@@ -720,6 +719,7 @@ export function useWebRTC(options: WebRTCOptions = {}) {
       setSyncPlayMetrics,
       setIsPeerRelayActive,
       isSatelliteModeEnabled,
+      setupMuxChannels,
     ],
   );
 
@@ -966,6 +966,8 @@ export function useWebRTC(options: WebRTCOptions = {}) {
       attachLocalStream,
       upsertFileTransfer,
       setSyncPlayMetrics,
+      callId,
+      setupMuxChannels,
     ],
   );
 
@@ -1009,7 +1011,7 @@ export function useWebRTC(options: WebRTCOptions = {}) {
       await pc.setLocalDescription(answer);
       return answer;
     },
-    [initPeerConnection, acquireLocalMedia, attachLocalStream],
+    [initPeerConnection, acquireLocalMedia, attachLocalStream, callId],
   );
 
   const handleAnswer = useCallback(async (answer: RTCSessionDescriptionInit): Promise<void> => {

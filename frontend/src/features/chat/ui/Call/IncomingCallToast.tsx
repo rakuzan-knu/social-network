@@ -16,7 +16,7 @@ export function IncomingCallToast() {
     <div className="fixed top-5 right-5 z-50 w-80 sm:w-96 p-4 rounded-2xl bg-zinc-950/90 border border-white/15 backdrop-blur-2xl shadow-2xl animate-slideDown">
       <div className="flex items-center gap-3.5">
         {/* Pulsating Avatar */}
-        <div className="relative flex-shrink-0">
+        <div className="relative shrink-0">
           <div className="absolute inset-0 rounded-full bg-emerald-500/30 animate-ping" />
           <Avatar
             src={incomingCall.caller.avatar}
@@ -32,9 +32,9 @@ export function IncomingCallToast() {
           </p>
           <div className="flex items-center gap-1.5 text-xs text-gray-400 mt-0.5">
             {isVideo ? (
-              <Video size={13} className="text-indigo-400 flex-shrink-0" />
+              <Video size={13} className="text-indigo-400 shrink-0" />
             ) : (
-              <Phone size={13} className="text-emerald-400 flex-shrink-0" />
+              <Phone size={13} className="text-emerald-400 shrink-0" />
             )}
             <span className="truncate">Incoming {isVideo ? 'video' : 'voice'} call…</span>
           </div>
@@ -47,7 +47,7 @@ export function IncomingCallToast() {
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={() => rejectCall('DECLINED')}
             title="Decline"

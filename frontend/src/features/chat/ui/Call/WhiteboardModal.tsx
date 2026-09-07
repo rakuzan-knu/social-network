@@ -631,7 +631,7 @@ export const WhiteboardModal: React.FC<WhiteboardModalProps> = ({
               style={{ color: c.color, fill: c.color }}
             />
             <span
-              className="text-[10px] font-medium px-1.5 py-0.5 rounded shadow-lg text-white font-mono truncate max-w-[120px]"
+              className="text-[10px] font-medium px-1.5 py-0.5 rounded shadow-lg text-white font-mono truncate max-w-30"
               style={{ backgroundColor: c.color }}
             >
               {c.userName}

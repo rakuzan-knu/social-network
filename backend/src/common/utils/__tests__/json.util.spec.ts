@@ -47,7 +47,7 @@ describe('json.util', () => {
       expect(result?.valid).toBe(123);
       expect(Object.prototype.hasOwnProperty.call(result ?? {}, '__proto__')).toBe(false);
       expect(Object.prototype.hasOwnProperty.call(result ?? {}, 'constructor')).toBe(false);
-      expect(({} as any).admin).toBeUndefined();
+      expect(({} as Record<string, unknown>).admin).toBeUndefined();
     });
 
     it('handles null, undefined and object passthrough correctly', () => {

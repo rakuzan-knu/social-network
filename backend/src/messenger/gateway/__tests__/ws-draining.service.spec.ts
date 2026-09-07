@@ -49,10 +49,11 @@ describe('WsDrainingService', () => {
 
     expect(service.isDraining).toBe(true);
 
+    const anyNumber: unknown = expect.any(Number);
     expect(mockSocket1.emit).toHaveBeenCalledWith(
       WS_EVENTS.RECONNECT_WITH_BACKOFF,
       expect.objectContaining({
-        reconnectAfterMs: expect.any(Number),
+        reconnectAfterMs: anyNumber,
         reason: 'server_shutdown',
       }),
     );
@@ -61,7 +62,7 @@ describe('WsDrainingService', () => {
     expect(mockSocket2.emit).toHaveBeenCalledWith(
       WS_EVENTS.RECONNECT_WITH_BACKOFF,
       expect.objectContaining({
-        reconnectAfterMs: expect.any(Number),
+        reconnectAfterMs: anyNumber,
         reason: 'server_shutdown',
       }),
     );

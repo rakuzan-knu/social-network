@@ -8,6 +8,7 @@ import { withTimeBudget } from '../v8/time-budget';
 const MAX_SAFE_INPUT_LEN = 10_000;
 const MAX_USERNAME_LEN = 32;
 const MAX_HASHTAG_LEN = 100;
+const TEXT_PARSE_BUDGET_MS = process.env.NODE_ENV === 'test' ? 500 : 25;
 
 /**
  * Extracts hashtags (#tag) in strict linear O(N) time without regular expression backtracking.
@@ -44,7 +45,7 @@ export function extractHashtags(text: string | null | undefined): string[] {
 
       return tags;
     },
-    5,
+    TEXT_PARSE_BUDGET_MS,
     () => [],
   );
 }
@@ -84,7 +85,7 @@ export function extractMentions(text: string | null | undefined): string[] {
 
       return mentions;
     },
-    5,
+    TEXT_PARSE_BUDGET_MS,
     () => [],
   );
 }
@@ -141,7 +142,7 @@ export function extractMetaContentLinear(html: string, targetPropOrName: string)
 
       return null;
     },
-    5,
+    TEXT_PARSE_BUDGET_MS,
     () => null,
   );
 }
