@@ -43,6 +43,8 @@ describe('gaussianSplatStreamer', () => {
 
     // Buffer length must be 4 bytes header + 2 * 16 bytes = 36 bytes
     expect(buffer.byteLength).toBe(4 + 2 * BYTES_PER_SPLAT);
+    const view = new DataView(buffer.buffer);
+    expect(view.getUint16(0)).toBe(SPLAT_MAGIC);
 
     const dequantized = dequantizeGaussianSplats(buffer);
     expect(dequantized.length).toBe(2);

@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Boxes, Glasses, RotateCcw, X, Eye, Sliders, Sparkles, Maximize2 } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Boxes, Glasses, RotateCcw, X, Eye, Sliders, Sparkles } from 'lucide-react';
 import {
   generateVolumetricAvatar,
   quantizeGaussianSplats,
@@ -19,7 +19,7 @@ export function HolographicCallModal({
   isOpen,
   onClose,
   userName = 'Собеседник',
-  dataChannel,
+  dataChannel: _dataChannel,
 }: HolographicCallModalProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rendererRef = useRef<WebGLGaussianSplatRenderer | null>(null);
@@ -33,7 +33,7 @@ export function HolographicCallModal({
   const [splatDensity, setSplatDensity] = useState(1200);
   const [isXrSupported, setIsXrSupported] = useState(false);
   const [isXrActive, setIsXrActive] = useState(false);
-  const [bandwidthKbps, setBandwidthKbps] = useState(560);
+  const bandwidthKbps = 560;
 
   // Check WebXR hardware support (Apple Vision Pro / Meta Quest)
   useEffect(() => {
@@ -179,10 +179,12 @@ export function HolographicCallModal({
               <button
                 type="button"
                 onClick={handleEnterWebXr}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-lg shadow-purple-500/25 transition-all"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-linear-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-lg shadow-purple-500/25 transition-all"
               >
                 <Glasses size={15} />
-                <span>Войти в WebXR (Vision Pro / Quest)</span>
+                <span>
+                  {isXrActive ? 'WebXR Сессия активна' : 'Войти в WebXR (Vision Pro / Quest)'}
+                </span>
               </button>
             ) : (
               <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-zinc-400 text-xs">
@@ -212,7 +214,7 @@ export function HolographicCallModal({
 
         {/* WebGL Canvas Viewport */}
         <div
-          className="relative flex-1 bg-gradient-to-b from-zinc-950 via-zinc-900/50 to-zinc-950 flex items-center justify-center cursor-grab active:cursor-grabbing select-none"
+          className="relative flex-1 bg-linear-to-b from-zinc-950 via-zinc-900/50 to-zinc-950 flex items-center justify-center cursor-grab active:cursor-grabbing select-none"
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
@@ -245,7 +247,9 @@ export function HolographicCallModal({
               </span>
             </div>
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-xs font-mono text-emerald-300">
-              <span>{splatDensity} Gaussian Splats • ~20 KB/frame</span>
+              <span>
+                {splatDensity} Gaussian Splats • ~20 KB/frame ({bandwidthKbps} kbps)
+              </span>
             </div>
           </div>
 

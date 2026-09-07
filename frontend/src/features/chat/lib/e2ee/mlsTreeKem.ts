@@ -271,10 +271,8 @@ export class MlsTreeKem {
     let decryptedLevel = -1;
 
     for (const pathNode of commit.directPath) {
-      // Find our sibling at this level
+      // Find our node at this level
       const ourIndexAtLevel = Math.floor(localMember.leafIndex / Math.pow(2, pathNode.level));
-      const siblingIndex = ourIndexAtLevel ^ 1;
-
       const ourNodeKey = this.nodeKey(pathNode.level, ourIndexAtLevel);
       const ourNode = this.nodes.get(ourNodeKey);
 
