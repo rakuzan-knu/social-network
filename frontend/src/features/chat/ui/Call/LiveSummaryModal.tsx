@@ -53,9 +53,9 @@ export function LiveSummaryModal({ isOpen, onClose }: LiveSummaryModalProps) {
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-white/10 flex-shrink-0">
+        <div className="flex items-center justify-between pb-4 border-b border-white/10 shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-gradient-to-tr from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 text-cyan-400">
+            <div className="p-2 rounded-xl bg-linear-to-tr from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 text-cyan-400">
               <Sparkles size={20} />
             </div>
             <div>
@@ -116,7 +116,7 @@ export function LiveSummaryModal({ isOpen, onClose }: LiveSummaryModalProps) {
           </div>
 
           {/* Current Context Highlight Box */}
-          <div className="p-3.5 rounded-2xl bg-gradient-to-r from-blue-950/40 to-indigo-950/40 border border-blue-500/25">
+          <div className="p-3.5 rounded-2xl bg-linear-to-r from-blue-950/40 to-indigo-950/40 border border-blue-500/25">
             <h4 className="text-[11px] uppercase font-bold text-blue-400 tracking-wider mb-1">
               Right Now in Discussion
             </h4>
@@ -136,7 +136,7 @@ export function LiveSummaryModal({ isOpen, onClose }: LiveSummaryModalProps) {
                   key={i}
                   className="p-2.5 rounded-xl bg-zinc-900/70 border border-white/5 flex items-start gap-2.5"
                 >
-                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 mt-1.5 flex-shrink-0" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 mt-1.5 shrink-0" />
                   <span className="text-zinc-300 leading-normal">{topic}</span>
                 </div>
               ))}
@@ -154,7 +154,7 @@ export function LiveSummaryModal({ isOpen, onClose }: LiveSummaryModalProps) {
                   key={i}
                   className="p-2.5 rounded-xl bg-zinc-900/70 border border-white/5 flex items-start gap-2.5"
                 >
-                  <CheckCircle2 size={15} className="text-emerald-400 mt-0.5 flex-shrink-0" />
+                  <CheckCircle2 size={15} className="text-emerald-400 mt-0.5 shrink-0" />
                   <span className="text-zinc-300 leading-normal">{action}</span>
                 </div>
               ))}
@@ -163,7 +163,7 @@ export function LiveSummaryModal({ isOpen, onClose }: LiveSummaryModalProps) {
         </div>
 
         {/* Footer Actions */}
-        <div className="pt-4 border-t border-white/10 flex items-center justify-between flex-shrink-0 mt-3">
+        <div className="pt-4 border-t border-white/10 flex items-center justify-between shrink-0 mt-3">
           <button
             type="button"
             onClick={handleCopy}

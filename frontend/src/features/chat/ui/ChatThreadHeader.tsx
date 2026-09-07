@@ -64,7 +64,7 @@ export default function ChatThreadHeader({
   };
 
   return (
-    <div className="flex items-center justify-between px-5 h-16 border-b border-white/5 flex-shrink-0">
+    <div className="flex items-center justify-between px-5 h-16 border-b border-white/5 shrink-0">
       <div className="flex items-center gap-3 min-w-0">
         <div className="relative">
           {isGroup ? (
@@ -95,7 +95,7 @@ export default function ChatThreadHeader({
                 <OnlineStatusIndicator
                   userId={otherUserId}
                   variant="dot"
-                  className="static flex-shrink-0 !border-0 !w-2 !h-2"
+                  className="static shrink-0 border-0! w-2! h-2!"
                   showOfflineDot={false}
                 />
                 <OnlineStatusIndicator
@@ -109,7 +109,7 @@ export default function ChatThreadHeader({
         </div>
       </div>
 
-      <div className="flex items-center gap-1.5 flex-shrink-0">
+      <div className="flex items-center gap-1.5 shrink-0">
         {conversationId && (
           <button
             type="button"

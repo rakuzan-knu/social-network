@@ -37,6 +37,10 @@ export interface HybridEncapsulationResult {
 }
 
 export interface PQCCallKeyInfo extends CallKeyInfo {
+  key: CryptoKey;
+  fingerprint: string;
+  sasCode: string;
+  sasEmojis: string;
   isPostQuantumProtected: true;
   kemAlgorithm: 'ML-KEM-768';
   dsaAlgorithm: 'ML-DSA-65';

@@ -74,7 +74,7 @@ export function SoundboardModal({
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-white/10">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-gradient-to-tr from-amber-500/20 to-orange-500/20 border border-amber-500/30 text-amber-400">
+            <div className="p-2 rounded-xl bg-linear-to-tr from-amber-500/20 to-orange-500/20 border border-amber-500/30 text-amber-400">
               <Radio size={20} />
             </div>
             <div>

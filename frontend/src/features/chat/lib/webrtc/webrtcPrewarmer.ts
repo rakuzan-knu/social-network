@@ -47,7 +47,7 @@ export class WebRtcPrewarmer {
       if (res.data?.iceServers && Array.isArray(res.data.iceServers)) {
         this.cachedIceServers = res.data.iceServers;
         this.lastIceFetchTime = now;
-        return this.cachedIceServers;
+        return res.data.iceServers;
       }
     } catch {
       // Fall back to default STUN

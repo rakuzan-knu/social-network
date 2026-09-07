@@ -19,7 +19,7 @@ export function CallHandoffBanner() {
   if (!remoteCall) return null;
 
   return (
-    <div className="mx-4 my-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-950/80 to-teal-950/80 border border-emerald-500/30 text-white shadow-[0_4px_20px_rgba(16,185,129,0.15)] flex items-center justify-between gap-3 animate-in slide-in-from-top-2 duration-200">
+    <div className="mx-4 my-2 px-4 py-2.5 rounded-2xl bg-linear-to-r from-emerald-950/80 to-teal-950/80 border border-emerald-500/30 text-white shadow-[0_4px_20px_rgba(16,185,129,0.15)] flex items-center justify-between gap-3 animate-in slide-in-from-top-2 duration-200">
       <div className="flex items-center gap-2.5 min-w-0">
         <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400">
           <Smartphone size={16} />
@@ -34,7 +34,7 @@ export function CallHandoffBanner() {
         </div>
       </div>
 
-      <div className="flex items-center gap-2 flex-shrink-0">
+      <div className="flex items-center gap-2 shrink-0">
         <button
           type="button"
           disabled={isTransferring}

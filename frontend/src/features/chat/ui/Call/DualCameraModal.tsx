@@ -113,7 +113,7 @@ export function DualCameraModal({
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-white/10">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-gradient-to-tr from-emerald-500/20 to-teal-500/20 border border-emerald-500/30 text-emerald-400">
+            <div className="p-2 rounded-xl bg-linear-to-tr from-emerald-500/20 to-teal-500/20 border border-emerald-500/30 text-emerald-400">
               <Camera size={20} />
             </div>
             <div>

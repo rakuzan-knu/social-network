@@ -1,11 +1,10 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Radio, Pencil, MoveUpRight, Trash2, X, Palette } from 'lucide-react';
+import { Radio, Pencil, MoveUpRight, Trash2, X } from 'lucide-react';
 import {
   ScreenAnnotationEngine,
   type AnnotationTool,
   ANNOTATION_COLORS,
 } from '../../lib/webrtc/screenAnnotationEngine';
-import { useCallStore } from '../../model/callStore';
 
 interface ScreenAnnotationOverlayProps {
   dataChannel?: RTCDataChannel | null;
@@ -186,7 +185,7 @@ export function ScreenAnnotationOverlay({
             <MoveUpRight size={16} />
           </button>
 
-          <div className="w-[1px] h-6 bg-white/10 mx-1" />
+          <div className="w-px h-6 bg-white/10 mx-1" />
 
           {/* Color Selector */}
           <div className="flex items-center gap-1 px-1">
@@ -205,7 +204,7 @@ export function ScreenAnnotationOverlay({
             ))}
           </div>
 
-          <div className="w-[1px] h-6 bg-white/10 mx-1" />
+          <div className="w-px h-6 bg-white/10 mx-1" />
 
           {/* Clear */}
           <button

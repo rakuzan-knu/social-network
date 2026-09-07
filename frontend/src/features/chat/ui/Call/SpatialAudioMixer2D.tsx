@@ -208,7 +208,7 @@ export function SpatialAudioMixer2D({
                     <User className="w-5 h-5 text-emerald-300" />
                   )}
                 </div>
-                <span className="text-[10px] font-medium text-slate-200 mt-1 max-w-[70px] truncate bg-slate-900/80 px-1.5 py-0.5 rounded shadow">
+                <span className="text-[10px] font-medium text-slate-200 mt-1 max-w-17.5 truncate bg-slate-900/80 px-1.5 py-0.5 rounded shadow">
                   {node.name}
                 </span>
               </div>

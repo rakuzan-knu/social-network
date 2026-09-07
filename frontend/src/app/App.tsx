@@ -161,7 +161,7 @@ export default function App() {
             isMessengerRoute
               ? 'min-h-screen flex-1'
               : `flex min-h-screen flex-1 justify-center py-8 transition-all duration-300 ${
-                  isSidebarExpanded ? 'pl-[232px]' : 'pl-24'
+                  isSidebarExpanded ? 'pl-58' : 'pl-24'
                 }`
           }
         >

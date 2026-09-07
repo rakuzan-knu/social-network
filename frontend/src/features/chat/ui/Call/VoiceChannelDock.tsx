@@ -87,7 +87,7 @@ export function VoiceChannelDock() {
           participants.map((p) => (
             <div
               key={p.userId}
-              className="relative flex-shrink-0 group"
+              className="relative shrink-0 group"
               title={p.displayName || p.username}
             >
               <div

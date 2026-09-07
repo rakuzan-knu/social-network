@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Wifi, WifiOff, Cpu, Activity, Sun, Info, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { WifiOff, Cpu, Activity, Sun, Info, CheckCircle2 } from 'lucide-react';
 import {
   RawQualityMetrics,
   RadarDiagnosticResult,
@@ -134,7 +134,7 @@ export function ConnectionRadarBadge({
             }}
           />
           {/* Concentric circle */}
-          <div className="absolute inset-[3px] rounded-full border border-white/10" />
+          <div className="absolute inset-0.75 rounded-full border border-white/10" />
           {/* Center blip */}
           <div
             className="w-1.5 h-1.5 rounded-full z-10 animate-pulse shadow-sm"
@@ -146,7 +146,7 @@ export function ConnectionRadarBadge({
         </div>
 
         {/* Dynamic Plain-Language Title / Diagnosis text */}
-        <div className="flex items-center gap-1 max-w-[210px] truncate">
+        <div className="flex items-center gap-1 max-w-52.5 truncate">
           {issueIcon}
           {isDegraded ? (
             <span className="truncate font-semibold tracking-tight text-[10.5px]">

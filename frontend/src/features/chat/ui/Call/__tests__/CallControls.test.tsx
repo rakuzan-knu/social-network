@@ -22,7 +22,7 @@ describe('CallControls Component', () => {
     );
 
     const muteBtn = screen.getByLabelText(/mute microphone/i);
-    const videoBtn = screen.getByLabelText(/camera/i);
+    const videoBtn = screen.getByLabelText(/^(stop|start) camera/i);
     const shareBtn = screen.getByLabelText(/share screen/i);
     const settingsBtn = screen.getByLabelText(/device settings/i);
     const endBtn = screen.getByLabelText(/leave call/i);
