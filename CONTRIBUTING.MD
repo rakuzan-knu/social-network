@@ -108,7 +108,27 @@ We strictly adhere to **Conventional Commits**, enforced locally by Husky & Comm
 
 ---
 
-## 🧪 4. Local Verification Commands
+## 🐳 4. Local Infrastructure (Docker)
+
+Before running development servers or E2E tests, boot local dependencies (PostgreSQL 16, Redis 7, MinIO):
+
+```bash
+# Start local containers in background
+pnpm docker:dev:up
+
+# Stream real-time logs from containers
+pnpm docker:dev:logs
+
+# Stop local development containers
+pnpm docker:dev:down
+
+# Reset containers and purge local data volumes
+pnpm docker:clean
+```
+
+---
+
+## 🧪 5. Local Verification Commands
 
 Before opening a pull request, run the verification suite:
 
@@ -131,7 +151,7 @@ pnpm test
 
 ---
 
-## 🔀 5. Pull Request Guidelines
+## 🔀 6. Pull Request Guidelines
 
 1. **Keep PRs Focused**: Aim for cohesive, reviewable pull requests.
 2. **PR Title**: Must follow Conventional Commits format (e.g. `feat(feed): implement story poll voting`).

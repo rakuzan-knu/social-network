@@ -130,11 +130,24 @@ pnpm install
 Copy `.env.example` files in both workspace directories and configure your environment variables:
 
 ```bash
+cp .env.example .env
 cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
 ```
 
-### 4. Run Development Servers
+### 4. Start Local Infrastructure (Docker)
+
+Start PostgreSQL 16, Redis 7, and MinIO storage in the background:
+
+```bash
+# Start local containers (PostgreSQL, Redis, MinIO)
+pnpm docker:dev:up
+
+# Push Prisma schema migrations to PostgreSQL
+pnpm --filter backend db:migrate
+```
+
+### 5. Run Development Servers
 
 Start **both backend and frontend** simultaneously:
 
@@ -158,19 +171,23 @@ pnpm dev:frontend
 
 All root commands execute across both `backend` and `frontend` workspaces:
 
-| Script              | Description                                                |
-| :------------------ | :--------------------------------------------------------- |
-| `pnpm dev`          | Runs backend and frontend concurrently in development mode |
-| `pnpm dev:backend`  | Starts NestJS server in watch mode                         |
-| `pnpm dev:frontend` | Starts Vite frontend dev server                            |
-| `pnpm build`        | Builds both backend and frontend for production            |
-| `pnpm lint`         | Runs ESLint check across all workspaces                    |
-| `pnpm lint:fix`     | Fixes ESLint errors automatically across workspaces        |
-| `pnpm format`       | Formats codebase using Prettier                            |
-| `pnpm typecheck`    | Validates TypeScript types without emitting files          |
-| `pnpm test`         | Runs unit tests for backend and frontend                   |
-| `pnpm test:cov`     | Generates unit test coverage reports                       |
-| `pnpm test:e2e`     | Runs E2E tests for the backend workspace                   |
+| Script                 | Description                                                      |
+| :--------------------- | :--------------------------------------------------------------- |
+| `pnpm dev`             | Runs backend and frontend concurrently in development mode       |
+| `pnpm dev:backend`     | Starts NestJS server in watch mode                               |
+| `pnpm dev:frontend`    | Starts Vite frontend dev server                                  |
+| `pnpm docker:dev:up`   | Starts local dev services (Postgres, Redis, MinIO) in background |
+| `pnpm docker:dev:down` | Stops local dev services                                         |
+| `pnpm docker:dev:logs` | Streams real-time logs from dev services                         |
+| `pnpm docker:clean`    | Stops containers and purges all data volumes                     |
+| `pnpm build`           | Builds both backend and frontend for production                  |
+| `pnpm lint`            | Runs ESLint check across all workspaces                          |
+| `pnpm lint:fix`        | Fixes ESLint errors automatically across workspaces              |
+| `pnpm format`          | Formats codebase using Prettier                                  |
+| `pnpm typecheck`       | Validates TypeScript types without emitting files                |
+| `pnpm test`            | Runs unit tests for backend and frontend                         |
+| `pnpm test:cov`        | Generates unit test coverage reports                             |
+| `pnpm test:e2e`        | Runs E2E tests for the backend workspace                         |
 
 ---
 

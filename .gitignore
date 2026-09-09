@@ -1,3 +1,12 @@
+# OS files (two devs, mixed OS)
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+Desktop.ini
+
 # Logs
 logs
 *.log
@@ -198,3 +207,45 @@ benchmarks/k6/tokens.json
 *.tfplan
 crash.log
 crash.*.log
+
+# React Native / mobile (apps/mobile roadmap) — NEVER commit signing
+# credentials or push-notification keys in the open-source repo. When you need
+# a template, commit NAME.example (e.g. google-services.json.example) instead.
+*.keystore
+*.jks
+*.p8
+*.p12
+*.pem
+*.key
+local.properties
+.gradle/
+**/android/app/build/
+**/ios/Pods/
+**/ios/build/
+xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+.expo/
+.expo-shared/
+google-services.json
+GoogleService-Info.plist
+
+# napi-rs local prebuilds (generated .node binaries, never commit)
+packages/native/prebuilds/
+
+# Node heap snapshots (local profiling, e.g. backend/heapdumps/)
+heapdumps/
+*.heapsnapshot
+
+# Vercel (frontend hosting — local deploy state, no secrets in repo)
+.vercel/
+
+# Rust build artifacts (rebuilt in CI / locally via cargo).
+# NOTE: Cargo.lock is intentionally COMMITTED (not ignored): this crate ships
+# compiled .node prebuilds and two devs build it locally, so locked deps give
+# reproducible binaries. (Upstream "don't commit for libs" advice only applies
+# to crates.io libraries with downstream consumers — we have none.)
+packages/native/rust/target/
+packages/text-pipeline/rust/target/
+packages/blinded-crypto/rust/target/
+packages/feed-score/rust/target/
