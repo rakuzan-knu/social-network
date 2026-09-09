@@ -2,18 +2,18 @@ import React from 'react';
 import { Phone, PhoneOff, Video, ShieldCheck } from 'lucide-react';
 import Avatar from '@/shared/ui/Avatar';
 import { useCallStore } from '../../model/callStore';
-import { useCallManager } from '../../model/useCallManager';
+import { useCall } from '../../model/CallContext';
 
 export function IncomingCallToast() {
   const incomingCall = useCallStore((s) => s.incomingCall);
-  const { acceptCall, rejectCall } = useCallManager();
+  const { acceptCall, rejectCall } = useCall();
 
   if (!incomingCall) return null;
 
-  const isVideo = incomingCall.callType === 'video';
+  const isVideo = String(incomingCall.callType).toUpperCase() === 'VIDEO';
 
   return (
-    <div className="fixed top-5 right-5 z-50 w-80 sm:w-96 p-4 rounded-2xl bg-zinc-950/90 border border-white/15 backdrop-blur-2xl shadow-2xl animate-slideDown">
+    <div className="fixed top-3 sm:top-5 left-3 right-3 sm:left-auto sm:right-5 z-50 max-w-sm p-4 rounded-2xl bg-zinc-950/90 border border-white/15 backdrop-blur-2xl shadow-2xl animate-slideDown">
       <div className="flex items-center gap-3.5">
         {/* Pulsating Avatar */}
         <div className="relative shrink-0">

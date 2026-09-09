@@ -2,7 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import { Maximize2, Mic, MicOff, PhoneOff } from 'lucide-react';
 import Avatar from '@/shared/ui/Avatar';
 import { useCallStore } from '../../model/callStore';
-import { useCallManager } from '../../model/useCallManager';
+import { useCall } from '../../model/CallContext';
 import { DocumentPiP } from './DocumentPiP';
 import { isDocumentPiPSupported } from '../../lib/documentPiP';
 
@@ -21,10 +21,11 @@ export function PictureInPicture() {
     screenShareStream,
     durationSec,
     isMuted,
+    isDeafened,
     setIsPiP,
   } = useCallStore();
 
-  const { endCall, toggleMute } = useCallManager();
+  const { endCall, toggleMute } = useCall();
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   const remoteStreamEntries = Object.entries(remoteStreams);
@@ -58,6 +59,7 @@ export function PictureInPicture() {
             ref={videoRef}
             autoPlay
             playsInline
+            muted={isDeafened}
             className={`w-full h-full object-cover transition-opacity ${
               hasVideo ? 'opacity-100' : 'opacity-0 absolute'
             }`}
@@ -67,7 +69,7 @@ export function PictureInPicture() {
         {!hasVideo && (
           <div className="flex flex-col items-center gap-2">
             <Avatar src={remoteParticipant?.avatar} size="md" />
-            <p className="text-xs font-semibold text-white truncate max-w-[160px]">
+            <p className="text-xs font-semibold text-white truncate max-w-40">
               {remoteParticipant?.displayName || remoteParticipant?.username}
             </p>
           </div>

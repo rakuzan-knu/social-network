@@ -141,13 +141,11 @@ export function useMessengerRealtime(
     const conversation = conversations?.find((c) => c.id === message.conversationId);
     const isGroup = conversation?.type === 'GROUP';
     const isMessengerPage = window.location.pathname.startsWith('/messages');
-    const isSenderMuted = Boolean(mutedActorIds?.includes(message.sender.id));
-
-    if (isGroup && !groups) return;
-    if (!isGroup && !privateChats) return;
+    const isSenderMuted = Boolean(message.sender?.id && mutedActorIds?.includes(message.sender.id));
 
     const shouldNotify =
-      message.sender.id !== userId &&
+      (isGroup ? groups : privateChats) &&
+      Boolean(message.sender?.id && message.sender.id !== userId) &&
       message.conversationId !== activeConversationId &&
       conversation?.myMuteLevel !== 'MESSAGES' &&
       conversation?.myMuteLevel !== 'MESSAGES_AND_CALLS' &&
@@ -171,7 +169,7 @@ export function useMessengerRealtime(
                 lastMessage: message,
                 updatedAt: message.createdAt,
                 unreadCount:
-                  message.sender.id === userId || c.id === activeConversationId
+                  message.sender?.id === userId || c.id === activeConversationId
                     ? 0
                     : (c.unreadCount + 1) | 0,
               }

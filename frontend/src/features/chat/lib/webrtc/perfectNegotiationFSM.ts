@@ -37,6 +37,9 @@ export class PerfectNegotiationFSM {
   private bindEvents(onTrack?: (event: RTCTrackEvent) => void): void {
     // 1. Negotiation Needed listener
     this.pc.onnegotiationneeded = async () => {
+      if (this.pc.signalingState !== 'stable') {
+        return;
+      }
       try {
         this.isMakingOffer = true;
         await this.pc.setLocalDescription();

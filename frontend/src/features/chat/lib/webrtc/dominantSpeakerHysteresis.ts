@@ -171,6 +171,11 @@ export function useDominantSpeakerTracker(
   const engineRef = useRef<DominantSpeakerHysteresisEngine>(globalDominantSpeakerEngine);
   const setDominantSpeakerId = useCallStore((s) => s.setDominantSpeakerId);
 
+  const remoteStreamsKey = Object.entries(remoteStreams)
+    .map(([k, s]) => `${k}:${s.id}`)
+    .sort()
+    .join(';');
+
   useEffect(() => {
     if (typeof window === 'undefined' || typeof AudioContext === 'undefined') {
       return;
@@ -178,6 +183,7 @@ export function useDominantSpeakerTracker(
 
     let audioContext: AudioContext | null = null;
     let animId: number | null = null;
+    let lastDominantId: string | null = null;
     const analysers = new Map<string, AnalyserNode>();
 
     try {
@@ -227,7 +233,10 @@ export function useDominantSpeakerTracker(
         });
 
         const dominantId = engineRef.current.processSamples(samples);
-        setDominantSpeakerId(dominantId);
+        if (dominantId !== lastDominantId) {
+          lastDominantId = dominantId;
+          setDominantSpeakerId(dominantId);
+        }
 
         animId = requestAnimationFrame(loop);
       };
@@ -245,7 +254,16 @@ export function useDominantSpeakerTracker(
         void audioContext.close();
       }
       engine.reset();
-      setDominantSpeakerId(null);
+      if (useCallStore.getState().dominantSpeakerId !== null) {
+        setDominantSpeakerId(null);
+      }
     };
-  }, [localStream, remoteStreams, currentUserId, setDominantSpeakerId]);
+  }, [
+    localStream?.id,
+    remoteStreamsKey,
+    currentUserId,
+    setDominantSpeakerId,
+    localStream,
+    remoteStreams,
+  ]);
 }

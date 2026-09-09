@@ -52,6 +52,7 @@ export function ParticipantTile({
     isPeerRelayActive,
     zkpProof,
     isSynestheticVisualizerEnabled,
+    isDeafened,
   } = useCallStore();
 
   const [isMixerOpen, setIsMixerOpen] = useState(false);
@@ -175,7 +176,7 @@ export function ParticipantTile({
             ref={videoRef}
             autoPlay
             playsInline
-            muted={isLocal || (!isLocal && isSpatialAudioEnabled)}
+            muted={isLocal || (!isLocal && isSpatialAudioEnabled) || (!isLocal && isDeafened)}
             className={`w-full h-full object-cover transition-opacity duration-300 ${
               hasActiveVideoTrack && !isLocal && webGpuSuperResMode !== 'off'
                 ? 'opacity-0 absolute pointer-events-none'

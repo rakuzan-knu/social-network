@@ -7,8 +7,6 @@ import {
 } from '../webrtc/rtpScriptTransform';
 
 describe('RTCRtpScriptTransform Media Pipeline', () => {
-  const originalWindow = { ...window };
-
   beforeEach(() => {
     terminateScriptTransformWorker();
   });

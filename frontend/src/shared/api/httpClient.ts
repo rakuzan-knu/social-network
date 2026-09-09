@@ -43,10 +43,12 @@ const setStoredItem = (key: string, value: string): void => {
   }
 };
 
+const rawBaseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3000')
+  .replace(/\/api\/?$/, '')
+  .replace(/\/+$/, '');
+
 export const apiClient = axios.create({
-  baseURL: (import.meta.env.VITE_API_URL || 'http://localhost:3000')
-    .replace(/\/api\/?$/, '')
-    .replace(/\/+$/, ''),
+  baseURL: rawBaseUrl.endsWith('/v1') ? rawBaseUrl : `${rawBaseUrl}/v1`,
   timeout: 30000,
   withCredentials: true,
 });
@@ -54,6 +56,17 @@ export const apiClient = axios.create({
 apiClient.interceptors.request.use((config) => {
   const token = getStoredItem('accessToken');
   if (token && config.headers) config.headers.Authorization = `Bearer ${token}`;
+
+  // Since baseURL already ends with /v1, strip any redundant /v1 prefix from config.url
+  if (config.url && !config.url.startsWith('http://') && !config.url.startsWith('https://')) {
+    if (config.url.startsWith('/v1/')) {
+      config.url = config.url.slice(3);
+    } else if (config.url.startsWith('v1/')) {
+      config.url = config.url.slice(2);
+    } else if (config.url === '/v1' || config.url === 'v1') {
+      config.url = '/';
+    }
+  }
 
   const method = (config.method || '').toUpperCase();
   if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) && config.headers) {
@@ -76,7 +89,8 @@ async function requestTokenRefresh(): Promise<string> {
   if (!refreshToken) throw new Error('No refresh token available');
 
   const base = (apiClient.defaults.baseURL || '').replace(/\/+$/, '');
-  const response = await axios.post(`${base}/auth/refresh`, {
+  const refreshUrl = base.endsWith('/v1') ? `${base}/auth/refresh` : `${base}/v1/auth/refresh`;
+  const response = await axios.post(refreshUrl, {
     refreshToken,
   });
   const { accessToken, refreshToken: newRefreshToken } = response.data;

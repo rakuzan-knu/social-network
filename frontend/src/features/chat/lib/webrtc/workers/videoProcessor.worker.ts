@@ -103,13 +103,14 @@ function tick() {
   const hasActive = updateParticles(dtSeconds);
   if (hasActive) {
     renderFrame();
-  } else if (ctx && canvas) {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const interval = isTravelerMode ? 66 : 16;
+    animTimer = setTimeout(tick, interval);
+  } else {
+    if (ctx && canvas) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+    animTimer = null;
   }
-
-  // Schedule next frame: ~16ms (60fps) or ~66ms (15fps traveler mode)
-  const interval = isTravelerMode ? 66 : 16;
-  animTimer = setTimeout(tick, interval);
 }
 
 self.onmessage = (event: MessageEvent) => {
@@ -128,7 +129,7 @@ self.onmessage = (event: MessageEvent) => {
 
       isRunning = true;
       lastTime = performance.now();
-      if (!animTimer) {
+      if (particles.length > 0 && !animTimer) {
         tick();
       }
       break;

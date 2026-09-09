@@ -24,7 +24,7 @@ class RNNoiseManager {
       this.audioContext = new AudioCtx({ sampleRate: 48000, latencyHint: 'interactive' });
     }
     if (this.audioContext.state === 'suspended') {
-      await this.audioContext.resume();
+      void this.audioContext.resume().catch(() => {});
     }
     return this.audioContext;
   }
@@ -36,9 +36,22 @@ class RNNoiseManager {
     this.loadPromise = (async () => {
       try {
         if (!ctx.audioWorklet) return false;
-        await ctx.audioWorklet.addModule('/rnnoise-processor.js');
-        this.workletLoaded = true;
-        return true;
+        const load = ctx.audioWorklet
+          .addModule('/rnnoise-processor.js')
+          .then(() => true)
+          .catch((err) => {
+            console.warn('AudioWorklet RNNoise module not loaded, falling back to DSP filter', err);
+            return false;
+          });
+        const timeout = new Promise<boolean>((resolve) =>
+          setTimeout(() => {
+            console.warn('[rnnoise] AudioWorklet load timed out, falling back to DSP filter');
+            resolve(false);
+          }, 1500),
+        );
+        const success = await Promise.race([load, timeout]);
+        this.workletLoaded = success;
+        return success;
       } catch (err) {
         console.warn('AudioWorklet RNNoise module not loaded, falling back to DSP filter', err);
         return false;

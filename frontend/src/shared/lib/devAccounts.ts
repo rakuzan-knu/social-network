@@ -5,7 +5,7 @@ export async function ensureDevAccounts(): Promise<void> {
 
   const currentAccounts = useAccountsStore.getState().accounts;
   const currentToken = localStorage.getItem('accessToken');
-  if (currentAccounts.length >= 2 && currentToken) {
+  if (currentToken && currentAccounts.length >= 1) {
     return;
   }
 
@@ -59,15 +59,13 @@ export async function ensureDevAccounts(): Promise<void> {
       refreshToken: data2.refreshToken,
     };
 
+    const initialActiveId = useAccountsStore.getState().activeAccountId;
     useAccountsStore.getState().upsertAccount(acc2);
     useAccountsStore.getState().upsertAccount(acc1);
 
-    const currentActiveId = useAccountsStore.getState().activeAccountId;
-    if (
-      !currentActiveId ||
-      (currentActiveId !== acc1.id && currentActiveId !== acc2.id) ||
-      !localStorage.getItem('accessToken')
-    ) {
+    if (initialActiveId) {
+      useAccountsStore.setState({ activeAccountId: initialActiveId });
+    } else if (!localStorage.getItem('accessToken')) {
       useAccountsStore.getState().switchAccount(acc1.id);
     }
   } catch (err) {

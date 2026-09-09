@@ -6,13 +6,17 @@
  * SFrame encryption/decryption inside DedicatedWorkerGlobalScope.
  */
 
-const E2EE_MAGIC_TAG = 0x7e;
+const E2EE_MAGIC_TAG = 0xe2;
+/** Legacy tag this worker used to emit: still accepted on decrypt, never emitted. */
+const E2EE_MAGIC_TAG_LEGACY = 0x7e;
 const IV_LENGTH = 12;
 const UNENCRYPTED_HEADER_BYTES = 10;
 
 interface ScriptTransformOptions {
   operation: 'encrypt' | 'decrypt';
   rawKey?: ArrayBuffer | Uint8Array | number[];
+  /** Preferred: a live CryptoKey (structured-cloned, never exported). */
+  cryptoKey?: CryptoKey;
 }
 
 interface RTCTransformEventLike extends Event {
@@ -28,7 +32,14 @@ let currentKeyBytes: Uint8Array | null = null;
 
 async function getOrImportCryptoKey(
   rawKey?: ArrayBuffer | Uint8Array | number[],
+  liveKey?: CryptoKey | null,
 ): Promise<CryptoKey | null> {
+  // Preferred path: live key object, never serialized (F1 hardening).
+  if (liveKey) {
+    activeCryptoKey = liveKey;
+    currentKeyBytes = null;
+    return liveKey;
+  }
   if (!rawKey) return activeCryptoKey;
 
   const keyBytes =
@@ -115,7 +126,8 @@ async function processFrame(
   } else {
     // Decrypt
     if (data.length <= UNENCRYPTED_HEADER_BYTES + IV_LENGTH + 1) return;
-    if (data[data.length - 1] !== E2EE_MAGIC_TAG) return;
+    const tag = data[data.length - 1];
+    if (tag !== E2EE_MAGIC_TAG && tag !== E2EE_MAGIC_TAG_LEGACY) return;
 
     const header = data.slice(0, UNENCRYPTED_HEADER_BYTES);
     const ivStart = data.length - 1 - IV_LENGTH;
@@ -152,7 +164,7 @@ function handleTransform(
     RTCEncodedAudioFrame | RTCEncodedVideoFrame
   >({
     async transform(frame, controller) {
-      const key = await getOrImportCryptoKey(options.rawKey);
+      const key = await getOrImportCryptoKey(options.rawKey, options.cryptoKey ?? null);
       if (key) {
         await processFrame(frame, options.operation, key, frameCounter);
       }

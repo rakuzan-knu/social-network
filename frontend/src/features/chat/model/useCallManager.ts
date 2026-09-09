@@ -1,4 +1,6 @@
-import { useEffect, useCallback, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { CONVERSATIONS_KEY } from '@/shared/api/queryKeys';
 import { useCallStore, type IncomingCallData } from './callStore';
 import { useWebRTC } from './useWebRTC';
 import { useWakeLock } from './useWakeLock';
@@ -21,6 +23,7 @@ import { triggerHaptic, cancelHaptic } from '../lib/webrtc/hapticFeedback';
 
 export function useCallManager() {
   const socket = getSocket();
+  const queryClient = useQueryClient();
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const multiTabCoordinatorRef = useRef<MultiTabCallCoordinator | null>(null);
   const acceptCallRef = useRef<(() => Promise<void>) | null>(null);
@@ -29,20 +32,12 @@ export function useCallManager() {
   const toggleMuteRef = useRef<(() => void) | null>(null);
 
   const {
-    callStatus,
-    callType,
-    callId,
-    conversationId,
-    incomingCall,
-    remoteParticipant,
-    isMuted,
-    isVideoOff,
-    isScreenSharing,
     setCallStatus,
     setIncomingCall,
     clearIncomingCall,
     setActiveCall,
     setIsMuted,
+    setIsDeafened,
     setIsVideoOff,
     incrementDuration,
     setDurationSec,
@@ -51,6 +46,7 @@ export function useCallManager() {
   } = useCallStore();
 
   // Screen Wake Lock API keeps device awake during call
+  const callStatus = useCallStore((s) => s.callStatus);
   useWakeLock(callStatus === 'connected' || callStatus === 'calling');
 
   // Auto ICE-Restart sender callback
@@ -89,22 +85,26 @@ export function useCallManager() {
     onConnectionFailed: handleConnectionFailed,
   });
 
-  const negotiateWebTransport = useCallback(
-    async (targetCallId: string) => {
-      try {
-        const res = await apiClient.post<WebTransportSessionResponse>(
-          '/calls/webtransport-session',
-          { callId: targetCallId },
+  const webRTCRef = useRef(webRTC);
+  webRTCRef.current = webRTC;
+
+  const negotiateWebTransport = useCallback(async (targetCallId: string) => {
+    try {
+      const res = await apiClient.post<WebTransportSessionResponse>('/calls/webtransport-session', {
+        callId: targetCallId,
+      });
+      if (res.data?.endpointUrl && res.data.sessionTicket && webRTCRef.current.webTransportClient) {
+        await webRTCRef.current.webTransportClient.connect(
+          res.data.endpointUrl,
+          res.data.sessionTicket,
         );
-        if (res.data?.endpointUrl && res.data.sessionTicket && webRTC.webTransportClient) {
-          await webRTC.webTransportClient.connect(res.data.endpointUrl, res.data.sessionTicket);
-        }
-      } catch {
-        // Fallback to WebSocket transparently
       }
-    },
-    [webRTC.webTransportClient],
-  );
+    } catch {
+      // Fallback to WebSocket transparently
+    }
+  }, []);
+  const negotiateWebTransportRef = useRef(negotiateWebTransport);
+  negotiateWebTransportRef.current = negotiateWebTransport;
   closeConnectionRef.current = webRTC.closeConnection;
 
   // Initialize Push-to-Talk (PTT) with software audio release tail
@@ -179,7 +179,11 @@ export function useCallManager() {
         }
       }
 
-      setIncomingCall(data);
+      const normalizedCallType =
+        String(data.callType).toLowerCase() === 'video' ? 'video' : 'audio';
+      const incomingData: IncomingCallData = { ...data, callType: normalizedCallType };
+
+      setIncomingCall(incomingData);
 
       // Multi-tab leader election and ringtone suppression
       if (data.callId) {
@@ -207,7 +211,7 @@ export function useCallManager() {
       // Background notification when tab is unfocused/hidden
       if (typeof document !== 'undefined' && document.hidden) {
         void showBrowserPushNotification({
-          title: `Incoming ${data.callType === 'video' ? 'Video' : 'Voice'} Call`,
+          title: `Incoming ${normalizedCallType === 'video' ? 'Video' : 'Voice'} Call`,
           body: `${data.caller.displayName || data.caller.username} is calling you...`,
           icon: data.caller.avatar,
           url: `/chat?conv=${data.conversationId}&callId=${data.callId}`,
@@ -221,19 +225,27 @@ export function useCallManager() {
       accepterId: string;
       sdpAnswer?: RTCSessionDescriptionInit;
       iceCandidates?: RTCIceCandidateInit[];
+      e2eeEphemeralKey?: string;
     }) => {
       cancelHaptic();
       stopRingtone();
       setCallStatus('connected');
       if (data.sdpAnswer) {
-        await webRTC.handleAnswer(data.sdpAnswer);
+        await webRTCRef.current.handleAnswer(data.sdpAnswer);
+      }
+      // Initiator step 2: complete the ECDH handshake now that the callee's
+      // ephemeral key arrived (no-op when E2EE was not negotiated).
+      if (data.e2eeEphemeralKey) {
+        await webRTCRef.current.completeE2eeHandshake(data.e2eeEphemeralKey, data.callId);
       }
       if (data.iceCandidates && Array.isArray(data.iceCandidates)) {
         for (const candidate of data.iceCandidates) {
-          await webRTC.addIceCandidate(candidate);
+          await webRTCRef.current.addIceCandidate(candidate);
         }
       }
-      void negotiateWebTransport(data.callId);
+      if (data.callId) {
+        void negotiateWebTransportRef.current(data.callId);
+      }
     };
 
     const handleIceCandidate = async (data: {
@@ -242,7 +254,7 @@ export function useCallManager() {
       senderUserId: string;
     }) => {
       if (data.candidate) {
-        await webRTC.addIceCandidate(data.candidate);
+        await webRTCRef.current.addIceCandidate(data.candidate);
       }
     };
 
@@ -253,7 +265,7 @@ export function useCallManager() {
     }) => {
       if (data.callId !== useCallStore.getState().callId) return;
       try {
-        const answer = await webRTC.handleRemoteIceRestart(data.sdpOffer);
+        const answer = await webRTCRef.current.handleRemoteIceRestart(data.sdpOffer);
         socket.emit(WS_EVENTS.CALL_ICE_RESTART_ANSWER, {
           callId: data.callId,
           sdpAnswer: answer,
@@ -270,18 +282,27 @@ export function useCallManager() {
     }) => {
       if (data.callId !== useCallStore.getState().callId) return;
       try {
-        await webRTC.handleIceRestartAnswer(data.sdpAnswer);
+        await webRTCRef.current.handleIceRestartAnswer(data.sdpAnswer);
       } catch (err) {
         console.warn('Applying ICE restart answer failed', err);
       }
     };
 
     const handleEnded = (_data: { callId: string; reason?: string; durationMs?: number }) => {
+      const convId = useCallStore.getState().conversationId;
       stopRingtone();
       playCallEndSound();
-      webRTC.closeConnection();
+      webRTCRef.current.closeConnection();
       multiTabCoordinatorRef.current?.stop();
       multiTabCoordinatorRef.current = null;
+      if (convId) {
+        // Only invalidate the conversation list — the CALL_LOG newMessage WS event
+        // will update the messages cache. Invalidating messages here causes a race
+        // where the refetch runs before the CALL_LOG arrives, making it disappear.
+        void queryClient.invalidateQueries({
+          queryKey: [CONVERSATIONS_KEY],
+        });
+      }
       resetCall();
     };
 
@@ -323,7 +344,7 @@ export function useCallManager() {
       socket.off(WS_EVENTS.CALL_VIDEO_TOGGLE, handleVideoToggle);
       socket.off(WS_EVENTS.CALL_RELAY_ASSIGNED, handleRelayAssigned);
     };
-  }, [socket, webRTC, setIncomingCall, setCallStatus, resetCall, negotiateWebTransport]);
+  }, [socket, setIncomingCall, setCallStatus, resetCall, queryClient]);
 
   const initiateCall = useCallback(
     async (params: {
@@ -371,6 +392,10 @@ export function useCallManager() {
           }
         }
 
+        // Ephemeral ECDH public for the E2EE handshake (F1). Generated once per
+        // call; the callee answers with its own key; the server only relays.
+        const e2eeEphemeralKey = await webRTCRef.current.prepareE2eeOffer();
+
         socket.emit(
           WS_EVENTS.CALL_INITIATE,
           {
@@ -379,6 +404,7 @@ export function useCallManager() {
             sdpOffer: offer,
             iceCandidates: gatheredCandidates,
             ...(zkpProof ? { zkpProof, isGhostMode: true } : {}),
+            ...(e2eeEphemeralKey ? { e2eeEphemeralKey } : {}),
           },
           (res: { status: string; callId?: string; call?: any; error?: string }) => {
             if (res?.status === 'ok' && res.callId) {
@@ -414,7 +440,7 @@ export function useCallManager() {
   );
 
   const acceptCall = useCallback(async () => {
-    if (multiTabCoordinatorRef.current && !multiTabCoordinatorRef.current.isLeader()) {
+    if (multiTabCoordinatorRef.current && multiTabCoordinatorRef.current.shouldSuppressRingtone()) {
       multiTabCoordinatorRef.current.sendSlaveAction('ACCEPT');
       return;
     }
@@ -422,22 +448,30 @@ export function useCallManager() {
     const currentIncoming = useCallStore.getState().incomingCall;
     if (!currentIncoming) return;
 
+    const callType = String(currentIncoming.callType).toLowerCase() === 'video' ? 'video' : 'audio';
+
     stopRingtone();
     clearIncomingCall();
     setDurationSec(0);
-    setCallStatus('connected');
     useCallStore.setState({
       callId: currentIncoming.callId,
       conversationId: currentIncoming.conversationId,
-      callType: currentIncoming.callType,
+      callType,
       remoteParticipant: currentIncoming.caller,
     });
 
     try {
       const gatheredCandidates: RTCIceCandidateInit[] = [];
-      const answer = await webRTC.handleOffer(
+      // Callee step: derive the E2EE session from the initiator key BEFORE
+      // creating the PeerConnection, so receivers attach encrypted from the
+      // first frame. Null when the initiator negotiated no E2EE.
+      const ownEphemeralKey = await webRTCRef.current.acceptE2eeOffer(
+        currentIncoming.e2eeEphemeralKey,
+        currentIncoming.callId,
+      );
+      const answer = await webRTCRef.current.handleOffer(
         currentIncoming.sdpOffer as RTCSessionDescriptionInit,
-        currentIncoming.callType,
+        callType,
         (candidate) => {
           socket.emit(WS_EVENTS.CALL_ICE_CANDIDATE, {
             callId: currentIncoming.callId,
@@ -451,7 +485,7 @@ export function useCallManager() {
       // Process any candidates attached to the incoming call payload
       if (currentIncoming.iceCandidates && Array.isArray(currentIncoming.iceCandidates)) {
         for (const cand of currentIncoming.iceCandidates) {
-          await webRTC.addIceCandidate(cand as RTCIceCandidateInit);
+          await webRTCRef.current.addIceCandidate(cand as RTCIceCandidateInit);
         }
       }
 
@@ -461,29 +495,23 @@ export function useCallManager() {
           callId: currentIncoming.callId,
           sdpAnswer: answer,
           iceCandidates: gatheredCandidates,
+          ...(ownEphemeralKey ? { e2eeEphemeralKey: ownEphemeralKey } : {}),
         },
         (res: { status: string; call?: any }) => {
           if (res?.call) {
             setActiveCall(res.call, currentIncoming.caller);
           }
-          void negotiateWebTransport(currentIncoming.callId);
+          void negotiateWebTransportRef.current(currentIncoming.callId);
         },
       );
-    } catch {
+      setCallStatus('connected');
+    } catch (err) {
+      console.error('[useCallManager] acceptCall error:', err);
       playCallEndSound();
-      webRTC.closeConnection();
+      webRTCRef.current.closeConnection();
       resetCall();
     }
-  }, [
-    socket,
-    webRTC,
-    clearIncomingCall,
-    setDurationSec,
-    setCallStatus,
-    setActiveCall,
-    resetCall,
-    negotiateWebTransport,
-  ]);
+  }, [socket, clearIncomingCall, setDurationSec, setCallStatus, setActiveCall, resetCall]);
 
   const rejectCall = useCallback(
     (reason = 'DECLINED') => {
@@ -493,6 +521,9 @@ export function useCallManager() {
       }
 
       const currentIncoming = useCallStore.getState().incomingCall;
+      const conversationId =
+        currentIncoming?.conversationId || useCallStore.getState().conversationId;
+
       stopRingtone();
       clearIncomingCall();
       if (currentIncoming) {
@@ -501,11 +532,18 @@ export function useCallManager() {
           reason,
         });
       }
+
+      if (conversationId) {
+        void queryClient.invalidateQueries({
+          queryKey: [CONVERSATIONS_KEY],
+        });
+      }
+
       multiTabCoordinatorRef.current?.stop();
       multiTabCoordinatorRef.current = null;
       resetCall();
     },
-    [socket, clearIncomingCall, resetCall],
+    [socket, clearIncomingCall, resetCall, queryClient],
   );
 
   // Listen to Service Worker Push Notification Action Buttons (Accept / Decline)
@@ -535,6 +573,7 @@ export function useCallManager() {
     }
 
     const currentCallId = useCallStore.getState().callId;
+    const conversationId = useCallStore.getState().conversationId;
     const durationSec = useCallStore.getState().durationSec;
 
     stopRingtone();
@@ -550,15 +589,21 @@ export function useCallManager() {
       });
     }
 
+    if (conversationId) {
+      void queryClient.invalidateQueries({
+        queryKey: [CONVERSATIONS_KEY],
+      });
+    }
+
     webRTC.closeConnection();
     multiTabCoordinatorRef.current?.stop();
     multiTabCoordinatorRef.current = null;
     resetCall();
-  }, [socket, webRTC, resetCall]);
+  }, [socket, webRTC, resetCall, queryClient]);
 
   const toggleMute = useCallback(() => {
     const currentCallId = useCallStore.getState().callId;
-    const newMuted = !isMuted;
+    const newMuted = !useCallStore.getState().isMuted;
     setIsMuted(newMuted);
     webRTC.toggleMuteTrack(newMuted);
     triggerHaptic(newMuted ? 'mute' : 'unmute');
@@ -569,11 +614,39 @@ export function useCallManager() {
         isMuted: newMuted,
       });
     }
-  }, [socket, webRTC, isMuted, setIsMuted]);
+  }, [socket, webRTC, setIsMuted]);
+
+  const toggleDeafen = useCallback(() => {
+    const currentCallId = useCallStore.getState().callId;
+    const currentDeafened = useCallStore.getState().isDeafened;
+    const nextDeafened = !currentDeafened;
+    setIsDeafened(nextDeafened);
+
+    if (nextDeafened) {
+      setIsMuted(true);
+      webRTC.toggleMuteTrack(true);
+    }
+
+    const remoteStreams = useCallStore.getState().remoteStreams;
+    Object.values(remoteStreams).forEach((stream) => {
+      stream.getAudioTracks().forEach((track) => {
+        track.enabled = !nextDeafened;
+      });
+    });
+
+    triggerHaptic(nextDeafened ? 'mute' : 'unmute');
+
+    if (currentCallId) {
+      socket.emit(nextDeafened ? WS_EVENTS.CALL_MUTE : WS_EVENTS.CALL_UNMUTE, {
+        callId: currentCallId,
+        isMuted: true,
+      });
+    }
+  }, [socket, webRTC, setIsDeafened, setIsMuted]);
 
   const toggleVideo = useCallback(() => {
     const currentCallId = useCallStore.getState().callId;
-    const newVideoOff = !isVideoOff;
+    const newVideoOff = !useCallStore.getState().isVideoOff;
     setIsVideoOff(newVideoOff);
     webRTC.toggleVideoTrack(newVideoOff);
     triggerHaptic('cameraToggle');
@@ -584,12 +657,13 @@ export function useCallManager() {
         isVideoOff: newVideoOff,
       });
     }
-  }, [socket, webRTC, isVideoOff, setIsVideoOff]);
+  }, [socket, webRTC, setIsVideoOff]);
 
   const toggleScreenShare = useCallback(async () => {
     const currentCallId = useCallStore.getState().callId;
+    const currentlySharing = useCallStore.getState().isScreenSharing;
     triggerHaptic('screenShare');
-    if (isScreenSharing) {
+    if (currentlySharing) {
       await webRTC.stopScreenShare();
       if (currentCallId) {
         socket.emit(WS_EVENTS.CALL_SCREEN_SHARE_STOP, {
@@ -610,49 +684,74 @@ export function useCallManager() {
         // User cancelled screen share picker
       }
     }
-  }, [socket, webRTC, isScreenSharing]);
+  }, [socket, webRTC]);
 
   acceptCallRef.current = acceptCall;
   rejectCallRef.current = rejectCall;
   endCallRef.current = endCall;
   toggleMuteRef.current = toggleMute;
 
-  return {
-    callStatus,
-    callType,
-    callId,
-    conversationId,
-    incomingCall,
-    remoteParticipant,
-    isMuted,
-    isVideoOff,
-    isScreenSharing,
-    initiateCall,
-    acceptCall,
-    rejectCall,
-    endCall,
-    toggleMute,
-    toggleVideo,
-    toggleScreenShare,
-    sendP2PFile: webRTC.sendP2PFile,
-    cancelP2PTransfer: webRTC.cancelP2PTransfer,
-    registerVideoTile: webRTC.registerVideoTile,
-    unregisterVideoTile: webRTC.unregisterVideoTile,
-    syncPlayEngine: webRTC.syncPlayEngine,
-    whiteboardEngine: webRTC.whiteboardEngine,
-    superResEngine: webRTC.superResEngine,
-    webCodecsManager: webRTC.webCodecsManager,
-    peerRelayManager: webRTC.peerRelayManager,
-    chaosEngine: webRTC.chaosEngine,
-    unblockAutoplay: webRTC.unblockAutoplay,
-    registerMediaElement: webRTC.registerMediaElement,
-    reactionEngine: webRTC.reactionEngine,
-    sendReaction: webRTC.sendReaction,
-    ptt,
-    multiTabCoordinator: multiTabCoordinatorRef.current,
-    configureSVC: webRTC.configureSVC,
-    switchSVCMode: webRTC.switchSVCMode,
-    setSVCLayers: webRTC.setSVCLayers,
-    callExternalStore: webRTC.callExternalStore,
-  };
+  return useMemo(
+    () => ({
+      initiateCall,
+      acceptCall,
+      rejectCall,
+      endCall,
+      toggleMute,
+      toggleDeafen,
+      toggleVideo,
+      toggleScreenShare,
+      sendP2PFile: webRTC.sendP2PFile,
+      cancelP2PTransfer: webRTC.cancelP2PTransfer,
+      registerVideoTile: webRTC.registerVideoTile,
+      unregisterVideoTile: webRTC.unregisterVideoTile,
+      syncPlayEngine: webRTC.syncPlayEngine,
+      whiteboardEngine: webRTC.whiteboardEngine,
+      superResEngine: webRTC.superResEngine,
+      webCodecsManager: webRTC.webCodecsManager,
+      peerRelayManager: webRTC.peerRelayManager,
+      chaosEngine: webRTC.chaosEngine,
+      unblockAutoplay: webRTC.unblockAutoplay,
+      registerMediaElement: webRTC.registerMediaElement,
+      reactionEngine: webRTC.reactionEngine,
+      sendReaction: webRTC.sendReaction,
+      ptt,
+      multiTabCoordinator: multiTabCoordinatorRef.current,
+      configureSVC: webRTC.configureSVC,
+      switchSVCMode: webRTC.switchSVCMode,
+      setSVCLayers: webRTC.setSVCLayers,
+      callExternalStore: webRTC.callExternalStore,
+    }),
+    // Actions are stable useCallback refs; engines are stable useRef.current values.
+    // Only re-create when socket or core callbacks change (very rare).
+    [
+      initiateCall,
+      acceptCall,
+      rejectCall,
+      endCall,
+      toggleMute,
+      toggleDeafen,
+      toggleVideo,
+      toggleScreenShare,
+      webRTC.sendP2PFile,
+      webRTC.cancelP2PTransfer,
+      webRTC.registerVideoTile,
+      webRTC.unregisterVideoTile,
+      webRTC.unblockAutoplay,
+      webRTC.registerMediaElement,
+      webRTC.sendReaction,
+      webRTC.configureSVC,
+      webRTC.switchSVCMode,
+      webRTC.setSVCLayers,
+      webRTC.callExternalStore,
+      webRTC.chaosEngine,
+      webRTC.peerRelayManager,
+      webRTC.reactionEngine,
+      webRTC.superResEngine,
+      webRTC.syncPlayEngine,
+      webRTC.webCodecsManager,
+      webRTC.whiteboardEngine,
+      ptt,
+    ],
+  );
 }

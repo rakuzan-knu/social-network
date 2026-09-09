@@ -9,7 +9,7 @@
  * Properly ignores input events when user is typing in form controls or contenteditable elements.
  */
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useCallStore } from './callStore';
 import { playPTTPressChirp, playPTTReleaseChirp } from '../lib/callRingtone';
 import { triggerHaptic } from '../lib/webrtc/hapticFeedback';

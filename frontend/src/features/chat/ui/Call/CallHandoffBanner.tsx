@@ -1,5 +1,5 @@
 import React from 'react';
-import { Smartphone, ArrowRightLeft, X, Loader2 } from 'lucide-react';
+import { ArrowRightLeft, Loader2, Smartphone, X } from 'lucide-react';
 import { useCallHandoff } from '../../model/useCallHandoff';
 
 export function CallHandoffBanner() {

@@ -1,8 +1,8 @@
 import React from 'react';
-import { Phone, PhoneOff, Video, ShieldCheck } from 'lucide-react';
+import { Phone, PhoneOff, ShieldCheck, Video } from 'lucide-react';
 import Avatar from '@/shared/ui/Avatar';
 import { useCallStore } from '../../model/callStore';
-import { useCallManager } from '../../model/useCallManager';
+import { useCall } from '../../model/CallContext';
 import { CallHeader } from './CallHeader';
 import { ParticipantGrid } from './ParticipantGrid';
 import { CallControls } from './CallControls';
@@ -31,6 +31,7 @@ import { HolographicCallModal } from './HolographicCallModal';
 export function CallModal() {
   const {
     callStatus,
+
     callType,
     remoteParticipant,
     incomingCall,
@@ -79,6 +80,7 @@ export function CallModal() {
     acceptCall,
     rejectCall,
     toggleMute,
+    toggleDeafen,
     toggleVideo,
     toggleScreenShare,
     sendP2PFile,
@@ -88,7 +90,7 @@ export function CallModal() {
     unblockAutoplay,
     reactionEngine,
     sendReaction,
-  } = useCallManager();
+  } = useCall();
 
   // Global shortcut: Ctrl+Shift+D or Cmd+Shift+D toggles Stats HUD
   React.useEffect(() => {
@@ -135,7 +137,7 @@ export function CallModal() {
     if (callStatus === 'connected') {
       globalMediaSessionCoordinator.bindCallSession(
         {
-          title: callType === 'video' ? 'Видеозвонок' : 'Аудиозвонок',
+          title: String(callType).toLowerCase() === 'video' ? 'Видеозвонок' : 'Аудиозвонок',
           callerName: remoteParticipant?.username || 'Собеседник',
           avatarUrl: remoteParticipant?.avatar ?? undefined,
         },
@@ -211,7 +213,7 @@ export function CallModal() {
   if (isPiP) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-2xl animate-fadeIn select-none">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-2xl animate-fadeIn select-none h-dvh max-h-dvh w-screen overflow-hidden pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)]">
       {/* Schema.org JSON-LD Structured Data for Search Engines */}
       <CallSchemaOrg />
 
@@ -228,11 +230,11 @@ export function CallModal() {
 
       {/* Audio-Only Fallback Notification Banner */}
       {callStatus === 'connected' && isAudioOnlyFallbackActive && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-3.5 py-1.5 bg-amber-950/85 border border-amber-500/30 text-amber-200 text-xs rounded-full backdrop-blur-md shadow-lg animate-fadeIn select-none pointer-events-none">
-          <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
-          <span>Плохое соединение: видео временно приостановлено для чистоты звука</span>
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-3.5 py-1.5 bg-amber-950/85 border border-amber-500/30 text-amber-200 text-xs rounded-full backdrop-blur-md shadow-lg animate-fadeIn select-none pointer-events-none max-w-[calc(100vw-32px)] text-center">
+          <span className="w-2 h-2 shrink-0 rounded-full bg-amber-400 animate-ping" />
+          <span className="truncate">Плохое соединение: видео временно приостановлено</span>
           {audioOnlyFallbackReason && (
-            <span className="text-[10px] text-amber-300/70 font-mono">
+            <span className="text-[10px] text-amber-300/70 font-mono hidden sm:inline">
               ({audioOnlyFallbackReason})
             </span>
           )}
@@ -241,12 +243,12 @@ export function CallModal() {
 
       {/* 1. Outgoing Calling Screen */}
       {callStatus === 'calling' && (
-        <div className="flex flex-col items-center justify-center gap-8 p-8 max-w-sm w-full text-center">
+        <div className="flex flex-col items-center justify-center gap-6 sm:gap-8 p-4 sm:p-8 max-w-sm w-full text-center">
           <div className="relative flex items-center justify-center">
             {/* Pulsating Radar Rings */}
-            <div className="absolute w-44 h-44 rounded-full bg-indigo-500/10 animate-ping opacity-50" />
-            <div className="absolute w-36 h-36 rounded-full bg-violet-500/20 animate-pulse" />
-            <div className="absolute w-28 h-28 rounded-full bg-indigo-500/30" />
+            <div className="absolute w-36 h-36 sm:w-44 sm:h-44 rounded-full bg-indigo-500/10 animate-ping opacity-50" />
+            <div className="absolute w-28 h-28 sm:w-36 sm:h-36 rounded-full bg-violet-500/20 animate-pulse" />
+            <div className="absolute w-20 h-20 sm:w-28 sm:h-28 rounded-full bg-indigo-500/30" />
             <Avatar
               src={remoteParticipant?.avatar}
               size="xl"
@@ -255,7 +257,7 @@ export function CallModal() {
           </div>
 
           <div className="space-y-1.5">
-            <h2 className="text-xl font-bold text-white tracking-wide">
+            <h2 className="text-xl sm:text-2xl font-bold text-white tracking-wide truncate max-w-xs">
               {remoteParticipant?.displayName || remoteParticipant?.username || 'Calling…'}
             </h2>
             <p className="text-sm text-indigo-300 animate-pulse capitalize">Calling {callType}…</p>
@@ -263,7 +265,7 @@ export function CallModal() {
 
           <button
             onClick={endCall}
-            className="mt-6 flex items-center gap-2 px-6 py-3 rounded-full bg-rose-600 hover:bg-rose-700 text-white font-medium shadow-xl shadow-rose-600/30 transition-all hover:scale-105"
+            className="mt-4 sm:mt-6 flex items-center justify-center gap-2 min-h-[48px] px-8 py-3 rounded-full bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-medium shadow-xl shadow-rose-600/30 transition-all hover:scale-105 cursor-pointer"
           >
             <PhoneOff size={18} />
             <span>Cancel</span>
@@ -273,10 +275,10 @@ export function CallModal() {
 
       {/* 2. Incoming Ringing Screen */}
       {callStatus === 'ringing' && incomingCall && (
-        <div className="flex flex-col items-center justify-center gap-8 p-8 max-w-sm w-full text-center">
+        <div className="flex flex-col items-center justify-center gap-6 sm:gap-8 p-4 sm:p-8 max-w-sm w-full text-center">
           <div className="relative flex items-center justify-center">
-            <div className="absolute w-44 h-44 rounded-full bg-emerald-500/10 animate-ping opacity-60" />
-            <div className="absolute w-36 h-36 rounded-full bg-teal-500/20 animate-pulse" />
+            <div className="absolute w-36 h-36 sm:w-44 sm:h-44 rounded-full bg-emerald-500/10 animate-ping opacity-60" />
+            <div className="absolute w-28 h-28 sm:w-36 sm:h-36 rounded-full bg-teal-500/20 animate-pulse" />
             <Avatar
               src={incomingCall.caller.avatar}
               size="xl"
@@ -285,12 +287,18 @@ export function CallModal() {
           </div>
 
           <div className="space-y-1.5">
-            <h2 className="text-xl font-bold text-white tracking-wide">
+            <h2 className="text-xl sm:text-2xl font-bold text-white tracking-wide truncate max-w-xs">
               {incomingCall.caller.displayName || incomingCall.caller.username}
             </h2>
             <div className="flex items-center justify-center gap-1.5 text-sm text-emerald-400">
-              {incomingCall.callType === 'video' ? <Video size={16} /> : <Phone size={16} />}
-              <span className="capitalize">Incoming {incomingCall.callType} call…</span>
+              {String(incomingCall.callType).toLowerCase() === 'video' ? (
+                <Video size={16} />
+              ) : (
+                <Phone size={16} />
+              )}
+              <span className="capitalize">
+                Incoming {String(incomingCall.callType).toLowerCase()} call…
+              </span>
             </div>
             {incomingCall.zkpProof && (
               <div className="flex items-center justify-center gap-1.5 text-xs text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-3 py-1 rounded-full mx-auto w-fit shadow-md">
@@ -300,17 +308,17 @@ export function CallModal() {
             )}
           </div>
 
-          <div className="flex items-center gap-6 mt-6">
+          <div className="flex items-center justify-center gap-6 mt-4 sm:mt-6">
             <button
               onClick={() => rejectCall('DECLINED')}
-              className="w-14 h-14 flex items-center justify-center rounded-full bg-rose-600 hover:bg-rose-700 text-white shadow-xl shadow-rose-600/30 transition-all hover:scale-105"
+              className="w-14 h-14 flex items-center justify-center rounded-full bg-rose-600 hover:bg-rose-700 active:scale-95 text-white shadow-xl shadow-rose-600/30 transition-all hover:scale-105 cursor-pointer"
               title="Decline"
             >
               <PhoneOff size={22} />
             </button>
             <button
               onClick={() => void acceptCall()}
-              className="w-14 h-14 flex items-center justify-center rounded-full bg-emerald-500 hover:bg-emerald-600 text-white shadow-xl shadow-emerald-500/30 transition-all hover:scale-105"
+              className="w-14 h-14 flex items-center justify-center rounded-full bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white shadow-xl shadow-emerald-500/30 transition-all hover:scale-105 cursor-pointer"
               title="Accept"
             >
               <Phone size={22} />
@@ -346,6 +354,7 @@ export function CallModal() {
 
           <CallControls
             onToggleMute={toggleMute}
+            onToggleDeafen={toggleDeafen}
             onToggleVideo={toggleVideo}
             onToggleScreenShare={toggleScreenShare}
             onEndCall={endCall}

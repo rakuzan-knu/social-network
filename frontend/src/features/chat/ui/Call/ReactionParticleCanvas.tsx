@@ -8,16 +8,21 @@ interface ReactionParticleCanvasProps {
 }
 
 export function ReactionParticleCanvas({ engine }: ReactionParticleCanvasProps) {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const animFrameRef = useRef<number | null>(null);
-  const lastTimeRef = useRef<number>(performance.now());
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const isTravelerModeEnabled = useCallStore((s) => s.isTravelerModeEnabled);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    const container = containerRef.current;
+    if (!container) return;
 
-    const rect = canvas.getBoundingClientRect();
+    // Dynamically create a canvas element to safely support transferControlToOffscreen()
+    // and prevent DOMException on React StrictMode remounts.
+    const canvas = document.createElement('canvas');
+    canvas.setAttribute('aria-hidden', 'true');
+    canvas.className = 'pointer-events-none absolute inset-0 z-30 w-full h-full';
+    container.appendChild(canvas);
+
+    const rect = container.getBoundingClientRect();
     const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
 
     // Initialize Offscreen Worker Bridge
@@ -38,7 +43,7 @@ export function ReactionParticleCanvas({ engine }: ReactionParticleCanvasProps) 
       };
 
       const handleResize = () => {
-        const r = canvas.getBoundingClientRect();
+        const r = container.getBoundingClientRect();
         const currentDpr = window.devicePixelRatio || 1;
         bridge.resize(r.width, r.height, currentDpr);
       };
@@ -49,17 +54,24 @@ export function ReactionParticleCanvas({ engine }: ReactionParticleCanvasProps) 
         engine.onSpawn = undefined;
         window.removeEventListener('resize', handleResize);
         bridge.destroy();
+        canvas.remove();
       };
     }
 
     // Fallback: In-thread RAF rendering loop if OffscreenCanvas is unavailable
     let isRunning = true;
+    let animFrame: number | null = null;
+    let lastTime = performance.now();
+    let containerWidth = 800;
+    let containerHeight = 600;
 
     const resizeCanvas = () => {
-      const r = canvas.getBoundingClientRect();
+      const r = container.getBoundingClientRect();
+      containerWidth = r.width || 800;
+      containerHeight = r.height || 600;
       const currentDpr = window.devicePixelRatio || 1;
-      canvas.width = r.width * currentDpr;
-      canvas.height = r.height * currentDpr;
+      canvas.width = containerWidth * currentDpr;
+      canvas.height = containerHeight * currentDpr;
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.scale(currentDpr, currentDpr);
@@ -79,13 +91,12 @@ export function ReactionParticleCanvas({ engine }: ReactionParticleCanvasProps) 
 
       if (elapsed >= targetIntervalMs) {
         lastRenderTime = currentTime;
-        const dtSeconds = Math.min(0.1, (currentTime - lastTimeRef.current) / 1000);
-        lastTimeRef.current = currentTime;
+        const dtSeconds = Math.min(0.1, (currentTime - lastTime) / 1000);
+        lastTime = currentTime;
 
         const ctx = canvas.getContext('2d');
         if (ctx) {
-          const r = canvas.getBoundingClientRect();
-          ctx.clearRect(0, 0, r.width, r.height);
+          ctx.clearRect(0, 0, containerWidth, containerHeight);
 
           const hasActiveParticles = engine.update(dtSeconds);
           if (hasActiveParticles) {
@@ -94,27 +105,28 @@ export function ReactionParticleCanvas({ engine }: ReactionParticleCanvasProps) 
         }
       }
 
-      animFrameRef.current = requestAnimationFrame(loop);
+      animFrame = requestAnimationFrame(loop);
     };
 
-    lastTimeRef.current = performance.now();
-    animFrameRef.current = requestAnimationFrame(loop);
+    lastTime = performance.now();
+    animFrame = requestAnimationFrame(loop);
 
     return () => {
       isRunning = false;
       window.removeEventListener('resize', resizeCanvas);
-      if (animFrameRef.current) {
-        cancelAnimationFrame(animFrameRef.current);
+      if (animFrame) {
+        cancelAnimationFrame(animFrame);
       }
       bridge.destroy();
+      canvas.remove();
     };
   }, [engine, isTravelerModeEnabled]);
 
   return (
-    <canvas
-      ref={canvasRef}
+    <div
+      ref={containerRef}
       aria-hidden="true"
-      className="pointer-events-none absolute inset-0 z-30 w-full h-full"
+      className="pointer-events-none absolute inset-0 z-30 w-full h-full overflow-hidden"
     />
   );
 }

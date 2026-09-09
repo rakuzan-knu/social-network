@@ -29,3 +29,6 @@ export * from './lib/webrtc/screenAnnotationEngine';
 export * from './model/useCallKeyboardShortcuts';
 export * from './ui/Call/CallPiPPortal';
 export * from './ui/Call/ScreenAnnotationOverlay';
+export * from './model/CallContext';
+export * from './model/CallProvider';
+export * from './model/useCallManager';

@@ -1,13 +1,11 @@
 import React from 'react';
-import { Phone, Video, Info, Radio } from 'lucide-react';
+import { Phone, Video, Info } from 'lucide-react';
 import Avatar from '../../../shared/ui/Avatar';
 import GroupAvatarCollage from '../../../shared/ui/GroupAvatarCollage';
 import OnlineStatusIndicator from '../../../shared/ui/OnlineStatusIndicator';
 import { ConversationDisplay } from '../lib/getConversationDisplay';
 import { VerifiedCheckmark } from '@/entities/profile/ui/VerifiedCheckmark';
 import { useCallPrewarmer } from '../lib/webrtc/webrtcPrewarmer';
-import { useVoiceChannelStore } from '../model/voiceChannelStore';
-import { useCurrentUser } from '@/entities/profile/model/useCurrentUser';
 
 interface ChatThreadHeaderProps {
   conversationId?: string;
@@ -23,7 +21,7 @@ interface ChatThreadHeaderProps {
 }
 
 export default function ChatThreadHeader({
-  conversationId,
+  conversationId: _conversationId,
   display,
   otherUserId,
   isOtherTyping,
@@ -36,32 +34,6 @@ export default function ChatThreadHeader({
 }: ChatThreadHeaderProps) {
   const callKey = otherUserId || 'default';
   const prewarmer = useCallPrewarmer(callKey);
-
-  const { activeVoiceChannelId, joinVoiceChannel, leaveVoiceChannel } = useVoiceChannelStore();
-  const { data: currentUser } = useCurrentUser();
-  const isVoiceActive = Boolean(conversationId && activeVoiceChannelId === conversationId);
-
-  const handleToggleVoice = () => {
-    if (!conversationId) return;
-    if (isVoiceActive) {
-      leaveVoiceChannel();
-    } else {
-      joinVoiceChannel(
-        conversationId,
-        display.title,
-        currentUser
-          ? {
-              userId: currentUser.id,
-              username: currentUser.username,
-              displayName: currentUser.displayName,
-              avatar: currentUser.avatar,
-              isMuted: false,
-              isSpeaking: false,
-            }
-          : undefined,
-      );
-    }
-  };
 
   return (
     <div className="flex items-center justify-between px-5 h-16 border-b border-white/5 shrink-0">
@@ -110,30 +82,6 @@ export default function ChatThreadHeader({
       </div>
 
       <div className="flex items-center gap-1.5 shrink-0">
-        {conversationId && (
-          <button
-            type="button"
-            onClick={handleToggleVoice}
-            title={
-              isVoiceActive
-                ? 'Leave Background Voice Room (Voice 2.0)'
-                : 'Join Background Coworking Voice Room (Voice 2.0)'
-            }
-            aria-label="Toggle background voice channel"
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
-              isVoiceActive
-                ? 'bg-emerald-500 text-black shadow-[0_0_15px_rgba(16,185,129,0.5)]'
-                : 'text-zinc-400 hover:text-emerald-400 hover:bg-white/5 border border-white/10'
-            }`}
-          >
-            <Radio
-              size={15}
-              className={isVoiceActive ? 'text-black animate-pulse' : 'text-emerald-400'}
-            />
-            <span className="hidden sm:inline">{isVoiceActive ? 'In Voice' : 'Voice 2.0'}</span>
-          </button>
-        )}
-
         <button
           onClick={() => {
             prewarmer.prewarmImmediately();
@@ -148,6 +96,7 @@ export default function ChatThreadHeader({
         >
           <Phone size={19} />
         </button>
+
         <button
           onClick={() => {
             prewarmer.prewarmImmediately();
@@ -162,6 +111,7 @@ export default function ChatThreadHeader({
         >
           <Video size={19} />
         </button>
+
         <button
           onClick={onToggleDetails}
           title="Conversation info"

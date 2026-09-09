@@ -143,10 +143,10 @@ export const chatApi = {
       .then((r) => r.data),
 
   archive: (conversationId: string) =>
-    api.post(`/conversations/${conversationId}/archive`).then((r) => r.data),
+    api.post<ConversationView>(`/conversations/${conversationId}/archive`).then((r) => r.data),
 
   unarchive: (conversationId: string) =>
-    api.delete(`/conversations/${conversationId}/archive`).then((r) => r.data),
+    api.delete<ConversationView>(`/conversations/${conversationId}/archive`).then((r) => r.data),
 
   blockUser: (userId: string) =>
     api.post(`/conversations/users/${userId}/block`).then((r) => r.data),

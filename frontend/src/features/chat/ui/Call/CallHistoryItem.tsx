@@ -1,6 +1,6 @@
 import React from 'react';
-import { PhoneIncoming, PhoneOutgoing, PhoneMissed, Video, Phone } from 'lucide-react';
-import { useCallManager } from '../../model/useCallManager';
+import { Phone, PhoneIncoming, PhoneMissed, PhoneOutgoing, Video } from 'lucide-react';
+import { useCall } from '../../model/CallContext';
 import type { CallLogMetadata, UserSnapshot } from '@common/contracts';
 
 export interface CallHistoryMessage {
@@ -27,21 +27,27 @@ function formatDuration(ms: number): string {
 }
 
 export function CallHistoryItem({ message, currentUserId }: CallHistoryItemProps) {
-  const { initiateCall } = useCallManager();
+  const { initiateCall } = useCall();
 
   let metadata: Partial<CallLogMetadata> = {};
   if (message.body) {
-    try {
-      metadata = JSON.parse(message.body) as CallLogMetadata;
-    } catch {
-      // fallback if body is plain string
+    if (typeof message.body === 'object' && message.body !== null) {
+      metadata = message.body as unknown as CallLogMetadata;
+    } else if (typeof message.body === 'string') {
+      try {
+        metadata = JSON.parse(message.body) as CallLogMetadata;
+      } catch {
+        // fallback if body is plain string
+      }
     }
   }
 
-  const isOutgoing = message.sender.id === currentUserId;
+  const isOutgoing = Boolean(message.sender?.id && message.sender.id === currentUserId);
   const isMissed = metadata.status === 'MISSED';
   const isDeclined = metadata.status === 'DECLINED';
-  const isVideo = metadata.callType === 'VIDEO';
+  const rawCallType =
+    metadata.callType || (message as unknown as { callType?: string }).callType || '';
+  const isVideo = String(rawCallType).toUpperCase() === 'VIDEO';
 
   const getCallIcon = () => {
     if (isVideo) {
@@ -74,10 +80,17 @@ export function CallHistoryItem({ message, currentUserId }: CallHistoryItemProps
   };
 
   const handleCallBack = () => {
+    const targetUser = message.sender || {
+      id: '',
+      username: 'User',
+      displayName: 'User',
+      avatar: null,
+      isOnline: false,
+    };
     initiateCall({
       conversationId: message.conversationId,
       callType: isVideo ? 'video' : 'audio',
-      remoteUser: message.sender,
+      remoteUser: targetUser,
     });
   };
 

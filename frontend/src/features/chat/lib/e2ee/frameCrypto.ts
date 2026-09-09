@@ -1,7 +1,7 @@
 /**
  * WebRTC Insertable Streams Frame Cryptography (SFrame AES-256-GCM)
  *
- * True End-to-End Encryption for audio and video media streams.
+ * End-to-End Encryption for WebRTC audio and video media streams.
  * Intercepts raw encoded media frames before RTP packetization and encrypts
  * them with AES-256-GCM using Web Crypto API.
  */
@@ -95,6 +95,8 @@ export const SAS_EMOJI_TABLE = [
 ] as const;
 
 const E2EE_MAGIC_TAG = 0xe2;
+/** Legacy worker tag (0x7e): accepted on decrypt for mixed-version calls, never emitted. */
+const E2EE_MAGIC_TAG_LEGACY = 0x7e;
 const UNENCRYPTED_HEADER_BYTES = 10;
 const IV_LENGTH = 12;
 
@@ -108,6 +110,11 @@ export const isInsertableStreamsSupported = (): boolean => {
 
 /**
  * Derives an AES-256-GCM CryptoKey and mutual SAS fingerprint from call identifiers
+ *
+ * @deprecated INSECURE — the key is SHA-256 of the server-known callId and
+ * offers no end-to-end security (see docs/security/E2EE_IMPLEMENTATION_AUDIT.md
+ * F1). Kept for backward-compatible tests only. New code MUST use
+ * `callKeyExchange.ts` (ephemeral ECDH + HKDF).
  */
 export async function deriveCallCryptoKey(
   callId: string,
@@ -153,19 +160,15 @@ export async function deriveCallCryptoKey(
 async function encryptFrame(
   frame: RTCEncodedAudioFrame | RTCEncodedVideoFrame,
   key: CryptoKey,
-  frameIndex: number,
-): Promise<void> {
+): Promise<boolean> {
   const data = new Uint8Array(frame.data);
-  if (data.length <= UNENCRYPTED_HEADER_BYTES) return;
+  if (data.length <= UNENCRYPTED_HEADER_BYTES) return false;
 
   const header = data.slice(0, UNENCRYPTED_HEADER_BYTES);
   const payload = data.slice(UNENCRYPTED_HEADER_BYTES);
 
-  // 12-byte IV: 4-byte static salt + 8-byte frame sequence counter
-  const iv = new Uint8Array(IV_LENGTH);
-  const ivView = new DataView(iv.buffer);
-  ivView.setUint32(0, 0x5346524d); // 'SFRM' magic
-  ivView.setBigUint64(4, BigInt(frameIndex));
+  // Fresh random IV per frame (F4): no counters, no reuse across sessions.
+  const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH));
 
   try {
     const ciphertext = await crypto.subtle.encrypt(
@@ -183,8 +186,11 @@ async function encryptFrame(
     result[result.length - 1] = E2EE_MAGIC_TAG;
 
     frame.data = result.buffer;
+    return true;
   } catch (err) {
-    console.warn('Frame encryption failed, sending unaltered frame', err);
+    // Fail CLOSED (F3): never emit plaintext. Drop the frame.
+    console.warn('Frame encryption failed, dropping frame (fail-closed)', err);
+    return false;
   }
 }
 
@@ -198,8 +204,9 @@ async function decryptFrame(
   const data = new Uint8Array(frame.data);
   if (data.length <= UNENCRYPTED_HEADER_BYTES + IV_LENGTH + 1) return;
 
-  // Check magic tag
-  if (data[data.length - 1] !== E2EE_MAGIC_TAG) {
+  // Check magic tag: current 0xe2, plus legacy worker 0x7e for mixed-version calls.
+  const tag = data[data.length - 1];
+  if (tag !== E2EE_MAGIC_TAG && tag !== E2EE_MAGIC_TAG_LEGACY) {
     // Unencrypted or incompatible frame
     return;
   }
@@ -235,16 +242,14 @@ export function attachSenderEncryption(sender: RTCRtpSender, key: CryptoKey): bo
 
   try {
     const { readable, writable } = encSender.createEncodedStreams();
-    let frameIndex = 0;
 
     const transformStream = new TransformStream<
       RTCEncodedAudioFrame | RTCEncodedVideoFrame,
       RTCEncodedAudioFrame | RTCEncodedVideoFrame
     >({
       async transform(frame, controller) {
-        frameIndex++;
-        await encryptFrame(frame, key, frameIndex);
-        controller.enqueue(frame);
+        // Fail CLOSED: only encrypted frames continue downstream.
+        if (await encryptFrame(frame, key)) controller.enqueue(frame);
       },
     });
 

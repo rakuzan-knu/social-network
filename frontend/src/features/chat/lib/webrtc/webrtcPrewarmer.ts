@@ -7,8 +7,8 @@
  * preheated resources after a 6-second inactivity TTL.
  */
 
-import { apiClient } from '@/shared/api/httpClient';
 import type { IceServersResponse } from '@common/contracts';
+import { apiClient } from '@/shared/api/httpClient';
 
 export interface PrewarmedSession {
   peerConnection: RTCPeerConnection;

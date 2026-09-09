@@ -81,7 +81,7 @@ type Row =
 const START_INDEX = 100000;
 
 function isSameSenderAndMinute(msg1: MessageView, msg2: MessageView): boolean {
-  if (msg1.sender.id !== msg2.sender.id) return false;
+  if (!msg1.sender?.id || !msg2.sender?.id || msg1.sender.id !== msg2.sender.id) return false;
   const d1 = new Date(msg1.createdAt);
   const d2 = new Date(msg2.createdAt);
   return (
@@ -382,6 +382,7 @@ export default function MessageList({
           if (
             lastMsgRow &&
             lastMsgRow.type === 'message' &&
+            lastMsgRow.message.sender?.id &&
             lastMsgRow.message.sender.id !== currentUserId
           ) {
             onMarkRead?.(lastMsgRow.message.id);
@@ -458,7 +459,7 @@ export default function MessageList({
             );
           }
 
-          const isOwnMessage = message.sender.id === currentUserId;
+          const isOwnMessage = Boolean(message.sender?.id && message.sender.id === currentUserId);
           const isReadByOther = otherParticipantId
             ? message.readBy.includes(otherParticipantId)
             : false;

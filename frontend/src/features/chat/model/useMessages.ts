@@ -13,7 +13,8 @@ export function useMessages(conversationId: string | null) {
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? (lastPage.nextCursor ?? undefined) : undefined,
     enabled: !!conversationId,
-    staleTime: 1000 * 10,
+    staleTime: 1000 * 60,
+    refetchOnWindowFocus: false,
   });
 
   const messages = useMemo(() => {

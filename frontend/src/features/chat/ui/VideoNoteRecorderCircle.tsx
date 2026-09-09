@@ -153,7 +153,7 @@ export default function VideoNoteRecorderCircle({
               }`}
             >
               <Camera size={12} className="text-purple-400" />
-              <span className="truncate max-w-[140px]">{cameraToast.text}</span>
+              <span className="truncate max-w-35">{cameraToast.text}</span>
             </div>
           </div>
         )}
@@ -262,7 +262,7 @@ export default function VideoNoteRecorderCircle({
             type="button"
             onClick={onSend}
             title="Send video note"
-            className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-400 hover:to-indigo-400 text-white shadow-[0_0_15px_rgba(168,85,247,0.5)] transition-all active:scale-95"
+            className="w-10 h-10 rounded-full flex items-center justify-center bg-linear-to-r from-purple-500 to-indigo-500 hover:from-purple-400 hover:to-indigo-400 text-white shadow-[0_0_15px_rgba(168,85,247,0.5)] transition-all active:scale-95"
           >
             <Send size={16} className="translate-x-[0.5px]" />
           </button>

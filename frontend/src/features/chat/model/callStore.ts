@@ -17,6 +17,8 @@ export interface IncomingCallData {
   iceCandidates?: unknown[];
   zkpProof?: ZkpCallProof | null;
   isGhostMode?: boolean;
+  /** Initiator ephemeral ECDH public (SPKI b64) for the E2EE handshake. */
+  e2eeEphemeralKey?: string;
 }
 
 export interface AvailableDevices {
@@ -52,6 +54,7 @@ export interface CallStoreState {
   screenShareStream: MediaStream | null;
 
   isMuted: boolean;
+  isDeafened: boolean;
   isVideoOff: boolean;
   isScreenSharing: boolean;
   isPiP: boolean;
@@ -63,7 +66,7 @@ export interface CallStoreState {
   isNoiseSuppressionEnabled: boolean;
 
   // Insertable Streams E2EE & SAS Emojis
-  e2eeStatus: 'verified' | 'unsupported' | 'disabled';
+  e2eeStatus: 'verified' | 'unverified' | 'unsupported' | 'disabled';
   e2eeFingerprint: string;
   sasCode: string;
   sasEmojis: string | null;
@@ -222,6 +225,7 @@ export interface CallStoreState {
   removeRemoteStream: (userId: string) => void;
   setScreenShareStream: (stream: MediaStream | null) => void;
   setIsMuted: (isMuted: boolean) => void;
+  setIsDeafened: (isDeafened: boolean) => void;
   setIsVideoOff: (isVideoOff: boolean) => void;
   setIsScreenSharing: (isScreenSharing: boolean) => void;
   setIsPiP: (isPiP: boolean) => void;
@@ -231,7 +235,7 @@ export interface CallStoreState {
   incrementDuration: () => void;
   setIsNoiseSuppressionEnabled: (enabled: boolean) => void;
   setE2EEInfo: (
-    status: 'verified' | 'unsupported' | 'disabled',
+    status: 'verified' | 'unverified' | 'unsupported' | 'disabled',
     fingerprint: string,
     sasCode: string,
     sasEmojis?: string | null,
@@ -317,6 +321,7 @@ export const useCallStore = create<CallStoreState>((set) => ({
   screenShareStream: null,
 
   isMuted: false,
+  isDeafened: false,
   isVideoOff: false,
   isScreenSharing: false,
   isPiP: false,
@@ -325,7 +330,8 @@ export const useCallStore = create<CallStoreState>((set) => ({
   durationSec: 0,
 
   isNoiseSuppressionEnabled: true,
-  e2eeStatus: 'verified',
+  // No crypto has run at store init — never default to 'verified' (F2).
+  e2eeStatus: 'disabled',
   e2eeFingerprint: '',
   sasCode: '',
   sasEmojis: null,
@@ -439,6 +445,7 @@ export const useCallStore = create<CallStoreState>((set) => ({
     }),
   setScreenShareStream: (screenShareStream) => set({ screenShareStream }),
   setIsMuted: (isMuted) => set({ isMuted }),
+  setIsDeafened: (isDeafened) => set({ isDeafened }),
   setIsVideoOff: (isVideoOff) => set({ isVideoOff }),
   setIsScreenSharing: (isScreenSharing) => set({ isScreenSharing }),
   setIsPiP: (isPiP) => set({ isPiP }),
@@ -460,7 +467,10 @@ export const useCallStore = create<CallStoreState>((set) => ({
   setNoiseGateThreshold: (noiseGateThreshold) => set({ noiseGateThreshold }),
   setLocalIsSpeaking: (localIsSpeaking) => set({ localIsSpeaking }),
   setRemoteIsSpeaking: (remoteIsSpeaking) => set({ remoteIsSpeaking }),
-  setCurrentAudioLevel: (currentAudioLevel) => set({ currentAudioLevel }),
+  setCurrentAudioLevel: (currentAudioLevel) =>
+    set((state) =>
+      Math.abs(state.currentAudioLevel - currentAudioLevel) < 5 ? state : { currentAudioLevel },
+    ),
   setIsScreenAudioSharing: (isScreenAudioSharing) => set({ isScreenAudioSharing }),
   setIsSidechainDuckingEnabled: (isSidechainDuckingEnabled) => set({ isSidechainDuckingEnabled }),
   setIsSpatialAudioEnabled: (isSpatialAudioEnabled) => set({ isSpatialAudioEnabled }),
@@ -537,7 +547,8 @@ export const useCallStore = create<CallStoreState>((set) => ({
   setIsVoiceCommandsEnabled: (isVoiceCommandsEnabled) => set({ isVoiceCommandsEnabled }),
   setIsAudioOnlyFallbackActive: (isAudioOnlyFallbackActive, audioOnlyFallbackReason = null) =>
     set({ isAudioOnlyFallbackActive, audioOnlyFallbackReason }),
-  setDominantSpeakerId: (dominantSpeakerId) => set({ dominantSpeakerId }),
+  setDominantSpeakerId: (dominantSpeakerId) =>
+    set((state) => (state.dominantSpeakerId === dominantSpeakerId ? state : { dominantSpeakerId })),
   setIsWebGLGridEnabled: (isWebGLGridEnabled) => set({ isWebGLGridEnabled }),
   setIsHapticsEnabled: (isHapticsEnabled) => set({ isHapticsEnabled }),
   setIsDocumentPiP: (isDocumentPiP) => set({ isDocumentPiP }),
@@ -576,6 +587,7 @@ export const useCallStore = create<CallStoreState>((set) => ({
         remoteStreams: {},
         screenShareStream: null,
         isMuted: false,
+        isDeafened: false,
         isVideoOff: false,
         isScreenSharing: false,
         isPiP: false,

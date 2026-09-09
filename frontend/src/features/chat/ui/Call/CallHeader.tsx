@@ -98,17 +98,28 @@ export function CallHeader({ onTogglePiP, onOpenSettings }: CallHeaderProps) {
 
   return (
     <>
-      <div className="absolute top-0 left-0 right-0 z-30 flex items-center justify-between px-6 py-4 bg-linear-to-b from-black/85 via-black/50 to-transparent backdrop-blur-[3px]">
-        <div className="flex items-center gap-3">
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-base font-semibold text-white tracking-wide">
+      <div className="absolute top-0 left-0 right-0 z-30 flex items-center justify-between px-3 sm:px-6 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] pb-3 sm:py-4 bg-linear-to-b from-black/85 via-black/50 to-transparent backdrop-blur-[3px] select-none">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 pr-2">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+              <h2 className="text-sm sm:text-base font-semibold text-white tracking-wide truncate sm:max-w-xs md:max-w-md">
                 {remoteParticipant?.displayName ||
                   remoteParticipant?.username ||
                   'Voice & Video Call'}
               </h2>
 
-              {/* Genuine E2EE SFrame Badge */}
+              {/* Mobile Compact E2EE Chip */}
+              <button
+                type="button"
+                onClick={() => setShowE2EEModal(true)}
+                title="End-to-End Encrypted Call (Click to verify)"
+                className="sm:hidden flex items-center gap-1 text-[10px] font-medium text-emerald-300 bg-emerald-950/70 hover:bg-emerald-900/80 px-2 py-0.5 rounded-full border border-emerald-500/30 cursor-pointer shrink-0"
+              >
+                <ShieldCheck size={11} className="text-emerald-400 shrink-0 animate-pulse" />
+                <span>{sasEmojis ? sasEmojis.slice(0, 5) : 'E2EE'}</span>
+              </button>
+
+              {/* Desktop Genuine E2EE SFrame Badge */}
               <button
                 type="button"
                 onClick={() => setShowE2EEModal(true)}
@@ -117,19 +128,19 @@ export function CallHeader({ onTogglePiP, onOpenSettings }: CallHeaderProps) {
                     ? 'Click to verify End-to-End Encryption'
                     : `E2EE Status: ${e2eeStatus}`
                 }
-                className="flex items-center gap-1 text-[11px] font-medium text-emerald-300 bg-emerald-950/60 hover:bg-emerald-900/80 px-2.5 py-0.5 rounded-full border border-emerald-500/30 transition-all shadow-[0_0_10px_rgba(16,185,129,0.25)]"
+                className="hidden sm:flex items-center gap-1 text-[11px] font-medium text-emerald-300 bg-emerald-950/60 hover:bg-emerald-900/80 px-2.5 py-0.5 rounded-full border border-emerald-500/30 transition-all shadow-[0_0_10px_rgba(16,185,129,0.25)] cursor-pointer"
               >
                 <ShieldCheck size={13} className="text-emerald-400 animate-pulse" />
                 <span>E2E Encrypted ({e2eeStatus === 'verified' ? 'SFrame' : e2eeStatus})</span>
               </button>
 
-              {/* Telegram/Signal Style 4 Emojis SAS Badge */}
+              {/* Desktop Telegram/Signal Style 4 Emojis SAS Badge */}
               {sasEmojis && (
                 <button
                   type="button"
                   onClick={() => setShowE2EEModal(true)}
                   title="Compare these 4 emojis with your peer to verify 100% E2EE authenticity"
-                  className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-900/80 hover:bg-slate-800 border border-emerald-500/40 text-xs tracking-widest shadow-[0_0_10px_rgba(16,185,129,0.2)] transition-all cursor-pointer"
+                  className="hidden sm:flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-900/80 hover:bg-slate-800 border border-emerald-500/40 text-xs tracking-widest shadow-[0_0_10px_rgba(16,185,129,0.2)] transition-all cursor-pointer"
                 >
                   <span>{sasEmojis}</span>
                 </button>
@@ -137,51 +148,50 @@ export function CallHeader({ onTogglePiP, onOpenSettings }: CallHeaderProps) {
 
               {/* RNNoise Active Badge */}
               {isNoiseSuppressionEnabled && (
-                <span className="flex items-center gap-1 text-[11px] font-medium text-cyan-300 bg-cyan-950/50 px-2 py-0.5 rounded-full border border-cyan-500/30 shadow-[0_0_8px_rgba(6,182,212,0.2)]">
+                <span className="hidden xs:flex items-center gap-1 text-[10px] sm:text-[11px] font-medium text-cyan-300 bg-cyan-950/50 px-2 py-0.5 rounded-full border border-cyan-500/30 shadow-[0_0_8px_rgba(6,182,212,0.2)]">
                   <Sparkles size={11} className="text-cyan-400" />
-                  <span>RNNoise AI</span>
+                  <span>RNNoise</span>
                 </span>
               )}
             </div>
 
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-xs text-gray-400 capitalize">
-                {callType} Call •{' '}
-                {callStatus === 'connected' ? formatDuration(durationSec) : callStatus}
+            <div className="flex items-center gap-1.5 sm:gap-2 mt-0.5">
+              <span className="text-[11px] sm:text-xs text-gray-400 capitalize whitespace-nowrap">
+                {callType} • {callStatus === 'connected' ? formatDuration(durationSec) : callStatus}
               </span>
               {callStatus === 'connected' && getQualityBadge()}
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <button
             onClick={toggleStatsHUD}
             title="WebRTC Live Stream Stats HUD (Ctrl+Shift+D)"
             aria-label="WebRTC Live Stream Stats HUD"
-            className={`w-9 h-9 flex items-center justify-center rounded-full transition-all backdrop-blur-md border ${
+            className={`w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full transition-all backdrop-blur-md border cursor-pointer ${
               isStatsHUDOpen
                 ? 'bg-cyan-600 text-white border-cyan-400 shadow-lg shadow-cyan-500/30'
-                : 'bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white border-white/10'
+                : 'bg-white/10 hover:bg-white/20 active:scale-95 text-gray-300 hover:text-white border-white/10'
             }`}
           >
-            <Activity size={18} />
+            <Activity size={16} className="sm:w-4.5 sm:h-4.5" />
           </button>
           <button
             onClick={onOpenSettings}
             title="Call & Audio Settings"
             aria-label="Call & Audio Settings"
-            className="w-9 h-9 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white transition-all backdrop-blur-md border border-white/10"
+            className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 active:scale-95 text-gray-300 hover:text-white transition-all backdrop-blur-md border border-white/10 cursor-pointer"
           >
-            <Settings size={18} />
+            <Settings size={16} className="sm:w-4.5 sm:h-4.5" />
           </button>
           <button
             onClick={onTogglePiP}
             title="Minimize to Picture-in-Picture"
             aria-label="Minimize to Picture-in-Picture"
-            className="w-9 h-9 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white transition-all backdrop-blur-md border border-white/10"
+            className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 active:scale-95 text-gray-300 hover:text-white transition-all backdrop-blur-md border border-white/10 cursor-pointer"
           >
-            <Minimize2 size={18} />
+            <Minimize2 size={16} className="sm:w-4.5 sm:h-4.5" />
           </button>
         </div>
       </div>

@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Maximize2, Mic, MicOff, PhoneOff, Video, VideoOff } from 'lucide-react';
 import Avatar from '@/shared/ui/Avatar';
 import { useCallStore } from '../../model/callStore';
-import { useCallManager } from '../../model/useCallManager';
+import { useCall } from '../../model/CallContext';
 import { isDocumentPiPSupported } from '../../lib/documentPiP';
 
 function formatDuration(seconds: number): string {
@@ -32,7 +32,7 @@ export function DocumentPiP() {
     setIsPiP,
   } = useCallStore();
 
-  const { endCall, toggleMute, toggleVideo } = useCallManager();
+  const { endCall, toggleMute, toggleVideo } = useCall();
   const [pipWindow, setPipWindow] = useState<Window | null>(null);
   const pipWindowRef = useRef<Window | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);

@@ -240,7 +240,7 @@ export const SyncPlayModal: React.FC<SyncPlayModalProps> = ({
         )}
 
         {/* Video Display Area */}
-        <div className="relative flex-1 bg-black flex items-center justify-center min-h-[360px] overflow-hidden group">
+        <div className="relative flex-1 bg-black flex items-center justify-center min-h-90 overflow-hidden group">
           <video
             ref={videoRef}
             src={videoSrc}

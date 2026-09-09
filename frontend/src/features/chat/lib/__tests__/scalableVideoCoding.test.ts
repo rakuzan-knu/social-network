@@ -4,7 +4,6 @@ import {
   setSVCLayerActive,
   switchSVCScalabilityMode,
   scaleSVCForBandwidth,
-  SVC_PRESETS,
 } from '../webrtc/scalableVideoCoding';
 
 describe('Scalable Video Coding (SVC) & Transceiver Parameters', () => {

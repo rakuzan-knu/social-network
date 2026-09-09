@@ -1,13 +1,14 @@
-import { useRef, useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useCallStore } from './callStore';
 import { apiClient } from '@/shared/api/httpClient';
 import type { IceServersResponse } from '@common/contracts';
 import { rnnoiseManager, type DenoisedStreamHandle } from '../lib/rnnoise/rnnoiseManager';
+import { attachSenderEncryption, isInsertableStreamsSupported } from '../lib/e2ee/frameCrypto';
 import {
-  deriveCallCryptoKey,
-  attachSenderEncryption,
-  isInsertableStreamsSupported,
-} from '../lib/e2ee/frameCrypto';
+  deriveCallSessionKey,
+  exportEphemeralPublicKey,
+  generateEphemeralKeypair,
+} from '../lib/e2ee/callKeyExchange';
 import {
   attachSenderScriptTransform,
   attachReceiverScriptTransform,
@@ -76,7 +77,7 @@ export function useWebRTC(options: WebRTCOptions = {}) {
   const rawStreamRef = useRef<MediaStream | null>(null);
   const iceRestartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cryptoKeyRef = useRef<CryptoKey | null>(null);
-  const rawKeyBytesRef = useRef<Uint8Array | null>(null);
+  const e2eeEphemeralRef = useRef<CryptoKeyPair | null>(null);
   const spatialAudioRef = useRef<SpatialAudioManager | null>(null);
   const p2pFileManagerRef = useRef<P2PFileManager | null>(null);
   const voiceFXProcessorRef = useRef<VoiceFXProcessor | null>(null);
@@ -216,7 +217,9 @@ export function useWebRTC(options: WebRTCOptions = {}) {
           setLocalIsSpeaking(speaking);
         },
         onVolumeChange: (_db, percent) => {
-          setCurrentAudioLevel(percent);
+          if (useCallStore.getState().isSettingsOpen) {
+            setCurrentAudioLevel(percent);
+          }
         },
       });
     }
@@ -443,7 +446,9 @@ export function useWebRTC(options: WebRTCOptions = {}) {
         return pcRef.current;
       }
 
+      console.log('[initPeerConnection] fetching ICE servers...');
       const iceServers = await fetchIceServers();
+      console.log('[initPeerConnection] creating RTCPeerConnection...');
       const pc = new RTCPeerConnection({
         iceServers,
         iceCandidatePoolSize: 10,
@@ -451,23 +456,17 @@ export function useWebRTC(options: WebRTCOptions = {}) {
       });
       pcRef.current = pc;
 
-      // Derive E2EE keys if Insertable Streams or ScriptTransform are supported
+      // E2EE session keys are established by the explicit handshake
+      // (prepareE2eeOffer / acceptE2eeOffer / completeE2eeHandshake) once both
+      // ephemeral publics have crossed signaling. Nothing is derived here:
+      // any key the server could recompute is not end-to-end (see F1).
       if (callId) {
-        if (isInsertableStreamsSupported() || isScriptTransformSupported()) {
-          try {
-            const keyInfo = await deriveCallCryptoKey(callId);
-            cryptoKeyRef.current = keyInfo.key;
-            rawKeyBytesRef.current = new TextEncoder()
-              .encode(keyInfo.fingerprint.padEnd(32, '0'))
-              .slice(0, 32);
-            setE2EEInfo('verified', keyInfo.fingerprint, keyInfo.sasCode, keyInfo.sasEmojis);
-          } catch {
-            setE2EEInfo('disabled', '', '');
-          }
-        } else {
+        console.log('[initPeerConnection] E2EE pending handshake for callId:', callId);
+        if (!isInsertableStreamsSupported() && !isScriptTransformSupported()) {
           setE2EEInfo('unsupported', '', '');
         }
       }
+      console.log('[initPeerConnection] done!');
 
       // Initialize P2P Gossip Relay mesh manager
       if (!gossipRelayRef.current) {
@@ -505,19 +504,29 @@ export function useWebRTC(options: WebRTCOptions = {}) {
       };
 
       pc.ontrack = (event) => {
+        console.log('[ontrack] fired! track:', event.track?.kind, 'receiver:', !!event.receiver);
         if (event.streams && event.streams[0]) {
           const remoteStream = event.streams[0];
           const streamId = targetUserId || 'remote';
 
           // Attach RTCRtpScriptTransform / Insertable Streams receiver decryption if key exists
-          if ((cryptoKeyRef.current || rawKeyBytesRef.current) && event.receiver) {
-            attachReceiverScriptTransform(event.receiver, {
-              cryptoKey: cryptoKeyRef.current || undefined,
-              rawKeyBytes: rawKeyBytesRef.current || undefined,
-            });
+          if (cryptoKeyRef.current && event.receiver) {
+            console.log('[ontrack] attaching receiver script transform...');
+            try {
+              attachReceiverScriptTransform(event.receiver, {
+                cryptoKey: cryptoKeyRef.current,
+              });
+              console.log('[ontrack] receiver script transform attached');
+            } catch (e) {
+              console.warn('[ontrack] attachReceiverScriptTransform error:', e);
+            }
           }
 
-          setRemoteStream(streamId, remoteStream);
+          console.log('[ontrack] scheduling remote stream in Zustand...');
+          setTimeout(() => {
+            setRemoteStream(streamId, remoteStream);
+            console.log('[ontrack] setRemoteStream done');
+          }, 0);
         }
       };
 
@@ -725,10 +734,13 @@ export function useWebRTC(options: WebRTCOptions = {}) {
 
   const acquireLocalMedia = useCallback(
     async (callType: 'audio' | 'video'): Promise<MediaStream> => {
+      const type = ((callType as unknown as string) || 'audio').toLowerCase() as 'audio' | 'video';
+      console.log('[acquireLocalMedia] started. type:', type);
       // If we already have an active local stream with required tracks, return it
       if (localStream && localStream.active) {
         const hasVideo = localStream.getVideoTracks().length > 0;
-        if (callType === 'audio' || (callType === 'video' && hasVideo)) {
+        if (type === 'audio' || (type === 'video' && hasVideo)) {
+          console.log('[acquireLocalMedia] returning existing active stream');
           return localStream;
         }
       }
@@ -742,7 +754,7 @@ export function useWebRTC(options: WebRTCOptions = {}) {
             }
           : { echoCancellation: true, noiseSuppression: true },
         video:
-          callType === 'video'
+          type === 'video'
             ? selectedVideoInput
               ? {
                   deviceId: { exact: selectedVideoInput },
@@ -755,8 +767,17 @@ export function useWebRTC(options: WebRTCOptions = {}) {
 
       let rawStream: MediaStream;
       try {
+        console.log(
+          '[acquireLocalMedia] calling getUserMedia with constraints:',
+          JSON.stringify(constraints),
+        );
         rawStream = await navigator.mediaDevices.getUserMedia(constraints);
+        console.log(
+          '[acquireLocalMedia] getUserMedia succeeded! tracks:',
+          rawStream.getTracks().map((t) => t.kind),
+        );
       } catch (err) {
+        console.error('[acquireLocalMedia] getUserMedia FAILED:', err);
         void CallAlarming.captureCallAlarm({
           callId: callId || 'initiation',
           error: err,
@@ -764,7 +785,7 @@ export function useWebRTC(options: WebRTCOptions = {}) {
         });
 
         // Fallback to audio-only if camera request fails
-        if (callType === 'video') {
+        if (type === 'video') {
           try {
             rawStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
           } catch (audioErr) {
@@ -786,10 +807,12 @@ export function useWebRTC(options: WebRTCOptions = {}) {
       let finalStream = rawStream;
       if (rawStream.getAudioTracks().length > 0) {
         try {
+          console.log('[acquireLocalMedia] filtering via rnnoise...');
           const denoisedHandle = await rnnoiseManager.createDenoisedStream(
             rawStream,
             isNoiseSuppressionEnabled,
           );
+          console.log('[acquireLocalMedia] rnnoise filtering finished!');
           denoisedHandleRef.current = denoisedHandle;
 
           const tracks = [...denoisedHandle.cleanStream.getAudioTracks()];
@@ -797,11 +820,13 @@ export function useWebRTC(options: WebRTCOptions = {}) {
             tracks.push(...rawStream.getVideoTracks());
           }
           finalStream = new MediaStream(tracks);
-        } catch {
+        } catch (denoiseErr) {
+          console.warn('[acquireLocalMedia] rnnoise error, fallback to rawStream:', denoiseErr);
           finalStream = rawStream;
         }
       }
 
+      console.log('[acquireLocalMedia] calling setLocalStream and returning finalStream...');
       setLocalStream(finalStream);
       return finalStream;
     },
@@ -828,10 +853,9 @@ export function useWebRTC(options: WebRTCOptions = {}) {
         }
 
         // Attach RTCRtpScriptTransform / Insertable Streams AES-256-GCM frame encryption to outgoing sender
-        if ((cryptoKeyRef.current || rawKeyBytesRef.current) && sender) {
+        if (cryptoKeyRef.current && sender) {
           attachSenderScriptTransform(sender, {
-            cryptoKey: cryptoKeyRef.current || undefined,
-            rawKeyBytes: rawKeyBytesRef.current || undefined,
+            cryptoKey: cryptoKeyRef.current,
           });
         }
       }
@@ -978,23 +1002,32 @@ export function useWebRTC(options: WebRTCOptions = {}) {
       onIceCandidate: (candidate: RTCIceCandidate) => void,
       targetUserId?: string,
     ): Promise<RTCSessionDescriptionInit> => {
-      const pc = await initPeerConnection(onIceCandidate, targetUserId);
-      const stream = await acquireLocalMedia(callType);
-      attachLocalStream(pc, stream);
+      const type = ((callType as unknown as string) || 'audio').toLowerCase() as 'audio' | 'video';
 
-      globalCallExternalStore.transition('RINGING');
-      globalCallExternalStore.transition('SIGNALING');
-      globalCallExternalStore.update({
-        callType,
-        callId: callId || null,
-        localStream: stream,
-      });
+      console.log('[handleOffer] STEP 1: acquireLocalMedia...');
+      const stream = await acquireLocalMedia(type);
+
+      console.log('[handleOffer] STEP 2: initPeerConnection...');
+      const pc = await initPeerConnection(onIceCandidate, targetUserId);
 
       const codecPref = useCallStore.getState().preferredVideoCodec;
-      if (offer.sdp && callType === 'video') {
+      if (offer.sdp && type === 'video') {
         offer.sdp = mungeSDP(offer.sdp, codecPref);
       }
-      await pc.setRemoteDescription(new RTCSessionDescription(offer));
+
+      console.log(
+        '[handleOffer] STEP 3: setRemoteDescription...',
+        typeof offer,
+        offer?.type,
+        offer?.sdp ? offer.sdp.slice(0, 40) : 'NO_SDP',
+      );
+      try {
+        await pc.setRemoteDescription(new RTCSessionDescription(offer));
+        console.log('[handleOffer] STEP 3 setRemoteDescription SUCCEEDED!');
+      } catch (e) {
+        console.error('[handleOffer] STEP 3 setRemoteDescription EXCEPTION:', e);
+        throw e;
+      }
 
       // Flush any queued candidates that arrived before remoteDescription
       while (queuedCandidatesRef.current.length > 0) {
@@ -1004,12 +1037,31 @@ export function useWebRTC(options: WebRTCOptions = {}) {
         }
       }
 
-      const answer = await pc.createAnswer();
-      if (answer.sdp && callType === 'video') {
-        answer.sdp = mungeSDP(answer.sdp, codecPref);
+      console.log('[handleOffer] STEP 4: attachLocalStream...');
+      attachLocalStream(pc, stream);
+
+      globalCallExternalStore.transition('RINGING');
+      globalCallExternalStore.transition('SIGNALING');
+      globalCallExternalStore.update({
+        callType: type,
+        callId: callId || null,
+        localStream: stream,
+      });
+
+      console.log('[handleOffer] STEP 5: createAnswer...');
+      try {
+        const answer = await pc.createAnswer();
+        if (answer.sdp && type === 'video') {
+          answer.sdp = mungeSDP(answer.sdp, codecPref);
+        }
+        console.log('[handleOffer] STEP 6: setLocalDescription...');
+        await pc.setLocalDescription(answer);
+        console.log('[handleOffer] STEP 7: returning answer!');
+        return answer;
+      } catch (e) {
+        console.error('[handleOffer] STEP 5/6 Answer creation EXCEPTION:', e);
+        throw e;
       }
-      await pc.setLocalDescription(answer);
-      return answer;
     },
     [initPeerConnection, acquireLocalMedia, attachLocalStream, callId],
   );
@@ -1033,6 +1085,91 @@ export function useWebRTC(options: WebRTCOptions = {}) {
         }
       }
     }
+  }, []);
+
+  // --- E2EE handshake (ephemeral ECDH + HKDF; server relays publics only) ---
+
+  const isE2eeCapable = (): boolean =>
+    isInsertableStreamsSupported() || isScriptTransformSupported();
+
+  /** Initiator step 1: ephemeral keypair for this call; returns SPKI b64 for signaling. */
+  const prepareE2eeOffer = useCallback(async (): Promise<string | null> => {
+    if (!isE2eeCapable()) return null;
+    try {
+      const pair = await generateEphemeralKeypair();
+      e2eeEphemeralRef.current = pair;
+      return await exportEphemeralPublicKey(pair.publicKey);
+    } catch (err) {
+      console.warn('[E2EE] prepareE2eeOffer failed:', err);
+      return null;
+    }
+  }, []);
+
+  /**
+   * Callee step: derive the session from the initiator pubkey found in the
+   * incoming call payload; returns our own SPKI b64 for CALL_ACCEPT.
+   * State becomes 'unverified' — NOT 'verified' (see F2).
+   */
+  const acceptE2eeOffer = useCallback(
+    async (peerKeyB64: string | undefined, callId: string): Promise<string | null> => {
+      if (!peerKeyB64 || !isE2eeCapable()) return null;
+      try {
+        const pair = await generateEphemeralKeypair();
+        e2eeEphemeralRef.current = pair;
+        const session = await deriveCallSessionKey(pair.privateKey, peerKeyB64, callId);
+        cryptoKeyRef.current = session.key;
+        setE2EEInfo('unverified', session.fingerprint, session.sasCode, session.sasEmojis);
+        return await exportEphemeralPublicKey(pair.publicKey);
+      } catch (err) {
+        console.warn('[E2EE] acceptE2eeOffer failed:', err);
+        return null;
+      }
+    },
+    [],
+  );
+
+  /**
+   * Initiator step 2: complete with the callee pubkey from CALL_ACCEPTED and
+   * attach to already-live senders (receivers attach on track events).
+   */
+  const completeE2eeHandshake = useCallback(
+    async (peerKeyB64: string | undefined, callId: string): Promise<boolean> => {
+      const local = e2eeEphemeralRef.current;
+      if (!peerKeyB64 || !local || !isE2eeCapable()) return false;
+      try {
+        const session = await deriveCallSessionKey(local.privateKey, peerKeyB64, callId);
+        cryptoKeyRef.current = session.key;
+        setE2EEInfo('unverified', session.fingerprint, session.sasCode, session.sasEmojis);
+        const pc = pcRef.current;
+        if (pc) {
+          for (const sender of pc.getSenders()) {
+            if (sender.track) {
+              try {
+                attachSenderScriptTransform(sender, { cryptoKey: session.key });
+              } catch {
+                // Per-sender best effort; receivers attach on track events.
+              }
+            }
+          }
+        }
+        return true;
+      } catch (err) {
+        console.warn('[E2EE] completeE2eeHandshake failed:', err);
+        return false;
+      }
+    },
+    [],
+  );
+
+  /**
+   * Call ONLY after the out-of-band SAS compare ceremony (voice/video confirm
+   * of sasCode/sasEmojis) or identity-signature verification. This is what
+   * promotes 'unverified' to 'verified' — never set 'verified' otherwise.
+   */
+  const confirmE2eeSasMatch = useCallback((): void => {
+    if (!cryptoKeyRef.current) return;
+    const state = useCallStore.getState();
+    setE2EEInfo('verified', state.e2eeFingerprint, state.sasCode, state.sasEmojis);
   }, []);
 
   const handleRemoteIceRestart = useCallback(
@@ -1324,7 +1461,7 @@ export function useWebRTC(options: WebRTCOptions = {}) {
     perfectNegotiationRef.current = null;
     queuedCandidatesRef.current = [];
     cryptoKeyRef.current = null;
-    rawKeyBytesRef.current = null;
+    e2eeEphemeralRef.current = null;
     terminateScriptTransformWorker();
     globalCallExternalStore.transition('ENDED');
     globalCallExternalStore.reset();
@@ -1422,6 +1559,10 @@ export function useWebRTC(options: WebRTCOptions = {}) {
     handleOffer,
     handleAnswer,
     handleRemoteIceRestart,
+    prepareE2eeOffer,
+    acceptE2eeOffer,
+    completeE2eeHandshake,
+    confirmE2eeSasMatch,
     handleIceRestartAnswer,
     triggerIceRestart,
     addIceCandidate,

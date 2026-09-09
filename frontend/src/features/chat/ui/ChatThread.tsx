@@ -24,7 +24,7 @@ import BatchDeleteModal from './BatchDeleteModal';
 import AttachmentDropZone from '@/shared/ui/AttachmentDropZone';
 import ConversationDetailsPanel from './ConversationDetailsPanel';
 import MessageSearchPanel from './MessageSearchPanel';
-import { useCallManager } from '../model/useCallManager';
+import { useCall } from '../model/CallContext';
 import ChatDatePicker from './ChatDatePicker';
 import { formatMessageTime } from '../lib/groupMessagesByDate';
 import { useChatTheme } from '../model/useChatTheme';
@@ -71,7 +71,7 @@ export default function ChatThread({ conversation }: ChatThreadProps) {
   } = useMessages(conversation.id);
   const { typingUserIds } = useConversationRealtime(conversation.id);
   const actions = useMessageActions(conversation.id);
-  const { initiateCall } = useCallManager();
+  const { initiateCall } = useCall();
 
   const [replyingTo, setReplyingTo] = useState<MessageView | null>(null);
   const [forwardingMessage, setForwardingMessage] = useState<MessageView | null>(null);
@@ -362,13 +362,18 @@ export default function ChatThread({ conversation }: ChatThreadProps) {
           memberAvatars={conversation.participants.map((p) => p.user.avatar)}
           memberCount={conversation.participants.length}
           onStartCall={(type) => {
-            if (otherParticipant?.user) {
-              void initiateCall({
-                conversationId: conversation.id,
-                callType: type,
-                remoteUser: otherParticipant.user,
-              });
-            }
+            const targetUser = otherParticipant?.user ?? {
+              id: conversation.id,
+              username: display.title,
+              displayName: display.title,
+              avatar: display.avatar,
+              isOnline: true,
+            };
+            void initiateCall({
+              conversationId: conversation.id,
+              callType: type,
+              remoteUser: targetUser,
+            });
           }}
         />
 

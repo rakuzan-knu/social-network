@@ -2,7 +2,7 @@ import React from 'react';
 import { ParticipantTile } from './ParticipantTile';
 import { WebGLVideoGrid } from './WebGLVideoGrid';
 import { useCallStore } from '../../model/callStore';
-import { useCallManager } from '../../model/useCallManager';
+import { useCall } from '../../model/CallContext';
 import { useAuthStore } from '@/shared/model/useAuthStore';
 import { useDominantSpeakerTracker } from '../../lib/webrtc/dominantSpeakerHysteresis';
 
@@ -21,7 +21,7 @@ export function ParticipantGrid() {
     isWebGLGridEnabled,
   } = useCallStore();
 
-  const { registerVideoTile, unregisterVideoTile, registerMediaElement } = useCallManager();
+  const { registerVideoTile, unregisterVideoTile, registerMediaElement } = useCall();
   const currentUserId = useAuthStore((s) => s.userId);
 
   useDominantSpeakerTracker(localStream, remoteStreams, currentUserId || 'me');
@@ -51,10 +51,10 @@ export function ParticipantGrid() {
       <div
         role="region"
         aria-label="WebGL Virtualized Video Grid"
-        className="relative w-full h-full flex items-center justify-center p-4 pt-16 pb-24 overflow-hidden"
+        className="relative w-full h-full flex items-center justify-center p-2 sm:p-4 pt-14 sm:pt-16 pb-20 sm:pb-24 overflow-hidden"
       >
         <div className="w-full h-full max-w-6xl max-h-[82vh] relative flex items-center justify-center">
-          <WebGLVideoGrid className="w-full h-full min-h-95" />
+          <WebGLVideoGrid className="w-full h-full min-h-0" />
         </div>
       </div>
     );
@@ -66,7 +66,7 @@ export function ParticipantGrid() {
       aria-label="Call participants grid stage"
       tabIndex={0}
       onKeyDown={handleGridKeyDown}
-      className="relative w-full h-full flex items-center justify-center p-4 pt-16 pb-24 overflow-hidden outline-none"
+      className="relative w-full h-full flex items-center justify-center p-2 sm:p-4 pt-14 sm:pt-16 pb-20 sm:pb-24 overflow-hidden outline-none"
     >
       {/* 1:1 Stage: Remote Video / Screen Share as Full Canvas */}
       <div
@@ -89,7 +89,7 @@ export function ParticipantGrid() {
           onRegisterTile={registerVideoTile}
           onUnregisterTile={unregisterVideoTile}
           onRegisterMediaElement={registerMediaElement}
-          className="w-full h-full min-h-95"
+          className="w-full h-full min-h-0"
         />
 
         {/* Local Stream Inset Window (Floating Self-Preview) */}
@@ -98,7 +98,7 @@ export function ParticipantGrid() {
           tabIndex={focusedTile === 'local' ? 0 : -1}
           role="group"
           aria-label={`Your video feed, ${localIsSpeaking ? 'speaking' : 'silent'}, ${isMuted ? 'muted' : 'unmuted'}`}
-          className={`absolute bottom-4 right-4 z-20 w-48 sm:w-56 aspect-video shadow-2xl rounded-xl overflow-hidden transition-all duration-200 hover:scale-105 ${
+          className={`absolute bottom-3 right-3 sm:bottom-4 sm:right-4 z-20 w-24 xs:w-28 sm:w-40 md:w-52 aspect-video shadow-2xl rounded-xl overflow-hidden transition-all duration-200 hover:scale-105 ${
             focusedTile === 'local' ? 'ring-2 ring-indigo-400 outline-none' : ''
           }`}
         >

@@ -43,14 +43,48 @@ export function useMuteConversation() {
 
 export function useArchiveConversation() {
   const queryClient = useQueryClient();
-  const applyOptimistic = useOptimisticConversationUpdate();
 
   return useMutation({
     mutationFn: ({ conversationId, archived }: { conversationId: string; archived: boolean }) =>
       archived ? chatApi.archive(conversationId) : chatApi.unarchive(conversationId),
-    onMutate: ({ conversationId, archived }) =>
-      applyOptimistic(conversationId, { isArchived: archived }),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: [CONVERSATIONS_KEY] }),
+    onMutate: async ({ conversationId, archived }) => {
+      await queryClient.cancelQueries({ queryKey: [CONVERSATIONS_KEY] });
+      const previous = queryClient.getQueryData<ConversationView[]>([CONVERSATIONS_KEY]);
+
+      queryClient.setQueryData<ConversationView[]>(
+        [CONVERSATIONS_KEY],
+        (prev: ConversationView[] | undefined) =>
+          prev?.map((c: ConversationView) =>
+            c.id === conversationId ? { ...c, isArchived: archived } : c,
+          ),
+      );
+
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData([CONVERSATIONS_KEY], context.previous);
+      }
+    },
+    onSuccess: (updatedConversation, { conversationId }) => {
+      if (updatedConversation) {
+        queryClient.setQueryData<ConversationView[]>(
+          [CONVERSATIONS_KEY],
+          (prev: ConversationView[] | undefined) =>
+            prev?.map((c: ConversationView) =>
+              c.id === conversationId ? { ...c, ...updatedConversation } : c,
+            ),
+        );
+        queryClient.setQueryData<ConversationView>(
+          ['conversation', conversationId],
+          (prev: ConversationView | undefined) =>
+            prev ? { ...prev, ...updatedConversation } : prev,
+        );
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: [CONVERSATIONS_KEY] });
+    },
   });
 }
 

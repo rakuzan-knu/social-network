@@ -46,8 +46,14 @@ export default function ArchivedThreadPane({
   const [forwardingMessage, setForwardingMessage] = useState<MessageView | null>(null);
 
   const handleUnarchive = () => {
-    archiveConversation.mutate({ conversationId: conversation.id, archived: false });
-    onUnarchived();
+    archiveConversation.mutate(
+      { conversationId: conversation.id, archived: false },
+      {
+        onSuccess: () => {
+          onUnarchived();
+        },
+      },
+    );
   };
 
   const handleDelete = (messageId: string, forAll: boolean) => {
