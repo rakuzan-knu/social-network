@@ -36,9 +36,17 @@ export class CorrelationIdMiddleware implements NestMiddleware {
       (res as { header: (k: string, v: string) => void }).header('x-correlation-id', traceId);
     }
 
+    const cleanupTrace = () => {
+      TraceContext.clear();
+      if (typeof res.removeListener === 'function') {
+        res.removeListener('finish', cleanupTrace);
+        res.removeListener('close', cleanupTrace);
+      }
+    };
+
     if (typeof res.once === 'function') {
-      res.once('finish', () => TraceContext.clear());
-      res.once('close', () => TraceContext.clear());
+      res.once('finish', cleanupTrace);
+      res.once('close', cleanupTrace);
     }
 
     TraceContext.run(

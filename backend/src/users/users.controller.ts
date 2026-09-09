@@ -200,6 +200,17 @@ export class UsersController {
     return this.usersService.getProfileByUsername(username, viewer?.id ?? null);
   }
 
+  @Get('me')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Get current authenticated user profile' })
+  @ApiResponse({ status: 200, description: 'Current user profile retrieved' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  getMe(@CurrentUser() user: RequestUser): Promise<UserProfileDto> {
+    return this.usersService.getMe(user.id);
+  }
+
   @Get('me/saved-posts')
   @UseGuards(AuthGuard)
   @ApiBearerAuth()

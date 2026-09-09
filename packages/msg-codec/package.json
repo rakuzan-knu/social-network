@@ -1,0 +1,31 @@
+{
+  "name": "@social-network/msg-codec",
+  "version": "1.0.0",
+  "description": "Portable msg-codec v1 binary framing (web, React Native/Hermes, Electron renderer, Node). Pure Uint8Array, zero dependencies, no Node APIs.",
+  "license": "AGPL-3.0-only",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "npm run build && node --test tests/codec.test.cjs"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

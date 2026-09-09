@@ -45,11 +45,19 @@ export type ZkpCallProof = z.infer<typeof zkpCallProofSchema>;
 
 export const initiateCallSchema = z.object({
   conversationId: z.string().min(1).max(128),
-  callType: z.nativeEnum(CallType).default(CallType.AUDIO),
+  callType: z
+    .preprocess(
+      (val) => (typeof val === 'string' ? val.toUpperCase() : val),
+      z.nativeEnum(CallType),
+    )
+    .default(CallType.AUDIO),
   sdpOffer: z.unknown().optional(),
   iceCandidates: z.array(z.unknown()).optional(),
   zkpProof: zkpCallProofSchema.optional(),
   isGhostMode: z.boolean().optional(),
+  // Ephemeral ECDH public (SPKI b64) for the E2EE handshake. Opaque to the
+  // server: validated for shape only, relayed verbatim, never used in crypto.
+  e2eeEphemeralKey: z.string().min(1).max(2048).optional(),
 });
 export type InitiateCallDto = z.infer<typeof initiateCallSchema>;
 
@@ -57,6 +65,7 @@ export const acceptCallSchema = z.object({
   callId: z.string().min(1).max(128),
   sdpAnswer: z.unknown().optional(),
   iceCandidates: z.array(z.unknown()).optional(),
+  e2eeEphemeralKey: z.string().min(1).max(2048).optional(),
 });
 export type AcceptCallDto = z.infer<typeof acceptCallSchema>;
 

@@ -167,6 +167,18 @@ importers:
       '@simplewebauthn/server':
         specifier: ^14.0.1
         version: 14.0.1
+      '@social-network/blinded-crypto':
+        specifier: workspace:*
+        version: link:../packages/blinded-crypto
+      '@social-network/feed-score':
+        specifier: workspace:*
+        version: link:../packages/feed-score
+      '@social-network/native':
+        specifier: workspace:*
+        version: link:../packages/native
+      '@social-network/text-pipeline':
+        specifier: workspace:*
+        version: link:../packages/text-pipeline
       '@socket.io/redis-adapter':
         specifier: ^8.3.0
         version: 8.3.0(socket.io-adapter@2.5.8)
@@ -330,6 +342,9 @@ importers:
       pg-mem:
         specifier: ^3.0.14
         version: 3.0.14(postgres@3.4.7)
+      pino-pretty:
+        specifier: ^13.1.3
+        version: 13.1.3
       prettier:
         specifier: ^3.5.3
         version: 3.9.6
@@ -559,6 +574,56 @@ importers:
       vitest:
         specifier: ^3.2.7
         version: 3.2.7(@types/debug@4.1.13)(@types/node@24.13.3)(@vitest/ui@3.2.7)(happy-dom@20.11.2)(jiti@2.7.0)(jsdom@26.1.0)(lightningcss@1.32.0)(msw@2.15.0(@types/node@24.13.3)(typescript@5.9.3))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
+
+  packages/blinded-crypto:
+    devDependencies:
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  packages/feed-score:
+    dependencies:
+      '@social-network/text-pipeline':
+        specifier: workspace:*
+        version: link:../text-pipeline
+    devDependencies:
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  packages/msg-codec:
+    devDependencies:
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  packages/native:
+    dependencies:
+      '@social-network/blinded-crypto':
+        specifier: workspace:*
+        version: link:../blinded-crypto
+      '@social-network/msg-codec':
+        specifier: workspace:*
+        version: link:../msg-codec
+      '@social-network/text-pipeline':
+        specifier: workspace:*
+        version: link:../text-pipeline
+    devDependencies:
+      '@types/node':
+        specifier: ^24.13.3
+        version: 24.13.3
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  packages/text-pipeline:
+    devDependencies:
+      sanitize-html:
+        specifier: ^2.14.0
+        version: 2.17.7
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
 
 packages:
 
@@ -2896,7 +2961,6 @@ packages:
   '@pact-foundation/pact-core@20.1.0':
     resolution: {integrity: sha512-VPMV5X/gq5BTcQH7lbmmj5v4O1p+rG5iHemghrjNz+RFMHjISf657uIL5pZvhkOilHfGH2QuAvMgwRP16g2isw==}
     engines: {node: '>=22'}
-    cpu: [x64, ia32, arm64]
     os: [darwin, linux, win32]
 
   '@pact-foundation/pact@17.1.2':

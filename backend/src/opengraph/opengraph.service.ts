@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as dns from 'dns';
 import * as net from 'net';
-import sanitizeHtml from 'sanitize-html';
+import { sanitizeField } from '../common/sanitize/sanitize-backend';
 import { RedisService } from '../redis/redis.service';
 import { CircuitBreaker } from '../common/resilience/circuit-breaker';
 import { safeJsonParse } from '../common/utils/json.util';
@@ -821,10 +821,7 @@ export class OpenGraphService {
         if (data.html) {
           const tweetTextMatch = data.html.match(/<p[^>]*>(.*?)<\/p>/s);
           const raw = tweetTextMatch ? tweetTextMatch[1] : data.html;
-          text = sanitizeHtml(raw, {
-            allowedTags: [],
-            allowedAttributes: {},
-          }).trim();
+          text = sanitizeField(raw) as string;
         }
 
         return {

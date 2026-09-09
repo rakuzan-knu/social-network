@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { signBlinded, verifyTicket } from '@social-network/blinded-crypto';
 import * as crypto from 'crypto';
 
 export interface BlindedParticipantSession {
@@ -8,26 +9,71 @@ export interface BlindedParticipantSession {
   joinedAt: number;
 }
 
+interface BlindedRsaKeypair {
+  readonly nHex: string;
+  readonly eHex: string;
+  readonly dHex: string;
+  /** True when generated in-process (demo only — never for production). */
+  readonly ephemeral: boolean;
+}
+
+/** Process-wide ephemeral fallback: generated once, never persisted. */
+let ephemeralKeypair: BlindedRsaKeypair | null = null;
+
+function requiredJwkField(value: string | undefined, field: string): string {
+  if (typeof value !== 'string' || value.length === 0) {
+    throw new Error(`blind-sfu: RSA JWK export missing ${field}`);
+  }
+  return value;
+}
+
+/**
+ * Keypair resolution order:
+ *  1. BLIND_RSA_N_HEX / BLIND_RSA_E_HEX / BLIND_RSA_D_HEX (production: HSM or
+ *     secret manager material injected as env; see backend/.env.example).
+ *  2. Ephemeral 2048-bit keypair generated once per process (local demo/dev).
+ */
+function loadKeypair(logger: Logger): BlindedRsaKeypair {
+  const nHex = process.env.BLIND_RSA_N_HEX;
+  const eHex = process.env.BLIND_RSA_E_HEX;
+  const dHex = process.env.BLIND_RSA_D_HEX;
+  if (nHex && eHex && dHex) {
+    return { nHex, eHex, dHex, ephemeral: false };
+  }
+  if (ephemeralKeypair === null) {
+    logger.warn(
+      'BLIND_RSA_* not set — generating an ephemeral 2048-bit demo keypair. ' +
+        'Rooms will NOT survive restarts. Set BLIND_RSA_* from HSM/env for anything real.',
+    );
+    // One-time process-boot keygen for the demo fallback only (cached per
+    // process); production injects BLIND_RSA_* and never touches this path.
+    // Never called per-request.
+    // eslint-disable-next-line no-sync
+    const { privateKey } = crypto.generateKeyPairSync('rsa', {
+      modulusLength: 2048,
+      publicExponent: 0x10001,
+    });
+    const jwk = privateKey.export({ format: 'jwk' });
+    const b64u = (s: string | undefined, field: string): string =>
+      Buffer.from(requiredJwkField(s, field), 'base64').toString('hex');
+    ephemeralKeypair = {
+      nHex: b64u(jwk.n, 'n'),
+      eHex: b64u(jwk.e, 'e'),
+      dHex: b64u(jwk.d, 'd'),
+      ephemeral: true,
+    };
+  }
+  return ephemeralKeypair;
+}
+
 @Injectable()
 export class BlindedSfuService {
   private readonly logger = new Logger(BlindedSfuService.name);
+  private readonly keypair: BlindedRsaKeypair;
 
-  // Pre-generated demo 2048-bit RSA modulus & exponent for blind signatures
-  // (In production, initialized from HSM or environment secret)
-  private readonly n: bigint = BigInt(
-    '0x00c4b2a8d3e5f1b9a7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0' +
-      'b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2' +
-      'd3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4' +
-      'f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a7',
-  );
-  private readonly e: bigint = 65537n;
-  // Private exponent d satisfying e * d = 1 mod phi(n)
-  private readonly d: bigint = BigInt(
-    '0x6d9f8e7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b1c0d9e' +
-      '8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b1c0d9e8f7a' +
-      '6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c' +
-      '4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d39',
-  );
+  constructor() {
+    this.keypair = loadKeypair(this.logger);
+  }
 
   // In-memory zero-metadata routing tables
   // BlindedRoomToken -> Set of socket IDs
@@ -36,34 +82,32 @@ export class BlindedSfuService {
   private readonly sessions = new Map<string, BlindedParticipantSession>();
 
   public getPublicKey(): { n: string; e: string } {
-    return {
-      n: this.n.toString(16),
-      e: this.e.toString(16),
-    };
+    return { n: this.keypair.nHex, e: this.keypair.eHex };
   }
 
   /**
    * Signs a blinded message: s' = (m')^d mod n
    * The server never sees the underlying message m.
+   * Delegates to @social-network/blinded-crypto (windowed modpow; identical math).
    */
   public signBlindedMessage(blindedMessageHex: string): string {
-    const mPrime = BigInt(`0x${blindedMessageHex}`);
-    const sPrime = this.modPow(mPrime, this.d, this.n);
-    return sPrime.toString(16);
+    return signBlinded({
+      nHex: this.keypair.nHex,
+      dHex: this.keypair.dHex,
+      blindedHex: blindedMessageHex,
+    });
   }
 
   /**
    * Verifies an unblinded ticket: s^e mod n == m mod n
    */
   public verifyTicket(ticketHex: string, signatureHex: string): boolean {
-    try {
-      const m = BigInt(`0x${ticketHex}`);
-      const s = BigInt(`0x${signatureHex}`);
-      const verified = this.modPow(s, this.e, this.n);
-      return verified === m;
-    } catch {
-      return false;
-    }
+    return verifyTicket({
+      nHex: this.keypair.nHex,
+      eHex: this.keypair.eHex,
+      ticketHex,
+      signatureHex,
+    });
   }
 
   /**
@@ -141,21 +185,5 @@ export class BlindedSfuService {
         this.blindedRooms.delete(session.blindedRoomToken);
       }
     }
-  }
-
-  private modPow(base: bigint, exp: bigint, mod: bigint): bigint {
-    if (mod === 1n) return 0n;
-    let res = 1n;
-    let b = ((base % mod) + mod) % mod;
-    let e = exp;
-
-    while (e > 0n) {
-      if (e & 1n) {
-        res = (res * b) % mod;
-      }
-      e >>= 1n;
-      b = (b * b) % mod;
-    }
-    return res;
   }
 }

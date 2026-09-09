@@ -1,4 +1,12 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit, Optional } from '@nestjs/common';
+import {
+  forwardRef,
+  Inject,
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+  Optional,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Queue, type Job, type JobsOptions } from 'bullmq';
 import Redis from 'ioredis';
@@ -31,7 +39,9 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly configService: ConfigService,
     @Optional() private readonly alertingService?: AlertingService,
-    @Optional() private readonly metricsService?: MetricsService,
+    @Inject(forwardRef(() => MetricsService))
+    @Optional()
+    private readonly metricsService?: MetricsService,
   ) {}
 
   onModuleInit(): void {
@@ -79,6 +89,7 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
         const q = new Queue(name, {
           connection: this.connection!,
           defaultJobOptions: opts,
+          skipVersionCheck: true,
         });
         q.on('error', (err) => {
           this.logger.debug(`Queue ${name} Redis error: ${err.message}`);

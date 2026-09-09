@@ -1,9 +1,20 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { PrismaClient } from '@prisma/client';
 import { Pool, type PoolConfig } from 'pg';
 
 import os from 'os';
+
+/** Registered by test setup (e.g. jest globalSetup) before NestJS bootstraps. */
+const _testPoolRegistry: { factory: (() => Pool) | null } = { factory: null };
+
+/**
+ * Call this in your test global-setup or beforeAll to provide an in-memory Pool
+ * when DATABASE_URL is `memory://` or `memory`.  Never called in production.
+ */
+export function registerInMemoryPoolFactory(factory: () => Pool): void {
+  _testPoolRegistry.factory = factory;
+}
 
 export function createPgPool(
   rawUrl?: string,
@@ -17,13 +28,7 @@ export function createPgPool(
 ): Pool | undefined {
   if (!rawUrl) return undefined;
   if (rawUrl.startsWith('memory://') || rawUrl === 'memory') {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { createInMemoryPgPool } = require('../../../test/in-memory-db');
-      return createInMemoryPgPool();
-    } catch {
-      return undefined;
-    }
+    return _testPoolRegistry.factory?.() ?? undefined;
   }
   const cpus = os.cpus()?.length || 2;
   const defaultPoolLimit = Math.max(5, Math.min(30, cpus * 4));
@@ -45,6 +50,7 @@ export function createPgPool(
     connectionTimeoutMillis,
     statement_timeout: statementTimeout,
     query_timeout: queryTimeout,
+    options: `-c statement_timeout=${statementTimeout} -c idle_in_transaction_session_timeout=${statementTimeout} -c lock_timeout=${statementTimeout}`,
   };
 
   return new Pool(config);
@@ -86,15 +92,18 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     if (process.env.NODE_ENV === 'test') {
       return;
     }
-    try {
-      const statementTimeout = Number(process.env.DATABASE_STATEMENT_TIMEOUT_MS || 10000);
-      await this.$executeRawUnsafe(`SET statement_timeout = ${statementTimeout};`);
-      await this.$executeRawUnsafe(
-        `SET idle_in_transaction_session_timeout = ${statementTimeout};`,
-      );
-      await this.$executeRawUnsafe(`SET lock_timeout = ${statementTimeout};`);
-    } catch {
-      // Ignored for testing mocks or non-postgres environments
+    const statementTimeout = Number(process.env.DATABASE_STATEMENT_TIMEOUT_MS || 10000);
+    if (!this.pool) {
+      // Fallback for non-pool mode (e.g., PrismaClient without adapter)
+      try {
+        await this.$executeRawUnsafe(`SET statement_timeout = ${statementTimeout};`);
+        await this.$executeRawUnsafe(
+          `SET idle_in_transaction_session_timeout = ${statementTimeout};`,
+        );
+        await this.$executeRawUnsafe(`SET lock_timeout = ${statementTimeout};`);
+      } catch {
+        // Ignored for testing mocks or non-postgres environments
+      }
     }
   }
 

@@ -61,14 +61,30 @@ export class CallsCDCService implements OnModuleInit, OnModuleDestroy {
     this.isConnected = false;
   }
 
+  private isConnecting = false;
+
   /**
    * Connects to PostgreSQL notification stream for CDC event ingestion
    */
   public async initCDCListener(): Promise<void> {
+    if (this.isConnecting || this.isConnected) return;
+
     const dbUrl = this.configService.get<string>('DATABASE_URL');
     if (!dbUrl) {
       this.logger.warn('DATABASE_URL not configured. Running in synthetic CDC mode.');
       return;
+    }
+
+    this.isConnecting = true;
+
+    // Clean up any stale client before creating a new one
+    if (this.pgClient) {
+      try {
+        await this.pgClient.end();
+      } catch {
+        // ignore
+      }
+      this.pgClient = null;
     }
 
     try {
@@ -101,6 +117,8 @@ export class CallsCDCService implements OnModuleInit, OnModuleDestroy {
       this.logger.warn(`PostgreSQL CDC init failed: ${String(err)}. Falling back to event bus.`);
       this.isConnected = false;
       this.scheduleReconnect();
+    } finally {
+      this.isConnecting = false;
     }
   }
 

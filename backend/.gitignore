@@ -65,8 +65,6 @@ src/generated/
 
 build/
 
-.stryker-tmp/
-
 # Stryker
 reports/
 .stryker-tmp/

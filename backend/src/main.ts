@@ -1,3 +1,4 @@
+import { EventEmitter } from 'node:events';
 import fastifyCompress from '@fastify/compress';
 import fastifyCookie from '@fastify/cookie';
 import fastifyHelmet from '@fastify/helmet';
@@ -14,6 +15,11 @@ import { RedisIoAdapter } from './common/adapters/redis-io.adapter';
 import { setupGracefulShutdown } from './common/lifecycle/graceful-shutdown';
 import { setupFdGuard } from './common/lifecycle/fd-guard';
 import './instrument';
+
+EventEmitter.defaultMaxListeners = 50;
+if (typeof process.setMaxListeners === 'function') {
+  process.setMaxListeners(50);
+}
 
 const logger = new Logger('Bootstrap');
 
@@ -127,18 +133,29 @@ function setupApiVersioning(app: NestFastifyApplication): void {
 
   const httpAdapter = typeof app.getHttpAdapter === 'function' ? app.getHttpAdapter() : undefined;
   const fastifyRaw = httpAdapter?.getInstance?.() as unknown as {
-    addHook?: (
-      hook: string,
-      fn: (
-        req: { raw: { url?: string }; headers: Record<string, string | string[] | undefined> },
-        reply: unknown,
-      ) => Promise<void>,
-    ) => void;
+    server?: {
+      prependListener?: (
+        event: string,
+        listener: (
+          req: {
+            url?: string;
+            method?: string;
+            headers: Record<string, string | string[] | undefined>;
+          },
+          res: unknown,
+        ) => void,
+      ) => void;
+    };
   };
 
-  if (fastifyRaw && typeof fastifyRaw.addHook === 'function') {
-    fastifyRaw.addHook('onRequest', (req) => {
-      const rawUrl = req.raw.url || '';
+  const server = fastifyRaw?.server;
+  if (server && typeof server.prependListener === 'function') {
+    server.prependListener('request', (req) => {
+      let rawUrl = req.url || '';
+      if (rawUrl.startsWith('/v1/v1/')) {
+        rawUrl = rawUrl.replace(/^\/v1\/v1\//, '/v1/');
+        req.url = rawUrl;
+      }
       const [pathOnly, query] = rawUrl.split('?');
       if (
         pathOnly &&
@@ -151,11 +168,9 @@ function setupApiVersioning(app: NestFastifyApplication): void {
         !pathOnly.startsWith('/socket.io') &&
         !pathOnly.startsWith('/favicon.ico')
       ) {
-        const newUrl = `/v1${pathOnly.startsWith('/') ? pathOnly : `/${pathOnly}`}${query ? `?${query}` : ''}`;
-        req.raw.url = newUrl;
+        req.url = `/v1${pathOnly.startsWith('/') ? pathOnly : `/${pathOnly}`}${query ? `?${query}` : ''}`;
         req.headers['x-legacy-unversioned'] = 'true';
       }
-      return Promise.resolve();
     });
   }
 }

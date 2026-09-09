@@ -33,6 +33,7 @@ import type { IMessagesRepository } from '../interfaces/messages-repository.inte
 import { MESSAGES_REPOSITORY } from '../interfaces/messages-repository.interface';
 import type { CallWithDetails } from '../interfaces/types';
 import type { CreateCallTelemetryDto } from './dto/call-telemetry.dto';
+import { MessengerMapper } from '../messenger.mapper';
 
 @Injectable()
 export class CallsService {
@@ -53,6 +54,9 @@ export class CallsService {
     @Inject(forwardRef(() => MessengerGateway))
     @Optional()
     private readonly gateway?: MessengerGateway,
+    @Inject(forwardRef(() => MessengerMapper))
+    @Optional()
+    private readonly mapper?: MessengerMapper,
   ) {}
 
   async initiateCall(
@@ -387,7 +391,23 @@ export class CallsService {
 
   async saveTelemetry(userId: string, dto: CreateCallTelemetryDto): Promise<CallTelemetryView> {
     const call = await this.callsRepo.findCallById(dto.callId);
-    if (!call) throw new NotFoundException('Call not found');
+    if (!call) {
+      this.logger.debug(`Telemetry for unknown call ${dto.callId} from user ${userId} — ignoring`);
+      return {
+        id: '',
+        callId: dto.callId,
+        userId,
+        avgRttMs: dto.avgRttMs,
+        maxRttMs: dto.maxRttMs ?? null,
+        packetLossRatio: dto.packetLossRatio,
+        jitterMs: dto.jitterMs ?? null,
+        audioCodec: dto.audioCodec ?? null,
+        videoCodec: dto.videoCodec ?? null,
+        durationMs: dto.durationMs,
+        endReason: dto.endReason ?? null,
+        createdAt: new Date(),
+      };
+    }
 
     const isMember = call.participants.some((p) => p.userId === userId);
     if (!isMember) throw new ForbiddenException('Not a participant of this call');
@@ -494,12 +514,27 @@ export class CallsService {
 
       const body = JSON.stringify(metadata);
 
-      await this.messagesRepo.create({
+      const msg = await this.messagesRepo.create({
         conversationId: call.conversationId,
         senderId: call.initiatorId,
         body,
         messageType: MessageType.CALL_LOG,
       });
+
+      await this.convsService.touchUpdatedAt(call.conversationId);
+
+      const participantIds = await this.convsService.getParticipantIds(call.conversationId);
+      if (this.gateway) {
+        for (const pid of participantIds) {
+          const mappedMessage = this.mapper?.mapMessage(msg, pid, new Set());
+          if (mappedMessage) {
+            this.gateway.emitToUser(pid, WS_EVENTS.NEW_MESSAGE, {
+              conversationId: call.conversationId,
+              message: mappedMessage,
+            });
+          }
+        }
+      }
     } catch (err) {
       this.logger.error(`Failed to record CALL_LOG message for call ${call.id}: ${String(err)}`);
     }

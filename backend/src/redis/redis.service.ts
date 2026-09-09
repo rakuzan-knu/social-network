@@ -139,6 +139,26 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     return fallback ?? null;
   }
 
+  /**
+   * Batch GET via MGET — ONE roundtrip for N keys instead of N.
+   * Order-preserving; degraded semantics mirror get() (LRU fallback, nulls).
+   */
+  async mget(keys: string[]): Promise<Array<string | null>> {
+    if (keys.length === 0) return [];
+    try {
+      if (this.isRedisReady()) {
+        const values = await this.client.mget(keys);
+        return values.map((value, index) => {
+          if (value !== null) this.fallbackLru.set(keys[index], value);
+          return value;
+        });
+      }
+    } catch (e) {
+      this.handleRedisFailure(e, `mget(${keys.length} keys)`);
+    }
+    return keys.map((key) => this.fallbackLru.get(key) ?? null);
+  }
+
   async del(key: string): Promise<void> {
     this.fallbackLru.delete(key);
     try {
@@ -535,6 +555,43 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       this.logger.warn(`Redis geodist failed: ${String(e)}`);
       return null;
     }
+  }
+
+  /**
+   * Batch GEODIST from one member to many via PIPELINE — ONE roundtrip for N
+   * members instead of N. Order-preserving; null per missing/failed member
+   * (identical degraded semantics to geodist()).
+   */
+  async geodistMany(
+    key: string,
+    fromMember: string,
+    members: string[],
+    unit: 'm' | 'km' = 'km',
+  ): Promise<Array<number | null>> {
+    if (members.length === 0) return [];
+    try {
+      if (this.isRedisReady()) {
+        const pipeline = this.client.pipeline() as unknown as {
+          geodist: (k: string, m1: string, m2: string, u: string) => unknown;
+          exec: () => Promise<Array<[Error | null, unknown]>>;
+        };
+        for (const member of members) pipeline.geodist(key, fromMember, member, unit);
+        const results = await pipeline.exec();
+        if (!results) return members.map(() => null);
+        return results.map(([err, value]) => {
+          if (err || value === null || value === undefined) return null;
+          if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+          if (typeof value === 'string') {
+            const parsed = parseFloat(value);
+            return Number.isFinite(parsed) ? parsed : null;
+          }
+          return null;
+        });
+      }
+    } catch (e) {
+      this.handleRedisFailure(e, `geodistMany(${key}, ${members.length} members)`);
+    }
+    return members.map(() => null);
   }
 
   async geosearchMembers(

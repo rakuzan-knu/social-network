@@ -132,7 +132,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
       errorName = 'InternalServerError';
     }
 
-    if (httpStatus >= Number(HttpStatus.INTERNAL_SERVER_ERROR)) {
+    if (errorCode === 'SERVICE_DEGRADED' || errorCode === 'SERVICE_CRITICAL') {
+      this.logger.warn(
+        `[${request.method}] ${path} [traceId: ${traceId}] - Status: ${httpStatus} - Load Shed: ${errorCode}`,
+      );
+    } else if (httpStatus >= Number(HttpStatus.INTERNAL_SERVER_ERROR)) {
       this.logger.error(
         `[${request.method}] ${path} [traceId: ${traceId}] - Status: ${httpStatus} - Error: ${errorCode}`,
         exception instanceof Error ? exception.stack : String(exception),

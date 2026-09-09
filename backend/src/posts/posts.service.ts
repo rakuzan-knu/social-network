@@ -27,6 +27,7 @@ import { QueueService } from '../queue/queue.service';
 import { SearchJobType } from '../queue/queue.constants';
 import { PostStatsCoalescerService } from './coalescing/post-stats-coalescer.service';
 import { extractHashtags, extractMentions } from '../common/utils/safe-regex.util';
+import { TextPipelineService } from '../common/text-pipeline/text-pipeline.service';
 
 @Injectable()
 export class PostsService {
@@ -48,7 +49,17 @@ export class PostsService {
     private readonly queueService?: QueueService,
     @Optional()
     private readonly postStatsCoalescer?: PostStatsCoalescerService,
+    @Optional()
+    private readonly textPipeline?: TextPipelineService,
   ) {}
+
+  private extractMentions(text: string): string[] {
+    return this.textPipeline?.extractMentions(text) ?? extractMentions(text);
+  }
+
+  private extractHashtags(text: string): string[] {
+    return this.textPipeline?.extractHashtags(text) ?? extractHashtags(text);
+  }
 
   private getPostKey(id: string): string {
     return `${PostsService.CACHE_POST_PREFIX}${id}`;
@@ -194,7 +205,7 @@ export class PostsService {
     // Check mentions in content and emit notifications
     try {
       if (contentText.length > 0) {
-        const rawMentions = extractMentions(contentText);
+        const rawMentions = this.extractMentions(contentText);
         const cleanUsernames = Array.from(
           new Set(
             rawMentions
@@ -274,7 +285,7 @@ export class PostsService {
         })
         .catch(() => {});
 
-      const hashtags = extractHashtags(contentText);
+      const hashtags = this.extractHashtags(contentText);
       if (hashtags.length > 0) {
         void this.queueService
           .addSearchIndexingJob(SearchJobType.INDEX_HASHTAG, {

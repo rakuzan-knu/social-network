@@ -1,17 +1,38 @@
 /**
  * Off-Heap Buffers & Zero-GC Memory Architecture (Node.js)
  *
- * Pre-allocates unmanaged memory outside the V8 managed heap via Buffer.allocUnsafeSlow().
- * Manages raw byte pointers and word alignment through DataView, eliminating V8 Garbage Collector
- * pauses (0ms GC latency) on hot socket, audio relay, and WebRTC streaming paths.
+ * Owns a pre-allocated unmanaged slab outside the V8 managed heap via
+ * Buffer.allocUnsafeSlow(). Packet framing itself is delegated to
+ * @social-network/native (msg-codec v1) — table-driven codec, byte-identical
+ * to the previous inline DataView implementation, ~2.5-3.6x faster per
+ * packet (see packages/native/benches/report.json).
+ *
+ * Memory semantics (unchanged, read carefully):
+ *  - encodePacket() returns a VIEW into the shared slab. The bytes are
+ *    overwritten on ring wrap. Copy (Buffer.from / encodeAlloc) if you need
+ *    ownership past the next allocations.
+ *  - decodePacket() payload is a zero-copy view into the caller's buffer.
  */
 
-import { Injectable, Logger, OnModuleDestroy, Optional, Inject } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleDestroy, Optional } from '@nestjs/common';
+import {
+  getActiveCodec,
+  getCodecInfo,
+  getCodecMetrics,
+  HEADER_SIZE_BYTES as CODEC_HEADER_SIZE,
+  PACKET_MAGIC_0 as CODEC_MAGIC_0,
+  PACKET_MAGIC_1 as CODEC_MAGIC_1,
+  type ActiveCodec,
+  type CodecInfo,
+  type CodecMetricsSnapshot,
+  type PacketHeader,
+} from '@social-network/native';
 
 export const OFF_HEAP_DEFAULT_SLAB_SIZE = 32 * 1024 * 1024; // 32 Megabytes off-heap
-export const PACKET_MAGIC_0 = 0x45; // 'E'
-export const PACKET_MAGIC_1 = 0x54; // 'T'
-export const HEADER_SIZE_BYTES = 36;
+/** Re-exported from msg-codec v1: single source of truth lives in packages/native. */
+export const PACKET_MAGIC_0 = CODEC_MAGIC_0;
+export const PACKET_MAGIC_1 = CODEC_MAGIC_1;
+export const HEADER_SIZE_BYTES = CODEC_HEADER_SIZE;
 
 export interface BinaryPacketHeader {
   type: number;
@@ -25,12 +46,24 @@ export interface DecodedBinaryPacket extends BinaryPacketHeader {
   payload: Buffer;
 }
 
+export interface OffHeapPoolStats {
+  capacityBytes: number;
+  currentOffset: number;
+  wrapCount: number;
+  allocationsCount: number;
+}
+
+export interface OffHeapExtendedStats extends OffHeapPoolStats {
+  codec: CodecInfo;
+  codecMetrics: CodecMetricsSnapshot;
+}
+
 @Injectable()
 export class OffHeapBufferPoolService implements OnModuleDestroy {
   private readonly logger = new Logger(OffHeapBufferPoolService.name);
   private readonly slab: Buffer;
-  private readonly dataView: DataView;
   private readonly capacity: number;
+  private readonly codec: ActiveCodec;
 
   private currentOffset = 0;
   private wrapCount = 0;
@@ -40,9 +73,12 @@ export class OffHeapBufferPoolService implements OnModuleDestroy {
     this.capacity = capacity ?? OFF_HEAP_DEFAULT_SLAB_SIZE;
     // Buffer.allocUnsafeSlow bypasses Node.js 8KB internal slab and V8 managed nursery heap
     this.slab = Buffer.allocUnsafeSlow(this.capacity);
-    this.dataView = new DataView(this.slab.buffer, this.slab.byteOffset, this.slab.byteLength);
+    // Resolves once per process: native prebuild when verified, else TS fallback.
+    // MSG_CODEC=native fails fast here when no binary is available (explicit opt-in only).
+    this.codec = getActiveCodec();
+    const info = getCodecInfo();
     this.logger.log(
-      `Initialized Off-Heap Zero-GC Slab Pool (${Math.round(this.capacity / (1024 * 1024))} MB)`,
+      `Initialized Off-Heap Zero-GC Slab Pool (${Math.round(this.capacity / (1024 * 1024))} MB, msg-codec v1/${info.backend})`,
     );
   }
 
@@ -74,17 +110,8 @@ export class OffHeapBufferPoolService implements OnModuleDestroy {
   }
 
   /**
-   * Encodes a high-frequency real-time packet directly into off-heap memory
-   * using DataView with ZERO intermediate JavaScript object allocations.
-   *
-   * Layout:
-   * [0..1]: Magic (0x45, 0x54)
-   * [2..3]: Type (uint16)
-   * [4..7]: Sequence Number (uint32)
-   * [8..15]: Timestamp ms (uint64 BigInt)
-   * [16..31]: Call UUID raw 16 bytes
-   * [32..35]: Payload Length (uint32)
-   * [36..36+N]: Payload raw bytes
+   * Encodes a high-frequency real-time packet into off-heap memory.
+   * Returns a VIEW into the slab (see memory semantics above).
    */
   public encodePacket(
     type: number,
@@ -93,102 +120,80 @@ export class OffHeapBufferPoolService implements OnModuleDestroy {
     payload: Buffer | Uint8Array,
   ): Buffer {
     const payloadLen = payload.byteLength;
-    const totalSize = HEADER_SIZE_BYTES + payloadLen;
-    const packetBuffer = this.allocate(totalSize);
-
-    const offset = packetBuffer.byteOffset;
-    const view = this.dataView;
-
-    // 1. Magic
-    view.setUint8(offset + 0, PACKET_MAGIC_0);
-    view.setUint8(offset + 1, PACKET_MAGIC_1);
-
-    // 2. Type & Seq
-    view.setUint16(offset + 2, type, false); // big-endian
-    view.setUint32(offset + 4, seq, false);
-
-    // 3. Timestamp
-    view.setBigUint64(offset + 8, BigInt(Date.now()), false);
-
-    // 4. Parse 16-byte UUID into raw binary without regex
-    this.writeUuidToView(view, offset + 16, callIdUuid);
-
-    // 5. Payload length
-    view.setUint32(offset + 32, payloadLen, false);
-
-    // 6. Copy payload bytes into off-heap slab directly
-    packetBuffer.set(payload, HEADER_SIZE_BYTES);
-
+    const packetBuffer = this.allocate(HEADER_SIZE_BYTES + payloadLen);
+    this.codec.encodeInto(packetBuffer, 0, {
+      type,
+      seq,
+      timestampMs: Date.now(),
+      callId: callIdUuid,
+      payload,
+    });
     return packetBuffer;
   }
 
   /**
-   * Decodes a binary packet with zero-copy sub-slicing
+   * Stateless encode for callers that need ownership: allocates an exact-size
+   * Buffer outside the slab (GC-managed, safe to retain).
    */
-  public decodePacket(packetBuffer: Buffer): DecodedBinaryPacket {
-    if (packetBuffer.byteLength < HEADER_SIZE_BYTES) {
-      throw new Error(`Invalid packet size: ${packetBuffer.byteLength} < ${HEADER_SIZE_BYTES}`);
-    }
-
-    const offset = packetBuffer.byteOffset;
-    const view = new DataView(packetBuffer.buffer, offset, packetBuffer.byteLength);
-
-    const m0 = view.getUint8(0);
-    const m1 = view.getUint8(1);
-    if (m0 !== PACKET_MAGIC_0 || m1 !== PACKET_MAGIC_1) {
-      throw new Error(`Corrupted packet magic: 0x${m0.toString(16)}, 0x${m1.toString(16)}`);
-    }
-
-    const type = view.getUint16(2, false);
-    const seq = view.getUint32(4, false);
-    const timestamp = Number(view.getBigUint64(8, false));
-    const callId = this.readUuidFromView(view, 16);
-    const payloadLength = view.getUint32(32, false);
-
-    const payload = packetBuffer.subarray(HEADER_SIZE_BYTES, HEADER_SIZE_BYTES + payloadLength);
-
-    return {
+  public encodeAlloc(
+    type: number,
+    seq: number,
+    callIdUuid: string,
+    payload: Buffer | Uint8Array,
+  ): Buffer {
+    return this.codec.encodeAlloc({
       type,
       seq,
-      timestamp,
-      callId,
-      payloadLength,
+      timestampMs: Date.now(),
+      callId: callIdUuid,
       payload,
+    });
+  }
+
+  /**
+   * Decodes a binary packet with zero-copy sub-slicing.
+   * Throws MsgCodecError (codes INVALID_MAGIC/TRUNCATED/...) on corruption
+   * instead of generic Errors — safe to switch on err.code at call sites.
+   */
+  public decodePacket(packetBuffer: Buffer): DecodedBinaryPacket {
+    const decoded = this.codec.decodePacket(packetBuffer, 0);
+    return {
+      type: decoded.type,
+      seq: decoded.seq,
+      timestamp: decoded.timestampMs,
+      callId: decoded.callId,
+      payloadLength: decoded.payloadLength,
+      payload: decoded.payload,
     };
   }
 
-  private writeUuidToView(view: DataView, offset: number, uuid: string): void {
-    const clean = uuid.replace(/-/g, '');
-    for (let i = 0; i < 16; i++) {
-      const byteVal = parseInt(clean.substring(i * 2, i * 2 + 2) || '00', 16);
-      view.setUint8(offset + i, byteVal);
-    }
+  /**
+   * Header-only parse for routing/filtering without touching the payload.
+   * Touches exactly 36 bytes — use on fan-out paths before deciding to
+   * decode or forward.
+   */
+  public decodeHeader(packetBuffer: Buffer, offset = 0): PacketHeader {
+    return this.codec.decodeHeader(packetBuffer, offset);
   }
 
-  private readUuidFromView(view: DataView, offset: number): string {
-    const hex: string[] = [];
-    for (let i = 0; i < 16; i++) {
-      const b = view
-        .getUint8(offset + i)
-        .toString(16)
-        .padStart(2, '0');
-      hex.push(b);
-    }
-    return [
-      hex.slice(0, 4).join(''),
-      hex.slice(4, 6).join(''),
-      hex.slice(6, 8).join(''),
-      hex.slice(8, 10).join(''),
-      hex.slice(10, 16).join(''),
-    ].join('-');
+  public getCodecInfo(): CodecInfo {
+    return getCodecInfo();
   }
 
-  public getStats() {
+  public getStats(): OffHeapPoolStats {
     return {
       capacityBytes: this.capacity,
       currentOffset: this.currentOffset,
       wrapCount: this.wrapCount,
       allocationsCount: this.allocationsCount,
+    };
+  }
+
+  public getExtendedStats(): OffHeapExtendedStats {
+    return {
+      ...this.getStats(),
+      codec: getCodecInfo(),
+      codecMetrics: getCodecMetrics(),
     };
   }
 

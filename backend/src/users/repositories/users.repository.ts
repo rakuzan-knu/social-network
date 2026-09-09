@@ -352,4 +352,34 @@ export class UsersRepository implements IUsersRepository {
       orderBy: { createdAt: 'desc' },
     });
   }
+
+  /**
+   * ONE query for many authors' recent bodies (interest vectors). Returns at
+   * most perAuthorLimit posts per author, newest first. Public posts only —
+   * private content never leaves the database for scoring.
+   */
+  async getRecentContentsByAuthors(
+    authorIds: string[],
+    perAuthorLimit = 5,
+  ): Promise<Array<{ authorId: string; content: string }>> {
+    if (authorIds.length === 0 || perAuthorLimit <= 0) return [];
+    const posts = await this.prisma.post.findMany({
+      where: {
+        authorId: { in: authorIds },
+        author: { isPrivate: false },
+      },
+      select: { authorId: true, content: true, createdAt: true },
+      orderBy: { createdAt: 'desc' },
+      take: authorIds.length * perAuthorLimit,
+    });
+    const counts = new Map<string, number>();
+    const out: Array<{ authorId: string; content: string }> = [];
+    for (const post of posts) {
+      const seen = counts.get(post.authorId) ?? 0;
+      if (seen >= perAuthorLimit) continue;
+      counts.set(post.authorId, seen + 1);
+      out.push({ authorId: post.authorId, content: post.content });
+    }
+    return out;
+  }
 }

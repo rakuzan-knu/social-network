@@ -18,7 +18,7 @@ export const envSchema = z
     DATABASE_QUERY_TIMEOUT_MS: z.coerce.number().int().min(100).max(60000).default(10000),
     REDIS_MAXMEMORY_POLICY: z
       .enum(['allkeys-lru', 'volatile-lru', 'allkeys-lfu', 'volatile-lfu', 'noeviction'])
-      .default('allkeys-lru'),
+      .default('noeviction'),
     SENTRY_DSN: z.string().optional(),
     SENTRY_TRACES_SAMPLE_RATE: z.string().optional(),
     GITHUB_CLIENT_ID: z.string().optional(),
@@ -27,11 +27,25 @@ export const envSchema = z
     GITHUB_SYSTEM_TOKEN: z.string().optional(),
     GITHUB_WEBHOOK_SECRET: z.string().optional(),
     TURNSTILE_SECRET_KEY: z.string().optional(),
+    FEED_PRESET: z.enum(['legacy', 'balanced']).optional(),
+    SANITIZE_BACKEND: z.enum(['legacy', 'pipeline']).optional(),
+    BLIND_RSA_N_HEX: z.string().optional(),
+    BLIND_RSA_E_HEX: z.string().optional(),
+    BLIND_RSA_D_HEX: z.string().optional(),
   })
 
   .refine((data) => data.JWT_ACCESS_SECRET !== data.JWT_REFRESH_SECRET, {
     message: 'JWT_ACCESS_SECRET and JWT_REFRESH_SECRET must be different',
-  });
+  })
+  .refine(
+    (data) => {
+      const set = [data.BLIND_RSA_N_HEX, data.BLIND_RSA_E_HEX, data.BLIND_RSA_D_HEX].filter(
+        (v) => v !== undefined && v !== '',
+      ).length;
+      return set === 0 || set === 3;
+    },
+    { message: 'BLIND_RSA_N_HEX/E_HEX/D_HEX must be set together or all absent' },
+  );
 
 export type EnvironmentVariables = z.infer<typeof envSchema>;
 

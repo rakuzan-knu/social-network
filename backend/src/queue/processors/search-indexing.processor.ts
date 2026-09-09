@@ -67,6 +67,7 @@ export class SearchIndexingProcessor implements OnModuleInit, OnModuleDestroy {
         {
           connection: this.connection,
           concurrency: 5,
+          skipVersionCheck: true,
         },
       );
 

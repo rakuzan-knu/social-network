@@ -45,6 +45,26 @@
       ],
       "project": ["src/**/*.ts"]
     },
+    "packages/native": {
+      "entry": ["src/index.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "packages/text-pipeline": {
+      "entry": ["src/index.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "packages/blinded-crypto": {
+      "entry": ["src/index.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "packages/feed-score": {
+      "entry": ["src/index.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "packages/msg-codec": {
+      "entry": ["src/index.ts"],
+      "project": ["src/**/*.ts"]
+    },
     "frontend": {
       "entry": [
         "index.html",

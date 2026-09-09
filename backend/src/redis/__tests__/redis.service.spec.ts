@@ -25,6 +25,8 @@ describe('RedisService', () => {
     geosearch: jest.Mock;
     georadius: jest.Mock;
     eval: jest.Mock;
+    mget: jest.Mock;
+    pipeline: jest.Mock;
     multi: jest.Mock;
     status: string;
   };
@@ -35,6 +37,8 @@ describe('RedisService', () => {
       set: jest.fn().mockResolvedValue('OK'),
       get: jest.fn(),
       eval: jest.fn().mockResolvedValue(1),
+      mget: jest.fn(),
+      pipeline: jest.fn(),
       del: jest.fn().mockResolvedValue(1),
       exists: jest.fn().mockResolvedValue(1),
       scanStream: jest.fn(),
@@ -270,6 +274,40 @@ describe('RedisService', () => {
     mockRedisClient.geosearch.mockRejectedValueOnce(new Error('fail'));
     mockRedisClient.georadius.mockRejectedValueOnce(new Error('fail'));
     expect(await service.geosearchMembers('geo:users', 37.6, 55.7, 50)).toEqual([]);
+  });
+
+  it('batch reads: mget + geodistMany in single roundtrips', async () => {
+    // mget: order-preserving values, empty input short-circuits.
+    mockRedisClient.mget.mockResolvedValue(['a', null, 'c']);
+    await expect(service.mget(['k1', 'k2', 'k3'])).resolves.toEqual(['a', null, 'c']);
+    expect(mockRedisClient.mget).toHaveBeenCalledWith(['k1', 'k2', 'k3']);
+    await expect(service.mget([])).resolves.toEqual([]);
+
+    // mget failure -> LRU fallback, then nulls.
+    mockRedisClient.mget.mockRejectedValueOnce(new Error('fail'));
+    await expect(service.mget(['k9'])).resolves.toEqual([null]);
+
+    // geodistMany: one pipeline, per-member results incl. errors.
+    const exec = jest.fn().mockResolvedValue([
+      [null, '1.5'],
+      [new Error('no member'), null],
+      [null, null],
+    ]);
+    const geodist = jest.fn().mockReturnThis();
+    mockRedisClient.pipeline.mockReturnValue({ geodist, exec });
+    await expect(service.geodistMany('geo:users', 'me', ['a', 'b', 'c'])).resolves.toEqual([
+      1.5,
+      null,
+      null,
+    ]);
+    expect(geodist).toHaveBeenCalledTimes(3);
+    await expect(service.geodistMany('geo:users', 'me', [])).resolves.toEqual([]);
+
+    // pipeline failure -> all nulls (same degraded semantics as geodist).
+    mockRedisClient.pipeline.mockImplementationOnce(() => {
+      throw new Error('fail');
+    });
+    await expect(service.geodistMany('geo:users', 'me', ['a'])).resolves.toEqual([null]);
   });
 
   it('dismissSuggestedUser multi pipeline and error handling', async () => {

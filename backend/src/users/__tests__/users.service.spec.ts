@@ -46,16 +46,19 @@ describe('UsersService', () => {
     getCandidateUsersDetails: jest.Mock;
     getNearbyUserCandidates: jest.Mock;
     getRecentPublicPostsContent: jest.Mock;
+    getRecentContentsByAuthors: jest.Mock;
     getTopPostsForUsers: jest.Mock;
   };
   let mockRedis: {
     get: jest.Mock;
+    mget: jest.Mock;
     set: jest.Mock;
     del: jest.Mock;
     expire: jest.Mock;
     getOrSet: jest.Mock;
     geoadd: jest.Mock;
     geodist: jest.Mock;
+    geodistMany: jest.Mock;
     geosearchMembers: jest.Mock;
     geosearchWithDist: jest.Mock;
     smembers: jest.Mock;
@@ -131,11 +134,13 @@ describe('UsersService', () => {
       getCandidateUsersDetails: jest.fn().mockResolvedValue([]),
       getNearbyUserCandidates: jest.fn().mockResolvedValue([]),
       getRecentPublicPostsContent: jest.fn().mockResolvedValue([]),
+      getRecentContentsByAuthors: jest.fn().mockResolvedValue([]),
       getTopPostsForUsers: jest.fn().mockResolvedValue([]),
     };
 
     mockRedis = {
       get: jest.fn().mockResolvedValue(null),
+      mget: jest.fn().mockImplementation((keys: string[]) => Promise.resolve(keys.map(() => null))),
       set: jest.fn().mockResolvedValue('OK'),
       del: jest.fn().mockResolvedValue(1),
       expire: jest.fn().mockResolvedValue(1),
@@ -155,6 +160,11 @@ describe('UsersService', () => {
         ),
       geoadd: jest.fn().mockResolvedValue(1),
       geodist: jest.fn().mockResolvedValue(5),
+      geodistMany: jest
+        .fn()
+        .mockImplementation((_k: string, _m: string, members: string[]) =>
+          Promise.resolve(members.map(() => 5)),
+        ),
       geosearchMembers: jest.fn().mockResolvedValue(['usr-100']),
       geosearchWithDist: jest.fn().mockResolvedValue([{ member: 'usr-100', distance: 10 }]),
       smembers: jest.fn().mockResolvedValue([]),

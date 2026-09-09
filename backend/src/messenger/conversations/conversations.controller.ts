@@ -316,14 +316,12 @@ export class ConversationsController {
   }
 
   @Post(':id/archive')
-  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Archive a conversation' })
   archive(@Param('id') id: string, @CurrentUser() user: RequestUser) {
     return this.service.archiveConversation(id, user.id);
   }
 
   @Delete(':id/archive')
-  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Unarchive a conversation' })
   unarchive(@Param('id') id: string, @CurrentUser() user: RequestUser) {
     return this.service.unarchiveConversation(id, user.id);

@@ -70,4 +70,8 @@ export interface IUsersRepository {
     authorIds: string[],
   ): Promise<{ id: string; authorId: string; media: { url: string }[] }[]>;
   getRecentPublicPostsContent(takeLimit: number): Promise<{ content: string }[]>;
+  getRecentContentsByAuthors(
+    authorIds: string[],
+    perAuthorLimit?: number,
+  ): Promise<Array<{ authorId: string; content: string }>>;
 }

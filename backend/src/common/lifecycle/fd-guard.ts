@@ -1,5 +1,5 @@
 import * as fs from 'node:fs';
-import type { Server as HttpServer, IncomingMessage, ServerResponse } from 'node:http';
+import type { Server as HttpServer } from 'node:http';
 import type { Socket } from 'node:net';
 import { Logger } from '@nestjs/common';
 import type { INestApplication } from '@nestjs/common';

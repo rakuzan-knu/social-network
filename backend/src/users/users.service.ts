@@ -33,6 +33,16 @@ import { VisibilityResolver } from './privacy/visibility.resolver';
 import type { VisibilityContext } from './privacy/visibility.resolver';
 import { toLastSeenGranularity } from './privacy/last-seen.util';
 import { extractHashtags } from '../common/utils/safe-regex.util';
+import {
+  buildInterestVector,
+  FEED_PRESETS,
+  parsePresetName,
+  rankCandidates,
+  topVocabulary,
+  type FeedPresetName,
+} from '@social-network/feed-score';
+import { levenshtein } from '@social-network/text-pipeline';
+import { TextPipelineService } from '../common/text-pipeline/text-pipeline.service';
 
 const MAX_SEARCH_TERM_LENGTH = 64;
 
@@ -76,6 +86,8 @@ export class UsersService {
     private readonly eventEmitter?: EventEmitter2,
     @Optional()
     private readonly lastSeenCoalescer?: LastSeenCoalescerService,
+    @Optional()
+    private readonly textPipeline?: TextPipelineService,
   ) {}
 
   private userKey(id: string): string {
@@ -210,6 +222,10 @@ export class UsersService {
 
   getProfile(id: string): Promise<UserProfileDto> {
     return this.getProfileFor(id, null);
+  }
+
+  async getMe(userId: string): Promise<UserProfileDto> {
+    return this.getProfileFor(userId, userId);
   }
 
   async updatePrimaryBadge(userId: string, badgeId?: string | null): Promise<UserProfileDto> {
@@ -435,7 +451,7 @@ export class UsersService {
     const tagCounts = new Map<string, number>();
 
     for (const p of posts) {
-      const matches = extractHashtags(p.content);
+      const matches = this.textPipeline?.extractHashtags(p.content) ?? extractHashtags(p.content);
       for (const m of matches) {
         const tag = m.startsWith('#') ? m.slice(1).toLowerCase() : m.toLowerCase();
         tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
@@ -570,100 +586,79 @@ export class UsersService {
       followingIds,
     );
 
-    // 5. Preload candidate cities & geodistances in parallel batch
+    // 5. Preload candidate cities & geodistances in TWO roundtrips total
+    // (was: up to 2xN). Privacy-gated members resolve to null without IO.
     const [candidateCities, candidateDistances] = await Promise.all([
-      Promise.all(candidateUsers.map((u) => this.redis.get(`user_city:${u.id}`))),
+      this.redis.mget(candidateUsers.map((u) => `user_city:${u.id}`)),
       viewerId && viewerGeo
-        ? Promise.all(
-            candidateUsers.map((u) => {
-              const allowNearby = u.privacy?.allowNearbyRecommendations ?? true;
-              return allowNearby
-                ? this.redis.geodist('user_geo', viewerId, u.id, 'km')
-                : Promise.resolve(null);
-            }),
-          )
+        ? (async (): Promise<Array<number | null>> => {
+            const gatedIds: string[] = [];
+            const gatedIdx: number[] = [];
+            candidateUsers.forEach((u, i) => {
+              if (u.privacy?.allowNearbyRecommendations ?? true) {
+                gatedIds.push(u.id);
+                gatedIdx.push(i);
+              }
+            });
+            const fetched = await this.redis.geodistMany('user_geo', viewerId, gatedIds, 'km');
+            const distances: Array<number | null> = candidateUsers.map(() => null);
+            gatedIdx.forEach((orig, k) => {
+              distances[orig] = fetched[k];
+            });
+            return distances;
+          })()
         : Promise.resolve(candidateUsers.map(() => null)),
     ]);
 
-    // 6. Compute Normalized Metric Scores (each normalized to [0.0; 1.0])
-    const scoredCandidates = candidateUsers.map((user, idx) => {
-      // Proximity Score: Score_prox = max(0, 1 - distance_km / 100)
-      let scoreProx = 0.0;
-      let proxReasonText: string | null = null;
-      const allowNearby = user.privacy?.allowNearbyRecommendations ?? true;
-      const distKm = candidateDistances[idx];
-
-      if (viewerId && viewerGeo && allowNearby && distKm !== null && distKm <= 100) {
-        scoreProx = Math.max(0, 1 - distKm / 100);
-        if (distKm <= 10) {
-          proxReasonText = 'Near you';
-        } else {
-          const candidateCity = candidateCities[idx];
-          proxReasonText = candidateCity ? `From your city (${candidateCity})` : 'Near you';
-        }
-      }
-
-      // Mutual Friends Score: Score_mut = min(1, mutual_count / 5)
-      const mutualCount = user.followers.length;
-      const scoreMut = Math.min(1, mutualCount / 5);
-
-      // Popularity Score: Score_pop = min(1, log10(followers_count + 1) / 4)
-      const followersCount = user._count.followers;
-      const scorePop = Math.min(1, Math.log10(followersCount + 1) / 4);
-
-      // Final Composite Score: (0.4 * prox) + (0.4 * mut) + (0.2 * pop)
-      const finalScore = scoreProx * 0.4 + scoreMut * 0.4 + scorePop * 0.2;
-
-      // Contextual Recommendation Reason matching Instagram
-      let recommendationReason: {
-        type: 'MUTUAL_FRIENDS' | 'NEARBY' | 'SAME_CITY' | 'POPULAR';
-        text: string;
-        mutualFriends?: { id: string; username: string; avatar: string | null }[];
-        totalMutualCount?: number;
-      };
-
-      if (mutualCount >= 2) {
-        const first = user.followers[0].follower;
-        const second = user.followers[1].follower;
-        const text = `Followed by ${first.username} and ${mutualCount - 1} other${
-          mutualCount > 2 ? 's' : ''
-        }`;
-        recommendationReason = {
-          type: 'MUTUAL_FRIENDS',
-          text,
-          mutualFriends: [first, second],
-          totalMutualCount: mutualCount,
-        };
-      } else if (mutualCount === 1) {
-        const first = user.followers[0].follower;
-        recommendationReason = {
-          type: 'MUTUAL_FRIENDS',
-          text: `Followed by ${first.username}`,
-          mutualFriends: [first],
-          totalMutualCount: 1,
-        };
-      } else if (proxReasonText) {
-        recommendationReason = {
-          type: proxReasonText.startsWith('From your city') ? 'SAME_CITY' : 'NEARBY',
-          text: proxReasonText,
-        };
-      } else {
-        recommendationReason = {
-          type: 'POPULAR',
-          text: 'Suggested for you',
-        };
-      }
-
+    // 6. Score via @social-network/feed-score. Preset from FEED_PRESET
+    // ('legacy' default = bit-identical legacy composite; 'balanced' adds
+    // recency + affinity). lastSeenAt always maps (neutral under legacy).
+    const preset = this.feedPreset();
+    const interestCtx =
+      preset === 'balanced' ? await this.loadInterestContext(viewerId, candidateIds) : null;
+    const ranked = rankCandidates(
+      candidateUsers.map((user, idx) => ({
+        id: user.id,
+        distKm: candidateDistances[idx],
+        allowNearby: user.privacy?.allowNearbyRecommendations ?? true,
+        city: candidateCities[idx],
+        mutuals: user.followers.map((f) => ({
+          id: f.follower.id,
+          username: f.follower.username,
+          avatar: f.follower.avatar,
+        })),
+        mutualCount: user.followers.length,
+        followersCount: user._count.followers,
+        lastActiveAtMs: user.lastSeenAt ? user.lastSeenAt.getTime() : null,
+        interests: interestCtx?.vectors.get(user.id) ?? null,
+      })),
+      {
+        weights: FEED_PRESETS[preset],
+        viewerInterests: interestCtx?.viewer ?? null,
+      },
+    );
+    const usersById = new Map(candidateUsers.map((user) => [user.id, user] as const));
+    const topCandidates = ranked.slice(0, limit).map((c) => {
+      const user = usersById.get(c.id);
+      // Invariant: ranked ids always come from candidateUsers above.
+      if (!user) throw new Error(`feed-score returned unknown candidate ${c.id}`);
+      // Copy into the mutable DTO shape (core reasons are readonly).
+      const reason = c.reason;
       return {
         user,
-        finalScore,
-        recommendationReason,
+        finalScore: c.score,
+        recommendationReason: {
+          type: reason.type,
+          text: reason.text,
+          ...(reason.mutualFriends !== undefined
+            ? { mutualFriends: reason.mutualFriends.map((m) => ({ ...m })) }
+            : {}),
+          ...(reason.totalMutualCount !== undefined
+            ? { totalMutualCount: reason.totalMutualCount }
+            : {}),
+        },
       };
     });
-
-    // Sort by FinalScore descending and take limit
-    scoredCandidates.sort((a, b) => b.finalScore - a.finalScore);
-    const topCandidates = scoredCandidates.slice(0, limit);
 
     const ids = topCandidates.map((c) => c.user.id);
     const ctx = await this.visibility.loadContext(ids, viewerId ?? null);
@@ -683,30 +678,78 @@ export class UsersService {
     await this.redis.dismissSuggestedUser(viewerId, targetId);
   }
 
-  private levenshtein(a: string, b: string): number {
-    const str1 = (typeof a === 'string' ? a : '').slice(0, MAX_SEARCH_TERM_LENGTH);
-    const str2 = (typeof b === 'string' ? b : '').slice(0, MAX_SEARCH_TERM_LENGTH);
-    const m = str1.length;
-    const n = str2.length;
-    if (m === 0) return n;
-    if (n === 0) return m;
-
-    let prevRow: number[] = Array.from({ length: n + 1 }, (_, i) => i);
-    const currRow: number[] = new Array<number>(n + 1).fill(0);
-
-    for (let i = 1; i <= m; i++) {
-      currRow[0] = i;
-      for (let j = 1; j <= n; j++) {
-        const cost = str1[i - 1] === str2[j - 1] ? 0 : 1;
-        currRow[j] = Math.min(
-          currRow[j - 1] + 1, // insertion
-          prevRow[j] + 1, // deletion
-          prevRow[j - 1] + cost, // substitution
-        );
-      }
-      prevRow = [...currRow];
+  /**
+   * Scoring preset from FEED_PRESET ('legacy' default, 'balanced' for the
+   * recency+affinity A/B). Unknown values fall back to legacy with a warning.
+   */
+  private feedPreset(): FeedPresetName {
+    const raw = process.env.FEED_PRESET;
+    const preset = parsePresetName(raw);
+    if (
+      raw !== undefined &&
+      raw.trim() !== '' &&
+      preset === 'legacy' &&
+      raw.trim().toLowerCase() !== 'legacy'
+    ) {
+      this.logger.warn(`Unknown FEED_PRESET=${JSON.stringify(raw)}, using legacy`);
     }
-    return prevRow[n];
+    return preset;
+  }
+
+  private interestVocabCache: { vocab: string[]; expiresAt: number } | null = null;
+
+  /** Global interest vocabulary (top-32 trending tags), cached 5 minutes. */
+  private async getInterestVocabulary(dim: number): Promise<string[]> {
+    const now = Date.now();
+    const cached = this.interestVocabCache;
+    if (cached && cached.expiresAt > now && cached.vocab.length >= dim) {
+      return cached.vocab.slice(0, dim);
+    }
+    const trending = await this.getTrendingHashtags(Math.max(dim, 32));
+    const vocab = topVocabulary(
+      trending.map((t) => [t.tag, t.count] as const),
+      dim,
+    );
+    this.interestVocabCache = { vocab, expiresAt: now + 5 * 60 * 1000 };
+    return vocab;
+  }
+
+  /**
+   * Viewer + candidate interest vectors in ONE contents query. Returns null
+   * (affinity dormant) when no vocabulary exists or on any failure — scoring
+   * must never break suggestions.
+   */
+  private async loadInterestContext(
+    viewerId: string | null | undefined,
+    candidateIds: string[],
+  ): Promise<{ viewer: number[] | undefined; vectors: Map<string, number[]> } | null> {
+    try {
+      const vocab = await this.getInterestVocabulary(32);
+      if (vocab.length === 0) return null;
+      const ids = viewerId ? [viewerId, ...candidateIds] : [...candidateIds];
+      const rows = await this.usersRepository.getRecentContentsByAuthors(ids, 5);
+      const byAuthor = new Map<string, string[]>();
+      for (const row of rows) {
+        const list = byAuthor.get(row.authorId) ?? [];
+        list.push(row.content);
+        byAuthor.set(row.authorId, list);
+      }
+      const vectors = new Map<string, number[]>();
+      for (const [author, contents] of byAuthor) {
+        vectors.set(author, buildInterestVector(contents, vocab));
+      }
+      return { viewer: viewerId ? vectors.get(viewerId) : undefined, vectors };
+    } catch (e) {
+      this.logger.warn(`Interest vectors unavailable, affinity dormant: ${String(e)}`);
+      return null;
+    }
+  }
+
+  private levenshtein(a: string, b: string): number {
+    // Bounded core: exact whenever callers care (dist <= 2), early-exits
+    // otherwise. Same decisions as the former full-matrix version at a
+    // fraction of the cost (no per-row spread allocations).
+    return levenshtein(a, b, 2);
   }
 
   async getTopFollowedUsers(limit = 5, viewerId?: string | null): Promise<UserProfileDto[]> {
@@ -737,7 +780,7 @@ export class UsersService {
     const tagCounts = new Map<string, number>();
 
     for (const p of posts) {
-      const matches = extractHashtags(p.content);
+      const matches = this.textPipeline?.extractHashtags(p.content) ?? extractHashtags(p.content);
       for (const m of matches) {
         const tag = m.startsWith('#') ? m.slice(1).toLowerCase() : m.toLowerCase();
         if (tag.includes(cleanTag)) {

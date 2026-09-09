@@ -63,6 +63,7 @@ describe('users-repository.interface', () => {
       getCandidateUsersDetails: jest.fn().mockResolvedValue([]),
       getNearbyUserCandidates: jest.fn().mockResolvedValue([]),
       getRecentPublicPostsContent: jest.fn().mockResolvedValue([]),
+      getRecentContentsByAuthors: jest.fn().mockResolvedValue([]),
       getTopPostsForUsers: jest.fn().mockResolvedValue([]),
     };
 

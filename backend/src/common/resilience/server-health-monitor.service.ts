@@ -46,6 +46,11 @@ export class ServerHealthMonitorService implements OnModuleInit, OnModuleDestroy
   private readonly cpuCriticalPercent: number;
   private readonly heapDegradedRatio: number;
 
+  // Startup warm-up grace period: 20 seconds to prevent cold-start false positives
+  private readonly warmupUntil = Date.now() + 20_000;
+  private consecutiveDegradedCycles = 0;
+  private consecutiveCriticalCycles = 0;
+
   // Test simulation overrides
   private simulationState: ServerDegradationState | null = null;
 
@@ -89,10 +94,14 @@ export class ServerHealthMonitorService implements OnModuleInit, OnModuleDestroy
   }
 
   private sampleServerHealth(): void {
-    // 1. Sample Event Loop Delay (95th percentile or mean in milliseconds)
+    // 1. Sample Event Loop Delay (95th percentile with EWMA smoothing)
     if (this.histogram) {
       const p95Nano = this.histogram.percentile(95);
-      this.currentEventLoopDelayMs = p95Nano > 0 ? p95Nano / 1e6 : 0;
+      const instantDelayMs = p95Nano > 0 ? p95Nano / 1e6 : 0;
+      this.currentEventLoopDelayMs =
+        this.currentEventLoopDelayMs === 0
+          ? instantDelayMs
+          : this.currentEventLoopDelayMs * 0.6 + instantDelayMs * 0.4;
       this.histogram.reset();
     }
 
@@ -129,7 +138,7 @@ export class ServerHealthMonitorService implements OnModuleInit, OnModuleDestroy
 
     if (this.simulationState) {
       state = this.simulationState;
-    } else {
+    } else if (Date.now() >= this.warmupUntil) {
       const isCritical =
         this.currentEventLoopDelayMs >= this.eventLoopDelayCriticalMs ||
         this.currentCpuPercent >= this.cpuCriticalPercent;
@@ -140,8 +149,20 @@ export class ServerHealthMonitorService implements OnModuleInit, OnModuleDestroy
         this.currentHeapRatio >= this.heapDegradedRatio;
 
       if (isCritical) {
+        this.consecutiveCriticalCycles++;
+      } else {
+        this.consecutiveCriticalCycles = 0;
+      }
+
+      if (isDegraded) {
+        this.consecutiveDegradedCycles++;
+      } else {
+        this.consecutiveDegradedCycles = 0;
+      }
+
+      if (this.consecutiveCriticalCycles >= 2) {
         state = ServerDegradationState.CRITICAL;
-      } else if (isDegraded) {
+      } else if (this.consecutiveDegradedCycles >= 2) {
         state = ServerDegradationState.DEGRADED;
       }
     }
@@ -179,6 +200,10 @@ export class ServerHealthMonitorService implements OnModuleInit, OnModuleDestroy
 
   setCriticalForTesting(critical: boolean): void {
     this.simulationState = critical ? ServerDegradationState.CRITICAL : null;
+  }
+
+  isSimulationActive(): boolean {
+    return this.simulationState !== null;
   }
 
   resetSimulation(): void {

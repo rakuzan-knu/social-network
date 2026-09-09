@@ -28,21 +28,24 @@ export class MetricsMiddleware implements NestMiddleware {
       }
     };
 
-    if (typeof res.on === 'function') {
-      res.on('finish', record);
-      res.on('close', record);
-    } else if (
-      typeof (res as unknown as { raw?: { on?: (e: string, fn: () => void) => void } }).raw?.on ===
-      'function'
-    ) {
-      (res as unknown as { raw: { on: (e: string, fn: () => void) => void } }).raw.on(
-        'finish',
-        record,
-      );
-      (res as unknown as { raw: { on: (e: string, fn: () => void) => void } }).raw.on(
-        'close',
-        record,
-      );
+    const rawRes = (res as unknown as { raw?: Response }).raw;
+    const targetEmitter = typeof res.once === 'function' ? res : rawRes;
+
+    const cleanup = () => {
+      if (targetEmitter && typeof targetEmitter.removeListener === 'function') {
+        targetEmitter.removeListener('finish', onComplete);
+        targetEmitter.removeListener('close', onComplete);
+      }
+    };
+
+    const onComplete = () => {
+      cleanup();
+      record();
+    };
+
+    if (targetEmitter && typeof targetEmitter.once === 'function') {
+      targetEmitter.once('finish', onComplete);
+      targetEmitter.once('close', onComplete);
     }
 
     if (typeof res.send === 'function') {

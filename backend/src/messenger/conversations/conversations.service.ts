@@ -550,20 +550,28 @@ export class ConversationsService implements OnModuleDestroy {
     });
   }
 
-  async archiveConversation(conversationId: string, userId: string): Promise<void> {
+  async archiveConversation(conversationId: string, userId: string): Promise<ConversationView> {
     const conv = await this.convsRepo.findOneForUser(conversationId, userId);
     if (!conv) throw new NotFoundException('Conversation not found');
     await this.convsRepo.updateParticipant(conversationId, userId, {
       archivedAt: new Date(),
     });
+    await this.convsRepo.touchUpdatedAt(conversationId);
+    const updated = await this.getConversation(conversationId, userId);
+    this.gateway?.emitToUser(userId, WS_EVENTS.CONVERSATION_UPDATED, updated);
+    return updated;
   }
 
-  async unarchiveConversation(conversationId: string, userId: string): Promise<void> {
+  async unarchiveConversation(conversationId: string, userId: string): Promise<ConversationView> {
     const conv = await this.convsRepo.findOneForUser(conversationId, userId);
     if (!conv) throw new NotFoundException('Conversation not found');
     await this.convsRepo.updateParticipant(conversationId, userId, {
       archivedAt: null,
     });
+    await this.convsRepo.touchUpdatedAt(conversationId);
+    const updated = await this.getConversation(conversationId, userId);
+    this.gateway?.emitToUser(userId, WS_EVENTS.CONVERSATION_UPDATED, updated);
+    return updated;
   }
 
   async blockUser(blockerId: string, blockedId: string): Promise<void> {

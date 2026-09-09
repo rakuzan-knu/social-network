@@ -35,15 +35,11 @@ export const ExceptionMode = {
   DENY: 'DENY',
 } as const;
 export type ExceptionMode = (typeof ExceptionMode)[keyof typeof ExceptionMode];
-import sanitizeHtmlLib from 'sanitize-html';
+import { sanitizeField } from '../sanitize/sanitize-backend';
 import { HARDENED_USERNAME_REGEX, RESERVED_USERNAMES } from './auth';
 
 function sanitizeHtml(value: unknown): unknown {
-  if (typeof value !== 'string') return value;
-  return sanitizeHtmlLib(value, {
-    allowedTags: [],
-    allowedAttributes: {},
-  }).trim();
+  return sanitizeField(value);
 }
 
 export const LastSeenGranularity = {

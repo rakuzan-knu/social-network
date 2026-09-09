@@ -24,6 +24,7 @@ import {
   NOTIFICATION_EVENTS,
 } from '../notifications/events/notification.events';
 import { extractMentions } from '../common/utils/safe-regex.util';
+import { TextPipelineService } from '../common/text-pipeline/text-pipeline.service';
 
 @Injectable()
 export class CommentsService {
@@ -37,6 +38,7 @@ export class CommentsService {
     private readonly gateway?: MessengerGateway,
     @Optional() private readonly redis?: RedisService,
     @Optional() private readonly eventEmitter?: EventEmitter2,
+    @Optional() private readonly textPipeline?: TextPipelineService,
   ) {}
 
   async addComment(
@@ -61,7 +63,9 @@ export class CommentsService {
     }
 
     // 2. Anti-Spam: Mention Bombing Protection (Max 5 mentions)
-    const rawMatches: string[] = dto.text ? extractMentions(dto.text) : [];
+    const rawMatches: string[] = dto.text
+      ? (this.textPipeline?.extractMentions(dto.text) ?? extractMentions(dto.text))
+      : [];
     if (rawMatches.length > 5) {
       throw new BadRequestException('Maximum 5 mentions per comment allowed');
     }

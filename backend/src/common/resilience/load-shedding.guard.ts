@@ -39,6 +39,12 @@ export class LoadSheddingGuard implements CanActivate {
       return true;
     }
 
+    // In local development, avoid accidental shedding unless explicitly simulating
+    const isDev = process.env.NODE_ENV === 'development';
+    if (isDev && !this.healthMonitor.isSimulationActive()) {
+      return true;
+    }
+
     const status = this.healthMonitor.getHealthStatus();
 
     // 1. Critical server load (Event Loop > 250ms or CPU > 95%): shed NORMAL and LOW
@@ -83,8 +89,10 @@ export class LoadSheddingGuard implements CanActivate {
     const req = http.getRequest<Request>();
     const res = http.getResponse<Response>();
 
-    const route = req.route?.path || req.url || 'unknown';
-    const method = req.method || 'GET';
+    const routeObj = req.route as { path?: unknown } | undefined;
+    const routePath = typeof routeObj?.path === 'string' ? routeObj.path : undefined;
+    const route: string = routePath || (typeof req.url === 'string' ? req.url : 'unknown');
+    const method: string = typeof req.method === 'string' ? req.method : 'GET';
 
     if (res && typeof res.setHeader === 'function') {
       res.setHeader('Retry-After', String(retryAfterSeconds));

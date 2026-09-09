@@ -109,6 +109,7 @@ import { makeWsEvent } from '../../common/v8/shape-stable';
 export interface AuthenticatedSocket extends Socket {
   userId: string;
   traceId?: string | undefined;
+  isHibernated?: boolean | undefined;
 }
 
 const getCorsOrigin = () => {
@@ -686,6 +687,11 @@ export class MessengerGateway
   ): Promise<void> {
     const userId = client.userId;
     if (userId) {
+      if (client.isHibernated) {
+        callback?.({ status: 'ok' });
+        return;
+      }
+      client.isHibernated = true;
       // Mark connection as hibernated in background - maintains session without high-frequency heartbeats
       await this.redisService
         .set(`user:hibernated:${userId}:${client.id}`, '1', 300)
@@ -702,6 +708,7 @@ export class MessengerGateway
   ): Promise<void> {
     const userId = client.userId;
     if (userId) {
+      client.isHibernated = false;
       await this.redisService.del(`user:hibernated:${userId}:${client.id}`).catch(() => {});
       await this.redisService.set(`user:presence:${userId}`, 'online', 60).catch(() => {});
       const seqRaw = await this.redisService.get(`user:seq:${userId}`).catch(() => '0');
@@ -908,6 +915,22 @@ export class MessengerGateway
     }
   }
 
+  private getSocketInstance(socketId: string): Socket | undefined {
+    const rawSockets = (
+      this.server as unknown as {
+        sockets?: Map<string, Socket> | { sockets?: Map<string, Socket> };
+      }
+    )?.sockets;
+    if (!rawSockets) return undefined;
+    if (rawSockets instanceof Map) {
+      return rawSockets.get(socketId);
+    }
+    if ('sockets' in rawSockets && rawSockets.sockets instanceof Map) {
+      return rawSockets.sockets.get(socketId);
+    }
+    return (rawSockets as Record<string, Socket>)?.[socketId];
+  }
+
   private async emitPresenceExceptBlocked(
     subjectUserId: string,
     event: string,
@@ -921,7 +944,7 @@ export class MessengerGateway
     for (const [userId, socketIds] of this.onlineUsers.entries()) {
       if (userId !== subjectUserId && !audience.has(userId)) continue;
       for (const socketId of socketIds) {
-        const socket = this.server?.sockets?.sockets?.get(socketId);
+        const socket = this.getSocketInstance(socketId);
         if (socket) {
           if (this.backpressureService) {
             this.backpressureService.sendSafe(socket, event, payload, 'ephemeral');
@@ -968,7 +991,7 @@ export class MessengerGateway
     const socketIds = this.onlineUsers.get(userId);
     if (!socketIds) return;
     for (const socketId of socketIds) {
-      const socket = this.server?.sockets?.sockets?.get(socketId);
+      const socket = this.getSocketInstance(socketId);
       if (socket && this.backpressureService) {
         this.backpressureService.sendSafe(socket, event, payload, priority);
       }
@@ -1251,6 +1274,9 @@ export class MessengerGateway
         iceCandidates: payload.iceCandidates || [],
         zkpProof: payload.zkpProof || null,
         isGhostMode: Boolean(payload.isGhostMode),
+        // E2EE handshake relay: opaque ephemeral key, conditional spread keeps
+        // legacy payloads (and pod-migration records) byte-identical.
+        ...(payload.e2eeEphemeralKey ? { e2eeEphemeralKey: payload.e2eeEphemeralKey } : {}),
       };
 
       for (const targetUserId of result.targetUserIds) {
@@ -1300,6 +1326,7 @@ export class MessengerGateway
         accepterId: client.userId,
         sdpAnswer: payload.sdpAnswer,
         iceCandidates: payload.iceCandidates || [],
+        ...(payload.e2eeEphemeralKey ? { e2eeEphemeralKey: payload.e2eeEphemeralKey } : {}),
       };
 
       this.emitToUser(result.initiatorId, WS_EVENTS.CALL_ACCEPTED, acceptedPayload);

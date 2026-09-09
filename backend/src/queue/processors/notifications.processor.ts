@@ -86,6 +86,7 @@ export class NotificationsProcessor implements OnModuleInit, OnModuleDestroy {
         {
           connection: this.connection,
           concurrency: 10,
+          skipVersionCheck: true,
         },
       );
 

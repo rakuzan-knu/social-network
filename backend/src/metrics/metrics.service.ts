@@ -1,4 +1,11 @@
-import { Injectable, OnModuleDestroy, OnModuleInit, Optional } from '@nestjs/common';
+import {
+  forwardRef,
+  Inject,
+  Injectable,
+  OnModuleDestroy,
+  OnModuleInit,
+  Optional,
+} from '@nestjs/common';
 import * as promClient from 'prom-client';
 import * as v8 from 'node:v8';
 import {
@@ -64,9 +71,15 @@ export class MetricsService implements OnModuleInit, OnModuleDestroy {
   private customCollectors: Set<MetricCollectorFn> = new Set();
 
   constructor(
-    @Optional() private readonly prismaService?: PrismaService,
-    @Optional() private readonly queueService?: QueueService,
-    @Optional() private readonly memoryMonitorService?: MemoryMonitorService,
+    @Inject(forwardRef(() => PrismaService))
+    @Optional()
+    private readonly prismaService?: PrismaService,
+    @Inject(forwardRef(() => QueueService))
+    @Optional()
+    private readonly queueService?: QueueService,
+    @Inject(forwardRef(() => MemoryMonitorService))
+    @Optional()
+    private readonly memoryMonitorService?: MemoryMonitorService,
   ) {
     this.initializeMetrics();
     this.setupDefaultMetrics();

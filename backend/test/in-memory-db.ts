@@ -1,5 +1,6 @@
 import { newDb, type IMemoryDb } from 'pg-mem';
 import type { Pool } from 'pg';
+import { registerInMemoryPoolFactory } from '../src/common/prisma/prisma.service';
 import RedisMock from 'ioredis-mock';
 import type Redis from 'ioredis';
 import { randomUUID } from 'node:crypto';
@@ -92,6 +93,8 @@ export function createInMemoryPgPool(): Pool {
   sharedPgPool = pool;
   return pool;
 }
+
+registerInMemoryPoolFactory(createInMemoryPgPool);
 
 /**
  * Creates or returns an active in-memory Redis client backed by `ioredis-mock`.

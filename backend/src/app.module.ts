@@ -52,6 +52,7 @@ import { VersioningModule, DeprecationInterceptor } from './common/versioning';
 import { SerializationModule } from './common/serialization';
 import { CrdtModule } from './common/crdt/crdt.module';
 import { BloomModule } from './common/bloom/bloom.module';
+import { TextPipelineModule } from './common/text-pipeline/text-pipeline.module';
 
 import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware';
 
@@ -66,9 +67,39 @@ import type { MiddlewareConsumer, NestModule } from '@nestjs/common';
       useFactory: (configService: ConfigService) => {
         const isProduction = configService.get<string>('NODE_ENV') === 'production';
         const isTest = configService.get<string>('NODE_ENV') === 'test';
+        const configuredLogLevel = configService.get<string>('LOG_LEVEL');
+        const defaultLogLevel = isProduction ? 'info' : 'info';
         return {
           pinoHttp: {
-            level: isTest ? 'silent' : isProduction ? 'info' : 'debug',
+            level: isTest ? 'silent' : configuredLogLevel || defaultLogLevel,
+            ...(isProduction
+              ? {}
+              : {
+                  transport: {
+                    target: 'pino-pretty',
+                    options: {
+                      colorize: true,
+                      singleLine: true,
+                      translateTime: 'HH:MM:ss',
+                      ignore: 'pid,hostname,req.headers,res.headers',
+                    },
+                  },
+                }),
+            customLogLevel: (_req: IncomingMessage, res: ServerResponse, error?: Error) => {
+              if (res.statusCode >= 500 || error) return 'error';
+              if (res.statusCode >= 400) return 'warn';
+              return 'info';
+            },
+            customSuccessMessage: (
+              req: IncomingMessage,
+              res: ServerResponse,
+              responseTime: number,
+            ) => {
+              return `${req.method || 'GET'} ${req.url || '/'} -> ${res.statusCode} (${Math.round(responseTime)}ms)`;
+            },
+            customErrorMessage: (req: IncomingMessage, res: ServerResponse, error: Error) => {
+              return `${req.method || 'GET'} ${req.url || '/'} -> ${res.statusCode} (${error.message})`;
+            },
             genReqId: (req: IncomingMessage) => {
               const headerVal =
                 req.headers['x-trace-id'] ||
@@ -103,14 +134,18 @@ import type { MiddlewareConsumer, NestModule } from '@nestjs/common';
                 id: req.id,
                 method: req.method,
                 url: req.url,
-                headers: {
-                  host: req.headers.host,
-                  'user-agent': req.headers['user-agent'],
-                  'x-trace-id': req.headers['x-trace-id'],
-                  'x-correlation-id': req.headers['x-correlation-id'],
-                  authorization: req.headers.authorization ? '[REDACTED]' : undefined,
-                  cookie: req.headers.cookie ? '[REDACTED]' : undefined,
-                },
+                ...(isProduction
+                  ? {
+                      headers: {
+                        host: req.headers.host,
+                        'user-agent': req.headers['user-agent'],
+                        'x-trace-id': req.headers['x-trace-id'],
+                        'x-correlation-id': req.headers['x-correlation-id'],
+                        authorization: req.headers.authorization ? '[REDACTED]' : undefined,
+                        cookie: req.headers.cookie ? '[REDACTED]' : undefined,
+                      },
+                    }
+                  : {}),
               }),
               res: (res: ServerResponse) => ({
                 statusCode: res.statusCode,
@@ -211,6 +246,7 @@ import type { MiddlewareConsumer, NestModule } from '@nestjs/common';
     LockModule,
     IdempotencyModule,
     SnowflakeModule,
+    TextPipelineModule,
     ResilienceModule,
     VersioningModule,
     SerializationModule,
