@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { X, Search, Check, Send } from 'lucide-react';
+import { X, Search, Check } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useCurrentUser } from '@/entities/profile/model/useCurrentUser';
 import { followApi, FollowUserSummary } from '@/features/follow/api/followApi';

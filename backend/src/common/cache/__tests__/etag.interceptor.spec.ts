@@ -57,8 +57,15 @@ describe('ETagInterceptor & utilities', () => {
 
   describe('ETagInterceptor.intercept', () => {
     let interceptor: ETagInterceptor;
-    let mockReq: any;
-    let mockRes: any;
+    let mockReq: { method: string; headers: Record<string, string> };
+    let mockRes: {
+      headersSent: boolean;
+      headers: Record<string, string>;
+      statusCode: number;
+      setHeader: jest.Mock;
+      getHeader: jest.Mock;
+      status: jest.Mock;
+    };
     let mockContext: ExecutionContext;
 
     beforeEach(() => {
@@ -69,7 +76,7 @@ describe('ETagInterceptor & utilities', () => {
       };
       mockRes = {
         headersSent: false,
-        headers: {} as Record<string, string>,
+        headers: {},
         statusCode: 200,
         setHeader: jest.fn((k: string, v: string) => {
           mockRes.headers[k.toLowerCase()] = v;

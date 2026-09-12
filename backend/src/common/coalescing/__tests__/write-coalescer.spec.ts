@@ -29,7 +29,7 @@ describe('WriteCoalescer', () => {
     await Promise.resolve();
 
     expect(flushHandler).toHaveBeenCalledTimes(1);
-    const batchArg = flushHandler.mock.calls[0][0] as Map<string, number>;
+    const [[batchArg]] = flushHandler.mock.calls as [[Map<string, number>]];
     expect(batchArg.get('key1')).toBe(8);
     expect(batchArg.get('key2')).toBe(10);
     expect(coalescer.size).toBe(0);

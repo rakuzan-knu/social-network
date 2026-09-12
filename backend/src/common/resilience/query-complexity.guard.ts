@@ -37,8 +37,10 @@ export class QueryComplexityGuard implements CanActivate {
     }
 
     // 2. Validate Request Body
-    if (req.body && typeof req.body === 'object' && Object.keys(req.body).length > 0) {
-      this.complexityService.validatePayload(req.body, maxDepth, maxComplexity);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const body: Record<string, unknown> = req.body;
+    if (body && typeof body === 'object' && Object.keys(body).length > 0) {
+      this.complexityService.validatePayload(body, maxDepth, maxComplexity);
     }
 
     // 3. Validate URL Params

@@ -30,6 +30,10 @@ describe('PostsRepository', () => {
     report: {
       create: jest.Mock;
     };
+    outboxEvent: {
+      create: jest.Mock;
+    };
+    $transaction: jest.Mock;
   };
 
   const sampleDate = new Date('2026-08-16T12:00:00.000Z');
@@ -90,7 +94,7 @@ describe('PostsRepository', () => {
       $transaction: jest.fn((fn: (tx: unknown) => unknown) =>
         typeof fn === 'function' ? fn(mockPrisma) : Promise.all(fn as unknown[]),
       ),
-    } as any;
+    };
 
     repository = new PostsRepository(mockPrisma as unknown as PrismaService);
   });

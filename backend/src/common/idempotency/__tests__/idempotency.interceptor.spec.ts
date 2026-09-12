@@ -116,7 +116,7 @@ describe('IdempotencyInterceptor', () => {
 
     expect(emitted).toEqual({ id: 'created-item-123' });
     expect(handler.handle).not.toHaveBeenCalled();
-    const res = context.switchToHttp().getResponse();
+    const res = context.switchToHttp().getResponse<{ setHeader: jest.Mock }>();
     expect(res.setHeader).toHaveBeenCalledWith(HEADER_IDEMPOTENT_REPLAY, 'true');
     expect(res.setHeader).toHaveBeenCalledWith(HEADER_CACHE_LOOKUP, 'HIT');
   });

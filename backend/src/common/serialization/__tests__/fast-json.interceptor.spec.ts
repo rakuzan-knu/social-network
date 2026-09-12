@@ -1,3 +1,4 @@
+import type { CallHandler, ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { of } from 'rxjs';
 import { FastJsonInterceptor } from '../fast-json.interceptor';
@@ -17,17 +18,17 @@ describe('FastJsonInterceptor', () => {
   it('passes through without serialization if no schema metadata present', (done) => {
     jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(undefined);
 
-    const context: any = {
+    const context = {
       getHandler: () => ({}),
       getClass: () => ({}),
       switchToHttp: () => ({
         getResponse: () => ({ header: jest.fn() }),
       }),
-    };
+    } as unknown as ExecutionContext;
 
-    const next: any = {
+    const next = {
       handle: () => of({ raw: true }),
-    };
+    } as unknown as CallHandler;
 
     interceptor.intercept(context, next).subscribe((res) => {
       expect(res).toEqual({ raw: true });
@@ -39,18 +40,18 @@ describe('FastJsonInterceptor', () => {
     jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue('STATUS_OK');
 
     const headerMock = jest.fn();
-    const context: any = {
+    const context = {
       getHandler: () => ({}),
       getClass: () => ({}),
       switchToHttp: () => ({
         getResponse: () => ({ header: headerMock }),
       }),
-    };
+    } as unknown as ExecutionContext;
 
     const payload = { status: 'success', success: true };
-    const next: any = {
+    const next = {
       handle: () => of(payload),
-    };
+    } as unknown as CallHandler;
 
     interceptor.intercept(context, next).subscribe((res) => {
       expect(typeof res).toBe('string');

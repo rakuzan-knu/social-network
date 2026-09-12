@@ -7,19 +7,23 @@ import {
   Type,
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
+import type { Readable } from 'stream';
+
+interface FastifyMultipartPart {
+  fieldname?: string;
+  filename?: string;
+  encoding?: string;
+  mimetype?: string;
+  file?: Readable;
+  toBuffer: () => Promise<Buffer>;
+  value?: unknown;
+  fields?: Record<string, { value?: unknown } | Record<string, unknown>>;
+}
 
 interface FastifyMultipartRequest {
   isMultipart?: () => boolean;
-  parts?: () => AsyncIterable<{
-    fieldname?: string;
-    filename?: string;
-    encoding?: string;
-    mimetype?: string;
-    file?: NodeJS.ReadableStream;
-    toBuffer: () => Promise<Buffer>;
-    value?: unknown;
-  }>;
-  file?: Express.Multer.File;
+  parts?: () => AsyncIterable<FastifyMultipartPart>;
+  file?: Express.Multer.File | (() => Promise<FastifyMultipartPart>);
   files?: Express.Multer.File[];
   incomingFile?: Express.Multer.File;
   incomingFiles?: Express.Multer.File[];
@@ -37,9 +41,7 @@ export function FastifyFileInterceptor(fieldName = 'file'): Type<NestInterceptor
 
       const req = context.switchToHttp().getRequest<FastifyMultipartRequest>();
 
-      const isFastifyMultipart =
-        typeof (req as { isMultipart?: () => boolean }).isMultipart === 'function' &&
-        (req as { isMultipart?: () => boolean }).isMultipart?.();
+      const isFastifyMultipart = typeof req.isMultipart === 'function' && req.isMultipart();
 
       if (isFastifyMultipart) {
         try {
@@ -47,8 +49,8 @@ export function FastifyFileInterceptor(fieldName = 'file'): Type<NestInterceptor
           const currentBody: Record<string, unknown> =
             req.body && typeof req.body === 'object' ? { ...req.body } : {};
 
-          if (typeof (req as { parts?: () => AsyncIterable<unknown> }).parts === 'function') {
-            for await (const part of (req as { parts: () => AsyncIterable<any> }).parts()) {
+          if (typeof req.parts === 'function') {
+            for await (const part of req.parts()) {
               if (part.file) {
                 if (!capturedFile && (!fieldName || part.fieldname === fieldName)) {
                   const buffer = await part.toBuffer();
@@ -66,7 +68,7 @@ export function FastifyFileInterceptor(fieldName = 'file'): Type<NestInterceptor
                   };
                 } else if (part.fieldname === 'thumbnail') {
                   const buffer = await part.toBuffer();
-                  (req as any).thumbnailFile = {
+                  req.thumbnailFile = {
                     fieldname: part.fieldname,
                     originalname: part.filename || 'thumbnail.webp',
                     encoding: part.encoding || '7bit',
@@ -94,10 +96,9 @@ export function FastifyFileInterceptor(fieldName = 'file'): Type<NestInterceptor
                 }
               }
             }
-          } else if (
-            typeof (req as unknown as { file?: () => Promise<unknown> }).file === 'function'
-          ) {
-            const part = await (req as unknown as { file: () => Promise<any> }).file();
+          } else if (typeof req.file === 'function') {
+            const fileFn = req.file;
+            const part = await fileFn();
             if (part) {
               const buffer = await part.toBuffer();
               capturedFile = {
@@ -107,7 +108,7 @@ export function FastifyFileInterceptor(fieldName = 'file'): Type<NestInterceptor
                 mimetype: part.mimetype || 'application/octet-stream',
                 size: buffer.length,
                 buffer,
-                stream: part.file,
+                stream: part.file!,
                 destination: '',
                 filename: part.filename || 'upload',
                 path: '',
@@ -152,20 +153,15 @@ export function FastifyFilesInterceptor(fieldName = 'files', maxCount = 10): Typ
 
       const req = context.switchToHttp().getRequest<FastifyMultipartRequest>();
 
-      const isFastifyMultipart =
-        typeof (req as { isMultipart?: () => boolean }).isMultipart === 'function' &&
-        (req as { isMultipart?: () => boolean }).isMultipart?.();
+      const isFastifyMultipart = typeof req.isMultipart === 'function' && req.isMultipart();
 
-      if (
-        isFastifyMultipart &&
-        typeof (req as { parts?: () => AsyncIterable<unknown> }).parts === 'function'
-      ) {
+      if (isFastifyMultipart && typeof req.parts === 'function') {
         try {
           const files: Express.Multer.File[] = [];
           const currentBody: Record<string, unknown> =
             req.body && typeof req.body === 'object' ? { ...req.body } : {};
 
-          for await (const part of (req as { parts: () => AsyncIterable<any> }).parts()) {
+          for await (const part of req.parts()) {
             if (part.file) {
               if (files.length < maxCount) {
                 const buffer = await part.toBuffer();

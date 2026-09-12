@@ -39,6 +39,7 @@ export class FastJsonInterceptor implements NestInterceptor {
 
     return next.handle().pipe(
       map((data) => {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
         if (data === null || data === undefined) return data;
         const res = context
           .switchToHttp()

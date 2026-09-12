@@ -7,6 +7,7 @@ import type { MessengerMapper } from '../../messenger.mapper';
 import type { PrismaService } from '@common/prisma';
 import type { ConfigService } from '@nestjs/config';
 import type { MessengerGateway } from '../../gateway/messenger.gateway';
+import type { RedisService } from '../../../redis/redis.service';
 import { MuteLevel, ReportCategory } from '@prisma/client';
 import { Permission } from '@common/contracts';
 
@@ -217,7 +218,7 @@ describe('ConversationsService', () => {
     };
 
     const mockRedis = {
-      withLock: jest.fn((_key, action) => action()),
+      withLock: jest.fn(<T>(_key: string, action: () => Promise<T>) => action()),
     };
 
     service = new ConversationsService(
@@ -227,7 +228,7 @@ describe('ConversationsService', () => {
       mockMapper as unknown as MessengerMapper,
       mockPrisma as unknown as PrismaService,
       mockConfigService as unknown as ConfigService,
-      mockRedis as any,
+      mockRedis as unknown as RedisService,
       mockGateway as unknown as MessengerGateway,
     );
   });

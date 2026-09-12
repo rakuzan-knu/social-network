@@ -1,4 +1,4 @@
-import { FastJsonService, fastStringify } from '../fast-json.service';
+import { FastJsonService, fastStringify, type FastJsonSchema } from '../fast-json.service';
 
 describe('FastJsonService', () => {
   let service: FastJsonService;
@@ -10,7 +10,7 @@ describe('FastJsonService', () => {
   it('serializes pre-compiled STATUS_OK schema correctly', () => {
     const data = { status: 'ok', success: true, message: 'All good' };
     const result = service.stringify(data, 'STATUS_OK');
-    const parsed = JSON.parse(result);
+    const parsed = JSON.parse(result) as { status: string; success: boolean; message: string };
 
     expect(parsed.status).toBe('ok');
     expect(parsed.success).toBe(true);
@@ -20,7 +20,7 @@ describe('FastJsonService', () => {
   it('serializes WS_TYPING schema fast and accurately', () => {
     const data = { conversationId: 'c1', userId: 'u1', isTyping: true };
     const result = service.stringify(data, 'WS_TYPING');
-    const parsed = JSON.parse(result);
+    const parsed = JSON.parse(result) as typeof data;
 
     expect(parsed).toEqual(data);
   });
@@ -45,7 +45,7 @@ describe('FastJsonService', () => {
     };
 
     const result = service.stringify(data, 'USER_PROFILE');
-    const parsed = JSON.parse(result);
+    const parsed = JSON.parse(result) as typeof data;
 
     expect(parsed).toEqual(data);
   });
@@ -60,8 +60,14 @@ describe('FastJsonService', () => {
     };
 
     const data = { score: 99.5, tag: 'leader' };
-    const serializer1 = service.getSerializer(customSchema as any, 'custom-score-schema');
-    const serializer2 = service.getSerializer(customSchema as any, 'custom-score-schema');
+    const serializer1 = service.getSerializer(
+      customSchema as FastJsonSchema,
+      'custom-score-schema',
+    );
+    const serializer2 = service.getSerializer(
+      customSchema as FastJsonSchema,
+      'custom-score-schema',
+    );
 
     expect(serializer1).toBe(serializer2);
     expect(JSON.parse(serializer1(data))).toEqual(data);
@@ -75,6 +81,6 @@ describe('FastJsonService', () => {
   it('fastStringify helper executes properly without instance DI', () => {
     const data = { status: 'ok', success: true };
     const result = fastStringify(data, 'STATUS_OK');
-    expect(JSON.parse(result).status).toBe('ok');
+    expect((JSON.parse(result) as { status: string }).status).toBe('ok');
   });
 });

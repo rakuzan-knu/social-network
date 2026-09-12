@@ -21,7 +21,7 @@ import {
   type RegisterDto,
   RESERVED_USERNAMES,
 } from '@common/contracts';
-import { AccessTokenPayload, RefreshTokenPayload } from './interfaces/jwt-payload.interface';
+import type { RefreshTokenPayload } from './interfaces/jwt-payload.interface';
 import { PublicUser } from './interfaces/public-user.interface';
 import { TokenPair } from './interfaces/token-pair.interface';
 import { TokenRevocationService } from './token-revocation.service';
