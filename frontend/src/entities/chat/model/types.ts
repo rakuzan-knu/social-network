@@ -119,3 +119,80 @@ export interface ThemeProposalData {
   createdAt: string;
   expiresAt: string;
 }
+
+export type FolderFilterType =
+  'ALL' | 'PERSONAL' | 'WORK' | 'GROUPS' | 'CHANNELS' | 'UNREAD' | 'CUSTOM';
+
+export interface ChatFolderView {
+  id: string;
+  userId: string;
+  name: string;
+  icon: string | null;
+  emoji: string | null;
+  color: string;
+  order: number;
+  filterType: FolderFilterType;
+  includeIds: string[];
+  excludeIds: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateFolderPayload {
+  name: string;
+  icon?: string;
+  emoji?: string;
+  color?: string;
+  filterType?: FolderFilterType;
+  includeIds?: string[];
+  excludeIds?: string[];
+}
+
+export interface UpdateFolderPayload extends Partial<CreateFolderPayload> {
+  order?: number;
+}
+
+export interface GlobalSearchResult {
+  messages: Array<{
+    id: string;
+    conversationId: string;
+    conversationTitle: string;
+    conversationAvatar: string | null;
+    isGroup: boolean;
+    senderId: string;
+    senderName: string;
+    senderAvatar: string | null;
+    body: string | null;
+    createdAt: string;
+    highlightSnippet?: string;
+  }>;
+  media: Array<{
+    id: string;
+    messageId: string;
+    conversationId: string;
+    url: string;
+    fileName: string | null;
+    mimeType: string | null;
+    size: number | null;
+    type: string;
+    createdAt: string;
+  }>;
+  people: Array<{
+    id: string;
+    username: string;
+    displayName: string | null;
+    avatar: string | null;
+    isOnline: boolean;
+  }>;
+}
+
+export interface PrekeyBundleView {
+  userId: string;
+  identityKeySpki: string;
+  signedPrekeySpki: string;
+  signedPrekeySig: string;
+  oneTimePrekey?: {
+    keyId: number;
+    keySpki: string;
+  } | null;
+}

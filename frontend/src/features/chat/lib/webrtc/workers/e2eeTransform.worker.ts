@@ -14,8 +14,7 @@ const UNENCRYPTED_HEADER_BYTES = 10;
 
 interface ScriptTransformOptions {
   operation: 'encrypt' | 'decrypt';
-  rawKey?: ArrayBuffer | Uint8Array | number[];
-  /** Preferred: a live CryptoKey (structured-cloned, never exported). */
+  /** Live CryptoKey (structured-cloned, never serialized). The only key path. */
   cryptoKey?: CryptoKey;
 }
 
@@ -28,54 +27,14 @@ interface RTCTransformEventLike extends Event {
 }
 
 let activeCryptoKey: CryptoKey | null = null;
-let currentKeyBytes: Uint8Array | null = null;
 
-async function getOrImportCryptoKey(
-  rawKey?: ArrayBuffer | Uint8Array | number[],
-  liveKey?: CryptoKey | null,
-): Promise<CryptoKey | null> {
-  // Preferred path: live key object, never serialized (F1 hardening).
+async function getOrImportCryptoKey(liveKey?: CryptoKey | null): Promise<CryptoKey | null> {
+  // Sole key path: live key object, never serialized (F1 hardening).
   if (liveKey) {
     activeCryptoKey = liveKey;
-    currentKeyBytes = null;
     return liveKey;
   }
-  if (!rawKey) return activeCryptoKey;
-
-  const keyBytes =
-    rawKey instanceof Uint8Array
-      ? rawKey
-      : rawKey instanceof ArrayBuffer
-        ? new Uint8Array(rawKey)
-        : new Uint8Array(rawKey);
-
-  if (currentKeyBytes && arraysEqual(currentKeyBytes, keyBytes) && activeCryptoKey) {
-    return activeCryptoKey;
-  }
-
-  try {
-    const imported = await crypto.subtle.importKey(
-      'raw',
-      keyBytes.slice(0, 32),
-      { name: 'AES-GCM' },
-      false,
-      ['encrypt', 'decrypt'],
-    );
-    activeCryptoKey = imported;
-    currentKeyBytes = keyBytes.slice(0, 32);
-    return imported;
-  } catch (err) {
-    console.warn('[e2ee-worker] Failed to import AES-GCM key:', err);
-    return null;
-  }
-}
-
-function arraysEqual(a: Uint8Array, b: Uint8Array): boolean {
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    if (a[i] !== b[i]) return false;
-  }
-  return true;
+  return activeCryptoKey;
 }
 
 function generateIV(frameIndex: number): Uint8Array {
@@ -164,7 +123,7 @@ function handleTransform(
     RTCEncodedAudioFrame | RTCEncodedVideoFrame
   >({
     async transform(frame, controller) {
-      const key = await getOrImportCryptoKey(options.rawKey, options.cryptoKey ?? null);
+      const key = await getOrImportCryptoKey(options.cryptoKey ?? null);
       if (key) {
         await processFrame(frame, options.operation, key, frameCounter);
       }
@@ -187,14 +146,6 @@ if (typeof self !== 'undefined') {
     if (transformEvt.transformer) {
       const { readable, writable, options } = transformEvt.transformer;
       handleTransform(readable, writable, options);
-    }
-  });
-
-  // Support direct postMessage key updates / fallback commands
-  self.addEventListener('message', async (event: MessageEvent) => {
-    const data = event.data;
-    if (data?.type === 'UPDATE_KEY' && data.rawKey) {
-      await getOrImportCryptoKey(data.rawKey);
     }
   });
 }

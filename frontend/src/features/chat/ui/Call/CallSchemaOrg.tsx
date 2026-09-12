@@ -49,7 +49,7 @@ export function CallSchemaOrg({ callId, isLive = true }: CallSchemaOrgProps) {
         broadcastDisplayName: remoteUser?.displayName || 'WebRTC Room',
         startDate: new Date().toISOString(),
         eventStatus: 'https://schema.org/EventScheduled',
-        description: 'End-to-End Encrypted HD video call with post-quantum security.',
+        description: 'HD video call.',
       },
     ],
   };

@@ -4,12 +4,17 @@ import type { S3Client } from '@aws-sdk/client-s3';
 import { MediaType } from '@prisma/client';
 import { POSTS_S3_CLIENT } from './s3-provider';
 import { uid } from 'uid';
-import { optimizePostImage, uploadToStorageWithFallback } from '../common/media/image-processor';
+import {
+  optimizePostImage,
+  uploadToStorageWithFallback,
+  generateBlurHash,
+} from '../common/media/image-processor';
 
 export type ProcessedMedia = {
   type: MediaType;
   url: string;
   poster?: string;
+  blurhash?: string;
   order: number;
 };
 
@@ -121,9 +126,16 @@ export class PostsMediaService implements OnModuleDestroy {
       publicUrl: this.publicUrl,
     });
 
+    let blurhash: string | undefined;
+    if (type === MediaType.IMAGE) {
+      const bh = await generateBlurHash(uploadBuffer);
+      blurhash = bh.blurhash;
+    }
+
     return {
       type,
       url,
+      ...(blurhash ? { blurhash } : {}),
       order,
     };
   }

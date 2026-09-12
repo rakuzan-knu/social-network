@@ -631,10 +631,12 @@ export class CallsService {
     userId: string,
     callId: string,
   ): Promise<WebTransportSessionResponse> {
+    const endpointUrl = process.env.WEBTRANSPORT_ENDPOINT_URL;
+    if (!endpointUrl) {
+      throw new NotFoundException('WebTransport endpoint is not configured in this environment');
+    }
+
     const sessionTicket = `wt_${callId}_${userId}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-    const endpointUrl =
-      process.env.WEBTRANSPORT_ENDPOINT_URL ||
-      `https://${process.env.DOMAIN || 'localhost:3000'}/wt-signaling`;
 
     try {
       await this.redisService.set(

@@ -7,6 +7,7 @@ import {
   NotFoundException,
   Param,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
@@ -43,12 +44,29 @@ export class E2eeController {
   @ApiOperation({ summary: 'Retrieve E2EE public key for a chat recipient' })
   @ApiResponse({ status: 200, type: PublicKeyResponseDto })
   @ApiResponse({ status: 404, description: 'Public key not found' })
-  async getKey(@Param('userId') userId: string): Promise<PublicKeyResponseDto> {
-    const key = await this.e2eeService.getPublicKey(userId);
+  async getKey(
+    @Param('userId') userId: string,
+    @Query('purpose') purpose?: string,
+  ): Promise<PublicKeyResponseDto> {
+    const key = await this.e2eeService.getPublicKey(userId, purpose ?? 'call');
     if (!key) {
       throw new NotFoundException('Public key not found for user');
     }
     return key;
+  }
+
+  @Get('keys/:userId/devices')
+  @ApiOperation({
+    summary: 'List all E2EE device keys for a user (multi-device fan-out)',
+  })
+  @ApiResponse({ status: 200, description: 'Device key list (possibly empty)' })
+  async getDevices(
+    @Param('userId') userId: string,
+    @Query('purpose') purpose?: string,
+  ): Promise<{ userId: string; purpose: string; keys: PublicKeyResponseDto[] }> {
+    const slot = purpose === 'message' ? 'message' : 'call';
+    const keys = await this.e2eeService.getPublicKeys(userId, slot);
+    return { userId, purpose: slot, keys };
   }
 
   @Post('exchange')

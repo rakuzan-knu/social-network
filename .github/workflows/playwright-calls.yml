@@ -8,7 +8,14 @@ on:
       - 'frontend/src/features/chat/model/useCall**'
       - 'frontend/src/features/chat/model/useWebRTC.ts'
       - 'frontend/src/features/chat/lib/webrtc/**'
+      - 'frontend/src/features/chat/lib/e2ee/**'
       - 'frontend/e2e/calls.spec.ts'
+      - 'frontend/e2e/call-e2ee-handshake.spec.ts'
+      - 'frontend/e2e/message-e2ee.spec.ts'
+      - 'frontend/src/shared/lib/crypto/**'
+      - 'frontend/src/features/chat/lib/e2ee/messageE2ee.ts'
+      - 'frontend/src/features/chat/model/useMessageActions.ts'
+      - 'backend/src/common/contracts/chat.ts'
       - '.github/workflows/playwright-calls.yml'
   pull_request:
     branches: [main, develop]
@@ -17,7 +24,14 @@ on:
       - 'frontend/src/features/chat/model/useCall**'
       - 'frontend/src/features/chat/model/useWebRTC.ts'
       - 'frontend/src/features/chat/lib/webrtc/**'
+      - 'frontend/src/features/chat/lib/e2ee/**'
       - 'frontend/e2e/calls.spec.ts'
+      - 'frontend/e2e/call-e2ee-handshake.spec.ts'
+      - 'frontend/e2e/message-e2ee.spec.ts'
+      - 'frontend/src/shared/lib/crypto/**'
+      - 'frontend/src/features/chat/lib/e2ee/messageE2ee.ts'
+      - 'frontend/src/features/chat/model/useMessageActions.ts'
+      - 'backend/src/common/contracts/chat.ts'
       - '.github/workflows/playwright-calls.yml'
   workflow_dispatch:
 
@@ -55,6 +69,18 @@ jobs:
 
       - name: Run Playwright WebRTC Dual-Client Call E2E
         run: pnpm --filter frontend exec playwright test e2e/calls.spec.ts --project=chromium
+        env:
+          CI: true
+          NODE_ENV: test
+
+      - name: Run Playwright E2EE Handshake (two browser realms, F1 proof)
+        run: pnpm --filter frontend exec playwright test e2e/call-e2ee-handshake.spec.ts --project=chromium
+        env:
+          CI: true
+          NODE_ENV: test
+
+      - name: Run Playwright Message E2EE (two browser realms, M1-M3 + P0-1 proof)
+        run: pnpm --filter frontend exec playwright test e2e/message-e2ee.spec.ts --project=chromium
         env:
           CI: true
           NODE_ENV: test

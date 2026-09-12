@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import Avatar from '../../../shared/ui/Avatar';
 import { e2eeManager } from '../../../shared/lib/crypto/e2ee';
+import { useDecryptedMessageBody } from '../model/useDecryptedMessageBody';
 import { MessageView } from '../../../entities/chat/model/types';
 import { formatMessageTime } from '../lib/groupMessagesByDate';
 import MessageReactionPicker from './MessageReactionPicker';
@@ -23,6 +24,7 @@ import MessageAttachments from './MessageAttachments';
 import ChatPollCard from './ChatPollCard';
 import { parseChatPoll } from '../lib/chatPoll';
 import { PostEmbedCard } from './PostEmbedCard';
+import { ReelEmbedCard } from './ReelEmbedCard';
 import { LinkPreviewCard } from '../../../shared/ui/LinkPreviewCard';
 import MarkdownContent from '../../../shared/ui/MarkdownContent';
 import { extractFirstUrl } from '../../../shared/lib/urlUtils';
@@ -53,6 +55,8 @@ interface MessageBubbleProps {
   onUnreact: (messageId: string, emoji: string) => void;
   onJumpToMessage?: (messageId: string) => void;
   onRetry?: (messageId: string) => void;
+  /** 1:1 peer for message-layer E2EE decrypt; null/undefined = groups or unknown (locked label). */
+  e2eePeerUserId?: string | null;
 }
 
 function getBubbleRounding(isOwnMessage: boolean, position: ClusterPosition = 'single'): string {
@@ -83,18 +87,32 @@ function getBubbleRounding(isOwnMessage: boolean, position: ClusterPosition = 's
   }
 }
 
-function extractPostInfo(body: string): { displayText: string; postId: string | null } {
-  if (!body) return { displayText: '', postId: null };
+function extractMediaInfo(body: string): {
+  displayText: string;
+  postId: string | null;
+  reelId: string | null;
+} {
+  if (!body) return { displayText: '', postId: null, reelId: null };
+
+  const reelMatch = body.match(
+    /(?:https?:\/\/[^\s]+)?(?:\/reels\?id=|\/reels\/|#reel-)([a-zA-Z0-9_-]+)/i,
+  );
+  if (reelMatch) {
+    const reelId = reelMatch[1];
+    const urlRegex = /(?:https?:\/\/[^\s]+)?(?:\/reels\?id=|\/reels\/|#reel-)[a-zA-Z0-9_-]+/gi;
+    const cleanText = body.replace(urlRegex, '').trim();
+    return { displayText: cleanText, postId: null, reelId };
+  }
 
   const postMatch = body.match(/(?:https?:\/\/[^\s]+)?(?:#post-|\/post\/)([a-zA-Z0-9_-]+)/i);
   if (postMatch) {
     const postId = postMatch[1];
     const urlRegex = /(?:https?:\/\/[^\s]+)?(?:#post-|\/post\/)[a-zA-Z0-9_-]+/gi;
     const cleanText = body.replace(urlRegex, '').trim();
-    return { displayText: cleanText, postId };
+    return { displayText: cleanText, postId, reelId: null };
   }
 
-  return { displayText: body, postId: null };
+  return { displayText: body, postId: null, reelId: null };
 }
 
 export default function MessageBubble({
@@ -118,6 +136,7 @@ export default function MessageBubble({
   onUnreact,
   onJumpToMessage,
   onRetry,
+  e2eePeerUserId = null,
 }: MessageBubbleProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isPickerOpen, setPickerOpen] = useState(false);
@@ -126,20 +145,29 @@ export default function MessageBubble({
   const reactionsContainerRef = useRef<HTMLDivElement | null>(null);
   const bubbleContainerRef = useRef<HTMLDivElement | null>(null);
 
-  const { displayText, postId: embeddedPostId } = extractPostInfo(message.body || '');
+  const displaySource = useDecryptedMessageBody(
+    message.body,
+    e2eePeerUserId,
+    message.conversationId,
+    message.sender?.id ?? null,
+  );
+  // Same dialog, same peer: quoted envelopes decrypt like the body itself.
+  // NOTE: hooks must stay above the early returns below (deleted/leave/system).
+  const replyDisplaySource = useDecryptedMessageBody(
+    message.replyTo?.body ?? null,
+    e2eePeerUserId,
+    message.replyTo?.conversationId ?? message.conversationId,
+    message.replyTo?.sender?.id ?? null,
+  );
+  const {
+    displayText,
+    postId: embeddedPostId,
+    reelId: embeddedReelId,
+  } = extractMediaInfo(displaySource);
   const isE2ee = Boolean(message.body && e2eeManager.isEncrypted(message.body));
-  let resolvedDisplayText = displayText;
-  if (isE2ee && message.body) {
-    try {
-      const parsed = JSON.parse(message.body);
-      if (parsed.e2ee) {
-        resolvedDisplayText = parsed.text || 'End-to-End Encrypted message';
-      }
-    } catch {
-      resolvedDisplayText = 'End-to-End Encrypted message';
-    }
-  }
-  const firstExternalUrl = !embeddedPostId && !isE2ee ? extractFirstUrl(message.body) : null;
+  const resolvedDisplayText = displayText;
+  const firstExternalUrl =
+    !embeddedPostId && !embeddedReelId ? extractFirstUrl(displaySource) : null;
 
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [isSwiping, setIsSwiping] = useState(false);
@@ -373,7 +401,8 @@ export default function MessageBubble({
 
   const getReplySnippet = () => {
     if (!message.replyTo) return '';
-    if (message.replyTo.body) return message.replyTo.body;
+    // Same dialog, same peer: quoted envelopes decrypt like the body itself.
+    if (message.replyTo.body) return replyDisplaySource;
     if (!replyAttachment) return 'Message';
     if (replyAttachment.type === 'STICKER') return '⭐ Sticker';
     if (replyAttachment.type === 'IMAGE') return '🖼️ Photo';
@@ -726,6 +755,10 @@ export default function MessageBubble({
 
                   {embeddedPostId && (
                     <PostEmbedCard postId={embeddedPostId} isOwnMessage={isOwnMessage} />
+                  )}
+
+                  {embeddedReelId && (
+                    <ReelEmbedCard reelId={embeddedReelId} isOwnMessage={isOwnMessage} />
                   )}
 
                   {firstExternalUrl && <LinkPreviewCard url={firstExternalUrl} />}

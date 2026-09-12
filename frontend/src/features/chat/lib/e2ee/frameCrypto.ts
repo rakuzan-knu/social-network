@@ -109,52 +109,6 @@ export const isInsertableStreamsSupported = (): boolean => {
 };
 
 /**
- * Derives an AES-256-GCM CryptoKey and mutual SAS fingerprint from call identifiers
- *
- * @deprecated INSECURE — the key is SHA-256 of the server-known callId and
- * offers no end-to-end security (see docs/security/E2EE_IMPLEMENTATION_AUDIT.md
- * F1). Kept for backward-compatible tests only. New code MUST use
- * `callKeyExchange.ts` (ephemeral ECDH + HKDF).
- */
-export async function deriveCallCryptoKey(
-  callId: string,
-  extraEntropy = 'eternal-e2ee-salt',
-): Promise<CallKeyInfo> {
-  const encoder = new TextEncoder();
-  const seed = encoder.encode(`eternal-call-e2ee:${callId}:${extraEntropy}`);
-
-  const hashBuffer = await crypto.subtle.digest('SHA-256', seed);
-  const keyMaterial = new Uint8Array(hashBuffer);
-
-  const key = await crypto.subtle.importKey('raw', keyMaterial, { name: 'AES-GCM' }, false, [
-    'encrypt',
-    'decrypt',
-  ]);
-
-  // Compute 6-digit Short Authentication String (SAS)
-  const view = new DataView(hashBuffer);
-  const num1 = (view.getUint16(0) % 900) + 100;
-  const num2 = (view.getUint16(2) % 900) + 100;
-  const sasCode = `${num1}-${num2}`;
-
-  // Derive 4 Telegram/Signal style SAS emojis from distinct bytes
-  const e1 = SAS_EMOJI_TABLE[view.getUint8(4) % SAS_EMOJI_TABLE.length];
-  const e2 = SAS_EMOJI_TABLE[view.getUint8(5) % SAS_EMOJI_TABLE.length];
-  const e3 = SAS_EMOJI_TABLE[view.getUint8(6) % SAS_EMOJI_TABLE.length];
-  const e4 = SAS_EMOJI_TABLE[view.getUint8(7) % SAS_EMOJI_TABLE.length];
-  const sasEmojis = `${e1} ${e2} ${e3} ${e4}`;
-
-  // Compute 16-hex fingerprint
-  const hex = Array.from(keyMaterial.slice(0, 8))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join(':')
-    .toUpperCase();
-  const fingerprint = `SHA256:${hex}`;
-
-  return { key, fingerprint, sasCode, sasEmojis };
-}
-
-/**
  * Encrypts an encoded frame (audio or video) using AES-256-GCM
  */
 async function encryptFrame(

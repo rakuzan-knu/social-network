@@ -8,7 +8,27 @@ export const CallContext = createContext<CallContextValue | null>(null);
 export function useCall(): CallContextValue {
   const context = useContext(CallContext);
   if (!context) {
-    throw new Error('useCall must be used within a CallProvider');
+    return {
+      initiateCall: () => Promise.resolve(),
+      acceptCall: () => Promise.resolve(),
+      rejectCall: () => {},
+      endCall: () => {},
+      toggleMute: () => {},
+      toggleDeafen: () => {},
+      toggleVideo: () => {},
+      toggleScreenShare: () => Promise.resolve(),
+      sendP2PFile: () => Promise.resolve(),
+      cancelP2PTransfer: () => {},
+      registerVideoTile: () => {},
+      unregisterVideoTile: () => {},
+      unblockAutoplay: () => {},
+      registerMediaElement: () => {},
+      sendReaction: () => {},
+      configureSVC: () => {},
+      switchSVCMode: () => {},
+      setSVCLayers: () => {},
+      confirmE2eeSasMatch: () => {},
+    } as unknown as CallContextValue;
   }
   return context;
 }

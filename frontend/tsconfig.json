@@ -11,7 +11,8 @@
       "@backend/*": ["../backend/src/*"],
       "@common/*": ["../backend/src/common/*", "../backend/src/common/*/index.ts"],
       "@common/prisma": ["../backend/src/common/prisma/index.ts"],
-      "@common/contracts": ["../backend/src/common/contracts/index.ts"]
+      "@common/contracts": ["../backend/src/common/contracts/index.ts"],
+      "@social-network/*": ["../packages/*/src/index.ts"]
     },
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,

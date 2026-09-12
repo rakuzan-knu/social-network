@@ -11,12 +11,15 @@ import { POSTS_REPOSITORY } from './interfaces/posts-repository.interface';
 
 import { PostStatsCoalescerService } from './coalescing/post-stats-coalescer.service';
 
+import { FeedScoringService } from './feed-scoring.service';
+
 @Module({
   imports: [PrismaModule, forwardRef(() => MessengerModule), SnowflakeModule],
   controllers: [PostsController],
   providers: [
     postsS3Provider,
     PostsMediaService,
+    FeedScoringService,
     PostsService,
     PostStatsCoalescerService,
     PostsRepository,
@@ -25,6 +28,6 @@ import { PostStatsCoalescerService } from './coalescing/post-stats-coalescer.ser
       useClass: PostsRepository,
     },
   ],
-  exports: [PostsService, PostStatsCoalescerService, POSTS_REPOSITORY],
+  exports: [PostsService, PostStatsCoalescerService, FeedScoringService, POSTS_REPOSITORY],
 })
 export class PostsModule {}

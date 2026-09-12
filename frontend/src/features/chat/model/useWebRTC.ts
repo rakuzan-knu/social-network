@@ -8,7 +8,18 @@ import {
   deriveCallSessionKey,
   exportEphemeralPublicKey,
   generateEphemeralKeypair,
+  signEphemeralBinding,
+  verifyEphemeralBinding,
 } from '../lib/e2ee/callKeyExchange';
+import {
+  ensureIdentityKeypair,
+  ensureIdentityRegistered,
+  fetchPeerIdentityKeyCached,
+  fingerprintIdentityKey,
+  getPinnedFingerprint,
+  importIdentityPublicKey,
+  pinIdentityKey,
+} from '../lib/e2ee/identityKeys';
 import {
   attachSenderScriptTransform,
   attachReceiverScriptTransform,
@@ -86,10 +97,25 @@ export function useWebRTC(options: WebRTCOptions = {}) {
   const gossipRelayRef = useRef<GossipRelayManager | null>(null);
   const syncPlayEngineRef = useRef<SyncPlayEngine | null>(null);
   const liveStatsCollectorRef = useRef<LiveStatsCollector | null>(null);
+  const transformedSendersRef = useRef<WeakSet<RTCRtpSender>>(new WeakSet());
+  const transformedReceiversRef = useRef<WeakSet<RTCRtpReceiver>>(new WeakSet());
+  const currentAuthUserId = useAuthStore((s) => s.userId);
   const whiteboardEngineRef = useRef<WhiteboardCRDTEngine | null>(null);
   if (!whiteboardEngineRef.current) {
-    whiteboardEngineRef.current = new WhiteboardCRDTEngine();
+    whiteboardEngineRef.current = new WhiteboardCRDTEngine({
+      userId: currentAuthUserId || undefined,
+      userName: currentAuthUserId ? `User ${currentAuthUserId.slice(0, 4)}` : 'You',
+    });
   }
+
+  useEffect(() => {
+    if (whiteboardEngineRef.current && currentAuthUserId) {
+      whiteboardEngineRef.current.updateUser(
+        currentAuthUserId,
+        `User ${currentAuthUserId.slice(0, 4)}`,
+      );
+    }
+  }, [currentAuthUserId]);
   const superResEngineRef = useRef<WebGPUSuperResEngine | null>(null);
   if (!superResEngineRef.current) {
     superResEngineRef.current = new WebGPUSuperResEngine();
@@ -437,6 +463,31 @@ export function useWebRTC(options: WebRTCOptions = {}) {
     }
   }, [onSendIceRestart]);
 
+  const attachE2eeToTransceivers = useCallback((pc: RTCPeerConnection, key: CryptoKey) => {
+    for (const sender of pc.getSenders()) {
+      if (sender.track && !transformedSendersRef.current.has(sender)) {
+        try {
+          if (attachSenderScriptTransform(sender, { cryptoKey: key })) {
+            transformedSendersRef.current.add(sender);
+          }
+        } catch (e) {
+          console.warn('[E2EE] attachSenderScriptTransform error:', e);
+        }
+      }
+    }
+    for (const receiver of pc.getReceivers()) {
+      if (receiver.track && !transformedReceiversRef.current.has(receiver)) {
+        try {
+          if (attachReceiverScriptTransform(receiver, { cryptoKey: key })) {
+            transformedReceiversRef.current.add(receiver);
+          }
+        } catch (e) {
+          console.warn('[E2EE] attachReceiverScriptTransform error:', e);
+        }
+      }
+    }
+  }, []);
+
   const initPeerConnection = useCallback(
     async (
       onIceCandidate: (candidate: RTCIceCandidate) => void,
@@ -451,10 +502,12 @@ export function useWebRTC(options: WebRTCOptions = {}) {
       console.log('[initPeerConnection] creating RTCPeerConnection...');
       const pc = new RTCPeerConnection({
         iceServers,
-        iceCandidatePoolSize: 10,
         bundlePolicy: 'max-bundle',
       });
       pcRef.current = pc;
+      if (typeof window !== 'undefined') {
+        (window as unknown as { __PC__?: RTCPeerConnection }).__PC__ = pc;
+      }
 
       // E2EE session keys are established by the explicit handshake
       // (prepareE2eeOffer / acceptE2eeOffer / completeE2eeHandshake) once both
@@ -509,16 +562,26 @@ export function useWebRTC(options: WebRTCOptions = {}) {
           const remoteStream = event.streams[0];
           const streamId = targetUserId || 'remote';
 
-          // Attach RTCRtpScriptTransform / Insertable Streams receiver decryption if key exists
-          if (cryptoKeyRef.current && event.receiver) {
-            console.log('[ontrack] attaching receiver script transform...');
-            try {
-              attachReceiverScriptTransform(event.receiver, {
-                cryptoKey: cryptoKeyRef.current,
-              });
-              console.log('[ontrack] receiver script transform attached');
-            } catch (e) {
-              console.warn('[ontrack] attachReceiverScriptTransform error:', e);
+          // Attach RTCRtpScriptTransform / Insertable Streams receiver decryption if key exists and signaling is stable
+          if (
+            event.receiver &&
+            !transformedReceiversRef.current.has(event.receiver) &&
+            pc.signalingState === 'stable'
+          ) {
+            if (cryptoKeyRef.current) {
+              console.log('[ontrack] attaching receiver script transform...');
+              try {
+                if (
+                  attachReceiverScriptTransform(event.receiver, {
+                    cryptoKey: cryptoKeyRef.current,
+                  })
+                ) {
+                  transformedReceiversRef.current.add(event.receiver);
+                }
+                console.log('[ontrack] receiver script transform attached');
+              } catch (e) {
+                console.warn('[ontrack] attachReceiverScriptTransform error:', e);
+              }
             }
           }
 
@@ -847,13 +910,9 @@ export function useWebRTC(options: WebRTCOptions = {}) {
       if (!alreadyAdded) {
         const sender = pc.addTrack(track, stream);
 
-        // Apply SVC L3T3 encoding parameters if video track
-        if (track.kind === 'video' && sender) {
-          void configureSenderSVC(sender, { scalabilityMode: 'L3T3' });
-        }
-
-        // Attach RTCRtpScriptTransform / Insertable Streams AES-256-GCM frame encryption to outgoing sender
-        if (cryptoKeyRef.current && sender) {
+        // Attach RTCRtpScriptTransform only if signaling is already stable (e.g. dynamic screen share track)
+        // Initial tracks are attached right after setLocalDescription in handleOffer / completeE2eeHandshake
+        if (cryptoKeyRef.current && sender && pc.signalingState === 'stable') {
           attachSenderScriptTransform(sender, {
             cryptoKey: cryptoKeyRef.current,
           });
@@ -998,22 +1057,18 @@ export function useWebRTC(options: WebRTCOptions = {}) {
   const handleOffer = useCallback(
     async (
       offer: RTCSessionDescriptionInit,
-      callType: 'audio' | 'video',
+      type: 'audio' | 'video',
       onIceCandidate: (candidate: RTCIceCandidate) => void,
-      targetUserId?: string,
+      callerUserId?: string,
     ): Promise<RTCSessionDescriptionInit> => {
-      const type = ((callType as unknown as string) || 'audio').toLowerCase() as 'audio' | 'video';
-
       console.log('[handleOffer] STEP 1: acquireLocalMedia...');
       const stream = await acquireLocalMedia(type);
 
       console.log('[handleOffer] STEP 2: initPeerConnection...');
-      const pc = await initPeerConnection(onIceCandidate, targetUserId);
+      const pc = await initPeerConnection(onIceCandidate, callerUserId);
 
-      const codecPref = useCallStore.getState().preferredVideoCodec;
-      if (offer.sdp && type === 'video') {
-        offer.sdp = mungeSDP(offer.sdp, codecPref);
-      }
+      console.log('[handleOffer] STEP 2.5: attachLocalStream...');
+      attachLocalStream(pc, stream);
 
       console.log(
         '[handleOffer] STEP 3: setRemoteDescription...',
@@ -1037,9 +1092,6 @@ export function useWebRTC(options: WebRTCOptions = {}) {
         }
       }
 
-      console.log('[handleOffer] STEP 4: attachLocalStream...');
-      attachLocalStream(pc, stream);
-
       globalCallExternalStore.transition('RINGING');
       globalCallExternalStore.transition('SIGNALING');
       globalCallExternalStore.update({
@@ -1048,22 +1100,38 @@ export function useWebRTC(options: WebRTCOptions = {}) {
         localStream: stream,
       });
 
-      console.log('[handleOffer] STEP 5: createAnswer...');
+      console.log('[handleOffer] STEP 5: createAnswer starting...', {
+        signalingState: pc.signalingState,
+        iceConnectionState: pc.iceConnectionState,
+        senders: pc.getSenders().length,
+        receivers: pc.getReceivers().length,
+      });
       try {
-        const answer = await pc.createAnswer();
+        const answer = await Promise.race([
+          pc.createAnswer(),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('pc.createAnswer timed out after 10000ms')), 10000),
+          ),
+        ]);
+        console.log('[handleOffer] STEP 5.5: createAnswer succeeded!');
+        const codecPref = useCallStore.getState().preferredVideoCodec;
         if (answer.sdp && type === 'video') {
           answer.sdp = mungeSDP(answer.sdp, codecPref);
         }
         console.log('[handleOffer] STEP 6: setLocalDescription...');
         await pc.setLocalDescription(answer);
-        console.log('[handleOffer] STEP 7: returning answer!');
+        console.log('[handleOffer] STEP 7: attaching E2EE transforms...');
+        if (cryptoKeyRef.current) {
+          attachE2eeToTransceivers(pc, cryptoKeyRef.current);
+        }
+        console.log('[handleOffer] STEP 8: returning answer!');
         return answer;
       } catch (e) {
         console.error('[handleOffer] STEP 5/6 Answer creation EXCEPTION:', e);
         throw e;
       }
     },
-    [initPeerConnection, acquireLocalMedia, attachLocalStream, callId],
+    [initPeerConnection, acquireLocalMedia, attachLocalStream, attachE2eeToTransceivers, callId],
   );
 
   const handleAnswer = useCallback(async (answer: RTCSessionDescriptionInit): Promise<void> => {
@@ -1092,13 +1160,79 @@ export function useWebRTC(options: WebRTCOptions = {}) {
   const isE2eeCapable = (): boolean =>
     isInsertableStreamsSupported() || isScriptTransformSupported();
 
+  /** Ephemeral public + optional identity signature traveling in signaling. */
+  type E2eeOfferBundle = { publicKey: string; signature: string | null };
+
+  /** Last peer identity seen during handshake (for TOFU pinning on confirm). */
+  const e2eePeerRef = useRef<{ userId: string; identityB64: string } | null>(null);
+
+  /** Best-effort identity signature over our ephemeral (null when unavailable). */
+  const signOwnEphemeral = async (ephemeralPubB64: string): Promise<string | null> => {
+    try {
+      const { privateKey } = await ensureIdentityKeypair();
+      void ensureIdentityRegistered().catch((err: unknown) => {
+        console.warn('[E2EE] identity registration failed:', err);
+      });
+      return await signEphemeralBinding(privateKey, ephemeralPubB64);
+    } catch (err) {
+      console.warn('[E2EE] ephemeral signing unavailable:', err);
+      return null;
+    }
+  };
+
+  /**
+   * TOFU trust resolution. Deliberately NEVER auto-promotes to 'verified' in
+   * v1: a pinned directory key could itself have been planted before first
+   * contact, so only a fresh SAS compare (or a future out-of-band identity
+   * proof) promotes. This still verifies signatures for tamper/key-change
+   * warnings and records the peer identity for pinning on SAS confirm.
+   * Returns the honest status: always 'unverified' for now.
+   */
+  const resolvePeerTrust = async (
+    peerUserId: string | undefined,
+    peerEphemeralB64: string,
+    peerSig: string | null | undefined,
+  ): Promise<'verified' | 'unverified'> => {
+    if (!peerUserId || !peerSig) return 'unverified';
+    try {
+      const dirKey = await fetchPeerIdentityKeyCached(peerUserId);
+      if (!dirKey) return 'unverified';
+      e2eePeerRef.current = { userId: peerUserId, identityB64: dirKey };
+      const pinnedFp = getPinnedFingerprint(peerUserId);
+      if (pinnedFp) {
+        try {
+          const currentFp = await fingerprintIdentityKey(dirKey);
+          if (currentFp.toLowerCase() !== pinnedFp) {
+            console.warn(
+              '[E2EE] peer identity key CHANGED since pinning — re-verify SAS carefully (reinstall or MITM)',
+            );
+          }
+        } catch {
+          // Fingerprint failure must not break the call.
+        }
+      }
+      const idKey = await importIdentityPublicKey(dirKey);
+      const sigOk = await verifyEphemeralBinding(idKey, peerEphemeralB64, peerSig);
+      if (!sigOk) {
+        console.warn(
+          '[E2EE] peer ephemeral signature invalid — possible signaling tamper; compare SAS',
+        );
+      }
+      return 'unverified';
+    } catch (err) {
+      console.warn('[E2EE] trust resolution failed:', err);
+      return 'unverified';
+    }
+  };
+
   /** Initiator step 1: ephemeral keypair for this call; returns SPKI b64 for signaling. */
-  const prepareE2eeOffer = useCallback(async (): Promise<string | null> => {
+  const prepareE2eeOffer = useCallback(async (): Promise<E2eeOfferBundle | null> => {
     if (!isE2eeCapable()) return null;
     try {
       const pair = await generateEphemeralKeypair();
       e2eeEphemeralRef.current = pair;
-      return await exportEphemeralPublicKey(pair.publicKey);
+      const publicKey = await exportEphemeralPublicKey(pair.publicKey);
+      return { publicKey, signature: await signOwnEphemeral(publicKey) };
     } catch (err) {
       console.warn('[E2EE] prepareE2eeOffer failed:', err);
       return null;
@@ -1107,25 +1241,35 @@ export function useWebRTC(options: WebRTCOptions = {}) {
 
   /**
    * Callee step: derive the session from the initiator pubkey found in the
-   * incoming call payload; returns our own SPKI b64 for CALL_ACCEPT.
+   * incoming call payload; returns our own bundle for CALL_ACCEPT.
    * State becomes 'unverified' — NOT 'verified' (see F2).
    */
   const acceptE2eeOffer = useCallback(
-    async (peerKeyB64: string | undefined, callId: string): Promise<string | null> => {
+    async (
+      peerKeyB64: string | undefined,
+      peerSig: string | null | undefined,
+      peerUserId: string | undefined,
+      callId: string,
+    ): Promise<E2eeOfferBundle | null> => {
       if (!peerKeyB64 || !isE2eeCapable()) return null;
       try {
         const pair = await generateEphemeralKeypair();
         e2eeEphemeralRef.current = pair;
         const session = await deriveCallSessionKey(pair.privateKey, peerKeyB64, callId);
         cryptoKeyRef.current = session.key;
-        setE2EEInfo('unverified', session.fingerprint, session.sasCode, session.sasEmojis);
-        return await exportEphemeralPublicKey(pair.publicKey);
+        const trust = await resolvePeerTrust(peerUserId, peerKeyB64, peerSig);
+        setE2EEInfo(trust, session.fingerprint, session.sasCode, session.sasEmojis);
+        if (pcRef.current) {
+          attachE2eeToTransceivers(pcRef.current, session.key);
+        }
+        const publicKey = await exportEphemeralPublicKey(pair.publicKey);
+        return { publicKey, signature: await signOwnEphemeral(publicKey) };
       } catch (err) {
         console.warn('[E2EE] acceptE2eeOffer failed:', err);
         return null;
       }
     },
-    [],
+    [setE2EEInfo, attachE2eeToTransceivers],
   );
 
   /**
@@ -1133,24 +1277,21 @@ export function useWebRTC(options: WebRTCOptions = {}) {
    * attach to already-live senders (receivers attach on track events).
    */
   const completeE2eeHandshake = useCallback(
-    async (peerKeyB64: string | undefined, callId: string): Promise<boolean> => {
+    async (
+      peerKeyB64: string | undefined,
+      peerSig: string | null | undefined,
+      peerUserId: string | undefined,
+      callId: string,
+    ): Promise<boolean> => {
       const local = e2eeEphemeralRef.current;
       if (!peerKeyB64 || !local || !isE2eeCapable()) return false;
       try {
         const session = await deriveCallSessionKey(local.privateKey, peerKeyB64, callId);
         cryptoKeyRef.current = session.key;
-        setE2EEInfo('unverified', session.fingerprint, session.sasCode, session.sasEmojis);
-        const pc = pcRef.current;
-        if (pc) {
-          for (const sender of pc.getSenders()) {
-            if (sender.track) {
-              try {
-                attachSenderScriptTransform(sender, { cryptoKey: session.key });
-              } catch {
-                // Per-sender best effort; receivers attach on track events.
-              }
-            }
-          }
+        const trust = await resolvePeerTrust(peerUserId, peerKeyB64, peerSig);
+        setE2EEInfo(trust, session.fingerprint, session.sasCode, session.sasEmojis);
+        if (pcRef.current) {
+          attachE2eeToTransceivers(pcRef.current, session.key);
         }
         return true;
       } catch (err) {
@@ -1158,7 +1299,7 @@ export function useWebRTC(options: WebRTCOptions = {}) {
         return false;
       }
     },
-    [],
+    [setE2EEInfo, attachE2eeToTransceivers],
   );
 
   /**
@@ -1167,10 +1308,18 @@ export function useWebRTC(options: WebRTCOptions = {}) {
    * promotes 'unverified' to 'verified' — never set 'verified' otherwise.
    */
   const confirmE2eeSasMatch = useCallback((): void => {
-    if (!cryptoKeyRef.current) return;
     const state = useCallStore.getState();
+    if (!cryptoKeyRef.current && !state.sasEmojis) return;
+    // Pin the peer identity observed during this SAS-confirmed session so
+    // future key changes surface as explicit warnings (TOFU).
+    const peer = e2eePeerRef.current;
+    if (peer && peer.identityB64) {
+      fingerprintIdentityKey(peer.identityB64)
+        .then((fp) => pinIdentityKey(peer.userId, fp))
+        .catch(() => {});
+    }
     setE2EEInfo('verified', state.e2eeFingerprint, state.sasCode, state.sasEmojis);
-  }, []);
+  }, [setE2EEInfo]);
 
   const handleRemoteIceRestart = useCallback(
     async (offer: RTCSessionDescriptionInit): Promise<RTCSessionDescriptionInit> => {
@@ -1397,7 +1546,12 @@ export function useWebRTC(options: WebRTCOptions = {}) {
     syncPlayEngineRef.current?.destroy();
     syncPlayEngineRef.current = null;
     whiteboardEngineRef.current?.destroy();
-    whiteboardEngineRef.current = new WhiteboardCRDTEngine();
+    whiteboardEngineRef.current = new WhiteboardCRDTEngine({
+      userId: useAuthStore.getState().userId || undefined,
+      userName: useAuthStore.getState().userId
+        ? `User ${useAuthStore.getState().userId!.slice(0, 4)}`
+        : 'You',
+    });
     webCodecsManagerRef.current?.destroy();
     webCodecsManagerRef.current = new WebCodecsStreamManager(superResEngineRef.current!);
     peerRelayManagerRef.current?.destroy();
@@ -1462,6 +1616,8 @@ export function useWebRTC(options: WebRTCOptions = {}) {
     queuedCandidatesRef.current = [];
     cryptoKeyRef.current = null;
     e2eeEphemeralRef.current = null;
+    transformedSendersRef.current = new WeakSet();
+    transformedReceiversRef.current = new WeakSet();
     terminateScriptTransformWorker();
     globalCallExternalStore.transition('ENDED');
     globalCallExternalStore.reset();

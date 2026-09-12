@@ -34,6 +34,7 @@ import { OpenGraphModule } from './opengraph/opengraph.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ShowcaseModule } from './showcase/showcase.module';
 import { StoriesModule } from './stories/stories.module';
+import { ReelsModule } from './reels/reels.module';
 import { WorkersModule } from './common/workers';
 import { MemoryModule } from './common/memory/memory.module';
 import { E2eeModule } from './crypto/e2ee/e2ee.module';
@@ -239,6 +240,7 @@ import type { MiddlewareConsumer, NestModule } from '@nestjs/common';
     NotificationsModule,
     ShowcaseModule,
     StoriesModule,
+    ReelsModule,
     WorkersModule,
     MemoryModule,
     E2eeModule,

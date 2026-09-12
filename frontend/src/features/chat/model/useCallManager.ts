@@ -197,12 +197,15 @@ export function useCallManager() {
             },
           });
         }
-        void multiTabCoordinatorRef.current.coordinateCall(data.callId).then(() => {
-          if (!multiTabCoordinatorRef.current?.shouldSuppressRingtone()) {
-            multiTabCoordinatorRef.current?.announceRinging();
-            playIncomingRingtone();
-          }
-        });
+        const currentUserId = useAuthStore.getState().userId;
+        void multiTabCoordinatorRef.current
+          .coordinateCall(data.callId, currentUserId || undefined)
+          .then(() => {
+            if (!multiTabCoordinatorRef.current?.shouldSuppressRingtone()) {
+              multiTabCoordinatorRef.current?.announceRinging();
+              playIncomingRingtone();
+            }
+          });
       } else {
         playIncomingRingtone();
       }
@@ -226,6 +229,7 @@ export function useCallManager() {
       sdpAnswer?: RTCSessionDescriptionInit;
       iceCandidates?: RTCIceCandidateInit[];
       e2eeEphemeralKey?: string;
+      e2eeBindingSignature?: string;
     }) => {
       cancelHaptic();
       stopRingtone();
@@ -236,7 +240,12 @@ export function useCallManager() {
       // Initiator step 2: complete the ECDH handshake now that the callee's
       // ephemeral key arrived (no-op when E2EE was not negotiated).
       if (data.e2eeEphemeralKey) {
-        await webRTCRef.current.completeE2eeHandshake(data.e2eeEphemeralKey, data.callId);
+        await webRTCRef.current.completeE2eeHandshake(
+          data.e2eeEphemeralKey,
+          data.e2eeBindingSignature,
+          data.accepterId,
+          data.callId,
+        );
       }
       if (data.iceCandidates && Array.isArray(data.iceCandidates)) {
         for (const candidate of data.iceCandidates) {
@@ -394,7 +403,7 @@ export function useCallManager() {
 
         // Ephemeral ECDH public for the E2EE handshake (F1). Generated once per
         // call; the callee answers with its own key; the server only relays.
-        const e2eeEphemeralKey = await webRTCRef.current.prepareE2eeOffer();
+        const e2eeBundle = await webRTCRef.current.prepareE2eeOffer();
 
         socket.emit(
           WS_EVENTS.CALL_INITIATE,
@@ -404,7 +413,12 @@ export function useCallManager() {
             sdpOffer: offer,
             iceCandidates: gatheredCandidates,
             ...(zkpProof ? { zkpProof, isGhostMode: true } : {}),
-            ...(e2eeEphemeralKey ? { e2eeEphemeralKey } : {}),
+            ...(e2eeBundle
+              ? {
+                  e2eeEphemeralKey: e2eeBundle.publicKey,
+                  ...(e2eeBundle.signature ? { e2eeBindingSignature: e2eeBundle.signature } : {}),
+                }
+              : {}),
           },
           (res: { status: string; callId?: string; call?: any; error?: string }) => {
             if (res?.status === 'ok' && res.callId) {
@@ -458,6 +472,7 @@ export function useCallManager() {
       conversationId: currentIncoming.conversationId,
       callType,
       remoteParticipant: currentIncoming.caller,
+      callStatus: 'connected',
     });
 
     try {
@@ -465,8 +480,10 @@ export function useCallManager() {
       // Callee step: derive the E2EE session from the initiator key BEFORE
       // creating the PeerConnection, so receivers attach encrypted from the
       // first frame. Null when the initiator negotiated no E2EE.
-      const ownEphemeralKey = await webRTCRef.current.acceptE2eeOffer(
+      const ownE2eeBundle = await webRTCRef.current.acceptE2eeOffer(
         currentIncoming.e2eeEphemeralKey,
+        currentIncoming.e2eeBindingSignature,
+        currentIncoming.callerId,
         currentIncoming.callId,
       );
       const answer = await webRTCRef.current.handleOffer(
@@ -495,7 +512,14 @@ export function useCallManager() {
           callId: currentIncoming.callId,
           sdpAnswer: answer,
           iceCandidates: gatheredCandidates,
-          ...(ownEphemeralKey ? { e2eeEphemeralKey: ownEphemeralKey } : {}),
+          ...(ownE2eeBundle
+            ? {
+                e2eeEphemeralKey: ownE2eeBundle.publicKey,
+                ...(ownE2eeBundle.signature
+                  ? { e2eeBindingSignature: ownE2eeBundle.signature }
+                  : {}),
+              }
+            : {}),
         },
         (res: { status: string; call?: any }) => {
           if (res?.call) {
@@ -717,6 +741,7 @@ export function useCallManager() {
       sendReaction: webRTC.sendReaction,
       ptt,
       multiTabCoordinator: multiTabCoordinatorRef.current,
+      confirmE2eeSasMatch: webRTC.confirmE2eeSasMatch,
       configureSVC: webRTC.configureSVC,
       switchSVCMode: webRTC.switchSVCMode,
       setSVCLayers: webRTC.setSVCLayers,
@@ -743,6 +768,7 @@ export function useCallManager() {
       webRTC.configureSVC,
       webRTC.switchSVCMode,
       webRTC.setSVCLayers,
+      webRTC.confirmE2eeSasMatch,
       webRTC.callExternalStore,
       webRTC.chaosEngine,
       webRTC.peerRelayManager,

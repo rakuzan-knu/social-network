@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsIn, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsIn, IsInt, IsNotEmpty, IsOptional, IsString, MaxLength, Min } from 'class-validator';
 
 export class RegisterPublicKeyDto {
   @ApiProperty({
@@ -28,6 +28,27 @@ export class RegisterPublicKeyDto {
   @IsString()
   @MaxLength(128)
   deviceId?: string | undefined;
+
+  @ApiPropertyOptional({
+    description:
+      'Key purpose slot. Calls and messages use separate slots so their identity keys never overwrite each other.',
+    enum: ['call', 'message'],
+    default: 'call',
+  })
+  @IsOptional()
+  @IsIn(['call', 'message'])
+  purpose?: string | undefined;
+
+  @ApiPropertyOptional({
+    description:
+      'Newest message-envelope version this device WRITES (1 = legacy). Readers accept all older versions. No upper bound: unknown futures are capped client-side.',
+    example: 3,
+    default: 1,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  e2eeVersion?: number | undefined;
 }
 
 export class KeyExchangeInitDto {
@@ -78,6 +99,12 @@ export class PublicKeyResponseDto {
 
   @ApiPropertyOptional({ example: 'web-browser-uuid-1234' })
   deviceId?: string | undefined;
+
+  @ApiPropertyOptional({ example: 'call', enum: ['call', 'message'] })
+  purpose?: string | undefined;
+
+  @ApiPropertyOptional({ example: 3 })
+  e2eeVersion?: number | undefined;
 
   @ApiProperty({ example: '2026-09-03T12:00:00.000Z' })
   updatedAt!: string;

@@ -6,6 +6,7 @@ import { NotificationsProcessor } from './processors/notifications.processor';
 import { MediaPreviewProcessor } from './processors/media-preview.processor';
 import { SearchIndexingProcessor } from './processors/search-indexing.processor';
 import { MessagesProcessor } from './processors/messages.processor';
+import { VideoTranscodeProcessor } from './processors/video-transcode.processor';
 import { MessengerModule } from '../messenger/messenger.module';
 
 @Global()
@@ -17,6 +18,7 @@ import { MessengerModule } from '../messenger/messenger.module';
     MediaPreviewProcessor,
     SearchIndexingProcessor,
     MessagesProcessor,
+    VideoTranscodeProcessor,
   ],
   exports: [QueueService],
 })

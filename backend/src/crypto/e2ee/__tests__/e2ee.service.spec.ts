@@ -7,17 +7,9 @@ describe('E2eeService (Application-Level End-to-End Key Exchange)', () => {
   let service: E2eeService;
   let mockRedisService: Partial<RedisService>;
   const storage = new Map<string, string>();
+  const setStorage = new Map<string, Set<string>>();
 
-  beforeEach(async () => {
-    storage.clear();
-    mockRedisService = {
-      get: jest.fn().mockImplementation((key: string) => Promise.resolve(storage.get(key) ?? null)),
-      set: jest.fn().mockImplementation((key: string, val: string) => {
-        storage.set(key, val);
-        return Promise.resolve();
-      }),
-    };
-
+  const createService = async (): Promise<E2eeService> => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         E2eeService,
@@ -28,7 +20,42 @@ describe('E2eeService (Application-Level End-to-End Key Exchange)', () => {
       ],
     }).compile();
 
-    service = module.get<E2eeService>(E2eeService);
+    return module.get<E2eeService>(E2eeService);
+  };
+
+  beforeEach(async () => {
+    storage.clear();
+    setStorage.clear();
+    mockRedisService = {
+      get: jest.fn().mockImplementation((key: string) => Promise.resolve(storage.get(key) ?? null)),
+      set: jest.fn().mockImplementation((key: string, val: string) => {
+        storage.set(key, val);
+        return Promise.resolve();
+      }),
+      sadd: jest.fn().mockImplementation((key: string, ...members: string[]) => {
+        let set = setStorage.get(key);
+        if (!set) {
+          set = new Set<string>();
+          setStorage.set(key, set);
+        }
+        let added = 0;
+        for (const m of members) {
+          if (!set.has(m)) {
+            set.add(m);
+            added += 1;
+          }
+        }
+        return Promise.resolve(added);
+      }),
+      smembers: jest.fn().mockImplementation((key: string) => {
+        return Promise.resolve([...(setStorage.get(key) ?? [])]);
+      }),
+      mget: jest.fn().mockImplementation((keys: string[]) => {
+        return Promise.resolve(keys.map((k) => storage.get(k) ?? null));
+      }),
+    };
+
+    service = await createService();
   });
 
   it('generates valid server test keypair using native node:crypto', async () => {
@@ -103,5 +130,94 @@ describe('E2eeService (Application-Level End-to-End Key Exchange)', () => {
 
     expect(aliceSecret.equals(bobSecret)).toBe(true);
     expect(aliceSecret.length).toBeGreaterThan(0);
+  });
+
+  it('isolates call vs message purpose slots (no cross-overwrite)', async () => {
+    const { publicKey: callKey } = await service.generateServerTestKeyPair();
+    const { publicKey: msgKey } = await service.generateServerTestKeyPair();
+    const userId = 'user-slots-1';
+
+    await service.registerPublicKey(userId, { publicKey: callKey, purpose: 'call' });
+    await service.registerPublicKey(userId, { publicKey: msgKey, purpose: 'message' });
+
+    const callBack = await service.getPublicKey(userId, 'call');
+    const msgBack = await service.getPublicKey(userId, 'message');
+    expect(callBack?.publicKey).toBe(callKey.trim());
+    expect(msgBack?.publicKey).toBe(msgKey.trim());
+    expect(callBack?.purpose).toBe('call');
+    expect(msgBack?.purpose).toBe('message');
+  });
+
+  it('falls back to the legacy unslotted key for old clients', async () => {
+    const { publicKey } = await service.generateServerTestKeyPair();
+    const userId = 'user-legacy-1';
+    // Simulate a pre-slots record written directly under the legacy key.
+    storage.set(`e2ee:public_key:${userId}`, JSON.stringify({ userId, publicKey }));
+
+    const retrieved = await service.getPublicKey(userId, 'message');
+    expect(retrieved?.publicKey).toBe(publicKey.trim());
+  });
+
+  it('stores per-device records without cross-device clobbering', async () => {
+    const a = await service.generateServerTestKeyPair();
+    const b = await service.generateServerTestKeyPair();
+    const userId = 'user-multidevice-1';
+
+    await service.registerPublicKey(userId, {
+      publicKey: a.publicKey,
+      purpose: 'message',
+      deviceId: 'phone',
+      e2eeVersion: 3,
+    });
+    await service.registerPublicKey(userId, {
+      publicKey: b.publicKey,
+      purpose: 'message',
+      deviceId: 'desktop',
+      e2eeVersion: 2,
+    });
+
+    const keys = await service.getPublicKeys(userId, 'message');
+    expect(keys).toHaveLength(2);
+    const byDevice = new Map(keys.map((k) => [k.deviceId, k]));
+    expect(byDevice.get('phone')?.publicKey).toBe(a.publicKey.trim());
+    expect(byDevice.get('phone')?.e2eeVersion).toBe(3);
+    expect(byDevice.get('desktop')?.publicKey).toBe(b.publicKey.trim());
+    expect(byDevice.get('desktop')?.e2eeVersion).toBe(2);
+
+    // Legacy slot still serves the latest registration (old readers unaffected).
+    const single = await service.getPublicKey(userId, 'message');
+    expect(single?.publicKey).toBe(b.publicKey.trim());
+  });
+
+  it('defaults missing device/version and isolates purpose registries', async () => {
+    const { publicKey } = await service.generateServerTestKeyPair();
+    const userId = 'user-defaults-1';
+
+    const record = await service.registerPublicKey(userId, { publicKey, purpose: 'message' });
+    expect(record.deviceId).toBe('web');
+    expect(record.e2eeVersion).toBe(1);
+
+    expect(await service.getPublicKeys(userId, 'message')).toHaveLength(1);
+    // Purpose slots stay isolated at the device layer too.
+    expect(await service.getPublicKeys(userId, 'call')).toHaveLength(0);
+  });
+
+  it('degrades to the legacy slot when the registry is unavailable', async () => {
+    const { publicKey } = await service.generateServerTestKeyPair();
+    const userId = 'user-degraded-1';
+    await service.registerPublicKey(userId, {
+      publicKey,
+      purpose: 'message',
+      deviceId: 'phone',
+      e2eeVersion: 3,
+    });
+
+    // Simulate registry TTL expiry on a FRESH instance (no local mirrors):
+    // members gone, records remain — the legacy slot still serves the key.
+    setStorage.clear();
+    const cold = await createService();
+    const keys = await cold.getPublicKeys(userId, 'message');
+    expect(keys).toHaveLength(1);
+    expect(keys[0].publicKey).toBe(publicKey.trim());
   });
 });

@@ -1,9 +1,10 @@
 /**
  * P2P Hole Punching Mesh (Peer-as-a-TURN Relay)
  *
- * Provides decentralized NAT traversal routing end-to-end encrypted WebRTC
- * packets across strict/symmetric NATs through open-NAT community peers over
- * RTCDataChannel ('p2p-turn-relay') with $0 paid infrastructure cost.
+ * Provides decentralized NAT traversal routing WebRTC packets across
+ * strict/symmetric NATs through open-NAT community peers over RTCDataChannel
+ * ('p2p-turn-relay') with $0 paid infrastructure cost. Relayed bytes stay
+ * opaque to forwarders whenever frame encryption negotiated it.
  */
 
 export interface RelayForwardingStats {

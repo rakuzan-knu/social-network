@@ -20,7 +20,11 @@ export function ScreenShareIndicator({ onStop }: ScreenShareIndicatorProps) {
       <button
         onClick={() => setIsScreenAnnotationActive(!isScreenAnnotationActive)}
         title="Live draw & laser pointer over screen"
-        className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all ${
+        aria-label={
+          isScreenAnnotationActive ? 'Disable live screen drawing' : 'Enable live screen drawing'
+        }
+        aria-pressed={isScreenAnnotationActive}
+        className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all cursor-pointer ${
           isScreenAnnotationActive
             ? 'bg-rose-500 text-white shadow-md shadow-rose-500/30'
             : 'bg-white/15 hover:bg-white/25 text-white'
@@ -32,7 +36,9 @@ export function ScreenShareIndicator({ onStop }: ScreenShareIndicatorProps) {
 
       <button
         onClick={onStop}
-        className="flex items-center gap-1 bg-blue-500 hover:bg-blue-600 text-white px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors"
+        title="Stop sharing screen"
+        aria-label="Stop sharing screen"
+        className="flex items-center gap-1 bg-blue-500 hover:bg-blue-600 text-white px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors cursor-pointer"
       >
         <X size={12} />
         <span>Stop</span>

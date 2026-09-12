@@ -66,6 +66,20 @@ export default function ChatFolderRail({
     return () => observer.disconnect();
   }, [folders]);
 
+  useEffect(() => {
+    const rail = railRef.current;
+    if (!rail) return;
+    const activeEl =
+      rail.querySelector(`[data-folder-id="${activeFolderId}"]`) ?? rail.querySelector('button');
+    if (activeEl instanceof HTMLElement) {
+      const railRect = rail.getBoundingClientRect();
+      const elRect = activeEl.getBoundingClientRect();
+      if (elRect.left < railRect.left || elRect.right > railRect.right) {
+        activeEl.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+      }
+    }
+  }, [activeFolderId]);
+
   const handleWheel = (event: React.WheelEvent<HTMLDivElement>) => {
     const rail = railRef.current;
     if (!rail || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
@@ -222,7 +236,9 @@ export default function ChatFolderRail({
       >
         {folders.map((folder) => {
           const unreadCount = getFolderUnreadCount(folder, conversations, forcedUnreadIds);
-          const isActive = activeFolderId === folder.id;
+          const isActive =
+            activeFolderId === folder.id ||
+            (activeFolderId === 'all' && (folder.id === 'all' || folder.filterType === 'ALL'));
           const isDragging = draggingFolderId === folder.id;
           const isDropTarget =
             Boolean(draggingFolderId) &&
@@ -255,15 +271,15 @@ export default function ChatFolderRail({
                 const y = Math.min(window.innerHeight - menuHeight - 8, rect.bottom + 6);
                 onContextMenu(folder, x, y);
               }}
-              className={`group relative flex h-9 max-w-[158px] flex-shrink-0 touch-none select-none items-center gap-1.5 rounded-full border px-3 text-[13px] font-semibold transition-all duration-200 ease-out ${
+              className={`group relative flex h-9 max-w-39.5 shrink-0 touch-none select-none items-center gap-1.5 rounded-full border px-3 text-[13px] font-semibold transition-all duration-200 ease-out ${
                 isActive
                   ? 'scale-[1.02] border-transparent'
-                  : 'border-white/10 bg-white/[0.045] hover:bg-white/[0.08]'
+                  : 'border-white/10 bg-white/4.5 hover:bg-white/8'
               } ${
                 isDragging
-                  ? 'scale-95 border-white/20 bg-white/[0.025] shadow-inner'
+                  ? 'scale-95 border-white/20 bg-white/2.5 shadow-inner'
                   : isDropTarget
-                    ? 'scale-[1.04] border-white/25 bg-white/[0.1]'
+                    ? 'scale-[1.04] border-white/25 bg-white/10'
                     : ''
               }`}
               style={{
@@ -284,7 +300,7 @@ export default function ChatFolderRail({
                 />
               )}
               {(folder.icon || folder.emoji) && (
-                <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center">
+                <span className="flex h-4 w-4 shrink-0 items-center justify-center">
                   <ChatFolderIcon
                     iconKey={folder.icon}
                     emoji={folder.emoji}
@@ -296,7 +312,7 @@ export default function ChatFolderRail({
               <span className="min-w-0 truncate">{folder.name}</span>
               {unreadCount > 0 && (
                 <span
-                  className="ml-0.5 flex h-5 min-w-5 flex-shrink-0 items-center justify-center rounded-full px-1.5 text-[11px] font-bold leading-none transition-colors duration-300"
+                  className="ml-0.5 flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[11px] font-bold leading-none transition-colors duration-300"
                   style={{
                     backgroundColor: isActive ? 'rgba(0,0,0,0.16)' : folder.color,
                     color: isActive ? '#050505' : '#050505',
@@ -309,18 +325,18 @@ export default function ChatFolderRail({
           );
         })}
 
-        {!isOverflowing && <CreateFolderButton onCreate={onCreate} className="flex-shrink-0" />}
+        {!isOverflowing && <CreateFolderButton onCreate={onCreate} className="shrink-0" />}
       </div>
 
       {isOverflowing && (
-        <div className="pointer-events-none absolute right-5 top-0 flex h-9 items-center bg-gradient-to-l from-[#16161a] via-[#16161a]/95 to-transparent pl-8">
+        <div className="pointer-events-none absolute right-5 top-0 flex h-9 items-center bg-linear-to-l from-[#16161a] via-[#16161a]/95 to-transparent pl-8">
           <CreateFolderButton onCreate={onCreate} className="pointer-events-auto" />
         </div>
       )}
 
       {dragPreview && (
         <div
-          className="pointer-events-none fixed z-[430] flex h-9 max-w-[180px] items-center gap-1.5 rounded-full border border-white/20 bg-[#1f1f23]/92 px-3 text-[13px] font-semibold text-white shadow-2xl backdrop-blur-2xl backdrop-saturate-150 animate-popIn"
+          className="pointer-events-none fixed z-430 flex h-9 max-w-45 items-center gap-1.5 rounded-full border border-white/20 bg-[#1f1f23]/92 px-3 text-[13px] font-semibold text-white shadow-2xl backdrop-blur-2xl backdrop-saturate-150 animate-popIn"
           style={{
             left: dragPreview.x - dragPreview.offsetX,
             top: dragPreview.y - dragPreview.offsetY,
@@ -330,7 +346,7 @@ export default function ChatFolderRail({
         >
           {(dragPreview.icon || dragPreview.emoji) && (
             <span
-              className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full"
+              className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
               style={{ backgroundColor: `${dragPreview.color}22` }}
             >
               <ChatFolderIcon

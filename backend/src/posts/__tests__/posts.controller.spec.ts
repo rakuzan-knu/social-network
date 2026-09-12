@@ -73,7 +73,7 @@ describe('PostsController', () => {
     });
 
     await controller.getAllPosts({ limit: 20, after: 'cur-1' }, mockUser);
-    expect(mockPostsService.getAllPosts).toHaveBeenCalledWith(20, 'cur-1', 'usr-1');
+    expect(mockPostsService.getAllPosts).toHaveBeenCalledWith(20, 'cur-1', 'usr-1', undefined);
   });
 
   it('getExplorePosts delegates to PostsService', async () => {

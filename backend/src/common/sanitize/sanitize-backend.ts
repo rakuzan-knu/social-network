@@ -10,9 +10,11 @@ export type SanitizeBackend = 'legacy' | 'pipeline';
  * traffic samples (see __tests__/sanitize-backend.spec.ts).
  */
 export function resolveSanitizeBackend(): SanitizeBackend {
-  return (process.env.SANITIZE_BACKEND ?? '').trim().toLowerCase() === 'pipeline'
-    ? 'pipeline'
-    : 'legacy';
+  const envBackend =
+    typeof process !== 'undefined' && process?.env?.SANITIZE_BACKEND
+      ? process.env.SANITIZE_BACKEND
+      : '';
+  return envBackend.trim().toLowerCase() === 'pipeline' ? 'pipeline' : 'legacy';
 }
 
 /**
@@ -21,7 +23,8 @@ export function resolveSanitizeBackend(): SanitizeBackend {
  */
 export function sanitizeField(value: unknown, maxLength = 10_000): unknown {
   if (typeof value !== 'string') return value;
-  if (resolveSanitizeBackend() === 'pipeline') {
+  const isBrowser = typeof (globalThis as { window?: unknown }).window !== 'undefined';
+  if (isBrowser || resolveSanitizeBackend() === 'pipeline') {
     return pipelineSanitizeText(value, maxLength);
   }
   return sanitizeHtmlLib(value, { allowedTags: [], allowedAttributes: {} }).trim();

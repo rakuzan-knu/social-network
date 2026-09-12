@@ -37,6 +37,21 @@ import { CallsStepUpService } from './calls/calls-step-up.service';
 import { CallsRepository } from './repositories/calls.repository';
 import { CALLS_REPOSITORY } from './interfaces/calls-repository.interface';
 
+import { FoldersController } from './folders/folders.controller';
+import { FoldersService } from './folders/folders.service';
+import { FoldersRepository } from './repositories/folders.repository';
+import { FOLDERS_REPOSITORY } from './interfaces/folders-repository.interface';
+
+import { SearchController } from './search/search.controller';
+import { SearchService } from './search/search.service';
+import { SearchRepository } from './repositories/search.repository';
+import { SEARCH_REPOSITORY } from './interfaces/search-repository.interface';
+
+import { PrekeysController } from './crypto/prekeys.controller';
+import { PrekeysService } from './crypto/prekeys.service';
+import { PrekeysRepository } from './repositories/prekeys.repository';
+import { PREKEYS_REPOSITORY } from './interfaces/prekeys-repository.interface';
+
 @Module({
   imports: [
     PrismaModule,
@@ -52,6 +67,9 @@ import { CALLS_REPOSITORY } from './interfaces/calls-repository.interface';
     MessagesController,
     MessengerLinkPreviewController,
     CallsController,
+    FoldersController,
+    SearchController,
+    PrekeysController,
   ],
   providers: [
     {
@@ -66,8 +84,23 @@ import { CALLS_REPOSITORY } from './interfaces/calls-repository.interface';
       provide: CALLS_REPOSITORY,
       useClass: CallsRepository,
     },
+    {
+      provide: FOLDERS_REPOSITORY,
+      useClass: FoldersRepository,
+    },
+    {
+      provide: SEARCH_REPOSITORY,
+      useClass: SearchRepository,
+    },
+    {
+      provide: PREKEYS_REPOSITORY,
+      useClass: PrekeysRepository,
+    },
     ConversationsService,
     MessagesService,
+    FoldersService,
+    SearchService,
+    PrekeysService,
     CallsService,
     CallsCDCService,
     CallsStepUpService,
@@ -86,8 +119,14 @@ import { CALLS_REPOSITORY } from './interfaces/calls-repository.interface';
     CONVERSATIONS_REPOSITORY,
     MESSAGES_REPOSITORY,
     CALLS_REPOSITORY,
+    FOLDERS_REPOSITORY,
+    SEARCH_REPOSITORY,
+    PREKEYS_REPOSITORY,
     ConversationsService,
     MessagesService,
+    FoldersService,
+    SearchService,
+    PrekeysService,
     CallsService,
     CallsCDCService,
     CallsStepUpService,

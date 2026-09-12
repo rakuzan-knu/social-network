@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  output   = "../../node_modules/.prisma/client"
 }
 
 datasource db {
@@ -70,6 +71,11 @@ model User {
   callsInitiated           Call[]                    @relation("CallInitiator")
   callParticipations       CallParticipant[]
   callTelemetries          CallTelemetry[]
+  chatFolders              ChatFolder[]
+  prekeyBundle             UserPrekeyBundle?
+  reels                    Reel[]
+  reelLikes                ReelLike[]
+  reelComments             ReelComment[]
 }
 
 model UserBadge {
@@ -113,6 +119,9 @@ model PostMedia {
   type      MediaType
   url       String
   poster    String?
+  blurhash  String?
+  thumbhash String?
+  hlsUrl    String?   @map("hls_url")
   order     Int       @default(0)
   createdAt DateTime  @default(now())
 
@@ -972,3 +981,122 @@ enum CallEndReason {
   PARTICIPANT_LEFT
   SYSTEM
 }
+
+model ChatFolder {
+  id         String           @id @default(uuid())
+  userId     String           @map("user_id")
+  name       String
+  icon       String?
+  emoji      String?
+  color      String           @default("#8b5cf6")
+  order      Int              @default(0)
+  filterType FolderFilterType @default(CUSTOM) @map("filter_type")
+  includeIds String[]         @default([]) @map("include_ids")
+  excludeIds String[]         @default([]) @map("exclude_ids")
+  createdAt  DateTime         @default(now()) @map("created_at")
+  updatedAt  DateTime         @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, order])
+  @@map("chat_folders")
+}
+
+enum FolderFilterType {
+  ALL
+  PERSONAL
+  WORK
+  GROUPS
+  CHANNELS
+  UNREAD
+  CUSTOM
+}
+
+model UserPrekeyBundle {
+  id               String   @id @default(uuid())
+  userId           String   @unique @map("user_id")
+  identityKeySpki  String   @map("identity_key_spki")
+  signedPrekeySpki String   @map("signed_prekey_spki")
+  signedPrekeySig  String   @map("signed_prekey_sig")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  oneTimePrekeys UserOneTimePrekey[]
+
+  @@map("user_prekey_bundles")
+}
+
+model UserOneTimePrekey {
+  id        String   @id @default(uuid())
+  bundleId  String   @map("bundle_id")
+  keyId     Int      @map("key_id")
+  keySpki   String   @map("key_spki")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  bundle UserPrekeyBundle @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+
+  @@unique([bundleId, keyId])
+  @@map("user_one_time_prekeys")
+}
+
+model Reel {
+  id           String        @id @default(uuid())
+  authorId     String        @map("author_id")
+  caption      String        @default("")
+  videoUrl     String        @map("video_url")
+  hlsUrl       String?       @map("hls_url")
+  thumbnailUrl String?       @map("thumbnail_url")
+  blurhash     String?
+  thumbhash    String?
+  duration     Float?
+  width        Int?
+  height       Int?
+  audioTitle   String?       @map("audio_title")
+  audioArtist  String?       @map("audio_artist")
+  audioUrl     String?       @map("audio_url")
+  viewsCount   Int           @default(0) @map("views_count")
+  likesCount   Int           @default(0) @map("likes_count")
+  commentsCount Int          @default(0) @map("comments_count")
+  sharesCount  Int           @default(0) @map("shares_count")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  author   User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  likes    ReelLike[]
+  comments ReelComment[]
+
+  @@index([authorId, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+  @@map("reels")
+}
+
+model ReelLike {
+  id        String   @id @default(uuid())
+  reelId    String   @map("reel_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  reel Reel @relation(fields: [reelId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([reelId, userId])
+  @@index([userId])
+  @@map("reel_likes")
+}
+
+model ReelComment {
+  id        String   @id @default(uuid())
+  reelId    String   @map("reel_id")
+  userId    String   @map("user_id")
+  content   String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  reel Reel @relation(fields: [reelId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([reelId, createdAt(sort: Asc)])
+  @@map("reel_comments")
+}
+
+

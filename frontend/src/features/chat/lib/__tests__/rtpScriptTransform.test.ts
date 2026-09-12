@@ -33,17 +33,17 @@ describe('RTCRtpScriptTransform Media Pipeline', () => {
 
     const mockSender = {} as RTCRtpSender;
     const mockWorker = {} as Worker;
-    const rawKeyBytes = new Uint8Array([1, 2, 3, 4]);
+    const mockKey = {} as CryptoKey;
 
     const result = attachSenderScriptTransform(mockSender, {
       worker: mockWorker,
-      rawKeyBytes,
+      cryptoKey: mockKey,
     });
 
     expect(result).toBe(true);
     expect(mockTransformCtor).toHaveBeenCalledWith(mockWorker, {
       operation: 'encrypt',
-      rawKey: rawKeyBytes,
+      cryptoKey: mockKey,
     });
     expect(mockSender.transform).toBeDefined();
   });
@@ -55,17 +55,17 @@ describe('RTCRtpScriptTransform Media Pipeline', () => {
 
     const mockReceiver = {} as RTCRtpReceiver;
     const mockWorker = {} as Worker;
-    const rawKeyBytes = new Uint8Array([5, 6, 7, 8]);
+    const mockKey = {} as CryptoKey;
 
     const result = attachReceiverScriptTransform(mockReceiver, {
       worker: mockWorker,
-      rawKeyBytes,
+      cryptoKey: mockKey,
     });
 
     expect(result).toBe(true);
     expect(mockTransformCtor).toHaveBeenCalledWith(mockWorker, {
       operation: 'decrypt',
-      rawKey: rawKeyBytes,
+      cryptoKey: mockKey,
     });
     expect(mockReceiver.transform).toBeDefined();
   });

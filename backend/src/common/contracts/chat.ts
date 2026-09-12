@@ -54,10 +54,112 @@ export const attachmentSchema = z.object({
 });
 export type AttachmentDto = z.infer<typeof attachmentSchema>;
 
+/**
+ * E2EE-aware text cap. Plaintext bodies stay capped at PLAINTEXT_MAX chars;
+ * a well-formed envelope (v1 `{"e2ee":true,"v":1,"iv","ct"}`, v2/v3 with
+ * dialog binding `from`+`aad`, v3 additionally `keys`) carries base64
+ * overhead (~4/3 of the plaintext) and may use up to ENVELOPE_MAX. Anything
+ * else above the plaintext cap is rejected — the envelope branch never
+ * widens the plaintext limit. Shape-checked only (never decrypted here).
+ */
+export const MESSAGE_PLAINTEXT_MAX = 4096;
+export const MESSAGE_ENVELOPE_MAX = 8192;
+
+function isNonEmptyString(value: unknown, maxLen: number): value is string {
+  return typeof value === 'string' && value.length > 0 && value.length <= maxLen;
+}
+
+/**
+ * Base64 field decoding to EXACTLY byteLength bytes. Browser AES-GCM readers
+ * require 12-byte IVs — shape-rejecting anything else keeps malformed
+ * envelopes out of storage (they would only ever render as locked).
+ */
+function isB64Bytes(value: unknown, byteLength: number): boolean {
+  if (!isNonEmptyString(value, 16384)) return false;
+  try {
+    return Buffer.from(value, 'base64').length === byteLength;
+  } catch {
+    return false;
+  }
+}
+
+function isValidAadShape(value: unknown): boolean {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const aad = value as Record<string, unknown>;
+  return (
+    isNonEmptyString(aad.conversationId, 256) &&
+    isNonEmptyString(aad.senderId, 256) &&
+    isNonEmptyString(aad.senderDevice, 128) &&
+    Number.isInteger(aad.seq)
+  );
+}
+
+export function isE2eeEnvelopeShape(text: string): boolean {
+  if (typeof text !== 'string' || text.length > MESSAGE_ENVELOPE_MAX) return false;
+  const trimmed = text.trim();
+  if (trimmed.length === 0 || trimmed[0] !== '{') return false;
+  try {
+    const parsed: unknown = JSON.parse(trimmed);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return false;
+    const payload = parsed as Record<string, unknown>;
+    if (
+      payload.e2ee !== true ||
+      !isB64Bytes(payload.iv, 12) ||
+      !isNonEmptyString(payload.ct, 16384)
+    ) {
+      return false;
+    }
+    if (payload.v === 1) return true;
+    if (payload.v === 2) {
+      return isNonEmptyString(payload.from, 128) && isValidAadShape(payload.aad);
+    }
+    if (payload.v === 3) {
+      if (!isNonEmptyString(payload.from, 128)) return false;
+      if (!payload.keys || typeof payload.keys !== 'object' || Array.isArray(payload.keys)) {
+        return false;
+      }
+      const names = Object.keys(payload.keys);
+      if (names.length === 0 || names.length > 10) return false;
+      const wrapsOk = names.every((name) => {
+        const entry = (payload.keys as Record<string, unknown>)[name] as Record<string, unknown>;
+        return (
+          isNonEmptyString(name, 128) &&
+          !!entry &&
+          isB64Bytes(entry.iv, 12) &&
+          isNonEmptyString(entry.k, 2048)
+        );
+      });
+      return wrapsOk && isValidAadShape(payload.aad);
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/** Strict v1-only shape (legacy callers). Prefer isE2eeEnvelopeShape for new code. */
+export function isE2eeV1EnvelopeShape(text: string): boolean {
+  if (!isE2eeEnvelopeShape(text)) return false;
+  try {
+    return (JSON.parse(text.trim()) as { v?: unknown }).v === 1;
+  } catch {
+    return false;
+  }
+}
+
+const e2eeLengthRefine = (text: string): boolean =>
+  text.length <= MESSAGE_PLAINTEXT_MAX || isE2eeEnvelopeShape(text);
+const E2EE_LENGTH_MESSAGE = `Text must be ≤${MESSAGE_PLAINTEXT_MAX} chars, or a valid E2EE envelope ≤${MESSAGE_ENVELOPE_MAX} chars`;
+
+const e2eeAwareTextSchema = z
+  .string()
+  .max(MESSAGE_ENVELOPE_MAX)
+  .refine(e2eeLengthRefine, { message: E2EE_LENGTH_MESSAGE });
+
 export const sendMessageSchema = z
   .object({
     conversationId: z.string().min(1).max(128).optional(),
-    text: z.string().max(4096).optional(),
+    text: e2eeAwareTextSchema.optional(),
     messageType: z.nativeEnum(MessageType).default(MessageType.TEXT),
     replyToId: z.string().min(1).max(128).optional(),
     forwardedFromId: z.string().min(1).max(128).optional(),
@@ -94,7 +196,9 @@ export type ClientHibernateDto = z.infer<typeof clientHibernateSchema>;
 
 export const editMessageSchema = z.object({
   messageId: z.string().min(1).max(128).optional(),
-  body: z.string().min(1).max(4096),
+  body: z.string().min(1).max(MESSAGE_ENVELOPE_MAX).refine(e2eeLengthRefine, {
+    message: E2EE_LENGTH_MESSAGE,
+  }),
 });
 export type EditMessageDto = z.infer<typeof editMessageSchema>;
 
@@ -377,4 +481,137 @@ export interface ThemeProposalData {
   respondedByUserId?: string;
   createdAt: string;
   expiresAt: string;
+}
+
+export const FolderFilterType = {
+  ALL: 'ALL',
+  PERSONAL: 'PERSONAL',
+  WORK: 'WORK',
+  GROUPS: 'GROUPS',
+  CHANNELS: 'CHANNELS',
+  UNREAD: 'UNREAD',
+  CUSTOM: 'CUSTOM',
+} as const;
+export type FolderFilterType = (typeof FolderFilterType)[keyof typeof FolderFilterType];
+
+export const createFolderSchema = z.object({
+  name: z.string().min(1).max(32),
+  icon: z.string().max(64).nullable().optional(),
+  emoji: z.string().max(16).nullable().optional(),
+  color: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .default('#8b5cf6'),
+  filterType: z.nativeEnum(FolderFilterType).default('CUSTOM'),
+  includeIds: z.array(z.string().uuid()).default([]),
+  excludeIds: z.array(z.string().uuid()).default([]),
+});
+export type CreateFolderDto = z.infer<typeof createFolderSchema>;
+
+export const updateFolderSchema = createFolderSchema.partial().extend({
+  order: z.number().int().min(0).optional(),
+});
+export type UpdateFolderDto = z.infer<typeof updateFolderSchema>;
+
+export const reorderFoldersSchema = z.object({
+  folderIds: z.array(z.string().uuid()).min(1),
+});
+export type ReorderFoldersDto = z.infer<typeof reorderFoldersSchema>;
+
+export interface ChatFolderView {
+  id: string;
+  userId: string;
+  name: string;
+  icon: string | null;
+  emoji: string | null;
+  color: string;
+  order: number;
+  filterType: FolderFilterType;
+  includeIds: string[];
+  excludeIds: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const globalSearchSchema = z.object({
+  q: z.string().min(1).max(200),
+  type: z.enum(['all', 'messages', 'media', 'files', 'links', 'people']).default('all'),
+  conversationId: z.string().uuid().optional(),
+  limit: z.coerce.number().min(1).max(50).default(20),
+  offset: z.coerce.number().min(0).default(0),
+});
+export type GlobalSearchDto = z.infer<typeof globalSearchSchema>;
+
+export interface GlobalSearchResult {
+  messages: Array<{
+    id: string;
+    conversationId: string;
+    conversationTitle: string;
+    conversationAvatar: string | null;
+    isGroup: boolean;
+    senderId: string;
+    senderName: string;
+    senderAvatar: string | null;
+    body: string | null;
+    createdAt: string;
+    highlightSnippet?: string | undefined;
+  }>;
+  media: Array<{
+    id: string;
+    messageId: string;
+    conversationId: string;
+    url: string;
+    fileName: string | null;
+    mimeType: string | null;
+    size: number | null;
+    type: AttachmentType;
+    createdAt: string;
+  }>;
+  people: Array<{
+    id: string;
+    username: string;
+    displayName: string | null;
+    avatar: string | null;
+    isOnline: boolean;
+  }>;
+}
+
+export const uploadPrekeysSchema = z.object({
+  identityKeySpki: z.string().min(10).max(4096),
+  signedPrekeySpki: z.string().min(10).max(4096),
+  signedPrekeySig: z.string().min(10).max(4096),
+  oneTimePrekeys: z
+    .array(
+      z.object({
+        keyId: z.number().int().min(0),
+        keySpki: z.string().min(10).max(4096),
+      }),
+    )
+    .min(1)
+    .max(200),
+});
+export type UploadPrekeysDto = z.infer<typeof uploadPrekeysSchema>;
+
+export const replenishPrekeysSchema = z.object({
+  oneTimePrekeys: z
+    .array(
+      z.object({
+        keyId: z.number().int().min(0),
+        keySpki: z.string().min(10).max(4096),
+      }),
+    )
+    .min(1)
+    .max(200),
+});
+export type ReplenishPrekeysDto = z.infer<typeof replenishPrekeysSchema>;
+
+export interface PrekeyBundleView {
+  userId: string;
+  identityKeySpki: string;
+  signedPrekeySpki: string;
+  signedPrekeySig: string;
+  oneTimePrekey?: {
+    keyId: number;
+    keySpki: string;
+  } | null;
 }

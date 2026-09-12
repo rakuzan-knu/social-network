@@ -17,6 +17,25 @@ describe('getMessageToastPreview', () => {
     expect(getMessageToastPreview(msg as MessageView)).toBe('Hello world!');
   });
 
+  it('never leaks E2EE envelope JSON into notifications', () => {
+    const envelope = JSON.stringify({ e2ee: true, v: 1, iv: 'aGVsbG8', ct: 'd29ybGQ' });
+    expect(
+      getMessageToastPreview({
+        isDeleted: false,
+        body: envelope,
+        attachments: [],
+      } as unknown as MessageView),
+    ).toBe('New encrypted message');
+    // Plaintext that merely mentions the marker still shows (M3 parity).
+    expect(
+      getMessageToastPreview({
+        isDeleted: false,
+        body: 'note: {"e2ee":true} is the marker',
+        attachments: [],
+      } as unknown as MessageView),
+    ).toBe('note: {"e2ee":true} is the marker');
+  });
+
   it('returns appropriate string when message has no attachments and empty body', () => {
     expect(
       getMessageToastPreview({

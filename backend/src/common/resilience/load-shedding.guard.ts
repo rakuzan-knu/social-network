@@ -40,7 +40,10 @@ export class LoadSheddingGuard implements CanActivate {
     }
 
     // In local development, avoid accidental shedding unless explicitly simulating
-    const isDev = process.env.NODE_ENV === 'development';
+    const isDev =
+      !process.env.NODE_ENV ||
+      process.env.NODE_ENV === 'development' ||
+      process.env.NODE_ENV === 'test';
     if (isDev && !this.healthMonitor.isSimulationActive()) {
       return true;
     }

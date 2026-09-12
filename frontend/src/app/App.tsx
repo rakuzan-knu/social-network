@@ -51,6 +51,7 @@ const ProfilePage = lazy(() => import('../pages/Profile/Profile'));
 const MessengerPage = lazy(() => import('../pages/Chat/Messenger'));
 const StandaloneChatPage = lazy(() => import('../pages/Chat/StandaloneChatPage'));
 const SearchPage = lazy(() => import('../pages/Search/SearchPage'));
+const ReelsPage = lazy(() => import('../pages/Reels/ReelsPage'));
 const NotificationsPage = lazy(() =>
   import('../pages/Notifications/NotificationsPage').then((m) => ({
     default: m.NotificationsPage,
@@ -130,6 +131,7 @@ export default function App() {
 
   const isMessengerRoute =
     location.pathname.startsWith('/messages') || location.pathname.startsWith('/messenger');
+  const isReelsRoute = location.pathname.startsWith('/reels');
 
   return (
     <DeviceLockGate>
@@ -156,9 +158,13 @@ export default function App() {
             className={
               isMessengerRoute
                 ? 'min-h-screen flex-1'
-                : `flex min-h-screen flex-1 justify-center py-8 transition-all duration-300 ${
-                    isSidebarExpanded ? 'pl-58' : 'pl-24'
-                  }`
+                : isReelsRoute
+                  ? `min-h-screen flex-1 transition-[padding-left] duration-200 ease-out will-change-[padding-left] ${
+                      isSidebarExpanded ? 'pl-72' : 'pl-24'
+                    } max-md:pl-0`
+                  : `flex min-h-screen flex-1 justify-center py-8 transition-[padding-left] duration-200 ease-out will-change-[padding-left] ${
+                      isSidebarExpanded ? 'pl-72' : 'pl-24'
+                    }`
             }
           >
             <Suspense fallback={<PageFallback />}>
@@ -215,16 +221,7 @@ export default function App() {
                   }
                 />
 
-                <Route
-                  path="/reels"
-                  element={
-                    <CenteredPage>
-                      <div className="animate-fadeIn py-20 text-center text-gray-500">
-                        Reels page under development...
-                      </div>
-                    </CenteredPage>
-                  }
-                />
+                <Route path="/reels" element={<ReelsPage />} />
 
                 <Route
                   path="/messages/standalone/:conversationId"

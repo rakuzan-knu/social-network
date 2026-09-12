@@ -379,6 +379,43 @@ describe('MessagesService', () => {
       });
       expect(res).toHaveLength(1);
     });
+
+    it('refuses server-side copy of E2EE envelopes (must re-encrypt client-side)', async () => {
+      const envelope = JSON.stringify({
+        e2ee: true,
+        v: 1,
+        iv: 'AAAAAAAAAAAAAAAA',
+        ct: 'd29ybGQ',
+      });
+      const createsBefore = mockMessagesRepo.create.mock.calls.length;
+      mockMessagesRepo.findOne.mockResolvedValueOnce({ ...sampleMsg, body: envelope });
+      await expect(
+        service.forward('msg-1', 'usr-1', {
+          messageId: 'msg-1',
+          conversationIds: ['conv-target'],
+        }),
+      ).rejects.toThrow(/re-encrypted client-side/);
+      expect(mockMessagesRepo.create.mock.calls.length).toBe(createsBefore);
+    });
+
+    it('refuses batch forward containing an E2EE envelope', async () => {
+      const envelope = JSON.stringify({
+        e2ee: true,
+        v: 3,
+        iv: 'AAAAAAAAAAAAAAAA',
+        ct: 'd29ybGQ',
+        from: 'dev-1',
+        keys: { 'dev-2': { iv: 'AAAAAAAAAAAAAAAA', k: 'a2V5' } },
+        aad: { conversationId: 'conv-1', senderId: 'usr-1', senderDevice: 'dev-1', seq: 4 },
+      });
+      mockPrisma.message.findMany.mockResolvedValueOnce([{ ...sampleMsg, body: envelope }]);
+      await expect(
+        service.batchForward('conv-1', 'usr-1', {
+          messageIds: ['msg-1'],
+          conversationIds: ['conv-target'],
+        }),
+      ).rejects.toThrow(/re-encrypted client-side/);
+    });
   });
 
   describe('reactions, pins, read status and search', () => {

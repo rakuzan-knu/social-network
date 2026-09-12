@@ -166,9 +166,10 @@ export async function uploadToStorageWithFallback(
     buffer: Buffer;
     contentType: string;
     publicUrl: string;
+    cacheControl?: string;
   },
 ): Promise<string> {
-  const { bucket, key, buffer, contentType, publicUrl } = params;
+  const { bucket, key, buffer, contentType, publicUrl, cacheControl } = params;
 
   try {
     await s3.send(
@@ -177,6 +178,7 @@ export async function uploadToStorageWithFallback(
         Key: key,
         Body: buffer,
         ContentType: contentType,
+        CacheControl: cacheControl ?? 'public, max-age=31536000, immutable',
       }),
     );
 
@@ -220,5 +222,24 @@ export async function deleteFromStorage(
     await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
   } catch {
     // Graceful no-op on non-existent storage objects
+  }
+}
+
+/**
+ * Generates an Enterprise BlurHash for immediate zero-CLS layout rendering
+ */
+export async function generateBlurHash(buffer: Buffer): Promise<{ blurhash: string }> {
+  try {
+    const { encode } = await import('blurhash');
+    const { data, info } = await sharp(buffer)
+      .resize(32, 32, { fit: 'inside' })
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+
+    const blurhash = encode(new Uint8ClampedArray(data), info.width, info.height, 4, 3);
+    return { blurhash };
+  } catch {
+    return { blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4' };
   }
 }

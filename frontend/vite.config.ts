@@ -18,6 +18,17 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
       '@backend': path.resolve(__dirname, '../backend/src'),
+      '@common': path.resolve(__dirname, '../backend/src/common'),
+      '@social-network/text-pipeline': path.resolve(
+        __dirname,
+        '../packages/text-pipeline/src/index.ts',
+      ),
+      '@social-network/msg-codec': path.resolve(__dirname, '../packages/msg-codec/src/index.ts'),
+      '@social-network/blinded-crypto': path.resolve(
+        __dirname,
+        '../packages/blinded-crypto/src/index.ts',
+      ),
+      '@social-network/feed-score': path.resolve(__dirname, '../packages/feed-score/src/index.ts'),
     },
   },
   build: {

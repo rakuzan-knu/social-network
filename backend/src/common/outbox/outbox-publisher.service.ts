@@ -60,19 +60,27 @@ export class OutboxPublisherService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  private hasLoggedPollingError = false;
+
   private scheduleNextPoll(delayMs: number): void {
     if (!this.isRunning) return;
     this.timer = setTimeout(() => {
       if (!this.isRunning) return;
       void (async () => {
+        let nextDelay = 1000;
         try {
           if (!this.isRunning) return;
           await this.processOutboxBatch();
+          this.hasLoggedPollingError = false;
         } catch (err) {
-          this.logger.warn(`Unexpected error in outbox polling loop: ${String(err)}`);
+          if (!this.hasLoggedPollingError) {
+            this.logger.warn(`Outbox polling paused (storage unavailable): ${String(err)}`);
+            this.hasLoggedPollingError = true;
+          }
+          nextDelay = 5000;
         } finally {
           if (this.isRunning) {
-            this.scheduleNextPoll(1000);
+            this.scheduleNextPoll(nextDelay);
           }
         }
       })();

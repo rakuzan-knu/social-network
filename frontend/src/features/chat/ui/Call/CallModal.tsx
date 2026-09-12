@@ -73,6 +73,7 @@ export function CallModal() {
     setIsWhiteboardOpen,
     setIsWhiteboardOverlay,
     toggleStatsHUD,
+    toggleWhiteboard,
   } = useCallStore();
 
   const {
@@ -90,6 +91,7 @@ export function CallModal() {
     unblockAutoplay,
     reactionEngine,
     sendReaction,
+    confirmE2eeSasMatch,
   } = useCall();
 
   // Global shortcut: Ctrl+Shift+D or Cmd+Shift+D toggles Stats HUD
@@ -126,10 +128,11 @@ export function CallModal() {
     callStatus === 'connected' && isVoiceCommandsEnabled,
   );
 
-  // Global hotkeys: Space (Push-to-Talk), Cmd/Ctrl+Shift+M (mute), Cmd/Ctrl+Shift+V (video)
+  // Global hotkeys: Space (Push-to-Talk), Cmd/Ctrl+Shift+M (mute), Cmd/Ctrl+Shift+V (video), W (whiteboard)
   useCallKeyboardShortcuts({
     onToggleMute: toggleMute,
     onToggleVideo: toggleVideo,
+    onToggleWhiteboard: toggleWhiteboard,
   });
 
   // OS Media Session & App Badging integration
@@ -265,7 +268,7 @@ export function CallModal() {
 
           <button
             onClick={endCall}
-            className="mt-4 sm:mt-6 flex items-center justify-center gap-2 min-h-[48px] px-8 py-3 rounded-full bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-medium shadow-xl shadow-rose-600/30 transition-all hover:scale-105 cursor-pointer"
+            className="mt-4 sm:mt-6 flex items-center justify-center gap-2 min-h-12 px-8 py-3 rounded-full bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-medium shadow-xl shadow-rose-600/30 transition-all hover:scale-105 cursor-pointer"
           >
             <PhoneOff size={18} />
             <span>Cancel</span>
@@ -336,6 +339,7 @@ export function CallModal() {
           <CallHeader
             onTogglePiP={handleTogglePiP}
             onOpenSettings={() => setIsSettingsOpen(true)}
+            onConfirmSasMatch={confirmE2eeSasMatch}
           />
 
           <ScreenShareIndicator onStop={toggleScreenShare} />

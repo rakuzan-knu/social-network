@@ -39,6 +39,7 @@ import {
   DEFAULT_ADMIN_PERMISSIONS,
   DEFAULT_MEMBER_PERMISSIONS,
   DEFAULT_OWNER_PERMISSIONS,
+  isE2eeEnvelopeShape,
 } from '@common/contracts';
 
 import { FastPathChatService } from '../services/fast-path-chat.service';
@@ -566,6 +567,15 @@ export class MessagesService implements OnModuleDestroy {
   async forward(messageId: string, userId: string, dto: ForwardMessageDto): Promise<MessageView[]> {
     const original = await this.messagesRepo.findOne(messageId, userId);
     if (!original) throw new NotFoundException('Message not found');
+    if (original.body && isE2eeEnvelopeShape(original.body)) {
+      // Defense in depth: a server-side copy would plant undecryptable
+      // ciphertext in the target dialog. Modern clients re-encrypt per
+      // target and never hit this; stale/hand-rolled callers fail loudly
+      // instead of corrupting silently.
+      throw new BadRequestException(
+        'Encrypted messages must be re-encrypted client-side before forwarding',
+      );
+    }
 
     const totalConvs = dto.conversationIds.length;
     const results: MessageView[] = new Array<MessageView>(totalConvs);
@@ -617,6 +627,11 @@ export class MessagesService implements OnModuleDestroy {
       const pinnedSet = new Set(pinnedIds);
 
       for (const msg of messages) {
+        if (msg.body && isE2eeEnvelopeShape(msg.body)) {
+          throw new BadRequestException(
+            'Encrypted messages must be re-encrypted client-side before forwarding',
+          );
+        }
         const created = await this.messagesRepo.create({
           conversationId: targetConvId,
           senderId: userId,

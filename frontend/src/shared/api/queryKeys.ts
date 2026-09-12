@@ -22,3 +22,6 @@ export const UNREAD_NOTIFICATIONS_COUNT_KEY = 'unread-notifications-count';
 export const STORIES_FEED_KEY = 'stories-feed';
 export const USER_STORIES_KEY = 'user-stories';
 export const CLOSE_FRIENDS_KEY = 'close-friends';
+export const REELS_FEED_KEY = 'reels-feed';
+export const USER_REELS_KEY = 'user-reels';
+export const REEL_COMMENTS_KEY = 'reel-comments';

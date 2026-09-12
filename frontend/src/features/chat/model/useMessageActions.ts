@@ -1,9 +1,18 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useChatSocket } from './useChatSocket';
 import { useAuthStore } from '@/shared/model/useAuthStore';
 import { CONVERSATION_MESSAGES_KEY, CONVERSATIONS_KEY } from '@/shared/api/queryKeys';
 import { chatApi } from '../api/chatApi';
+import {
+  decryptMessageForDisplay,
+  encryptMessageForPeer,
+  ensureMessageIdentityRegistered,
+  resolveDirectPeerUserId,
+  type ConversationPeerView,
+} from '../lib/e2ee/messageE2ee';
+import { nextMessageSeq } from '../lib/e2ee/replayStore';
+import { e2eeManager, parseEnvelope } from '@/shared/lib/crypto/e2ee';
 import {
   AttachmentView,
   ConversationView,
@@ -65,6 +74,12 @@ export function useMessageActions(conversationId: string | null) {
     },
     [conversationId, queryClient],
   );
+
+  // Message-layer E2EE: publish our message-slot identity so 1:1 peers can
+  // encrypt to us. Idempotent per session; failure only means we stay plaintext.
+  useEffect(() => {
+    if (conversationId) void ensureMessageIdentityRegistered();
+  }, [conversationId]);
 
   const uploadAttachment = useCallback(
     (file: File, onProgress?: (percent: number) => void) => {
@@ -143,10 +158,33 @@ export function useMessageActions(conversationId: string | null) {
         return next;
       });
 
+      // Message-layer E2EE: DIRECT 1:1 + peer message key → ciphertext on
+      // the wire (optimistic bubble stays plaintext locally). Any miss →
+      // plaintext exactly as before; sending must never break — except a
+      // pinned-key change, which throws so the caller blocks loudly.
+      // seq is the per-device persisted counter bound into v2/v3 AAD
+      // (replay/gap detection on the read side).
+      let outgoingText = text;
+      if (text.trim() && userId) {
+        const peerId = resolveDirectPeerUserId(
+          queryClient.getQueryData<ConversationPeerView[]>([CONVERSATIONS_KEY]),
+          conversationId,
+          userId,
+        );
+        if (peerId) {
+          const encrypted = await encryptMessageForPeer(text, peerId, {
+            conversationId,
+            senderId: userId,
+            seq: nextMessageSeq(conversationId),
+          });
+          if (encrypted) outgoingText = encrypted;
+        }
+      }
+
       try {
         const res = await emitWithAck<MessageView>(socket, 'sendMessage', {
           conversationId,
-          text: text || undefined,
+          text: outgoingText || undefined,
           messageType: resolvedMessageType,
           replyToId,
           attachments,
@@ -167,7 +205,7 @@ export function useMessageActions(conversationId: string | null) {
       } catch (err) {
         try {
           const fallbackRes = await chatApi.sendMessage(conversationId, {
-            text: text || undefined,
+            text: outgoingText || undefined,
             messageType: resolvedMessageType,
             replyToId,
             attachments,
@@ -200,7 +238,7 @@ export function useMessageActions(conversationId: string | null) {
         throw err;
       }
     },
-    [conversationId, socket, updatePages, userId],
+    [conversationId, socket, updatePages, userId, queryClient],
   );
 
   const retrySendMessage = useCallback(
@@ -249,10 +287,30 @@ export function useMessageActions(conversationId: string | null) {
         })),
       );
 
+      // Same E2EE rule as sendMessage: retry re-encrypts the plaintext body.
+      // Fresh seq (the original seq is not stored): a jump reads as a benign
+      // gap on the peer, never as a replay — retries are rare by design.
+      let outgoingText = text;
+      if (text.trim() && userId) {
+        const peerId = resolveDirectPeerUserId(
+          queryClient.getQueryData<ConversationPeerView[]>([CONVERSATIONS_KEY]),
+          conversationId,
+          userId,
+        );
+        if (peerId) {
+          const encrypted = await encryptMessageForPeer(text, peerId, {
+            conversationId,
+            senderId: userId,
+            seq: nextMessageSeq(conversationId),
+          });
+          if (encrypted) outgoingText = encrypted;
+        }
+      }
+
       try {
         const res = await emitWithAck<MessageView>(socket, 'sendMessage', {
           conversationId,
-          text: text || undefined,
+          text: outgoingText || undefined,
           messageType: targetMessage.messageType,
           replyToId,
           attachments: attachments.length > 0 ? attachments : undefined,
@@ -274,7 +332,7 @@ export function useMessageActions(conversationId: string | null) {
       } catch (err) {
         try {
           const fallbackRes = await chatApi.sendMessage(conversationId, {
-            text: text || undefined,
+            text: outgoingText || undefined,
             messageType: targetMessage.messageType,
             replyToId,
             attachments: attachments.length > 0 ? attachments : undefined,
@@ -310,12 +368,51 @@ export function useMessageActions(conversationId: string | null) {
         throw err;
       }
     },
-    [conversationId, queryClient, socket, updatePages],
+    [conversationId, queryClient, socket, updatePages, userId],
   );
 
   const editMessage = useCallback(
-    (messageId: string, body: string) => emitWithAck(socket, 'editMessage', { messageId, body }),
-    [socket],
+    async (messageId: string, body: string, originalBody?: string | null) => {
+      // Never downgrade: when the stored original was an envelope, the new
+      // body must be re-encrypted for the same peer. Bound envelopes reuse
+      // the ORIGINAL seq (same logical message); v1 mints fresh. If
+      // re-encryption is impossible (key vanished), fail closed — editing
+      // is non-critical, silent plaintext downgrade is not acceptable.
+      let outgoing = body;
+      if (originalBody && conversationId && userId && e2eeManager.isEncrypted(originalBody)) {
+        const peerId = resolveDirectPeerUserId(
+          queryClient.getQueryData<ConversationPeerView[]>([CONVERSATIONS_KEY]),
+          conversationId,
+          userId,
+        );
+        if (!peerId) throw new Error('Cannot re-encrypt edit: 1:1 peer unknown');
+        // Bound envelopes reuse the ORIGINAL seq (same logical message);
+        // mint fresh only for v1/unparseable. Mint lazily — an unused seq
+        // would read as a phantom gap on the peer.
+        let seq: number | null = null;
+        try {
+          const original = parseEnvelope(originalBody);
+          if (original.v !== 1) {
+            if (original.aad.conversationId !== conversationId) {
+              throw new Error('Cannot re-encrypt edit: dialog mismatch');
+            }
+            seq = original.aad.seq;
+          }
+        } catch (err) {
+          if (err instanceof Error && err.message.includes('dialog mismatch')) throw err;
+          // Unparseable despite isEncrypted (race): mint fresh seq below.
+        }
+        const encrypted = await encryptMessageForPeer(body, peerId, {
+          conversationId,
+          senderId: userId,
+          seq: seq ?? nextMessageSeq(conversationId),
+        });
+        if (!encrypted) throw new Error('Cannot re-encrypt edit: peer key unavailable');
+        outgoing = encrypted;
+      }
+      return emitWithAck(socket, 'editMessage', { messageId, body: outgoing });
+    },
+    [socket, conversationId, queryClient, userId],
   );
 
   const deleteMessage = useCallback(
@@ -332,11 +429,67 @@ export function useMessageActions(conversationId: string | null) {
     },
     [socket, updatePages],
   );
-
   const forwardMessage = useCallback(
-    (messageId: string, conversationIds: string[]) =>
-      emitWithAck(socket, 'forwardMessage', { messageId, conversationIds }),
-    [socket],
+    async (
+      message: {
+        id: string;
+        body: string | null;
+        conversationId: string;
+        sender?: { id?: string | null } | null;
+      },
+      conversationIds: string[],
+      opts?: { hideAuthor?: boolean },
+    ) => {
+      const targets = [...new Set(conversationIds.filter(Boolean))];
+      if (targets.length === 0) return [];
+      if (!message.body || !e2eeManager.isEncrypted(message.body)) {
+        // Plaintext (or bodiless): legacy server-side copy preserves
+        // attribution behavior exactly as before.
+        return emitWithAck(socket, 'forwardMessage', {
+          messageId: message.id,
+          conversationIds: targets,
+          hideAuthor: opts?.hideAuthor,
+        });
+      }
+      // Envelope: a server-side copy would plant permanently undecryptable
+      // ciphertext in the target dialog. Decrypt with the SOURCE peer, then
+      // re-encrypt per TARGET (explicit user-chosen targets without E2EE go
+      // plaintext — same rule as the send path).
+      const conversations = queryClient.getQueryData<ConversationPeerView[]>([CONVERSATIONS_KEY]);
+      const sourcePeer = resolveDirectPeerUserId(conversations, message.conversationId, userId);
+      const plain = await decryptMessageForDisplay(message.body, {
+        peerUserId: sourcePeer,
+        conversationId: message.conversationId,
+        senderId: message.sender?.id ?? null,
+      });
+      if (plain.status !== 'decrypted') {
+        throw new Error('Cannot forward a message this device cannot decrypt');
+      }
+      const results: unknown[] = [];
+      for (const targetId of targets) {
+        let outgoing = plain.text;
+        const targetPeer = resolveDirectPeerUserId(conversations, targetId, userId);
+        if (targetPeer && userId) {
+          const encrypted = await encryptMessageForPeer(plain.text, targetPeer, {
+            conversationId: targetId,
+            senderId: userId,
+            seq: nextMessageSeq(targetId),
+          });
+          if (encrypted) outgoing = encrypted;
+        }
+        const res = await emitWithAck(socket, 'sendMessage', {
+          conversationId: targetId,
+          text: outgoing,
+          messageType: 'TEXT',
+          forwardedFromId: opts?.hideAuthor ? undefined : message.id,
+          clientMessageId: `fwd_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          clientSeq: getNextClientSeq(targetId),
+        });
+        results.push(res);
+      }
+      return results;
+    },
+    [socket, queryClient, userId],
   );
 
   const addReaction = useCallback(
@@ -531,9 +684,37 @@ export function useMessageActions(conversationId: string | null) {
   const batchForwardMessages = useCallback(
     async (messageIds: string[], conversationIds: string[], hideAuthor = false) => {
       if (!conversationId || messageIds.length === 0 || conversationIds.length === 0) return;
-      return chatApi.batchForwardMessages(conversationId, messageIds, conversationIds, hideAuthor);
+      // Envelopes must never take the server batch path (it copies bodies
+      // verbatim): fan out client-side per message when any id is encrypted.
+      const data = queryClient.getQueryData<InfiniteMessagesData>([
+        CONVERSATION_MESSAGES_KEY,
+        conversationId,
+      ]);
+      const byId = new Map(
+        (data?.pages ?? []).flatMap((p) => p.data).map((m) => [m.id, m] as const),
+      );
+      const isEnvelopeId = (id: string) => {
+        const body = byId.get(id)?.body;
+        return !!body && e2eeManager.isEncrypted(body);
+      };
+      // Split: plaintext keeps the single server batch; envelopes fan out
+      // client-side per message (decrypt source → re-encrypt per target).
+      const envelopeIds = messageIds.filter(isEnvelopeId);
+      const plainIds = messageIds.filter((id) => !isEnvelopeId(id));
+      const results: unknown[] = [];
+      if (plainIds.length > 0) {
+        results.push(
+          await chatApi.batchForwardMessages(conversationId, plainIds, conversationIds, hideAuthor),
+        );
+      }
+      for (const id of envelopeIds) {
+        const msg = byId.get(id);
+        if (!msg) continue;
+        results.push(await forwardMessage(msg, conversationIds, { hideAuthor }));
+      }
+      return results;
     },
-    [conversationId],
+    [conversationId, queryClient, forwardMessage],
   );
 
   const loadAroundMessages = useCallback(

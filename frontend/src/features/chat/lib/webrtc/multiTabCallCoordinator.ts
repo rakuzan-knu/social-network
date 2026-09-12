@@ -49,12 +49,12 @@ export class MultiTabCallCoordinator {
   }
 
   /**
-   * Begins multi-tab coordination for a given callId
+   * Begins multi-tab coordination for a given callId and optional userId scope
    */
-  public async coordinateCall(callId: string): Promise<TabCallRole> {
+  public async coordinateCall(callId: string, userId?: string): Promise<TabCallRole> {
     this.stop();
     this.currentCallId = callId;
-    this.initBroadcastChannel(callId);
+    this.initBroadcastChannel(callId, userId);
 
     // If Web Locks API is not supported, fallback directly to MASTER
     if (
@@ -69,7 +69,8 @@ export class MultiTabCallCoordinator {
     this.setRole('SLAVE');
     this.lockAbortController = new AbortController();
 
-    const lockName = `webrtc_call_master_${callId}`;
+    const userPrefix = userId ? `${userId}_` : '';
+    const lockName = `webrtc_call_master_${userPrefix}${callId}`;
 
     // Request exclusive lock for Leader Election
     navigator.locks
@@ -99,11 +100,12 @@ export class MultiTabCallCoordinator {
     return this.role;
   }
 
-  private initBroadcastChannel(callId: string): void {
+  private initBroadcastChannel(callId: string, userId?: string): void {
     if (typeof BroadcastChannel === 'undefined') return;
 
     try {
-      this.broadcastChannel = new BroadcastChannel(`webrtc_call_channel_${callId}`);
+      const userPrefix = userId ? `${userId}_` : '';
+      this.broadcastChannel = new BroadcastChannel(`webrtc_call_channel_${userPrefix}${callId}`);
       this.broadcastChannel.onmessage = (event: MessageEvent<TabSyncMessage>) => {
         this.handleIncomingMessage(event.data);
       };

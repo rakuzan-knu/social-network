@@ -38,6 +38,11 @@ vi.mock('@/pages/Chat/Messenger', () => ({
   default: () => <div>Messenger Content</div>,
 }));
 
+vi.mock('@/pages/Reels/ReelsPage', () => ({
+  default: () => <div>Reels Content</div>,
+  ReelsPage: () => <div>Reels Content</div>,
+}));
+
 describe('App', () => {
   beforeEach(() => {
     act(() => {
@@ -126,7 +131,7 @@ describe('App', () => {
     });
 
     renderWithProviders(<App />, { initialEntries: ['/reels'] });
-    expect(await screen.findByText('Reels page under development...')).toBeInTheDocument();
+    expect(await screen.findByText('Reels Content')).toBeInTheDocument();
   });
 
   it('renders authenticated profile route', async () => {
@@ -156,7 +161,7 @@ describe('App', () => {
     renderWithProviders(<App />, { initialEntries: ['/feed'] });
     expect(await screen.findByText('Feed Content', {}, { timeout: 4000 })).toBeInTheDocument();
     const main = document.querySelector('main');
-    expect(main).toHaveClass('pl-58');
+    expect(main).toHaveClass('pl-72');
 
     act(() => {
       useUIStore.getState().setSidebarExpanded(false);

@@ -327,6 +327,12 @@ export class ConversationsController {
     return this.service.unarchiveConversation(id, user.id);
   }
 
+  @Post(':id/unarchive')
+  @ApiOperation({ summary: 'Unarchive a conversation (POST alias)' })
+  unarchivePost(@Param('id') id: string, @CurrentUser() user: RequestUser) {
+    return this.service.unarchiveConversation(id, user.id);
+  }
+
   @Get('users/blocked')
   @ApiOperation({ summary: 'List users the current user has blocked' })
   getBlockedUsers(@CurrentUser() user: RequestUser) {

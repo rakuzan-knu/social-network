@@ -6,6 +6,7 @@ import { OutgoingAttachment } from '../../../entities/chat/model/types';
 import { StagedFile } from '@/shared/model/useStagedAttachments';
 import { MAX_ATTACHMENTS_PER_MESSAGE } from '@/shared/lib/attachmentLimits';
 import ReplyPreview from './ReplyPreview';
+import { E2eePinChangedError } from '../lib/e2ee/messageE2ee';
 import { AddEmojiButton } from '@/shared/ui/AddEmojiButton';
 import { AddGifButton } from '@/shared/ui/AddGifButton';
 import PollComposer from './PollComposer';
@@ -46,6 +47,8 @@ interface MessageComposerProps {
   permissions?: ChatPermissions;
   permissionsMask?: number;
   slowModeSeconds?: number;
+  /** 1:1 peer for E2EE reply-quote decrypt; null/undefined = groups or unknown. */
+  e2eePeerUserId?: string | null;
 }
 
 type OpenPopover = 'emoji' | 'gif' | 'poll' | null;
@@ -74,6 +77,7 @@ export default function MessageComposer({
   permissions = { canSendMedia: true, canSendVoice: true, canSendPolls: true },
   permissionsMask,
   slowModeSeconds = 0,
+  e2eePeerUserId = null,
 }: MessageComposerProps) {
   const [text, setText] = useState(() => {
     const draft = useChatDraftsStore.getState().getDraft(conversationId);
@@ -83,6 +87,7 @@ export default function MessageComposer({
   const [isSending, setIsSending] = useState(false);
   const [isShaking, setIsShaking] = useState(false);
   const [recordingError, setRecordingError] = useState<string | null>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [slowModeSecondsRemaining, setSlowModeSecondsRemaining] = useState<number>(0);
   const [debouncedUrl, setDebouncedUrl] = useState<string | null>(null);
@@ -361,6 +366,15 @@ export default function MessageComposer({
 
       await actions.sendMessage(textToSend, replyToSend?.id, attachments);
     } catch (err) {
+      if (err instanceof E2eePinChangedError) {
+        // Suspected key substitution: the message was NOT sent (fail closed).
+        // The optimistic bubble sits in ERROR; retry stays blocked until the
+        // new key is accepted. Explain instead of failing silently.
+        setSendError(
+          'This contact\u2019s security key changed. Sending is blocked to protect your messages.',
+        );
+        setTimeout(() => setSendError(null), 6000);
+      }
       console.error('Failed to send message:', err);
     } finally {
       setIsSending(false);
@@ -585,11 +599,23 @@ export default function MessageComposer({
 
   return (
     <div className="pt-2">
-      {replyingTo && <ReplyPreview message={replyingTo} onCancel={onCancelReply} />}
+      {replyingTo && (
+        <ReplyPreview
+          message={replyingTo}
+          onCancel={onCancelReply}
+          e2eePeerUserId={e2eePeerUserId}
+        />
+      )}
 
       {recordingError && (
         <div className="mx-4 mb-2 px-3 py-1.5 rounded-xl bg-red-500/10 border border-red-400/30 text-xs text-red-300 backdrop-blur-xl animate-fadeIn">
           {recordingError}
+        </div>
+      )}
+
+      {sendError && (
+        <div className="mx-4 mb-2 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-400/30 text-xs text-amber-200 backdrop-blur-xl animate-fadeIn">
+          {sendError}
         </div>
       )}
 

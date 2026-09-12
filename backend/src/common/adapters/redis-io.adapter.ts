@@ -61,8 +61,11 @@ export class RedisIoAdapter extends IoAdapter {
       ]);
 
       if (this.pubClient.status === 'ready' && this.subClient.status === 'ready') {
-        this.adapterConstructor = createAdapter(this.pubClient, this.subClient);
-        this.logger.log('Socket.io Redis Pub/Sub Adapter attached successfully.');
+        this.adapterConstructor = createAdapter(this.pubClient, this.subClient, {
+          key: 'eternal:ws:cluster',
+          requestsTimeout: 5000,
+        });
+        this.logger.log('Socket.io Distributed Redis Cluster Adapter attached successfully.');
       } else {
         this.logger.warn(
           'Redis Pub/Sub not in ready state within timeout. Falling back to in-memory adapter.',
@@ -81,7 +84,11 @@ export class RedisIoAdapter extends IoAdapter {
       parser: msgpackParser,
       pingInterval: 10_000,
       pingTimeout: 5_000,
-      maxHttpBufferSize: 1_000_000, // 1MB payload ceiling
+      maxHttpBufferSize: 2_000_000, // 2MB payload ceiling for enterprise media frames
+      perMessageDeflate: false, // Zero CPU deflate bottleneck for million-connection scale
+      httpCompression: false,
+      transports: ['websocket', 'polling'],
+      allowUpgrades: true,
     });
 
     const server = rawServer as SocketIoServerInstance;

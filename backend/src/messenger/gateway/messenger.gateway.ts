@@ -1274,9 +1274,12 @@ export class MessengerGateway
         iceCandidates: payload.iceCandidates || [],
         zkpProof: payload.zkpProof || null,
         isGhostMode: Boolean(payload.isGhostMode),
-        // E2EE handshake relay: opaque ephemeral key, conditional spread keeps
-        // legacy payloads (and pod-migration records) byte-identical.
+        // E2EE handshake relay: opaque ephemeral key + identity signature,
+        // conditional spread keeps legacy payloads byte-identical.
         ...(payload.e2eeEphemeralKey ? { e2eeEphemeralKey: payload.e2eeEphemeralKey } : {}),
+        ...(payload.e2eeBindingSignature
+          ? { e2eeBindingSignature: payload.e2eeBindingSignature }
+          : {}),
       };
 
       for (const targetUserId of result.targetUserIds) {
@@ -1327,6 +1330,9 @@ export class MessengerGateway
         sdpAnswer: payload.sdpAnswer,
         iceCandidates: payload.iceCandidates || [],
         ...(payload.e2eeEphemeralKey ? { e2eeEphemeralKey: payload.e2eeEphemeralKey } : {}),
+        ...(payload.e2eeBindingSignature
+          ? { e2eeBindingSignature: payload.e2eeBindingSignature }
+          : {}),
       };
 
       this.emitToUser(result.initiatorId, WS_EVENTS.CALL_ACCEPTED, acceptedPayload);

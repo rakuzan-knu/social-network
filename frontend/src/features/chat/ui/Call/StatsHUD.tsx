@@ -11,6 +11,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import type { LiveConnectionStats } from '../../lib/webrtc/statsCollector';
+import { useCallStore } from '../../model/callStore';
 
 interface StatsHUDProps {
   stats: LiveConnectionStats | null;
@@ -20,6 +21,7 @@ interface StatsHUDProps {
 export const StatsHUD: React.FC<StatsHUDProps> = ({ stats, onClose }) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const e2eeStatus = useCallStore((s) => s.e2eeStatus);
 
   // Render rolling canvas graph
   useEffect(() => {
@@ -270,9 +272,23 @@ export const StatsHUD: React.FC<StatsHUDProps> = ({ stats, onClose }) => {
             <div className="flex items-center justify-between pt-1 text-[11px] text-neutral-400">
               <span className="flex items-center gap-1 text-neutral-400">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                E2EE Encryption:
+                E2EE:
               </span>
-              <span className="text-emerald-400 font-mono font-medium">AES-256-GCM</span>
+              <span
+                className={`font-mono font-medium ${
+                  e2eeStatus === 'verified'
+                    ? 'text-emerald-400'
+                    : e2eeStatus === 'unverified'
+                      ? 'text-amber-300'
+                      : 'text-gray-500'
+                }`}
+              >
+                {e2eeStatus === 'verified'
+                  ? 'verified'
+                  : e2eeStatus === 'unverified'
+                    ? 'unverified'
+                    : 'off'}
+              </span>
             </div>
           </div>
         </div>

@@ -29,6 +29,8 @@ import { PostStatsCoalescerService } from './coalescing/post-stats-coalescer.ser
 import { extractHashtags, extractMentions } from '../common/utils/safe-regex.util';
 import { TextPipelineService } from '../common/text-pipeline/text-pipeline.service';
 
+import { FeedScoringService } from './feed-scoring.service';
+
 @Injectable()
 export class PostsService {
   private readonly logger = new Logger(PostsService.name);
@@ -51,6 +53,8 @@ export class PostsService {
     private readonly postStatsCoalescer?: PostStatsCoalescerService,
     @Optional()
     private readonly textPipeline?: TextPipelineService,
+    @Optional()
+    private readonly feedScoringService?: FeedScoringService,
   ) {}
 
   private extractMentions(text: string): string[] {
@@ -83,7 +87,15 @@ export class PostsService {
     limit: number,
     after?: string,
     viewerId?: string,
+    algorithm?: 'latest' | 'ml',
   ): Promise<Paginated<PostResponseDto>> {
+    if (algorithm === 'ml' && this.feedScoringService) {
+      const candidateLimit = Math.max(limit * 3, 40);
+      const candidates = await this.postsRepository.getAllPosts(candidateLimit, after, viewerId);
+      const ranked = this.feedScoringService.rankPostCandidates(candidates, viewerId);
+      return paginate(ranked, limit, PostResponseDto.fromPrisma);
+    }
+
     if (viewerId) {
       const posts = await this.postsRepository.getAllPosts(limit, after, viewerId);
       return paginate(posts, limit, PostResponseDto.fromPrisma);
@@ -119,6 +131,7 @@ export class PostsService {
       type: MediaType;
       url: string;
       poster?: string | undefined;
+      blurhash?: string | undefined;
       order: number;
     }[] = [];
 
@@ -176,6 +189,7 @@ export class PostsService {
                 type: m.type,
                 url: m.url,
                 ...(m.poster ? { poster: m.poster } : {}),
+                ...(m.blurhash ? { blurhash: m.blurhash } : {}),
                 order: m.order,
               })),
             },

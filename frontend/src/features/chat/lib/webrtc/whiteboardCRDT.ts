@@ -155,6 +155,13 @@ export class WhiteboardCRDTEngine {
   }
 
   /**
+   * Get current local author info
+   */
+  getAuthor(): { id: string; name: string } {
+    return { id: this.userId, name: this.userName };
+  }
+
+  /**
    * Bind an RTCDataChannel for whiteboard sync
    */
   bindDataChannel(peerIdOrChannel: string | RTCDataChannel, maybeChannel?: RTCDataChannel): void {

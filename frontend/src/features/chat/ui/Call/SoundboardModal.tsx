@@ -24,6 +24,19 @@ export function SoundboardModal({
   const [isMuted, setIsMuted] = useState(false);
   const [playingId, setPlayingId] = useState<SoundEffectId | null>(null);
 
+  // Escape key listener to close modal
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   // Hook up sidechain mic stream and ducking state
   useEffect(() => {
     if (!isOpen) return;

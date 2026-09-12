@@ -193,7 +193,10 @@ export class UsersService {
     if (!clean || (RESERVED_USERNAMES as readonly string[]).includes(clean.toLowerCase())) {
       throw new NotFoundException('User not found');
     }
-    const user = await this.usersRepository.findByUsername(clean);
+    let user = await this.usersRepository.findByUsername(clean);
+    if (!user) {
+      user = await this.usersRepository.findById(clean);
+    }
     if (!user) throw new NotFoundException('User not found');
     return this.getProfileFor(user.id, viewerId);
   }

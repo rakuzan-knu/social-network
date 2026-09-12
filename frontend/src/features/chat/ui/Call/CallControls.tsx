@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   Mic,
   MicOff,
@@ -14,6 +14,7 @@ import {
   LayoutGrid,
   Headphones,
   VolumeX,
+  Settings,
 } from 'lucide-react';
 import { useCallStore } from '../../model/callStore';
 import { CallToolsSheet } from './CallToolsSheet';
@@ -82,33 +83,14 @@ export function CallControls({
     (isDualCameraOpen ? 1 : 0) +
     (isHolographicCallOpen ? 1 : 0);
 
-  // Keyboard shortcuts: M for mute, V for video, W for whiteboard
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) return;
-
-      if (e.key === 'm' || e.key === 'M') {
-        e.preventDefault();
-        onToggleMute();
-      } else if (e.key === 'v' || e.key === 'V') {
-        e.preventDefault();
-        onToggleVideo();
-      } else if (e.key === 'w' || e.key === 'W') {
-        e.preventDefault();
-        toggleWhiteboard();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onToggleMute, onToggleVideo, toggleWhiteboard]);
-
   return (
     <>
       <div className="absolute bottom-[calc(0.75rem+env(safe-area-inset-bottom,0px))] sm:bottom-6 left-1/2 -translate-x-1/2 z-30 max-w-[calc(100vw-16px)] flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-2 sm:py-3 rounded-full bg-zinc-950/90 backdrop-blur-2xl border border-white/15 shadow-[0_10px_40px_rgba(0,0,0,0.7)] select-none">
         {/* Push to talk status pill */}
         {isPTTEnabled && (
           <div
+            role="status"
+            aria-live="polite"
             className={`absolute -top-9 left-6 -translate-x-1/2 px-2.5 py-1 rounded-full text-[11px] font-medium tracking-wide flex items-center gap-1.5 shadow-lg backdrop-blur-md transition-all duration-150 ${
               isPTTActive
                 ? 'bg-emerald-500/90 text-white shadow-emerald-500/30 scale-105 animate-pulse'
@@ -125,8 +107,8 @@ export function CallControls({
         {/* 1. Mute Button */}
         <button
           onClick={onToggleMute}
-          title={isMuted ? 'Включить микрофон (M)' : 'Выключить микрофон (M)'}
-          aria-label={isMuted ? 'Включить микрофон' : 'Выключить микрофон'}
+          title={isMuted ? 'Unmute microphone (M)' : 'Mute microphone (M)'}
+          aria-label={isMuted ? 'Unmute microphone' : 'Mute microphone'}
           className={`w-11 h-11 sm:w-12 sm:h-12 flex items-center justify-center rounded-full transition-all duration-200 shrink-0 ${
             isMuted
               ? 'bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 border border-rose-500/30'
@@ -155,8 +137,8 @@ export function CallControls({
         {/* 2. Video Toggle Button */}
         <button
           onClick={onToggleVideo}
-          title={isVideoOff ? 'Включить камеру (V)' : 'Выключить камеру (V)'}
-          aria-label={isVideoOff ? 'Включить камеру' : 'Выключить камеру'}
+          title={isVideoOff ? 'Start camera (V)' : 'Stop camera (V)'}
+          aria-label={isVideoOff ? 'Start camera' : 'Stop camera'}
           className={`w-11 h-11 sm:w-12 sm:h-12 flex items-center justify-center rounded-full transition-all duration-200 shrink-0 ${
             isVideoOff
               ? 'bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 border border-rose-500/30'
@@ -169,8 +151,8 @@ export function CallControls({
         {/* 3. Screen Share Button (visible on tablet and desktop) */}
         <button
           onClick={onToggleScreenShare}
-          title={isScreenSharing ? 'Остановить демонстрацию' : 'Демонстрация экрана'}
-          aria-label={isScreenSharing ? 'Остановить демонстрацию' : 'Демонстрация экрана'}
+          title={isScreenSharing ? 'Stop sharing screen' : 'Share screen'}
+          aria-label={isScreenSharing ? 'Stop sharing screen' : 'Share screen'}
           className={`relative w-11 h-11 sm:w-12 sm:h-12 hidden sm:flex items-center justify-center rounded-full transition-all duration-200 shrink-0 ${
             isScreenSharing
               ? 'bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30 border border-indigo-500/30'
@@ -276,8 +258,8 @@ export function CallControls({
         {/* 5. More Tools Sheet Button (Available on all screens) */}
         <button
           onClick={() => setIsToolsSheetOpen(true)}
-          title="Инструменты звонка"
-          aria-label="Инструменты звонка"
+          title="More tools"
+          aria-label="More tools"
           className={`relative w-11 h-11 sm:w-12 sm:h-12 flex items-center justify-center rounded-full transition-all duration-200 shrink-0 ${
             activeFeaturesCount > 0
               ? 'bg-indigo-600/20 text-indigo-300 border border-indigo-500/40 shadow-[0_0_12px_rgba(99,102,241,0.3)]'
@@ -292,11 +274,21 @@ export function CallControls({
           )}
         </button>
 
+        {/* Device Settings Button */}
+        <button
+          onClick={onOpenSettings}
+          title="Device settings"
+          aria-label="Device settings"
+          className="w-11 h-11 sm:w-12 sm:h-12 hidden md:flex items-center justify-center rounded-full transition-all duration-200 shrink-0 bg-white/10 text-white hover:bg-white/20 border border-white/10"
+        >
+          <Settings size={20} />
+        </button>
+
         {/* 6. End Call Button */}
         <button
           onClick={onEndCall}
-          title="Завершить звонок"
-          aria-label="Завершить звонок"
+          title="Leave call"
+          aria-label="Leave call"
           className="w-12 sm:w-14 h-11 sm:h-12 px-3 sm:px-4 flex items-center justify-center rounded-full bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-600/30 transition-all duration-200 hover:scale-105 shrink-0"
         >
           <PhoneOff size={20} />

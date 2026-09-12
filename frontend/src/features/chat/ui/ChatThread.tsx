@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Copy, Forward, Trash2, X, CheckSquare } from 'lucide-react';
+import { Copy, Forward, Trash2, X, CheckSquare, Archive, ArchiveRestore } from 'lucide-react';
 import { useAuthStore } from '@/shared/model/useAuthStore';
 import { ConversationView, MessageView } from '../../../entities/chat/model/types';
 import { getConversationDisplay } from '../lib/getConversationDisplay';
+import { promptEditMessage } from '../lib/promptEditMessage';
 import { useMessages } from '../model/useMessages';
 import { useMessageActions } from '../model/useMessageActions';
+import { useArchiveConversation } from '../model/useConversationMutations';
 import { useConversationRealtime } from '../model/useConversationRealtime';
 import { useQueryOnlineStatus } from '../model/usePresence';
 import { useStagedAttachments } from '@/shared/model/useStagedAttachments';
@@ -71,6 +73,7 @@ export default function ChatThread({ conversation }: ChatThreadProps) {
   } = useMessages(conversation.id);
   const { typingUserIds } = useConversationRealtime(conversation.id);
   const actions = useMessageActions(conversation.id);
+  const archiveConversation = useArchiveConversation();
   const { initiateCall } = useCall();
 
   const [replyingTo, setReplyingTo] = useState<MessageView | null>(null);
@@ -377,6 +380,26 @@ export default function ChatThread({ conversation }: ChatThreadProps) {
           }}
         />
 
+        {conversation.isArchived && (
+          <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-amber-500/10 border-b border-amber-500/20 text-amber-200 text-xs backdrop-blur-md transition-all">
+            <div className="flex items-center gap-2">
+              <Archive size={15} className="text-amber-400 flex-shrink-0" />
+              <span>
+                This conversation is archived. New messages won't trigger push notifications.
+              </span>
+            </div>
+            <button
+              onClick={() =>
+                archiveConversation.mutate({ conversationId: conversation.id, archived: false })
+              }
+              className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 hover:bg-amber-500/30 text-amber-100 font-medium text-xs border border-amber-500/30 transition-all active:scale-95 cursor-pointer"
+            >
+              <ArchiveRestore size={13} />
+              Unarchive
+            </button>
+          </div>
+        )}
+
         <CallHandoffBanner />
 
         <GlobalMediaPlaybackBar
@@ -438,9 +461,11 @@ export default function ChatThread({ conversation }: ChatThreadProps) {
               onLoadMore={fetchNextPage}
               onReply={setReplyingTo}
               onEdit={(message) => {
-                const nextBody = window.prompt('Edit message', message.body ?? '');
-                if (nextBody && nextBody !== message.body)
-                  actions.editMessage(message.id, nextBody).catch(() => {});
+                void promptEditMessage(
+                  message,
+                  otherParticipant?.userId ?? null,
+                  actions.editMessage,
+                );
               }}
               onDelete={handleDelete}
               onForward={setForwardingMessage}
@@ -560,6 +585,9 @@ export default function ChatThread({ conversation }: ChatThreadProps) {
                   onDismissFilesError={staged.dismissError}
                   isGroup={conversation.type === 'GROUP'}
                   permissionsMask={myParticipant?.permissions}
+                  e2eePeerUserId={
+                    conversation.type === 'GROUP' ? null : (otherParticipant?.userId ?? null)
+                  }
                 />
               </div>
             )}
@@ -572,7 +600,7 @@ export default function ChatThread({ conversation }: ChatThreadProps) {
             messageCount={1}
             onClose={() => setForwardingMessage(null)}
             onForward={(conversationIds, _hideAuthor) => {
-              actions.forwardMessage(forwardingMessage.id, conversationIds).catch(() => {});
+              actions.forwardMessage(forwardingMessage, conversationIds).catch(() => {});
               setForwardingMessage(null);
             }}
           />

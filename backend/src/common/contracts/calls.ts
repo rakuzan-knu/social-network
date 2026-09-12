@@ -58,6 +58,8 @@ export const initiateCallSchema = z.object({
   // Ephemeral ECDH public (SPKI b64) for the E2EE handshake. Opaque to the
   // server: validated for shape only, relayed verbatim, never used in crypto.
   e2eeEphemeralKey: z.string().min(1).max(2048).optional(),
+  // ECDSA identity signature over the ephemeral key (TOFU verification).
+  e2eeBindingSignature: z.string().min(1).max(2048).optional(),
 });
 export type InitiateCallDto = z.infer<typeof initiateCallSchema>;
 
@@ -66,6 +68,7 @@ export const acceptCallSchema = z.object({
   sdpAnswer: z.unknown().optional(),
   iceCandidates: z.array(z.unknown()).optional(),
   e2eeEphemeralKey: z.string().min(1).max(2048).optional(),
+  e2eeBindingSignature: z.string().min(1).max(2048).optional(),
 });
 export type AcceptCallDto = z.infer<typeof acceptCallSchema>;
 

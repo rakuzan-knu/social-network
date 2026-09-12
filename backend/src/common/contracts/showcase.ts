@@ -1,12 +1,8 @@
 import { z } from 'zod';
-import sanitizeHtmlLib from 'sanitize-html';
+import { sanitizeField } from '../sanitize/sanitize-backend';
 
 function sanitizeHtml(value: unknown): unknown {
-  if (typeof value !== 'string') return value;
-  return sanitizeHtmlLib(value, {
-    allowedTags: [],
-    allowedAttributes: {},
-  }).trim();
+  return sanitizeField(value);
 }
 
 export const ShowcasePrivacy = {

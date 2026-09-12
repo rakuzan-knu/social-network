@@ -10,13 +10,8 @@ import { attachSenderEncryption, attachReceiverDecryption } from '../e2ee/frameC
 
 export interface ScriptTransformConfig {
   worker?: Worker;
+  /** Live CryptoKey (structured-cloned into the worker, never serialized). */
   cryptoKey?: CryptoKey;
-  /**
-   * @deprecated Raw key bytes defeat non-extractability (readable by any JS,
-   * including XSS). Pass `cryptoKey` — it is structured-cloned into the
-   * worker without ever being serialized. Kept only for transition.
-   */
-  rawKeyBytes?: Uint8Array;
 }
 
 let sharedWorkerInstance: Worker | null = null;
@@ -70,15 +65,15 @@ export function attachSenderScriptTransform(
   sender: RTCRtpSender,
   config: ScriptTransformConfig,
 ): boolean {
-  const { rawKeyBytes, cryptoKey } = config;
+  const { cryptoKey } = config;
 
   if (isScriptTransformSupported()) {
     const worker = config.worker || getOrCreateScriptTransformWorker();
-    if (worker && (cryptoKey || rawKeyBytes)) {
+    if (worker && cryptoKey) {
       try {
         sender.transform = new RTCRtpScriptTransform(worker, {
           operation: 'encrypt',
-          ...(cryptoKey ? { cryptoKey } : { rawKey: rawKeyBytes }),
+          cryptoKey,
         });
         return true;
       } catch (err) {
@@ -102,15 +97,15 @@ export function attachReceiverScriptTransform(
   receiver: RTCRtpReceiver,
   config: ScriptTransformConfig,
 ): boolean {
-  const { rawKeyBytes, cryptoKey } = config;
+  const { cryptoKey } = config;
 
   if (isScriptTransformSupported()) {
     const worker = config.worker || getOrCreateScriptTransformWorker();
-    if (worker && (cryptoKey || rawKeyBytes)) {
+    if (worker && cryptoKey) {
       try {
         receiver.transform = new RTCRtpScriptTransform(worker, {
           operation: 'decrypt',
-          ...(cryptoKey ? { cryptoKey } : { rawKey: rawKeyBytes }),
+          cryptoKey,
         });
         return true;
       } catch (err) {

@@ -97,6 +97,18 @@ export function CallSettings({ onClose }: CallSettingsProps) {
   const [micLevel, setMicLevel] = useState<number>(0);
   const previewVideoRef = useRef<HTMLVideoElement | null>(null);
 
+  // Escape key listener to close settings
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   // Bind local stream to preview video
   useEffect(() => {
     if (previewVideoRef.current && localStream) {
@@ -738,7 +750,7 @@ export function CallSettings({ onClose }: CallSettingsProps) {
             </div>
             <div className="flex items-center gap-1 text-[11px] text-emerald-400">
               <ShieldCheck size={12} />
-              <span>SAS: {sasCode || '742-891'}</span>
+              <span>SAS: {sasCode || '—'}</span>
             </div>
           </div>
           <div className="grid grid-cols-4 gap-2 text-center text-[11px]">

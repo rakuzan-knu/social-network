@@ -9,6 +9,7 @@ export * from './opengraph';
 export * from './permissions';
 export * from './poll';
 export * from './posts';
+export * from './reels';
 export * from './sessions';
 export * from './showcase';
 export * from './stories';

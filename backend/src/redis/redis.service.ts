@@ -19,6 +19,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     maxSize: 10_000,
     defaultTtlSeconds: 300,
   });
+  private readonly inMemoryLocks = new Map<string, { token: string; expiresAt: number }>();
 
   constructor(@Inject(REDIS_CLIENT) private readonly client: Redis) {
     this.setupRedisEventHandlers();
@@ -83,6 +84,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
   clearFallbackCache(): void {
     this.fallbackLru.clear();
+    this.inMemoryLocks.clear();
   }
 
   private readonly inFlightLoads = new Map<string, Promise<unknown>>();
@@ -99,6 +101,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     }
     this.inFlightLoads.clear();
     this.fallbackLru.clear();
+    this.inMemoryLocks.clear();
   }
 
   getClient(): Redis {
@@ -200,34 +203,72 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   }
 
   async exists(key: string): Promise<boolean> {
+    if (!this.isRedisReady()) {
+      return this.fallbackLru.has(key);
+    }
     try {
       const result = await this.client.exists(key);
       return result === 1 || Number(result) > 0 || result === (true as unknown as number);
     } catch (e) {
-      this.logger.warn(`Redis exists failed for ${key}: ${String(e)}`);
-      return false;
+      this.handleRedisFailure(e, `exists(${key})`);
+      return this.fallbackLru.has(key);
     }
   }
 
   /**
    * Acquires a distributed lock using Redis SET NX PX.
+   * Falls back to in-memory mutex when Redis connection is unavailable/degraded.
    * Returns a unique token string if lock acquired, or null if already locked.
    */
   async acquireLock(lockKey: string, ttlMs = 5000): Promise<string | null> {
+    const safeTtl = Math.max(100, ttlMs);
+    const token = uid(16);
+
+    if (!this.isRedisReady()) {
+      return this.acquireInMemoryLock(lockKey, token, safeTtl);
+    }
+
     try {
-      const token = uid(16);
-      const result = await this.client.set(lockKey, token, 'PX', Math.max(100, ttlMs), 'NX');
+      const result = await this.client.set(lockKey, token, 'PX', safeTtl, 'NX');
       return result === 'OK' ? token : null;
     } catch (e) {
-      this.logger.warn(`Redis acquireLock failed for ${lockKey}: ${String(e)}`);
+      this.handleRedisFailure(e, `acquireLock(${lockKey})`);
+      return this.acquireInMemoryLock(lockKey, token, safeTtl);
+    }
+  }
+
+  private acquireInMemoryLock(lockKey: string, token: string, ttlMs: number): string | null {
+    const now = Date.now();
+    if (this.inMemoryLocks.size > 200) {
+      for (const [k, v] of this.inMemoryLocks.entries()) {
+        if (v.expiresAt <= now) {
+          this.inMemoryLocks.delete(k);
+        }
+      }
+    }
+    const existing = this.inMemoryLocks.get(lockKey);
+    if (existing && existing.expiresAt > now) {
       return null;
     }
+    this.inMemoryLocks.set(lockKey, { token, expiresAt: now + ttlMs });
+    return token;
   }
 
   /**
    * Releases a distributed lock atomically using Lua script only if token matches.
+   * Also safely releases in-memory fallback lock if present.
    */
   async releaseLock(lockKey: string, token: string): Promise<boolean> {
+    const inMem = this.inMemoryLocks.get(lockKey);
+    if (inMem && inMem.token === token) {
+      this.inMemoryLocks.delete(lockKey);
+      return true;
+    }
+
+    if (!this.isRedisReady()) {
+      return false;
+    }
+
     try {
       const script = `
         if redis.call("get", KEYS[1]) == ARGV[1] then
@@ -239,7 +280,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       const result = await this.client.eval(script, 1, lockKey, token);
       return result === 1;
     } catch (e) {
-      this.logger.warn(`Redis releaseLock failed for ${lockKey}: ${String(e)}`);
+      this.handleRedisFailure(e, `releaseLock(${lockKey})`);
       return false;
     }
   }

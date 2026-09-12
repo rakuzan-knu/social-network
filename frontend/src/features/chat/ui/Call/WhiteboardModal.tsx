@@ -319,6 +319,23 @@ export const WhiteboardModal: React.FC<WhiteboardModalProps> = ({
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
+    const author = engine?.getAuthor() || { id: 'self', name: 'Me' };
+
+    if (activeTool === 'select') {
+      // Find element near click to edit text/sticky notes
+      const clicked = [...elements].reverse().find((el) => {
+        const minX = Math.min(el.x, el.x + el.width);
+        const maxX = Math.max(el.x, el.x + el.width);
+        const minY = Math.min(el.y, el.y + el.height);
+        const maxY = Math.max(el.y, el.y + el.height);
+        return x >= minX - 10 && x <= maxX + 10 && y >= minY - 10 && y <= maxY + 10;
+      });
+      if (clicked && (clicked.type === 'sticky' || clicked.type === 'text')) {
+        setEditingId(clicked.id);
+        setEditingText(clicked.text || '');
+      }
+      return;
+    }
 
     if (activeTool === 'eraser') {
       // Find element near click and delete
@@ -349,8 +366,8 @@ export const WhiteboardModal: React.FC<WhiteboardModalProps> = ({
         fillColor: stickyColor.bg,
         strokeWidth: 1,
         text: 'New Note',
-        authorId: 'self',
-        authorName: 'Me',
+        authorId: author.id,
+        authorName: author.name,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
@@ -362,25 +379,25 @@ export const WhiteboardModal: React.FC<WhiteboardModalProps> = ({
     }
 
     if (activeTool === 'text') {
-      const textPrompt = prompt('Enter annotation text:', 'Hello Whiteboard');
-      if (textPrompt?.trim()) {
-        const newText: WhiteboardElement = {
-          id: `text-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-          type: 'text',
-          x,
-          y,
-          width: 100,
-          height: 30,
-          strokeColor: activeColor,
-          strokeWidth: 2,
-          text: textPrompt.trim(),
-          authorId: 'self',
-          authorName: 'Me',
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        };
-        engine.addElement(newText);
-      }
+      const newText: WhiteboardElement = {
+        id: `text-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        type: 'text',
+        x,
+        y,
+        width: 120,
+        height: 32,
+        strokeColor: activeColor,
+        strokeWidth: 2,
+        text: 'Text',
+        authorId: author.id,
+        authorName: author.name,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      engine.addElement(newText);
+      setEditingId(newText.id);
+      setEditingText('Text');
+      setActiveTool('select');
       return;
     }
 
@@ -396,8 +413,8 @@ export const WhiteboardModal: React.FC<WhiteboardModalProps> = ({
       points: activeTool === 'pen' ? [{ x, y }] : undefined,
       strokeColor: activeColor,
       strokeWidth,
-      authorId: 'self',
-      authorName: 'Me',
+      authorId: author.id,
+      authorName: author.name,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
@@ -445,8 +462,20 @@ export const WhiteboardModal: React.FC<WhiteboardModalProps> = ({
 
   // Keyboard tool shortcuts
   useEffect(() => {
+    if (!isOpen) return;
+
     const onKeyDown = (e: KeyboardEvent) => {
       if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) return;
+
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (showClearConfirm) {
+          setShowClearConfirm(false);
+        } else {
+          onClose();
+        }
+        return;
+      }
 
       if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) {
         e.preventDefault();
@@ -473,7 +502,7 @@ export const WhiteboardModal: React.FC<WhiteboardModalProps> = ({
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [engine]);
+  }, [isOpen, engine, onClose, showClearConfirm]);
 
   // Export board as PNG
   const handleExportPNG = () => {
@@ -496,8 +525,12 @@ export const WhiteboardModal: React.FC<WhiteboardModalProps> = ({
         isOverlay ? 'pointer-events-none bg-black/20' : 'bg-[#0f111a]'
       }`}
     >
-      {/* Top Floating Bar */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2 rounded-2xl bg-neutral-950/80 backdrop-blur-2xl border border-white/10 shadow-2xl pointer-events-auto text-white">
+      {/* Top Floating Control Bar */}
+      <div
+        role="toolbar"
+        aria-label="Whiteboard top controls"
+        className="absolute top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2 rounded-2xl bg-neutral-950/80 backdrop-blur-2xl border border-white/10 shadow-2xl pointer-events-auto text-white"
+      >
         <div className="flex items-center gap-1.5 pr-3 border-r border-white/10">
           <PenTool className="w-4 h-4 text-cyan-400" />
           <span className="text-xs font-semibold tracking-wide">P2P Whiteboard</span>
@@ -577,7 +610,12 @@ export const WhiteboardModal: React.FC<WhiteboardModalProps> = ({
 
       {/* Clear Board Confirm Dialog */}
       {showClearConfirm && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 p-4 rounded-2xl bg-neutral-900 border border-rose-500/40 shadow-2xl pointer-events-auto flex items-center gap-4 text-white">
+        <div
+          role="alertdialog"
+          aria-modal="true"
+          aria-label="Confirm Clear Board"
+          className="absolute top-16 left-1/2 -translate-x-1/2 z-50 p-4 rounded-2xl bg-neutral-900 border border-rose-500/40 shadow-2xl pointer-events-auto flex items-center gap-4 text-white"
+        >
           <span className="text-xs text-neutral-200">Clear all elements for everyone?</span>
           <div className="flex gap-2">
             <button
@@ -608,6 +646,7 @@ export const WhiteboardModal: React.FC<WhiteboardModalProps> = ({
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
+          aria-label="Interactive collaborative whiteboard canvas"
           className={`w-full h-full block ${
             activeTool === 'select'
               ? 'cursor-default'
@@ -621,7 +660,7 @@ export const WhiteboardModal: React.FC<WhiteboardModalProps> = ({
         {cursors.map((c) => (
           <div
             key={c.userId}
-            className="absolute pointer-events-none transition-transform duration-75 ease-out z-30 flex items-start gap-1"
+            className="absolute top-0 left-0 pointer-events-none transition-transform duration-75 ease-out z-30 flex items-start gap-1"
             style={{
               transform: `translate3d(${c.x}px, ${c.y}px, 0)`,
             }}
@@ -641,7 +680,11 @@ export const WhiteboardModal: React.FC<WhiteboardModalProps> = ({
       </div>
 
       {/* Floating Bottom Tools Dock */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-full bg-neutral-950/80 backdrop-blur-2xl border border-white/10 shadow-2xl pointer-events-auto">
+      <div
+        role="toolbar"
+        aria-label="Whiteboard drawing tools"
+        className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-full bg-neutral-950/80 backdrop-blur-2xl border border-white/10 shadow-2xl pointer-events-auto"
+      >
         {/* Tool Selectors */}
         <div className="flex items-center gap-1.5 pr-3 border-r border-white/10">
           {[

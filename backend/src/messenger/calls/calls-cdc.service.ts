@@ -62,6 +62,8 @@ export class CallsCDCService implements OnModuleInit, OnModuleDestroy {
   }
 
   private isConnecting = false;
+  private hasWarnedUnavailable = false;
+  private reconnectDelayMs = 5000;
 
   /**
    * Connects to PostgreSQL notification stream for CDC event ingestion
@@ -71,7 +73,10 @@ export class CallsCDCService implements OnModuleInit, OnModuleDestroy {
 
     const dbUrl = this.configService.get<string>('DATABASE_URL');
     if (!dbUrl) {
-      this.logger.warn('DATABASE_URL not configured. Running in synthetic CDC mode.');
+      if (!this.hasWarnedUnavailable) {
+        this.logger.warn('DATABASE_URL not configured. Running in synthetic CDC mode.');
+        this.hasWarnedUnavailable = true;
+      }
       return;
     }
 
@@ -91,6 +96,11 @@ export class CallsCDCService implements OnModuleInit, OnModuleDestroy {
       this.pgClient = new PgClient({ connectionString: dbUrl });
       await this.pgClient.connect();
       this.isConnected = true;
+      if (this.hasWarnedUnavailable) {
+        this.hasWarnedUnavailable = false;
+        this.logger.log('PostgreSQL CDC connection established on channel: calls_cdc_events');
+      }
+      this.reconnectDelayMs = 5000;
 
       // Listen on designated CDC notifications channel
       await this.pgClient.query('LISTEN calls_cdc_events');
@@ -107,14 +117,29 @@ export class CallsCDCService implements OnModuleInit, OnModuleDestroy {
       });
 
       this.pgClient.on('error', (err) => {
-        this.logger.warn(`PostgreSQL CDC connection error: ${err.message}. Retrying in 5s...`);
+        this.logger.warn(`PostgreSQL CDC connection error: ${err.message}. Retrying...`);
         this.isConnected = false;
         this.scheduleReconnect();
       });
 
       this.logger.log('PostgreSQL CDC listener active on channel: calls_cdc_events');
     } catch (err) {
-      this.logger.warn(`PostgreSQL CDC init failed: ${String(err)}. Falling back to event bus.`);
+      if (this.pgClient) {
+        try {
+          await this.pgClient.end();
+        } catch {
+          // ignore
+        }
+        this.pgClient = null;
+      }
+      if (!this.hasWarnedUnavailable) {
+        this.logger.warn(
+          `PostgreSQL CDC init failed: ${String(err)}. Falling back to in-memory event bus.`,
+        );
+        this.hasWarnedUnavailable = true;
+      } else {
+        this.logger.debug?.(`PostgreSQL CDC reconnect attempt failed: ${String(err)}`);
+      }
       this.isConnected = false;
       this.scheduleReconnect();
     } finally {
@@ -127,7 +152,12 @@ export class CallsCDCService implements OnModuleInit, OnModuleDestroy {
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
       void this.initCDCListener();
-    }, 5000);
+    }, this.reconnectDelayMs);
+
+    if (this.reconnectTimer && typeof this.reconnectTimer.unref === 'function') {
+      this.reconnectTimer.unref();
+    }
+    this.reconnectDelayMs = Math.min(this.reconnectDelayMs * 1.5, 60_000);
   }
 
   /**

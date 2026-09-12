@@ -134,7 +134,17 @@ export class AuthService {
     const redisKey = this.buildRefreshKey(payload.sub, payload.jti);
     const exists = await this.redisService.exists(redisKey);
     if (!exists) {
-      throw new UnauthorizedException('Refresh token is invalid or expired');
+      if (this.redisService.isDegraded()) {
+        const isRevoked = await this.tokenRevocationService.isTokenRevoked(
+          payload.jti,
+          payload.sub,
+        );
+        if (isRevoked) {
+          throw new UnauthorizedException('Refresh token is revoked');
+        }
+      } else {
+        throw new UnauthorizedException('Refresh token is invalid or expired');
+      }
     }
 
     const user = await this.usersService.findById(payload.sub);

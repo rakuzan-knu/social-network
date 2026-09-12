@@ -32,7 +32,11 @@ export const SyncPlayModal: React.FC<SyncPlayModalProps> = ({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const [videoSrc, setVideoSrc] = useState<string>('');
+  // Default sample video for quick testing
+  const DEFAULT_SAMPLE_URL =
+    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
+
+  const [videoSrc, setVideoSrc] = useState<string>(DEFAULT_SAMPLE_URL);
   const [videoTitle, setVideoTitle] = useState<string>('Big Buck Bunny (Sample)');
   const [urlInput, setUrlInput] = useState<string>('');
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
@@ -42,9 +46,18 @@ export const SyncPlayModal: React.FC<SyncPlayModalProps> = ({
   const [volume, setVolume] = useState<number>(1);
   const [showUrlPrompt, setShowUrlPrompt] = useState<boolean>(false);
 
-  // Default sample video for quick testing
-  const DEFAULT_SAMPLE_URL =
-    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
+  // Escape key listener
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   // Attach video element to engine
   useEffect(() => {
@@ -61,13 +74,6 @@ export const SyncPlayModal: React.FC<SyncPlayModalProps> = ({
       }
     };
   }, [isOpen, engine]);
-
-  // Set default video if none is set
-  useEffect(() => {
-    if (isOpen && !videoSrc) {
-      setVideoSrc(DEFAULT_SAMPLE_URL);
-    }
-  }, [isOpen, videoSrc]);
 
   // SyncPlay state listeners
   useEffect(() => {
@@ -243,7 +249,7 @@ export const SyncPlayModal: React.FC<SyncPlayModalProps> = ({
         <div className="relative flex-1 bg-black flex items-center justify-center min-h-90 overflow-hidden group">
           <video
             ref={videoRef}
-            src={videoSrc}
+            src={videoSrc || undefined}
             playsInline
             muted={isMuted}
             className="w-full h-full object-contain max-h-[60vh]"

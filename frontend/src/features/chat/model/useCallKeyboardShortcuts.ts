@@ -17,6 +17,7 @@ import { triggerHaptic } from '../lib/webrtc/hapticFeedback';
 export interface UseCallKeyboardShortcutsOptions {
   onToggleMute?: () => void;
   onToggleVideo?: () => void;
+  onToggleWhiteboard?: () => void;
 }
 
 export function isEditableElement(target: EventTarget | null): boolean {
@@ -29,7 +30,7 @@ export function isEditableElement(target: EventTarget | null): boolean {
 }
 
 export function useCallKeyboardShortcuts(options: UseCallKeyboardShortcutsOptions = {}) {
-  const { onToggleMute, onToggleVideo } = options;
+  const { onToggleMute, onToggleVideo, onToggleWhiteboard } = options;
 
   const {
     callStatus,
@@ -89,37 +90,53 @@ export function useCallKeyboardShortcuts(options: UseCallKeyboardShortcutsOption
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (isEditableElement(e.target)) return;
+      if (useCallStore.getState().callStatus !== 'connected') return;
 
       const isMac =
         typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
       const modifier = isMac ? e.metaKey : e.ctrlKey;
+      const currentPTTEnabled = useCallStore.getState().isPTTEnabled;
 
       // 1. Spacebar Push-to-Talk (Hold)
-      if (e.code === 'Space' && !e.repeat && isPTTEnabled) {
+      if (e.code === 'Space' && !e.repeat && currentPTTEnabled) {
         e.preventDefault();
         startTalking();
         return;
       }
 
-      // 2. Cmd/Ctrl + Shift + M -> Toggle Microphone
-      if (modifier && e.shiftKey && (e.key === 'M' || e.key === 'm')) {
+      // 2. Cmd/Ctrl + Shift + M OR standalone 'm'/'M' without Ctrl/Alt/Meta -> Toggle Microphone
+      const isMuteShortcut =
+        (modifier && e.shiftKey && (e.key === 'M' || e.key === 'm')) ||
+        (!e.ctrlKey && !e.metaKey && !e.altKey && (e.key === 'm' || e.key === 'M'));
+      if (isMuteShortcut) {
         e.preventDefault();
         onToggleMute?.();
         return;
       }
 
-      // 3. Cmd/Ctrl + Shift + V -> Toggle Camera Video
-      if (modifier && e.shiftKey && (e.key === 'V' || e.key === 'v')) {
+      // 3. Cmd/Ctrl + Shift + V OR standalone 'v'/'V' without Ctrl/Alt/Meta -> Toggle Camera Video
+      const isVideoShortcut =
+        (modifier && e.shiftKey && (e.key === 'V' || e.key === 'v')) ||
+        (!e.ctrlKey && !e.metaKey && !e.altKey && (e.key === 'v' || e.key === 'V'));
+      if (isVideoShortcut) {
         e.preventDefault();
         onToggleVideo?.();
+        return;
+      }
+
+      // 4. Standalone 'w'/'W' without Ctrl/Alt/Meta -> Toggle Whiteboard
+      if (!e.ctrlKey && !e.metaKey && !e.altKey && (e.key === 'w' || e.key === 'W')) {
+        e.preventDefault();
+        onToggleWhiteboard?.();
         return;
       }
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
       if (isEditableElement(e.target)) return;
+      const currentPTTEnabled = useCallStore.getState().isPTTEnabled;
 
-      if (e.code === 'Space' && isPTTEnabled) {
+      if (e.code === 'Space' && currentPTTEnabled) {
         e.preventDefault();
         stopTalkingWithTail();
       }
@@ -144,6 +161,7 @@ export function useCallKeyboardShortcuts(options: UseCallKeyboardShortcutsOption
     stopTalkingWithTail,
     onToggleMute,
     onToggleVideo,
+    onToggleWhiteboard,
     setIsPTTActive,
   ]);
 

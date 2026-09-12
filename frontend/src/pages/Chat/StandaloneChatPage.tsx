@@ -26,6 +26,9 @@ import { useMessageActions } from '@/features/chat/model/useMessageActions';
 import { useConversationRealtime } from '@/features/chat/model/useConversationRealtime';
 import { useQueryOnlineStatus } from '@/features/chat/model/usePresence';
 import { getConversationDisplay } from '@/features/chat/lib/getConversationDisplay';
+import { promptEditMessage } from '@/features/chat/lib/promptEditMessage';
+import { useDecryptedMessageBody } from '@/features/chat/model/useDecryptedMessageBody';
+import { E2eePinChangedError } from '@/features/chat/lib/e2ee/messageE2ee';
 import { VerifiedCheckmark } from '@/entities/profile/ui/VerifiedCheckmark';
 import MessageList from '@/features/chat/ui/MessageList';
 import MessageSearchPanel from '@/features/chat/ui/MessageSearchPanel';
@@ -88,6 +91,15 @@ export default function StandaloneChatPage() {
   });
   const [forwardingMessage, setForwardingMessage] = useState<MessageView | null>(null);
   const [isMaximized, setIsMaximized] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+
+  // Decrypted quote for the reply banner (same dialog, same peer).
+  const replyingPreview = useDecryptedMessageBody(
+    replyingTo?.body ?? null,
+    conversation?.type === 'GROUP' ? null : (otherParticipant?.userId ?? null),
+    replyingTo?.conversationId ?? conversationId,
+    replyingTo?.sender?.id ?? null,
+  );
 
   const { markRead } = actions;
 
@@ -112,7 +124,15 @@ export default function StandaloneChatPage() {
 
   const handleSend = () => {
     if (!text.trim() || !conversationId) return;
-    actions.sendMessage(text.trim(), replyingTo?.id).catch(() => {});
+    actions.sendMessage(text.trim(), replyingTo?.id).catch((err: unknown) => {
+      // Suspected key substitution blocks the send (fail closed) — explain.
+      if (err instanceof E2eePinChangedError) {
+        setSendError(
+          'This contact\u2019s security key changed. Sending is blocked to protect your messages.',
+        );
+        setTimeout(() => setSendError(null), 6000);
+      }
+    });
     useChatDraftsStore.getState().clearDraft(conversationId);
     setText('');
     setReplyingTo(null);
@@ -332,9 +352,11 @@ export default function StandaloneChatPage() {
               onLoadMore={fetchNextPage}
               onReply={setReplyingTo}
               onEdit={(message) => {
-                const nextBody = window.prompt('Edit message', message.body ?? '');
-                if (nextBody && nextBody !== message.body)
-                  actions.editMessage(message.id, nextBody).catch(() => {});
+                void promptEditMessage(
+                  message,
+                  otherParticipant?.userId ?? null,
+                  actions.editMessage,
+                );
               }}
               onDelete={(messageId, forAll) => {
                 actions.deleteMessage(messageId, forAll).catch(() => {});
@@ -364,7 +386,7 @@ export default function StandaloneChatPage() {
                 <span className="text-sky-400 font-semibold">
                   Replying to {replyingTo.sender.displayName || replyingTo.sender.username}
                 </span>
-                <p className="text-gray-400 truncate">{replyingTo.body || 'Attachment'}</p>
+                <p className="text-gray-400 truncate">{replyingPreview || 'Attachment'}</p>
               </div>
               <button
                 type="button"
@@ -377,6 +399,11 @@ export default function StandaloneChatPage() {
           )}
 
           {/* Bottom Message Composer */}
+          {sendError && (
+            <div className="mx-3 mb-2 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-400/30 text-xs text-amber-200 flex-shrink-0">
+              {sendError}
+            </div>
+          )}
           <div className="p-3 bg-[#111520]/90 backdrop-blur-2xl border-t border-white/10 flex items-center gap-2 flex-shrink-0">
             <button
               type="button"
@@ -458,7 +485,7 @@ export default function StandaloneChatPage() {
         <ForwardMessageModal
           onClose={() => setForwardingMessage(null)}
           onForward={(conversationIds) => {
-            actions.forwardMessage(forwardingMessage.id, conversationIds).catch(() => {});
+            actions.forwardMessage(forwardingMessage, conversationIds).catch(() => {});
             setForwardingMessage(null);
           }}
         />

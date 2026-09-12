@@ -16,10 +16,12 @@ import {
   QUEUE_NOTIFICATIONS,
   QUEUE_SEARCH_INDEXING,
   QUEUE_DEAD_LETTER,
+  QUEUE_VIDEO_TRANSCODE,
   NotificationJobType,
   MediaJobType,
   SearchJobType,
   MessageJobType,
+  VideoJobType,
   type DeadLetterJobData,
 } from './queue.constants';
 import { AlertingService } from '../common/resilience/alerting.service';
@@ -35,6 +37,7 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
   private searchIndexingQueue?: Queue;
   private messagesQueue?: Queue;
   private deadLetterQueue?: Queue;
+  private videoTranscodeQueue?: Queue;
 
   constructor(
     private readonly configService: ConfigService,
@@ -107,6 +110,7 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
       this.mediaPreviewsQueue = setupQueue(QUEUE_MEDIA_PREVIEWS);
       this.searchIndexingQueue = setupQueue(QUEUE_SEARCH_INDEXING);
       this.messagesQueue = setupQueue(QUEUE_MESSAGES);
+      this.videoTranscodeQueue = setupQueue(QUEUE_VIDEO_TRANSCODE);
       this.deadLetterQueue = setupQueue(QUEUE_DEAD_LETTER, {
         removeOnComplete: 1000,
         removeOnFail: 1000,
@@ -169,6 +173,16 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
       }
     } catch (err) {
       this.logger.warn(`Failed to add job to messages queue: ${(err as Error).message}`);
+    }
+  }
+
+  async addVideoTranscodeJob(data: unknown, opts?: JobsOptions): Promise<void> {
+    try {
+      if (this.videoTranscodeQueue) {
+        await this.videoTranscodeQueue.add(VideoJobType.HLS_TRANSCODE, data, opts);
+      }
+    } catch (err) {
+      this.logger.warn(`Failed to add job to video transcode queue: ${(err as Error).message}`);
     }
   }
 
@@ -385,6 +399,7 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
         this.mediaPreviewsQueue?.close().catch(() => {}),
         this.searchIndexingQueue?.close().catch(() => {}),
         this.messagesQueue?.close().catch(() => {}),
+        this.videoTranscodeQueue?.close().catch(() => {}),
         this.deadLetterQueue?.close().catch(() => {}),
       ]);
       if (this.connection) {

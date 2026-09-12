@@ -492,6 +492,7 @@ export default function MessageList({
                   onUnreact={onUnreact}
                   onJumpToMessage={onJumpToMessage}
                   onRetry={onRetry}
+                  e2eePeerUserId={isGroup ? null : otherParticipantId}
                 />
               </div>
             </div>

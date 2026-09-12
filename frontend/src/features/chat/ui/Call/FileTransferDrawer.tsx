@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
   X,
   UploadCloud,
@@ -49,6 +49,18 @@ export function FileTransferDrawer({
 }: FileTransferDrawerProps) {
   const { fileTransfers } = useCallStore();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Escape key listener to close drawer
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
   const transferList = Object.values(fileTransfers);
 

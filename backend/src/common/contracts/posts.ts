@@ -19,6 +19,9 @@ export interface PostMedia {
   type: MediaType;
   url: string;
   poster: string | null;
+  blurhash?: string | null;
+  thumbhash?: string | null;
+  hlsUrl?: string | null;
   order: number;
   postId: string;
   createdAt?: Date | string;
@@ -103,6 +106,7 @@ export type EditPostDto = z.infer<typeof editPostSchema>;
 export const getPostsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(20),
   after: z.string().max(128).optional(),
+  algorithm: z.enum(['latest', 'ml']).default('latest').optional(),
 });
 export type GetPostsQueryDto = z.infer<typeof getPostsQuerySchema>;
 
@@ -137,6 +141,9 @@ export class PostMediaResponseDto {
   type!: MediaType;
   url!: string;
   poster!: string | null;
+  blurhash?: string | null | undefined;
+  thumbhash?: string | null | undefined;
+  hlsUrl?: string | null | undefined;
   order!: number;
 
   static fromPrisma(this: void, media: PostMedia): PostMediaResponseDto {
@@ -145,6 +152,9 @@ export class PostMediaResponseDto {
       type: media.type,
       url: media.url,
       poster: media.poster,
+      blurhash: media.blurhash,
+      thumbhash: media.thumbhash,
+      hlsUrl: media.hlsUrl,
       order: media.order,
     };
   }

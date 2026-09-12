@@ -19,6 +19,8 @@ export interface IncomingCallData {
   isGhostMode?: boolean;
   /** Initiator ephemeral ECDH public (SPKI b64) for the E2EE handshake. */
   e2eeEphemeralKey?: string;
+  /** Identity signature over the ephemeral key (TOFU verification). */
+  e2eeBindingSignature?: string;
 }
 
 export interface AvailableDevices {

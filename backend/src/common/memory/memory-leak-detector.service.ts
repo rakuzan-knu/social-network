@@ -38,6 +38,10 @@ export class MemoryLeakDetectorService implements OnModuleInit, OnModuleDestroy 
   private checkInterval?: NodeJS.Timeout | undefined;
   private readonly intervalMs: number;
   private readonly requiredConsecutiveIncreases: number;
+  private readonly minHeapUsedBytes: number;
+  private readonly minDeltaBytes: number;
+  private readonly gracePeriodMs: number;
+  private readonly startTime = Date.now();
   private readonly cacheCleaners: Array<() => void> = [];
 
   private samples: MemorySample[] = [];
@@ -46,6 +50,8 @@ export class MemoryLeakDetectorService implements OnModuleInit, OnModuleDestroy 
   private lastLeakDetectedAt?: string | undefined;
   private actionTaken?: string | undefined;
   private simulatedLeak = false;
+  private lastEmergencyTriggerTimestamp = 0;
+  private readonly emergencyCooldownMs = 300_000; // 5 mins
 
   constructor(
     private readonly configService: ConfigService,
@@ -57,6 +63,27 @@ export class MemoryLeakDetectorService implements OnModuleInit, OnModuleDestroy 
 
     const rawConsecutive = this.configService.get<string>('MEMORY_LEAK_CONSECUTIVE_INCREASES', '5');
     this.requiredConsecutiveIncreases = Math.max(3, parseInt(rawConsecutive, 10) || 5);
+
+    // Minimum baseline heap required before considering memory growth as a critical leak (default: 300MB)
+    const defaultMinHeap = process.env.NODE_ENV === 'test' ? '0' : '300';
+    const rawMinHeapMb = this.configService.get<string>('MEMORY_LEAK_MIN_HEAP_MB', defaultMinHeap);
+    this.minHeapUsedBytes = Math.max(0, parseInt(rawMinHeapMb, 10) || 0) * 1024 * 1024;
+
+    // Minimum increase per cycle required to consider it significant growth rather than allocation jitter (default: 2MB)
+    const defaultMinDelta = process.env.NODE_ENV === 'test' ? '0.1' : '2';
+    const rawMinDeltaMb = this.configService.get<string>(
+      'MEMORY_LEAK_MIN_DELTA_MB',
+      defaultMinDelta,
+    );
+    this.minDeltaBytes = Math.max(10 * 1024, (parseFloat(rawMinDeltaMb) || 0.1) * 1024 * 1024);
+
+    // Startup grace period in ms (default: 2 minutes)
+    const defaultGraceMs = process.env.NODE_ENV === 'test' ? '0' : '120000';
+    const rawGraceMs = this.configService.get<string>(
+      'MEMORY_LEAK_GRACE_PERIOD_MS',
+      defaultGraceMs,
+    );
+    this.gracePeriodMs = Math.max(0, parseInt(rawGraceMs, 10) || 0);
   }
 
   onModuleInit(): void {
@@ -137,24 +164,40 @@ export class MemoryLeakDetectorService implements OnModuleInit, OnModuleDestroy 
       return;
     }
 
-    // Evaluate monotonic heap growth (allowing small jitter of 100KB)
+    // Skip analysis during initial startup and warmup grace period
+    if (this.gracePeriodMs > 0 && Date.now() - this.startTime < this.gracePeriodMs) {
+      return;
+    }
+
+    // If current heap is below minimum baseline (e.g. 300MB), heap is within safe operating range
+    if (this.minHeapUsedBytes > 0 && currentSample.heapUsedBytes < this.minHeapUsedBytes) {
+      this.consecutiveIncreases = 0;
+      return;
+    }
+
+    // Evaluate monotonic heap growth
     const heapDelta = currentSample.heapUsedBytes - previousSample.heapUsedBytes;
-    if (heapDelta > 100 * 1024) {
+    if (heapDelta >= this.minDeltaBytes) {
       this.consecutiveIncreases++;
       this.logger.debug?.(
         `Heap increased monotonically (${this.consecutiveIncreases}/${this.requiredConsecutiveIncreases}): +${(heapDelta / (1024 * 1024)).toFixed(2)}MB`,
       );
-    } else if (heapDelta < -500 * 1024) {
-      // Meaningful GC drop occurred, reset monotonic counter
+    } else if (heapDelta <= 0) {
+      // Memory dropped or stayed flat - monotonic growth chain is broken
       this.consecutiveIncreases = 0;
     }
 
     if (this.consecutiveIncreases >= this.requiredConsecutiveIncreases) {
-      await this.handleSuspectedLeak(currentSample);
+      const increases = this.consecutiveIncreases;
+      this.consecutiveIncreases = 0;
+      await this.handleSuspectedLeak(currentSample, increases);
     }
   }
 
-  private async handleSuspectedLeak(currentSample: MemorySample): Promise<void> {
+  private async handleSuspectedLeak(
+    currentSample: MemorySample,
+    consecutiveIncreases = this.requiredConsecutiveIncreases,
+  ): Promise<void> {
     // 1. Attempt manual GC if --expose-gc is enabled
     const globalGc = (global as { gc?: () => void }).gc;
     if (typeof globalGc === 'function') {
@@ -177,10 +220,17 @@ export class MemoryLeakDetectorService implements OnModuleInit, OnModuleDestroy 
       }
     }
 
+    // Check emergency cooldown to prevent spamming snapshots and alerts
+    const now = Date.now();
+    if (now - this.lastEmergencyTriggerTimestamp < this.emergencyCooldownMs) {
+      return;
+    }
+    this.lastEmergencyTriggerTimestamp = now;
+
     // 2. Unrecoverable growth confirmed: Trigger Emergency Protocol
     const heapUsedMb = (currentSample.heapUsedBytes / (1024 * 1024)).toFixed(1);
     const emergencyError = new Error(
-      `CRITICAL_MEMORY_LEAK: heapUsed grew monotonically for ${this.consecutiveIncreases} intervals to ${heapUsedMb}MB without GC release`,
+      `CRITICAL_MEMORY_LEAK: heapUsed grew monotonically for ${consecutiveIncreases} intervals to ${heapUsedMb}MB without GC release`,
     );
 
     this.logger.error(
@@ -232,5 +282,6 @@ export class MemoryLeakDetectorService implements OnModuleInit, OnModuleDestroy 
     this.consecutiveIncreases = 0;
     this.lastLeakDetectedAt = undefined;
     this.actionTaken = undefined;
+    this.lastEmergencyTriggerTimestamp = 0;
   }
 }
