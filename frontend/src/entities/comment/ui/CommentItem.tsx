@@ -45,6 +45,7 @@ export function CommentItem({
   const canReport = !comment.isDeleted && !isCommentOwner;
 
   const handleDoubleTap = (e: React.MouseEvent | React.TouchEvent) => {
+    if ((e.target as HTMLElement).closest('button, a, input')) return;
     e.stopPropagation();
     const now = Date.now();
     const DOUBLE_TAP_DELAY = 300;
@@ -87,7 +88,7 @@ export function CommentItem({
       className={`group relative flex gap-3 items-start py-2.5 px-3 rounded-2xl transition-all duration-200 ${
         comment.isPinned
           ? 'bg-purple-950/20 border border-purple-500/30 shadow-[0_0_20px_rgba(168,85,247,0.1)]'
-          : 'hover:bg-white/[0.03]'
+          : 'hover:bg-white/3'
       }`}
       onClick={handleDoubleTap}
     >
@@ -168,13 +169,13 @@ export function CommentItem({
 
               {isMenuOpen && (
                 <div
-                  className="absolute right-0 top-full mt-1 w-36 bg-[#161619] border border-white/[0.1] rounded-2xl p-1 shadow-2xl flex flex-col gap-0.5 z-40 backdrop-blur-xl animate-fadeIn"
+                  className="absolute right-0 top-full mt-1 w-36 bg-[#161619] border border-white/10 rounded-2xl p-1 shadow-2xl flex flex-col gap-0.5 z-40 backdrop-blur-xl animate-fadeIn"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <button
                     type="button"
                     onClick={handleCopyText}
-                    className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 rounded-xl text-xs text-gray-200 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
+                    className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 rounded-xl text-xs text-gray-200 hover:text-white hover:bg-white/8 transition-colors cursor-pointer"
                   >
                     {isCopied ? <Check size={13} className="text-green-400" /> : <Copy size={13} />}
                     <span>{isCopied ? 'Copied' : 'Copy text'}</span>
@@ -187,7 +188,7 @@ export function CommentItem({
                         setIsMenuOpen(false);
                         onPin(comment.id);
                       }}
-                      className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 rounded-xl text-xs text-gray-200 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
+                      className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 rounded-xl text-xs text-gray-200 hover:text-white hover:bg-white/8 transition-colors cursor-pointer"
                     >
                       <Pin size={13} className="text-purple-400" />
                       <span>{comment.isPinned ? 'Unpin' : 'Pin to top'}</span>
@@ -227,9 +228,9 @@ export function CommentItem({
           )}
         </div>
 
-        {/* Comment Text with Break Words / Overflow-Wrap Anywhere Protection */}
+        {/* Comment Text with Break Words Protection */}
         <div
-          className={`text-sm mt-1 leading-relaxed break-words [overflow-wrap:anywhere] max-w-full ${
+          className={`text-sm mt-1 leading-relaxed wrap-break-word max-w-full ${
             comment.isDeleted ? 'text-gray-500 italic' : 'text-gray-200'
           }`}
         >
@@ -238,7 +239,7 @@ export function CommentItem({
 
         {/* Media Image Attachment */}
         {comment.mediaUrl && !comment.isDeleted && (
-          <div className="mt-2 max-w-sm rounded-xl overflow-hidden border border-white/[0.08] bg-black/40">
+          <div className="mt-2 max-w-sm rounded-xl overflow-hidden border border-white/8 bg-black/40">
             <img
               src={comment.mediaUrl}
               alt="attachment"

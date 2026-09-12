@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
   X,
@@ -77,6 +77,17 @@ export function CommentModal() {
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const lastTapRef = useRef<number>(0);
+  const likeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const repostTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const heartBurstTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (likeTimerRef.current) clearTimeout(likeTimerRef.current);
+      if (repostTimerRef.current) clearTimeout(repostTimerRef.current);
+      if (heartBurstTimerRef.current) clearTimeout(heartBurstTimerRef.current);
+    };
+  }, []);
 
   const postId = activePostForComments?.id ? String(activePostForComments.id) : '';
 
@@ -372,7 +383,8 @@ export function CommentModal() {
 
   const handleLikePost = () => {
     setIsLikePopping(true);
-    setTimeout(() => setIsLikePopping(false), 400);
+    if (likeTimerRef.current) clearTimeout(likeTimerRef.current);
+    likeTimerRef.current = setTimeout(() => setIsLikePopping(false), 400);
     likeMutation.mutate();
     if (activePostForComments) {
       const nextLiked = !activePostForComments.isLiked;
@@ -388,7 +400,8 @@ export function CommentModal() {
 
   const handleRepostPost = () => {
     setIsRepostSpinning(true);
-    setTimeout(() => setIsRepostSpinning(false), 400);
+    if (repostTimerRef.current) clearTimeout(repostTimerRef.current);
+    repostTimerRef.current = setTimeout(() => setIsRepostSpinning(false), 400);
     repostMutation.mutate();
     if (activePostForComments) {
       const nextReposted = !activePostForComments.isReposted;
@@ -424,7 +437,8 @@ export function CommentModal() {
         handleLikePost();
       }
       setShowHeartBurst(true);
-      setTimeout(() => setShowHeartBurst(false), 800);
+      if (heartBurstTimerRef.current) clearTimeout(heartBurstTimerRef.current);
+      heartBurstTimerRef.current = setTimeout(() => setShowHeartBurst(false), 800);
       lastTapRef.current = 0;
     } else {
       lastTapRef.current = now;

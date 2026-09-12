@@ -222,20 +222,27 @@ describe('OpenGraphService - SSRF, Security & Rich Providers', () => {
       );
     });
 
-    it('extracts generic OpenGraph fallback for other websites', async () => {
+    it('extracts generic OpenGraph fallback for other websites with stream reader and entities', async () => {
       const htmlContent = `
         <!DOCTYPE html>
         <html>
           <head>
-            <title>My Awesome Article</title>
-            <meta property="og:title" content="My Awesome Article" />
-            <meta property="og:description" content="This is a great article description" />
-            <meta property="og:image" content="https://example.com/cover.jpg" />
-            <meta property="og:site_name" content="Example News" />
+            <title>&quot;My Awesome Article&quot; &amp; News</title>
+            <meta property="og:title" content="&quot;My Awesome Article&quot; &amp; News" />
+            <meta property="og:description" content="This is a &#39;great&#39; article description" />
+            <meta property="og:image" content="/images/cover.jpg" />
+            <meta property="og:site_name" content="Example &amp; Co" />
+            <link rel="icon" href="/favicon.png" />
           </head>
           <body>Hello</body>
         </html>
       `;
+
+      let readIndex = 0;
+      const chunks = [
+        new TextEncoder().encode(htmlContent.slice(0, 150)),
+        new TextEncoder().encode(htmlContent.slice(150)),
+      ];
 
       const fetchMock = jest.fn().mockResolvedValue({
         ok: true,
@@ -246,7 +253,17 @@ describe('OpenGraphService - SSRF, Security & Rich Providers', () => {
             return null;
           },
         },
-        text: async () => htmlContent,
+        body: {
+          getReader: () => ({
+            read: jest.fn().mockImplementation(async () => {
+              if (readIndex < chunks.length) {
+                return { done: false, value: chunks[readIndex++] };
+              }
+              return { done: true, value: undefined };
+            }),
+            cancel: jest.fn().mockResolvedValue(undefined),
+          }),
+        },
       });
       (global as any).fetch = fetchMock;
 
@@ -254,10 +271,26 @@ describe('OpenGraphService - SSRF, Security & Rich Providers', () => {
 
       expect(result).toBeDefined();
       expect(result?.type).toBe('generic');
-      expect(result?.title).toBe('My Awesome Article');
-      expect(result?.description).toBe('This is a great article description');
-      expect(result?.image).toBe('https://example.com/cover.jpg');
-      expect(result?.siteName).toBe('Example News');
+      expect(result?.title).toBe('"My Awesome Article" & News');
+      expect(result?.description).toBe("This is a 'great' article description");
+      expect(result?.image).toBe('https://example.com/images/cover.jpg');
+      expect(result?.favicon).toBe('https://example.com/favicon.png');
+      expect(result?.siteName).toBe('Example & Co');
+    });
+
+    it('returns null when page contains no title, description, or image', async () => {
+      const fetchMock = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        headers: {
+          get: () => 'text/html',
+        },
+        text: async () => '<html><body>Empty page without meta</body></html>',
+      });
+      (global as any).fetch = fetchMock;
+
+      const result = await service.extractMetadata('https://example.com/empty');
+      expect(result).toBeNull();
     });
   });
 

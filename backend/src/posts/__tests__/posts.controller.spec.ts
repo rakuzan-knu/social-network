@@ -73,7 +73,7 @@ describe('PostsController', () => {
     });
 
     await controller.getAllPosts({ limit: 20, after: 'cur-1' }, mockUser);
-    expect(mockPostsService.getAllPosts).toHaveBeenCalledWith(20, 'cur-1', 'usr-1');
+    expect(mockPostsService.getAllPosts).toHaveBeenCalledWith(20, 'cur-1', 'usr-1', undefined);
   });
 
   it('getExplorePosts delegates to PostsService', async () => {
@@ -191,7 +191,7 @@ describe('PostsController', () => {
     await controller.sharePost('post-1', mockUser);
     expect(mockPostsService.sharePost).toHaveBeenCalledWith('post-1', 'usr-1');
 
-    await controller.votePoll('post-1', 'opt-1', mockUser);
+    await controller.votePoll('post-1', { optionId: 'opt-1' }, mockUser);
     expect(mockPostsService.votePoll).toHaveBeenCalledWith('post-1', 'opt-1', 'usr-1');
 
     mockPostsService.getPollVoters.mockResolvedValueOnce([{ optionId: 'opt-1', voters: [] }]);
@@ -210,5 +210,9 @@ describe('PostsController', () => {
     const ogHtml = await controller.getPostOgHtml('post-1');
     expect(ogHtml).toBe('<html></html>');
     expect(mockPostsService.getPostOgHtml).toHaveBeenCalledWith('post-1');
+
+    mockPostsService.getPostById = jest.fn().mockResolvedValueOnce({ id: 'post-1' });
+    const post = await controller.getPostById('post-1', mockUser);
+    expect(post.id).toBe('post-1');
   });
 });

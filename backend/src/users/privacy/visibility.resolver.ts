@@ -1,6 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ExceptionMode, FollowStatus, PrivacyDimension, Visibility } from '@prisma/client';
-import { PrismaService } from '@common/prisma';
+import {
+  PRIVACY_REPOSITORY,
+  type IPrivacyRepository,
+} from './interfaces/privacy-repository.interface';
 
 interface ExceptionSets {
   allow: Set<string>;
@@ -63,35 +66,16 @@ const ALL_DIMENSIONS = Object.keys(DIMENSION_DEFAULT) as PrivacyDimension[];
 
 @Injectable()
 export class VisibilityResolver {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(PRIVACY_REPOSITORY)
+    private readonly privacyRepo: IPrivacyRepository,
+  ) {}
 
   async loadContext(ownerIds: string[], viewerId: string | null): Promise<VisibilityContext> {
     const uniqueOwners = [...new Set(ownerIds)];
 
-    const [privacyRows, exceptionRows, followRows, blockRows] = await Promise.all([
-      this.prisma.userPrivacy.findMany({ where: { userId: { in: uniqueOwners } } }),
-      this.prisma.privacyException.findMany({
-        where: { ownerId: { in: uniqueOwners } },
-        select: { ownerId: true, dimension: true, mode: true, targetId: true },
-      }),
-      viewerId
-        ? this.prisma.follow.findMany({
-            where: { followerId: viewerId, followingId: { in: uniqueOwners } },
-            select: { followingId: true, status: true },
-          })
-        : Promise.resolve([]),
-      viewerId
-        ? this.prisma.userBlock.findMany({
-            where: {
-              OR: [
-                { blockerId: viewerId, blockedId: { in: uniqueOwners } },
-                { blockedId: viewerId, blockerId: { in: uniqueOwners } },
-              ],
-            },
-            select: { blockerId: true, blockedId: true },
-          })
-        : Promise.resolve([]),
-    ]);
+    const { privacyRows, exceptionRows, followRows, blockRows } =
+      await this.privacyRepo.loadVisibilityContextData(uniqueOwners, viewerId);
 
     const visibility = new Map<string, Record<PrivacyDimension, Visibility>>();
     for (const ownerId of uniqueOwners) {
@@ -173,30 +157,8 @@ export class VisibilityResolver {
     const uniqueViewers = [...new Set(viewerIds)].filter((v) => v !== ownerId);
     if (uniqueViewers.length === 0) return new Set();
 
-    const [privacyRow, exceptionRows, followRows, blockRows] = await Promise.all([
-      this.prisma.userPrivacy.findUnique({ where: { userId: ownerId } }),
-      this.prisma.privacyException.findMany({
-        where: { ownerId, dimension: PrivacyDimension.LAST_SEEN },
-        select: { mode: true, targetId: true },
-      }),
-      this.prisma.follow.findMany({
-        where: {
-          followingId: ownerId,
-          followerId: { in: uniqueViewers },
-          status: FollowStatus.ACCEPTED,
-        },
-        select: { followerId: true },
-      }),
-      this.prisma.userBlock.findMany({
-        where: {
-          OR: [
-            { blockerId: ownerId, blockedId: { in: uniqueViewers } },
-            { blockedId: ownerId, blockerId: { in: uniqueViewers } },
-          ],
-        },
-        select: { blockerId: true, blockedId: true },
-      }),
-    ]);
+    const { privacyRow, exceptionRows, followRows, blockRows } =
+      await this.privacyRepo.loadPresenceAudienceData(ownerId, uniqueViewers);
 
     const base = privacyRow?.lastSeen ?? DIMENSION_DEFAULT.LAST_SEEN;
     const allow = new Set<string>();

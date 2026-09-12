@@ -1,12 +1,25 @@
-import './instrument';
-import { type INestApplication, Logger } from '@nestjs/common';
+import { EventEmitter } from 'node:events';
+import fastifyCompress from '@fastify/compress';
+import fastifyCookie from '@fastify/cookie';
+import fastifyHelmet from '@fastify/helmet';
+import fastifyMultipart from '@fastify/multipart';
+import { type INestApplication, Logger, ValidationPipe, VersioningType } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import type { NestExpressApplication } from '@nestjs/platform-express';
-import { AppModule } from './app.module';
-import { IoAdapter } from '@nestjs/platform-socket.io';
+import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { type Request, type Response } from 'express';
-import helmet from 'helmet';
+import { Logger as PinoLogger } from 'nestjs-pino';
+import * as zlib from 'zlib';
+import { AppModule } from './app.module';
+import { RedisIoAdapter } from './common/adapters/redis-io.adapter';
+import { setupGracefulShutdown } from './common/lifecycle/graceful-shutdown';
+import { setupFdGuard } from './common/lifecycle/fd-guard';
+import './instrument';
+
+EventEmitter.defaultMaxListeners = 50;
+if (typeof process.setMaxListeners === 'function') {
+  process.setMaxListeners(50);
+}
 
 const logger = new Logger('Bootstrap');
 
@@ -17,10 +30,55 @@ if (!process.env.DIRECT_URL && process.env.DATABASE_URL) {
 let cachedApp: INestApplication | undefined;
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const fastifyAdapter = new FastifyAdapter({
+    trustProxy: 1,
+    bodyLimit: 10485760,
+  });
 
-  app.set('trust proxy', 1);
-  app.use(helmet());
+  const app = await NestFactory.create<NestFastifyApplication>(AppModule, fastifyAdapter, {
+    bufferLogs: true,
+  });
+  app.useLogger(app.get(PinoLogger));
+
+  setupFdGuard(app);
+
+  await app.register(fastifyHelmet, {
+    contentSecurityPolicy: false,
+  });
+
+  await app.register(fastifyCookie);
+
+  await app.register(fastifyCompress, {
+    threshold: 1024,
+    encodings: ['br', 'gzip', 'deflate'],
+    brotliOptions: {
+      params: {
+        [zlib.constants.BROTLI_PARAM_QUALITY]: 4,
+      },
+    },
+    zlibOptions: {
+      level: 6,
+    },
+  });
+
+  await app.register(fastifyMultipart, {
+    limits: {
+      fileSize: 100 * 1024 * 1024,
+      files: 10,
+    },
+    attachFieldsToBody: false,
+  });
+
+  setupApiVersioning(app);
+
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+      transformOptions: { enableImplicitConversion: true },
+    }),
+  );
 
   const allowedOrigins = process.env.CORS_ORIGIN
     ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
@@ -42,20 +100,79 @@ async function bootstrap() {
     credentials: true,
   });
 
-  app.useWebSocketAdapter(new IoAdapter(app));
+  const redisIoAdapter = new RedisIoAdapter(app);
+  await redisIoAdapter.connectToRedis(process.env.REDIS_URL);
+  app.useWebSocketAdapter(redisIoAdapter);
 
   const config = new DocumentBuilder()
     .setTitle('Social Network API')
-    .setDescription('Social Network backend API documentation')
+    .setDescription(
+      'Social Network backend API documentation with RFC 8594 Deprecation & Versioning',
+    )
     .setVersion('1.0')
     .addBearerAuth()
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
 
+  app.enableShutdownHooks();
+  setupGracefulShutdown(app, redisIoAdapter);
+
   const port = process.env.PORT ?? 3000;
   await app.listen(port, '0.0.0.0');
   logger.log(`Server running on port ${port}`);
+}
+
+function setupApiVersioning(app: NestFastifyApplication): void {
+  if (typeof app.enableVersioning === 'function') {
+    app.enableVersioning({
+      type: VersioningType.URI,
+      defaultVersion: '1',
+    });
+  }
+
+  const httpAdapter = typeof app.getHttpAdapter === 'function' ? app.getHttpAdapter() : undefined;
+  const fastifyRaw = httpAdapter?.getInstance?.() as unknown as {
+    server?: {
+      prependListener?: (
+        event: string,
+        listener: (
+          req: {
+            url?: string;
+            method?: string;
+            headers: Record<string, string | string[] | undefined>;
+          },
+          res: unknown,
+        ) => void,
+      ) => void;
+    };
+  };
+
+  const server = fastifyRaw?.server;
+  if (server && typeof server.prependListener === 'function') {
+    server.prependListener('request', (req) => {
+      let rawUrl = req.url || '';
+      if (rawUrl.startsWith('/v1/v1/')) {
+        rawUrl = rawUrl.replace(/^\/v1\/v1\//, '/v1/');
+        req.url = rawUrl;
+      }
+      const [pathOnly, query] = rawUrl.split('?');
+      if (
+        pathOnly &&
+        !pathOnly.startsWith('/v1') &&
+        !pathOnly.startsWith('/v2') &&
+        !pathOnly.startsWith('/health') &&
+        !pathOnly.startsWith('/metrics') &&
+        !pathOnly.startsWith('/ping') &&
+        !pathOnly.startsWith('/api/docs') &&
+        !pathOnly.startsWith('/socket.io') &&
+        !pathOnly.startsWith('/favicon.ico')
+      ) {
+        req.url = `/v1${pathOnly.startsWith('/') ? pathOnly : `/${pathOnly}`}${query ? `?${query}` : ''}`;
+        req.headers['x-legacy-unversioned'] = 'true';
+      }
+    });
+  }
 }
 
 if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
@@ -65,20 +182,46 @@ if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
 // Vercel Serverless Handler
 export default async function handler(req: Request, res: Response): Promise<void> {
   if (!cachedApp) {
-    const app = await NestFactory.create<NestExpressApplication>(AppModule);
-    app.set('trust proxy', 1);
-    app.use(helmet());
+    const fastifyAdapter = new FastifyAdapter({
+      trustProxy: 1,
+      bodyLimit: 10485760,
+    });
+    const app = await NestFactory.create<NestFastifyApplication>(AppModule, fastifyAdapter, {
+      bufferLogs: true,
+    });
+    app.useLogger(app.get(PinoLogger));
+    await app.register(fastifyHelmet, { contentSecurityPolicy: false });
+    await app.register(fastifyCookie);
+    await app.register(fastifyCompress, {
+      threshold: 1024,
+      encodings: ['br', 'gzip', 'deflate'],
+    });
+    await app.register(fastifyMultipart, {
+      limits: { fileSize: 100 * 1024 * 1024, files: 10 },
+      attachFieldsToBody: false,
+    });
+    setupApiVersioning(app);
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+        transformOptions: { enableImplicitConversion: true },
+      }),
+    );
     app.enableCors({
       origin: process.env.CORS_ORIGIN?.split(',').map((o) => o.trim()) ?? '*',
       credentials: true,
     });
-    app.useWebSocketAdapter(new IoAdapter(app));
+    const redisIoAdapter = new RedisIoAdapter(app);
+    await redisIoAdapter.connectToRedis(process.env.REDIS_URL);
+    app.useWebSocketAdapter(redisIoAdapter);
     await app.init();
+    await (app.getHttpAdapter().getInstance() as unknown as { ready: () => Promise<void> }).ready();
     cachedApp = app;
   }
-  const instance = cachedApp.getHttpAdapter().getInstance() as (
-    req: Request,
-    res: Response,
-  ) => void;
-  instance(req, res);
+  const fastifyInstance = cachedApp.getHttpAdapter().getInstance() as unknown as {
+    server: { emit: (e: string, req: unknown, res: unknown) => void };
+  };
+  fastifyInstance.server.emit('request', req, res);
 }

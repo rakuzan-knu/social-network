@@ -96,6 +96,7 @@ CREATE TABLE "Message" (
     "conversationId"  TEXT           NOT NULL,
     "senderId"        TEXT           NOT NULL,
     "body"            TEXT,
+    "client_seq"      INTEGER,
     "messageType"     "MessageType"  NOT NULL DEFAULT 'TEXT',
     "replyToId"       TEXT,
     "forwardedFromId" TEXT,

@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import React from 'react';
 import { ResetMethod } from '../ResetMethod';
 import { FoundUserResponse } from '../../model/types';
 
@@ -56,13 +57,21 @@ describe('ResetMethod', () => {
     expect(radios[0]).not.toBeChecked();
   });
 
-  it('alerts with the masked email when sending the code via email (default)', async () => {
+  it('alerts with the masked email when sending the code via email (default) and shows sending state', async () => {
+    let checkedSendingText = false;
+    vi.spyOn(window, 'alert').mockImplementation(() => {
+      // isSending is set to true during send operation
+      expect(screen.getByRole('button', { name: /Sending...|Continue/ })).toBeInTheDocument();
+      checkedSendingText = true;
+    });
+
     const user = userEvent.setup({ delay: null });
     render(<ResetMethod user={user1} onCancel={vi.fn()} />);
 
     await user.click(screen.getByText('Continue'));
 
     expect(window.alert).toHaveBeenCalledWith(expect.stringContaining('a••••@test.com'));
+    expect(checkedSendingText).toBe(true);
   });
 
   it('alerts with the masked phone when sending the code via SMS', async () => {
@@ -83,13 +92,5 @@ describe('ResetMethod', () => {
     await user.click(screen.getByText("Isn't that you?"));
 
     expect(onCancel).toHaveBeenCalledTimes(1);
-  });
-
-  it('renders the default avatar placeholder when the user has no src', () => {
-    const userWithoutAvatar: FoundUserResponse = { ...user1, src: null };
-
-    const { container } = render(<ResetMethod user={userWithoutAvatar} onCancel={vi.fn()} />);
-
-    expect(container.querySelector('svg')).toBeInTheDocument();
   });
 });

@@ -29,6 +29,11 @@ describe('comments-repository.interface', () => {
       getRepliesByRootId: jest.fn().mockResolvedValue([]),
       toggleCommentLike: jest.fn().mockResolvedValue({ isLiked: true, likesCount: 1 }),
       togglePinComment: jest.fn().mockResolvedValue({ isPinned: true }),
+      findRecentDuplicate: jest.fn().mockResolvedValue(null),
+      findPostBasic: jest.fn().mockResolvedValue(null),
+      isBlocked: jest.fn().mockResolvedValue(false),
+      findUserBasic: jest.fn().mockResolvedValue(null),
+      findMentionedUsers: jest.fn().mockResolvedValue([]),
     };
 
     expect(await mockRepo.addComment('post-1', 'usr-1', { text: 'Hello' })).toEqual(mockComment);

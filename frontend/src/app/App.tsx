@@ -2,15 +2,12 @@ import React, { lazy, Suspense } from 'react';
 import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
 
 import Sidebar from '../widgets/sidebar/ui/Sidebar';
-import { UndoHideSnackbar } from '../features/posts/ui/UndoHideSnackbar';
-import { UndoClearHistorySnackbar } from '../features/chat/ui/UndoClearHistorySnackbar';
 import DeviceLockGate from '../features/profile/ui/security/DeviceLockGate';
 import MessageToastViewport from '../features/chat/ui/MessageToastViewport';
-import FloatingVideoNotePiP from '../features/chat/ui/FloatingVideoNotePiP';
-import ReactionBurstCanvas from '../features/chat/ui/ReactionBurstCanvas';
 
 import { useUIStore } from '../shared/model/useUIStore';
 import { useAuthStore } from '../shared/model/useAuthStore';
+import { CallProvider } from '../features/chat/model/CallProvider';
 
 const EditProfileModal = lazy(() => import('../features/profile/ui/EditProfileModal'));
 const ShareModal = lazy(() =>
@@ -25,12 +22,36 @@ const StoryViewerModal = lazy(() =>
 const StoryEditorModal = lazy(() =>
   import('../features/stories/ui/StoryEditorModal').then((m) => ({ default: m.StoryEditorModal })),
 );
+const UndoHideSnackbar = lazy(() =>
+  import('../features/posts/ui/UndoHideSnackbar').then((m) => ({ default: m.UndoHideSnackbar })),
+);
+const UndoClearHistorySnackbar = lazy(() =>
+  import('../features/chat/ui/UndoClearHistorySnackbar').then((m) => ({
+    default: m.UndoClearHistorySnackbar,
+  })),
+);
+const FloatingVideoNotePiP = lazy(() => import('../features/chat/ui/FloatingVideoNotePiP'));
+const ReactionBurstCanvas = lazy(() => import('../features/chat/ui/ReactionBurstCanvas'));
+const CallModal = lazy(() =>
+  import('../features/chat/ui/Call/CallModal').then((m) => ({ default: m.CallModal })),
+);
+const IncomingCallToast = lazy(() =>
+  import('../features/chat/ui/Call/IncomingCallToast').then((m) => ({
+    default: m.IncomingCallToast,
+  })),
+);
+const PictureInPicture = lazy(() =>
+  import('../features/chat/ui/Call/PictureInPicture').then((m) => ({
+    default: m.PictureInPicture,
+  })),
+);
 
 const FeedPage = lazy(() => import('../pages/Feed/Feed'));
 const ProfilePage = lazy(() => import('../pages/Profile/Profile'));
 const MessengerPage = lazy(() => import('../pages/Chat/Messenger'));
 const StandaloneChatPage = lazy(() => import('../pages/Chat/StandaloneChatPage'));
 const SearchPage = lazy(() => import('../pages/Search/SearchPage'));
+const ReelsPage = lazy(() => import('../pages/Reels/ReelsPage'));
 const NotificationsPage = lazy(() =>
   import('../pages/Notifications/NotificationsPage').then((m) => ({
     default: m.NotificationsPage,
@@ -110,138 +131,142 @@ export default function App() {
 
   const isMessengerRoute =
     location.pathname.startsWith('/messages') || location.pathname.startsWith('/messenger');
+  const isReelsRoute = location.pathname.startsWith('/reels');
 
   return (
     <DeviceLockGate>
-      <div className="relative min-h-screen bg-[#070709] text-white">
-        {!isMessengerRoute && <Sidebar />}
-        <Suspense fallback={null}>
-          <EditProfileModal />
-          <ShareModal />
-          <CommentModal />
-          <StoryViewerModal />
-          <StoryEditorModal />
-        </Suspense>
-        <UndoHideSnackbar />
-        <UndoClearHistorySnackbar />
-        <FloatingVideoNotePiP />
-        <ReactionBurstCanvas />
-        {!isMessengerRoute && <MessageToastViewport />}
-
-        <main
-          className={
-            isMessengerRoute
-              ? 'min-h-screen flex-1'
-              : `flex min-h-screen flex-1 justify-center py-8 transition-all duration-300 ${
-                  isSidebarExpanded ? 'pl-[232px]' : 'pl-24'
-                }`
-          }
-        >
-          <Suspense fallback={<PageFallback />}>
-            <Routes>
-              <Route
-                path="/"
-                element={
-                  <FeedLayout>
-                    <FeedPage />
-                  </FeedLayout>
-                }
-              />
-              <Route
-                path="/feed"
-                element={
-                  <FeedLayout>
-                    <FeedPage />
-                  </FeedLayout>
-                }
-              />
-
-              <Route
-                path="/profile"
-                element={
-                  <ProfileLayout>
-                    <ProfilePage />
-                  </ProfileLayout>
-                }
-              />
-              <Route
-                path="/profile/:username"
-                element={
-                  <ProfileLayout>
-                    <ProfilePage />
-                  </ProfileLayout>
-                }
-              />
-
-              <Route
-                path="/search"
-                element={
-                  <CenteredPage>
-                    <SearchPage />
-                  </CenteredPage>
-                }
-              />
-
-              <Route
-                path="/explore"
-                element={
-                  <CenteredPage>
-                    <SearchPage />
-                  </CenteredPage>
-                }
-              />
-
-              <Route
-                path="/reels"
-                element={
-                  <CenteredPage>
-                    <div className="animate-fadeIn py-20 text-center text-gray-500">
-                      Reels page under development...
-                    </div>
-                  </CenteredPage>
-                }
-              />
-
-              <Route path="/messages/standalone/:conversationId" element={<StandaloneChatPage />} />
-              <Route path="/chat/standalone/:conversationId" element={<StandaloneChatPage />} />
-              <Route path="/messages" element={<MessengerPage />} />
-              <Route path="/messages/:conversationId" element={<MessengerPage />} />
-
-              <Route
-                path="/notifications"
-                element={
-                  <CenteredPage>
-                    <NotificationsPage />
-                  </CenteredPage>
-                }
-              />
-              <Route
-                path="/create"
-                element={
-                  <CenteredPage>
-                    <FeedPage />
-                  </CenteredPage>
-                }
-              />
-
-              <Route path="/login" element={<Navigate to="/" replace />} />
-              <Route path="/register" element={<Navigate to="/" replace />} />
-              <Route path="/forgot-password" element={<Navigate to="/" replace />} />
-
-              <Route
-                path="/:username"
-                element={
-                  <ProfileLayout>
-                    <ProfilePage />
-                  </ProfileLayout>
-                }
-              />
-
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
+      <CallProvider>
+        <div className="relative min-h-screen bg-[#070709] text-white">
+          {!isMessengerRoute && <Sidebar />}
+          <Suspense fallback={null}>
+            <EditProfileModal />
+            <ShareModal />
+            <CommentModal />
+            <StoryViewerModal />
+            <StoryEditorModal />
+            <UndoHideSnackbar />
+            <UndoClearHistorySnackbar />
+            <FloatingVideoNotePiP />
+            <ReactionBurstCanvas />
+            <CallModal />
+            <IncomingCallToast />
+            <PictureInPicture />
           </Suspense>
-        </main>
-      </div>
+          {!isMessengerRoute && <MessageToastViewport />}
+
+          <main
+            className={
+              isMessengerRoute
+                ? 'min-h-screen flex-1'
+                : isReelsRoute
+                  ? `min-h-screen flex-1 transition-[padding-left] duration-200 ease-out will-change-[padding-left] ${
+                      isSidebarExpanded ? 'pl-72' : 'pl-24'
+                    } max-md:pl-0`
+                  : `flex min-h-screen flex-1 justify-center py-8 transition-[padding-left] duration-200 ease-out will-change-[padding-left] ${
+                      isSidebarExpanded ? 'pl-72' : 'pl-24'
+                    }`
+            }
+          >
+            <Suspense fallback={<PageFallback />}>
+              <Routes>
+                <Route
+                  path="/"
+                  element={
+                    <FeedLayout>
+                      <FeedPage />
+                    </FeedLayout>
+                  }
+                />
+                <Route
+                  path="/feed"
+                  element={
+                    <FeedLayout>
+                      <FeedPage />
+                    </FeedLayout>
+                  }
+                />
+
+                <Route
+                  path="/profile"
+                  element={
+                    <ProfileLayout>
+                      <ProfilePage />
+                    </ProfileLayout>
+                  }
+                />
+                <Route
+                  path="/profile/:username"
+                  element={
+                    <ProfileLayout>
+                      <ProfilePage />
+                    </ProfileLayout>
+                  }
+                />
+
+                <Route
+                  path="/search"
+                  element={
+                    <CenteredPage>
+                      <SearchPage />
+                    </CenteredPage>
+                  }
+                />
+
+                <Route
+                  path="/explore"
+                  element={
+                    <CenteredPage>
+                      <SearchPage />
+                    </CenteredPage>
+                  }
+                />
+
+                <Route path="/reels" element={<ReelsPage />} />
+
+                <Route
+                  path="/messages/standalone/:conversationId"
+                  element={<StandaloneChatPage />}
+                />
+                <Route path="/chat/standalone/:conversationId" element={<StandaloneChatPage />} />
+                <Route path="/messages" element={<MessengerPage />} />
+                <Route path="/messages/:conversationId" element={<MessengerPage />} />
+
+                <Route
+                  path="/notifications"
+                  element={
+                    <CenteredPage>
+                      <NotificationsPage />
+                    </CenteredPage>
+                  }
+                />
+                <Route
+                  path="/create"
+                  element={
+                    <CenteredPage>
+                      <FeedPage />
+                    </CenteredPage>
+                  }
+                />
+
+                <Route path="/login" element={<Navigate to="/" replace />} />
+                <Route path="/register" element={<Navigate to="/" replace />} />
+                <Route path="/forgot-password" element={<Navigate to="/" replace />} />
+
+                <Route
+                  path="/:username"
+                  element={
+                    <ProfileLayout>
+                      <ProfilePage />
+                    </ProfileLayout>
+                  }
+                />
+
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </Suspense>
+          </main>
+        </div>
+      </CallProvider>
     </DeviceLockGate>
   );
 }

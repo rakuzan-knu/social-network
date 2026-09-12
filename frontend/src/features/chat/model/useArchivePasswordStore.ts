@@ -37,17 +37,21 @@ function base64ToBytes(base64: string): Uint8Array {
   return bytes;
 }
 
+function toArrayBuffer(view: Uint8Array): ArrayBuffer {
+  const buffer = new ArrayBuffer(view.byteLength);
+  new Uint8Array(buffer).set(view);
+  return buffer;
+}
+
 async function getArchiveCryptoKey(): Promise<CryptoKey | null> {
-  if (typeof window === 'undefined' || !window.crypto?.subtle) return null;
+  const subtle =
+    (typeof window !== 'undefined' ? window.crypto?.subtle : undefined) ||
+    globalThis.crypto?.subtle;
+  if (!subtle) return null;
   try {
-    const keyMaterial = await window.crypto.subtle.digest(
-      'SHA-256',
-      new TextEncoder().encode('eternal-archive-auth-storage-key'),
-    );
-    return window.crypto.subtle.importKey('raw', keyMaterial, { name: 'AES-GCM' }, false, [
-      'encrypt',
-      'decrypt',
-    ]);
+    const rawData = new TextEncoder().encode('eternal-archive-auth-storage-key');
+    const keyMaterial = await subtle.digest('SHA-256', toArrayBuffer(rawData));
+    return subtle.importKey('raw', keyMaterial, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
   } catch {
     return null;
   }
@@ -55,14 +59,25 @@ async function getArchiveCryptoKey(): Promise<CryptoKey | null> {
 
 async function encryptStoredValue(value: DerivedPassword): Promise<string> {
   try {
+    const subtle =
+      (typeof window !== 'undefined' ? window.crypto?.subtle : undefined) ||
+      globalThis.crypto?.subtle;
+    const getRandomValues =
+      (typeof window !== 'undefined'
+        ? window.crypto?.getRandomValues.bind(window.crypto)
+        : undefined) || globalThis.crypto?.getRandomValues.bind(globalThis.crypto);
     const key = await getArchiveCryptoKey();
-    if (!key || typeof window === 'undefined') {
+    if (!key || !subtle || !getRandomValues) {
       return `${ENCRYPTED_PREFIX}${bytesToBase64(new TextEncoder().encode(JSON.stringify(value)))}`;
     }
-    const iv = window.crypto.getRandomValues(new Uint8Array(12));
+    const iv = getRandomValues(new Uint8Array(12));
     const plaintext = new TextEncoder().encode(JSON.stringify(value));
     const ciphertext = new Uint8Array(
-      await window.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plaintext),
+      await subtle.encrypt(
+        { name: 'AES-GCM', iv: toArrayBuffer(iv) },
+        key,
+        toArrayBuffer(plaintext),
+      ),
     );
     return `${ENCRYPTED_PREFIX}${bytesToBase64(iv)}.${bytesToBase64(ciphertext)}`;
   } catch {
@@ -101,16 +116,15 @@ async function decryptStoredValue(raw: string): Promise<DerivedPassword | null> 
       const parsed = JSON.parse(json) as unknown;
       return isDerivedPassword(parsed) ? parsed : null;
     }
+    const subtle =
+      (typeof window !== 'undefined' ? window.crypto?.subtle : undefined) ||
+      globalThis.crypto?.subtle;
     const key = await getArchiveCryptoKey();
-    if (!key) return null;
-    const iv = base64ToBytes(ivB64);
-    const ciphertext = base64ToBytes(cipherB64);
+    if (!key || !subtle) return null;
+    const iv = toArrayBuffer(base64ToBytes(ivB64));
+    const ciphertext = toArrayBuffer(base64ToBytes(cipherB64));
     const plaintext = new Uint8Array(
-      await window.crypto.subtle.decrypt(
-        { name: 'AES-GCM', iv: iv as BufferSource },
-        key,
-        ciphertext as BufferSource,
-      ),
+      await subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext),
     );
     const parsed = JSON.parse(new TextDecoder().decode(plaintext)) as unknown;
     return isDerivedPassword(parsed) ? parsed : null;
@@ -179,7 +193,7 @@ function loadStored(): DerivedPassword | null {
   }
 }
 
-function saveStored(value: DerivedPassword | null) {
+async function saveStoredAsync(value: DerivedPassword | null): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
     if (value === null) {
@@ -191,15 +205,20 @@ function saveStored(value: DerivedPassword | null) {
       localStorage.removeItem(LEGACY_V0_KEY);
       const encoded = `${ENCRYPTED_PREFIX}${bytesToBase64(new TextEncoder().encode(JSON.stringify(value)))}`;
       localStorage.setItem(STORAGE_KEY, encoded);
-      void encryptStoredValue(value)
-        .then((encrypted) => {
-          localStorage.setItem(STORAGE_KEY, encrypted);
-        })
-        .catch(() => {});
+      try {
+        const encrypted = await encryptStoredValue(value);
+        localStorage.setItem(STORAGE_KEY, encrypted);
+      } catch {
+        // fallback to base64
+      }
     }
   } catch {
     // ignore write failures (private mode, quota, etc.)
   }
+}
+
+function saveStored(value: DerivedPassword | null) {
+  void saveStoredAsync(value);
 }
 
 interface ArchivePasswordState {
@@ -214,11 +233,20 @@ export const useArchivePasswordStore = create<ArchivePasswordState>((set, get) =
   passwordHash: loadStored(),
   setPassword: async (plain) => {
     const passwordHash = await derivePasswordVerifier(plain);
-    saveStored(passwordHash);
+    await saveStoredAsync(passwordHash);
     set({ passwordHash });
   },
   verify: async (plain) => {
-    const { passwordHash } = get();
+    let { passwordHash } = get();
+    if (!passwordHash) {
+      const current = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
+      if (current) {
+        passwordHash = (await decryptStoredValue(current)) ?? decryptStoredValueSync(current);
+        if (passwordHash) {
+          set({ passwordHash });
+        }
+      }
+    }
     if (!passwordHash) return false;
     return verifyPasswordVerifier(plain, passwordHash);
   },
@@ -227,6 +255,24 @@ export const useArchivePasswordStore = create<ArchivePasswordState>((set, get) =
     set({ passwordHash: null });
   },
   rehydrate: () => {
-    set({ passwordHash: loadStored() });
+    try {
+      const sync = loadStored();
+      if (sync) {
+        set({ passwordHash: sync });
+        return;
+      }
+      const current = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
+      if (current) {
+        void decryptStoredValue(current).then((parsed) => {
+          if (parsed) {
+            set({ passwordHash: parsed });
+          }
+        });
+      } else {
+        set({ passwordHash: null });
+      }
+    } catch {
+      set({ passwordHash: null });
+    }
   },
 }));

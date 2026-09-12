@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CommentForm } from '../CommentForm';
@@ -128,5 +128,73 @@ describe('CommentForm', () => {
 
     expect(screen.queryByAltText('preview')).not.toBeInTheDocument();
     expect(submitButton).toBeDisabled();
+  });
+
+  it('handles markdown formatting hotkeys with Ctrl/Cmd key combinations and link wrapping', () => {
+    render(<CommentForm currentUserHandle="@ayate" />);
+    const textarea = getTextarea() as HTMLTextAreaElement;
+
+    // Type text
+    fireEvent.change(textarea, { target: { value: 'hello world' } });
+    textarea.selectionStart = 0;
+    textarea.selectionEnd = 5;
+
+    // Ctrl+B
+    fireEvent.keyDown(textarea, { key: 'b', ctrlKey: true });
+    expect(textarea.value).toContain('**');
+
+    // Ctrl+I
+    fireEvent.keyDown(textarea, { key: 'i', ctrlKey: true });
+    expect(textarea.value).toContain('*');
+
+    // Ctrl+U
+    fireEvent.keyDown(textarea, { key: 'u', ctrlKey: true });
+    expect(textarea.value).toContain('__');
+
+    // Ctrl+Shift+X
+    fireEvent.keyDown(textarea, { key: 'x', ctrlKey: true, shiftKey: true });
+    expect(textarea.value).toContain('~~');
+
+    // Ctrl+Shift+C
+    fireEvent.keyDown(textarea, { key: 'c', ctrlKey: true, shiftKey: true });
+    expect(textarea.value).toContain('```');
+
+    // Ctrl+K with normal text
+    fireEvent.change(textarea, { target: { value: 'my link' } });
+    textarea.selectionStart = 0;
+    textarea.selectionEnd = 7;
+    fireEvent.keyDown(textarea, { key: 'k', ctrlKey: true });
+    expect(textarea.value).toContain('https://');
+
+    // Ctrl+K with url
+    fireEvent.change(textarea, { target: { value: 'https://example.com' } });
+    textarea.selectionStart = 0;
+    textarea.selectionEnd = 19;
+    fireEvent.keyDown(textarea, { key: 'k', ctrlKey: true });
+    expect(textarea.value).toContain('[link](');
+
+    // Wrap pair: e.g. "("
+    fireEvent.change(textarea, { target: { value: 'sample' } });
+    textarea.selectionStart = 0;
+    textarea.selectionEnd = 6;
+    fireEvent.keyDown(textarea, { key: '(' });
+    expect(textarea.value).toBe('(sample)');
+  });
+
+  it('detects pasted code snippets and formats as markdown or attaches as file', () => {
+    render(<CommentForm currentUserHandle="@ayate" />);
+    const textarea = getTextarea() as HTMLTextAreaElement;
+
+    const codeSnippet = `function calculateTotal(items) {\n  let total = 0;\n  for (const item of items) {\n    total += item.price;\n  }\n  return total;\n}`;
+    fireEvent.paste(textarea, {
+      clipboardData: { getData: () => codeSnippet },
+    });
+
+    expect(screen.getByText(/Code snippet detected/i)).toBeInTheDocument();
+
+    const formatBtn = screen.getByRole('button', { name: /^Format$/i });
+    fireEvent.click(formatBtn);
+
+    expect(textarea.value).toContain('```');
   });
 });

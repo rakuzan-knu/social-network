@@ -64,6 +64,7 @@ describe('AutoDeleteService', () => {
   it('sweep purges expired messages and deletes attachments from S3', async () => {
     mockPrisma.user.findMany.mockResolvedValueOnce([
       { id: 'usr-1', autoDeletePeriod: AutoDeletePeriod.WEEK },
+      { id: 'usr-2', autoDeletePeriod: AutoDeletePeriod.OFF },
     ]);
 
     mockPrisma.message.findMany
@@ -86,8 +87,28 @@ describe('AutoDeleteService', () => {
     expect(mockGateway.emitMessageDeleted).toHaveBeenCalledWith('conv-1', 'msg-old-1', true);
   });
 
+  it('handles S3 delete error and purge error gracefully', async () => {
+    mockPrisma.user.findMany.mockResolvedValueOnce([
+      { id: 'usr-1', autoDeletePeriod: AutoDeletePeriod.DAY },
+    ]);
+
+    mockS3.send.mockRejectedValueOnce(new Error('S3 error'));
+
+    mockPrisma.message.findMany
+      .mockResolvedValueOnce([
+        {
+          id: 'msg-old-1',
+          conversationId: 'conv-1',
+          attachments: [{ url: 'https://s3.example.com/test-bucket/attachments/pic.jpg' }],
+        },
+      ])
+      .mockResolvedValueOnce([]);
+
+    await service.sweep();
+    expect(mockPrisma.message.deleteMany).toHaveBeenCalled();
+  });
+
   it('sweep skips tick if already running', async () => {
-    // Set running to true internally
     Object.assign(service, { running: true });
 
     await service.sweep();

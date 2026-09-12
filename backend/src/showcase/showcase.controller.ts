@@ -22,9 +22,15 @@ import {
   type ProfileShowcaseDto,
   type UpdateShowcaseDto,
   type MediaSearchResultDto,
+  type SearchMediaDto,
+  type SearchTracksDto,
   updateShowcaseSchema,
+  searchMediaSchema,
+  searchTracksSchema,
   ShowcaseMediaType,
 } from '@common/contracts';
+import { LowPriority } from '../common/resilience/request-priority.decorator';
+import { ConditionalHttpCache } from '../common/cache/etag.interceptor';
 
 @ApiTags('Showcase')
 @Controller('users')
@@ -35,32 +41,38 @@ export class ShowcaseController {
   ) {}
 
   @Get('showcase/search-media')
+  @LowPriority()
   @UseGuards(OptionalJwtAuthGuard)
   @Throttle({ default: { limit: 20, ttl: 60000 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Search Anime, Games, Movies, or TV Series for showcase' })
   @ApiResponse({ status: 200, description: 'Media search results retrieved' })
   searchMedia(
-    @Query('q') query: string = '',
-    @Query('type') typeStr: string = 'GAME',
+    @Query(new ZodValidationPipe(searchMediaSchema)) dto: SearchMediaDto,
   ): Promise<MediaSearchResultDto[]> {
     const mediaType = (
-      typeStr.toUpperCase() in ShowcaseMediaType ? typeStr.toUpperCase() : ShowcaseMediaType.GAME
+      dto.type && dto.type.toUpperCase() in ShowcaseMediaType
+        ? dto.type.toUpperCase()
+        : ShowcaseMediaType.GAME
     ) as ShowcaseMediaType;
-    return this.mediaProxyService.searchMedia(query || '', mediaType);
+    return this.mediaProxyService.searchMedia(dto.q || '', mediaType);
   }
 
   @Get('showcase/search-tracks')
+  @LowPriority()
   @UseGuards(OptionalJwtAuthGuard)
   @Throttle({ default: { limit: 20, ttl: 60000 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Search music tracks for Profile Anthem' })
   @ApiResponse({ status: 200, description: 'Track search results retrieved' })
-  searchTracks(@Query('q') query: string = ''): Promise<any[]> {
-    return this.mediaProxyService.searchTracks(query || '');
+  searchTracks(
+    @Query(new ZodValidationPipe(searchTracksSchema)) dto: SearchTracksDto,
+  ): Promise<any[]> {
+    return this.mediaProxyService.searchTracks(dto.q || '');
   }
 
   @Get(':username/showcase')
+  @ConditionalHttpCache()
   @UseGuards(OptionalJwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get user profile showcase with relationship-aware privacy' })

@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import PinnedMessagesBar from '../PinnedMessagesBar';
 import type { MessageView } from '@/entities/chat/model/types';
+import React from 'react';
 
 describe('PinnedMessagesBar', () => {
   const mockMessage1: MessageView = {
@@ -113,5 +114,75 @@ describe('PinnedMessagesBar', () => {
 
     expect(screen.getByText('Pinned message #2')).toBeInTheDocument();
     expect(screen.getByText('Second pinned message')).toBeInTheDocument();
+  });
+
+  it('renders poll and attachment preview labels for pinned messages without body', () => {
+    const pollMsg: MessageView = {
+      ...mockMessage1,
+      id: 'msg-poll',
+      body: JSON.stringify({ type: 'POLL', question: 'Favorite framework?' }),
+    };
+
+    const photoMsg: MessageView = {
+      ...mockMessage1,
+      id: 'msg-photo',
+      body: '',
+      attachments: [{ id: 'a1', type: 'IMAGE', url: 'https://pic.jpg' } as any],
+    };
+
+    const { rerender } = render(
+      <PinnedMessagesBar
+        pinnedMessages={[pollMsg]}
+        onJumpToMessage={vi.fn()}
+        onUnpin={vi.fn()}
+        onOpenAllPinned={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('📊 Poll: Favorite framework?')).toBeInTheDocument();
+
+    rerender(
+      <PinnedMessagesBar
+        pinnedMessages={[photoMsg]}
+        onJumpToMessage={vi.fn()}
+        onUnpin={vi.fn()}
+        onOpenAllPinned={vi.fn()}
+      />,
+    );
+    expect(screen.getByText('Photo')).toBeInTheDocument();
+
+    const videoMsg: MessageView = {
+      ...mockMessage1,
+      id: 'msg-vid',
+      body: '',
+      attachments: [{ id: 'a2', type: 'VIDEO', url: 'https://vid.mp4' } as any],
+    };
+
+    rerender(
+      <PinnedMessagesBar
+        pinnedMessages={[videoMsg]}
+        onJumpToMessage={vi.fn()}
+        onUnpin={vi.fn()}
+        onOpenAllPinned={vi.fn()}
+      />,
+    );
+    expect(screen.getByText('Video')).toBeInTheDocument();
+    expect(document.querySelector('video')).toBeInTheDocument();
+
+    const voiceMsg: MessageView = {
+      ...mockMessage1,
+      id: 'msg-voice',
+      body: '',
+      attachments: [{ id: 'a3', type: 'AUDIO', url: 'https://audio.mp3' } as any],
+    };
+    rerender(
+      <PinnedMessagesBar
+        pinnedMessages={[voiceMsg]}
+        onJumpToMessage={vi.fn()}
+        onUnpin={vi.fn()}
+        onOpenAllPinned={vi.fn()}
+      />,
+    );
+    expect(screen.getByText('Voice message')).toBeInTheDocument();
   });
 });

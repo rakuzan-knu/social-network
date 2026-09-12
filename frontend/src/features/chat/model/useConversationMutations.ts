@@ -43,14 +43,62 @@ export function useMuteConversation() {
 
 export function useArchiveConversation() {
   const queryClient = useQueryClient();
-  const applyOptimistic = useOptimisticConversationUpdate();
 
   return useMutation({
     mutationFn: ({ conversationId, archived }: { conversationId: string; archived: boolean }) =>
       archived ? chatApi.archive(conversationId) : chatApi.unarchive(conversationId),
-    onMutate: ({ conversationId, archived }) =>
-      applyOptimistic(conversationId, { isArchived: archived }),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: [CONVERSATIONS_KEY] }),
+    onMutate: async ({ conversationId, archived }) => {
+      await queryClient.cancelQueries({ queryKey: [CONVERSATIONS_KEY] });
+      await queryClient.cancelQueries({ queryKey: ['conversation', conversationId] });
+      const previous = queryClient.getQueryData<ConversationView[]>([CONVERSATIONS_KEY]);
+      const previousSingle = queryClient.getQueryData<ConversationView>([
+        'conversation',
+        conversationId,
+      ]);
+
+      queryClient.setQueryData<ConversationView[]>(
+        [CONVERSATIONS_KEY],
+        (prev: ConversationView[] | undefined) =>
+          prev?.map((c: ConversationView) =>
+            c.id === conversationId ? { ...c, isArchived: archived } : c,
+          ),
+      );
+
+      queryClient.setQueryData<ConversationView>(
+        ['conversation', conversationId],
+        (prev: ConversationView | undefined) => (prev ? { ...prev, isArchived: archived } : prev),
+      );
+
+      return { previous, previousSingle };
+    },
+    onError: (_err, vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData([CONVERSATIONS_KEY], context.previous);
+      }
+      if (context?.previousSingle) {
+        queryClient.setQueryData(['conversation', vars.conversationId], context.previousSingle);
+      }
+    },
+    onSuccess: (updatedConversation, { conversationId, archived }) => {
+      queryClient.setQueryData<ConversationView[]>(
+        [CONVERSATIONS_KEY],
+        (prev: ConversationView[] | undefined) =>
+          prev?.map((c: ConversationView) =>
+            c.id === conversationId
+              ? { ...c, ...(updatedConversation ?? {}), isArchived: archived }
+              : c,
+          ),
+      );
+      queryClient.setQueryData<ConversationView>(
+        ['conversation', conversationId],
+        (prev: ConversationView | undefined) =>
+          prev ? { ...prev, ...(updatedConversation ?? {}), isArchived: archived } : prev,
+      );
+    },
+    onSettled: (_data, _err, { conversationId }) => {
+      void queryClient.invalidateQueries({ queryKey: [CONVERSATIONS_KEY] });
+      void queryClient.invalidateQueries({ queryKey: ['conversation', conversationId] });
+    },
   });
 }
 

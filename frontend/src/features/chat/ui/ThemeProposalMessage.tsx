@@ -68,7 +68,7 @@ export const ThemeProposalMessage: React.FC<ThemeProposalMessageProps> = ({
 
   return (
     <div
-      className="my-3 w-full max-w-[340px] mx-auto rounded-3xl overflow-hidden border border-white/15 shadow-2xl backdrop-blur-2xl transition-all duration-300 hover:border-white/25"
+      className="my-3 w-full max-w-85 mx-auto rounded-3xl overflow-hidden border border-white/15 shadow-2xl backdrop-blur-2xl transition-all duration-300 hover:border-white/25"
       style={{
         background:
           'linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%)',
@@ -78,7 +78,7 @@ export const ThemeProposalMessage: React.FC<ThemeProposalMessageProps> = ({
       {/* Header with Title & Badge */}
       <div className="px-4 pt-3.5 pb-2.5 flex items-center justify-between border-b border-white/10">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+          <div className="w-7 h-7 rounded-xl bg-linear-to-tr from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
             <Sparkles className="w-4 h-4 text-white" />
           </div>
           <div>
@@ -157,7 +157,7 @@ export const ThemeProposalMessage: React.FC<ThemeProposalMessageProps> = ({
                 type="button"
                 disabled={isLoading}
                 onClick={(e) => handleRespond('ACCEPT', e)}
-                className="flex-1 py-2 px-3 rounded-xl font-medium text-xs text-white bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-indigo-500/25 disabled:opacity-50"
+                className="flex-1 py-2 px-3 rounded-xl font-medium text-xs text-white bg-linear-to-r from-indigo-500 via-purple-500 to-pink-500 hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-indigo-500/25 disabled:opacity-50"
               >
                 <Check className="w-3.5 h-3.5" />
                 Принять тему

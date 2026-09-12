@@ -197,6 +197,22 @@ describe('FindAccount', () => {
     expect(getInput()).toHaveValue('');
   });
 
+  it('shows generic error for non-404 errors', async () => {
+    setupMutations({
+      mutateAsyncImpl: () => Promise.reject(new Error('Network error')),
+    });
+    const user = userEvent.setup({ delay: null });
+    render(<FindAccount onSuccess={vi.fn()} />);
+    fireEvent.change(getInput(), { target: { value: 'user@example.com' } });
+    await user.click(getSubmitButton());
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('There was an error searching for your account. Please try again later.'),
+      ).toBeInTheDocument();
+    });
+  });
+
   it('does not render the clear button when the input is empty', () => {
     setupMutations();
     render(<FindAccount onSuccess={vi.fn()} />);

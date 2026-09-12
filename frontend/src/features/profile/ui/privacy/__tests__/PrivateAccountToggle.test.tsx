@@ -59,4 +59,40 @@ describe('PrivateAccountToggle', () => {
       expect(privacyApi.updatePrivacy).toHaveBeenCalledWith({ isPrivate: true });
     });
   });
+
+  it('turns account public directly when currently private and allows modal cancellation', async () => {
+    vi.mocked(privacyApi.updatePrivacy).mockResolvedValue({ isPrivate: false } as unknown as never);
+    queryClient.setQueryData([PRIVACY_KEY], { isPrivate: true });
+
+    const { rerender } = render(
+      <QueryClientProvider client={queryClient}>
+        <PrivateAccountToggle />
+      </QueryClientProvider>,
+    );
+
+    const toggle = screen.getByRole('switch', { name: 'Private account' });
+    fireEvent.click(toggle);
+
+    await waitFor(() => {
+      expect(privacyApi.updatePrivacy).toHaveBeenCalledWith({ isPrivate: false });
+    });
+
+    // Test cancel modal
+    queryClient.setQueryData([PRIVACY_KEY], { isPrivate: false });
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <PrivateAccountToggle />
+      </QueryClientProvider>,
+    );
+
+    const toggle2 = screen.getByRole('switch', { name: 'Private account' });
+    fireEvent.click(toggle2);
+
+    const cancelBtn = screen.getByRole('button', { name: 'Cancel' });
+    fireEvent.click(cancelBtn);
+
+    await waitFor(() => {
+      expect(screen.queryByText('Make account private?')).not.toBeInTheDocument();
+    });
+  });
 });

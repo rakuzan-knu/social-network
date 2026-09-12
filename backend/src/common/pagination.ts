@@ -12,10 +12,17 @@ export function paginate<TItem extends { id: string }, TData>(
   map: (item: TItem) => TData,
 ): Paginated<TData> {
   const hasNextPage = rows.length > limit;
-  const page = hasNextPage ? rows.slice(0, limit) : rows;
-  const nextCursor = hasNextPage ? page[page.length - 1].id : null;
+  const count = hasNextPage ? limit : rows.length;
+  const nextCursor = hasNextPage && count > 0 ? rows[count - 1].id : null;
+
+  // Pre-allocate exact buffer upfront to prevent V8 array backing-store doubling
+  const data = new Array<TData>(count);
+  for (let i = 0; i < count; i++) {
+    data[i] = map(rows[i]);
+  }
+
   return {
-    data: page.map(map),
+    data,
     meta: { nextCursor, hasNextPage },
   };
 }

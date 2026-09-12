@@ -6,6 +6,7 @@ import { OutgoingAttachment } from '../../../entities/chat/model/types';
 import { StagedFile } from '@/shared/model/useStagedAttachments';
 import { MAX_ATTACHMENTS_PER_MESSAGE } from '@/shared/lib/attachmentLimits';
 import ReplyPreview from './ReplyPreview';
+import { E2eePinChangedError } from '../lib/e2ee/messageE2ee';
 import { AddEmojiButton } from '@/shared/ui/AddEmojiButton';
 import { AddGifButton } from '@/shared/ui/AddGifButton';
 import PollComposer from './PollComposer';
@@ -21,6 +22,7 @@ import { detectCodeSnippet, DetectedCodeSnippet } from '../lib/smartCodeDetectio
 import { extractFirstUrl } from '@/shared/lib/urlUtils';
 import { useLinkPreview } from '@/entities/opengraph/model/useLinkPreview';
 import { LinkPreviewBanner } from './LinkPreviewBanner';
+import { Permission } from '@/shared/lib/permissions';
 
 export interface ChatPermissions {
   canSendMedia?: boolean;
@@ -43,7 +45,10 @@ interface MessageComposerProps {
   onDismissFilesError: () => void;
   isGroup: boolean;
   permissions?: ChatPermissions;
+  permissionsMask?: number;
   slowModeSeconds?: number;
+  /** 1:1 peer for E2EE reply-quote decrypt; null/undefined = groups or unknown. */
+  e2eePeerUserId?: string | null;
 }
 
 type OpenPopover = 'emoji' | 'gif' | 'poll' | null;
@@ -70,7 +75,9 @@ export default function MessageComposer({
   onDismissFilesError,
   isGroup,
   permissions = { canSendMedia: true, canSendVoice: true, canSendPolls: true },
+  permissionsMask,
   slowModeSeconds = 0,
+  e2eePeerUserId = null,
 }: MessageComposerProps) {
   const [text, setText] = useState(() => {
     const draft = useChatDraftsStore.getState().getDraft(conversationId);
@@ -80,6 +87,7 @@ export default function MessageComposer({
   const [isSending, setIsSending] = useState(false);
   const [isShaking, setIsShaking] = useState(false);
   const [recordingError, setRecordingError] = useState<string | null>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [slowModeSecondsRemaining, setSlowModeSecondsRemaining] = useState<number>(0);
   const [debouncedUrl, setDebouncedUrl] = useState<string | null>(null);
@@ -119,9 +127,18 @@ export default function MessageComposer({
     return () => clearInterval(interval);
   }, [slowModeSecondsRemaining]);
 
-  const canSendMedia = permissions.canSendMedia ?? true;
-  const canSendVoice = permissions.canSendVoice ?? true;
-  const canSendPolls = permissions.canSendPolls ?? true;
+  const canSendMedia =
+    permissionsMask !== undefined
+      ? (permissionsMask & Permission.CAN_SEND_MEDIA) !== 0
+      : (permissions.canSendMedia ?? true);
+  const canSendVoice =
+    permissionsMask !== undefined
+      ? (permissionsMask & Permission.CAN_SEND_VOICE) !== 0
+      : (permissions.canSendVoice ?? true);
+  const canSendPolls =
+    permissionsMask !== undefined
+      ? (permissionsMask & Permission.CAN_SEND_POLLS) !== 0
+      : (permissions.canSendPolls ?? true);
 
   const hasContent = text.trim().length > 0 || stagedFiles.length > 0;
 
@@ -349,6 +366,15 @@ export default function MessageComposer({
 
       await actions.sendMessage(textToSend, replyToSend?.id, attachments);
     } catch (err) {
+      if (err instanceof E2eePinChangedError) {
+        // Suspected key substitution: the message was NOT sent (fail closed).
+        // The optimistic bubble sits in ERROR; retry stays blocked until the
+        // new key is accepted. Explain instead of failing silently.
+        setSendError(
+          'This contact\u2019s security key changed. Sending is blocked to protect your messages.',
+        );
+        setTimeout(() => setSendError(null), 6000);
+      }
       console.error('Failed to send message:', err);
     } finally {
       setIsSending(false);
@@ -573,11 +599,23 @@ export default function MessageComposer({
 
   return (
     <div className="pt-2">
-      {replyingTo && <ReplyPreview message={replyingTo} onCancel={onCancelReply} />}
+      {replyingTo && (
+        <ReplyPreview
+          message={replyingTo}
+          onCancel={onCancelReply}
+          e2eePeerUserId={e2eePeerUserId}
+        />
+      )}
 
       {recordingError && (
         <div className="mx-4 mb-2 px-3 py-1.5 rounded-xl bg-red-500/10 border border-red-400/30 text-xs text-red-300 backdrop-blur-xl animate-fadeIn">
           {recordingError}
+        </div>
+      )}
+
+      {sendError && (
+        <div className="mx-4 mb-2 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-400/30 text-xs text-amber-200 backdrop-blur-xl animate-fadeIn">
+          {sendError}
         </div>
       )}
 
@@ -661,7 +699,7 @@ export default function MessageComposer({
                   setEditingIndex(index);
                 }
               }}
-              className={`group relative flex-shrink-0 w-14 h-14 rounded-xl overflow-hidden border border-white/10 bg-white/5 backdrop-blur-md shadow-md ${
+              className={`group relative shrink-0 w-14 h-14 rounded-xl overflow-hidden border border-white/10 bg-white/5 backdrop-blur-md shadow-md ${
                 staged.file.type.startsWith('image/')
                   ? 'cursor-pointer hover:border-purple-400/50 hover:shadow-lg transition-all'
                   : ''
@@ -706,7 +744,7 @@ export default function MessageComposer({
       )}
 
       <div className="flex items-end gap-2 px-4 pb-4">
-        <div className="relative pb-0.5 flex-shrink-0">
+        <div className="relative pb-0.5 shrink-0">
           <AttachMenu
             isGroup={isGroup}
             disabled={isSending || stagedFiles.length >= MAX_ATTACHMENTS_PER_MESSAGE}
@@ -722,7 +760,7 @@ export default function MessageComposer({
         </div>
 
         <div
-          className={`flex-1 flex items-end gap-2 bg-white/5 border border-white/5 rounded-3xl pl-4 pr-2 py-1 min-h-[44px] transition-transform ${
+          className={`flex-1 flex items-end gap-2 bg-white/5 border border-white/5 rounded-3xl pl-4 pr-2 py-1 min-h-11 transition-transform ${
             isShaking ? 'animate-shake' : ''
           }`}
         >
@@ -747,7 +785,7 @@ export default function MessageComposer({
             className="flex-1 bg-transparent text-sm text-white placeholder:text-gray-500 focus:outline-none resize-none py-2 custom-scrollbar leading-normal"
           />
 
-          <div className="flex items-center gap-1 pb-1 flex-shrink-0">
+          <div className="flex items-center gap-1 pb-1 shrink-0">
             {/* Twitter-Style Progress Ring Limit Indicator */}
             {text.length >= WARN_THRESHOLD && (
               <div
@@ -815,7 +853,7 @@ export default function MessageComposer({
 
             {slowModeSecondsRemaining > 0 ? (
               <div
-                className="w-8 h-8 flex-shrink-0 relative flex items-center justify-center rounded-full bg-purple-950/80 border border-purple-500/40 text-purple-200 font-mono text-[11px] font-bold shadow-[0_0_10px_rgba(168,85,247,0.3)] select-none"
+                className="w-8 h-8 shrink-0 relative flex items-center justify-center rounded-full bg-purple-950/80 border border-purple-500/40 text-purple-200 font-mono text-[11px] font-bold shadow-[0_0_10px_rgba(168,85,247,0.3)] select-none"
                 title={`Slow mode active: wait ${slowModeSecondsRemaining}s`}
               >
                 <svg
@@ -852,7 +890,7 @@ export default function MessageComposer({
                 type="button"
                 onClick={handleSend}
                 disabled={isSending}
-                className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-400 hover:to-indigo-400 text-white shadow-[0_0_14px_rgba(168,85,247,0.6)] transition-all active:scale-95 disabled:opacity-50"
+                className="w-8 h-8 shrink-0 flex items-center justify-center rounded-full bg-linear-to-r from-purple-500 to-indigo-500 hover:from-purple-400 hover:to-indigo-400 text-white shadow-[0_0_14px_rgba(168,85,247,0.6)] transition-all active:scale-95 disabled:opacity-50"
                 title="Send message"
               >
                 <Send size={14} className={isSending ? 'animate-pulse' : 'translate-x-[0.5px]'} />
@@ -872,7 +910,7 @@ export default function MessageComposer({
                       : 'Hold to record video note, click to switch to voice'
                 }
                 disabled={!canSendVoice || isSending}
-                className={`w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-full transition-all duration-200 cursor-pointer ${
+                className={`w-8 h-8 shrink-0 flex items-center justify-center rounded-full transition-all duration-200 cursor-pointer ${
                   !canSendVoice
                     ? 'opacity-40 cursor-not-allowed text-gray-600'
                     : recorder.recordState !== 'idle'

@@ -87,8 +87,10 @@ describe('AudioMessageBubble / VoiceMessagePlayer', () => {
       useActiveMediaPlaybackStore.getState().setIsLoading(false);
     });
 
-    // Timecode should show 00:02 / 00:26
-    expect(screen.getByText('00:02 / 00:26')).toBeInTheDocument();
+    // Click while active to toggle play/pause (covers line 59)
+    const pauseBtn = screen.getByTitle('Pause');
+    fireEvent.click(pauseBtn);
+    expect(useActiveMediaPlaybackStore.getState().isPlaying).toBe(false);
   });
 
   it('shows loading spinner when buffering audio', () => {

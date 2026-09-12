@@ -97,4 +97,53 @@ describe('ReactionBadge', () => {
     expect(screen.getByText('Alice')).toBeInTheDocument();
     expect(screen.getByText('Bob')).toBeInTheDocument();
   });
+
+  it('handles mouseLeave, quick re-entry, and avatar image onError', () => {
+    const { container } = render(
+      <ReactionBadge reaction={mockReaction} currentUserId="usr-me" onToggle={vi.fn()} />,
+    );
+
+    const badgeContainer = screen.getByText('❤️').closest('.relative.inline-block')!;
+
+    // 1. Enter and leave immediately
+    fireEvent.mouseEnter(badgeContainer);
+    fireEvent.mouseLeave(badgeContainer);
+
+    // 2. Re-enter before leave timeout fires (covers lines 30-32)
+    fireEvent.mouseEnter(badgeContainer);
+
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+    expect(screen.getByText('Alice')).toBeInTheDocument();
+
+    // 3. Leave and advance timers
+    fireEvent.mouseLeave(badgeContainer);
+    act(() => {
+      vi.advanceTimersByTime(150);
+    });
+
+    // 4. Avatar onError
+    const img = container.querySelector('img')!;
+    fireEvent.error(img);
+    expect(img.style.display).toBe('none');
+  });
+
+  it('renders tooltip fallback when reaction.users is empty', () => {
+    const emptyUsersReaction: ReactionSummary = {
+      emoji: '👍',
+      count: 3,
+      selfReacted: true,
+      users: [],
+    };
+
+    render(
+      <ReactionBadge reaction={emptyUsersReaction} currentUserId="usr-me" onToggle={vi.fn()} />,
+    );
+
+    const button = screen.getByRole('button');
+    fireEvent.contextMenu(button);
+
+    expect(screen.getByText('You reacted')).toBeInTheDocument();
+  });
 });

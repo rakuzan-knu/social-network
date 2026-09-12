@@ -91,9 +91,24 @@ export function useConversationRealtime(conversationId: string | null) {
         next[0] = { ...next[0], data: [payload.message, ...next[0].data] };
         return next;
       });
-      if (payload.message.sender.id !== userId) {
+      if (payload.message.sender?.id && payload.message.sender.id !== userId) {
+        socket.emit('messageDelivered', { conversationId, messageId: payload.message.id });
         socket.emit('markRead', { conversationId });
       }
+    },
+  );
+
+  useChatSocketEvent<{ conversationId: string; messageId: string; deliveredToUserId: string }>(
+    'messageDelivered',
+    (payload) => {
+      if (payload.conversationId !== conversationId) return;
+      updatePages((pages) =>
+        mapMessages(pages, (m) =>
+          m.id === payload.messageId && m.status !== 'READ'
+            ? { ...m, status: 'DELIVERED' as const }
+            : m,
+        ),
+      );
     },
   );
 

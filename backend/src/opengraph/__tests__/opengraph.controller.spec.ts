@@ -22,22 +22,27 @@ describe('OpenGraphController', () => {
   beforeEach(() => {
     mockOgService = {
       extractMetadata: jest.fn(),
-      sanitizeUrl: jest.fn((url) => url),
+      sanitizeUrl: jest.fn((url: string) => url),
     };
 
     controller = new OpenGraphController(mockOgService as unknown as OpenGraphService);
   });
 
-  it('getPreview throws BadRequestException if url query parameter is missing', async () => {
-    await expect(controller.getPreview(undefined)).rejects.toThrow(
-      new BadRequestException('Query param "url" is required'),
+  it('getPreview rejects invalid URL formats and disallowed IPs', async () => {
+    await expect(controller.getPreview({ url: 'ftp://invalid-url' })).rejects.toThrow(
+      new BadRequestException('Invalid URL format'),
+    );
+
+    mockOgService.sanitizeUrl.mockReturnValueOnce(null);
+    await expect(controller.getPreview({ url: 'http://localhost:3000' })).rejects.toThrow(
+      new BadRequestException('Invalid or forbidden URL'),
     );
   });
 
   it('getPreview delegates to OpenGraphService when url is provided', async () => {
     mockOgService.extractMetadata.mockResolvedValueOnce(sampleMeta);
 
-    const result = await controller.getPreview('https://example.com');
+    const result = await controller.getPreview({ url: 'https://example.com' });
 
     expect(mockOgService.extractMetadata).toHaveBeenCalledWith('https://example.com');
     expect(result).toEqual(sampleMeta);

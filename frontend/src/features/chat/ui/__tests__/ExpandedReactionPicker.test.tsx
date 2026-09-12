@@ -39,4 +39,30 @@ describe('ExpandedReactionPicker', () => {
     expect(onPick).toHaveBeenCalledWith('❤️', expect.any(Object));
     expect(onClose).toHaveBeenCalled();
   });
+
+  it('handles tab selection, empty search results, and outside click', () => {
+    const onClose = vi.fn();
+    render(<ExpandedReactionPicker onPick={vi.fn()} onClose={onClose} />);
+
+    // Click Celebrate tab
+    const celebrateTab = screen.getByTitle('Celebration');
+    fireEvent.click(celebrateTab);
+    expect(screen.getByText('Celebration')).toBeInTheDocument();
+
+    // Search query with no match
+    const searchInput = screen.getByPlaceholderText('Search emoji...');
+    fireEvent.change(searchInput, { target: { value: 'nonexistent_emoji_string' } });
+    expect(screen.getByText(/No emojis found for/i)).toBeInTheDocument();
+
+    // Click outside
+    fireEvent.mouseDown(document.body);
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('supports align="right"', () => {
+    const { container } = render(
+      <ExpandedReactionPicker onPick={vi.fn()} onClose={vi.fn()} align="right" />,
+    );
+    expect(container.firstChild).toHaveClass('right-0');
+  });
 });

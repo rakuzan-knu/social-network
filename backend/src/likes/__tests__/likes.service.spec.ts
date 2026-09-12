@@ -2,8 +2,8 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { LikesService } from '../likes.service';
 import type { IPostRepository } from '../../posts/interfaces/posts-repository.interface';
-import type { PrismaService } from '@common/prisma';
 import type { MessengerGateway } from '../../messenger/gateway/messenger.gateway';
+import type { EventEmitter2 } from '@nestjs/event-emitter';
 
 describe('LikesService', () => {
   let service: LikesService;
@@ -13,14 +13,13 @@ describe('LikesService', () => {
   };
   let mockPostsRepository: {
     getPostById: jest.Mock;
-  };
-  let mockPrisma: {
-    user: {
-      findUnique: jest.Mock;
-    };
+    findUserBasic: jest.Mock;
   };
   let mockGateway: {
     emitToUser: jest.Mock;
+  };
+  let mockEventEmitter: {
+    emit: jest.Mock;
   };
 
   beforeEach(() => {
@@ -31,23 +30,27 @@ describe('LikesService', () => {
 
     mockPostsRepository = {
       getPostById: jest.fn(),
-    };
-
-    mockPrisma = {
-      user: {
-        findUnique: jest.fn(),
-      },
+      findUserBasic: jest.fn().mockResolvedValue({
+        id: 'usr-liker',
+        username: 'liker',
+        displayName: 'Liker',
+        avatar: null,
+      }),
     };
 
     mockGateway = {
       emitToUser: jest.fn(),
     };
 
+    mockEventEmitter = {
+      emit: jest.fn(),
+    };
+
     service = new LikesService(
       mockLikesRepository,
       mockPostsRepository as unknown as IPostRepository,
-      mockPrisma as unknown as PrismaService,
       mockGateway as unknown as MessengerGateway,
+      mockEventEmitter as unknown as EventEmitter2,
     );
   });
 
@@ -60,14 +63,14 @@ describe('LikesService', () => {
       );
     });
 
-    it('creates like and emits notification to post author', async () => {
+    it('creates like, emits event and ws notification to post author', async () => {
       mockPostsRepository.getPostById.mockResolvedValueOnce({
         id: 'post-1',
         authorId: 'usr-author',
       });
       const mockLike = { id: 'like-1', postId: 'post-1', userId: 'usr-liker' };
       mockLikesRepository.createLike.mockResolvedValueOnce(mockLike);
-      mockPrisma.user.findUnique
+      mockPostsRepository.findUserBasic
         .mockResolvedValueOnce({
           id: 'usr-liker',
           username: 'liker',
@@ -79,6 +82,7 @@ describe('LikesService', () => {
       const result = await service.likePost('post-1', 'usr-liker');
 
       expect(mockLikesRepository.createLike).toHaveBeenCalledWith('post-1', 'usr-liker');
+      expect(mockEventEmitter.emit).toHaveBeenCalled();
       expect(mockGateway.emitToUser).toHaveBeenCalledWith(
         'usr-author',
         'socialNotification',
@@ -87,8 +91,8 @@ describe('LikesService', () => {
       expect(result).toEqual(mockLike);
     });
 
-    it('throws ConflictException on Prisma P2002 error', async () => {
-      mockPostsRepository.getPostById.mockResolvedValueOnce({
+    it('throws ConflictException on Prisma P2002 error and rethrows generic errors', async () => {
+      mockPostsRepository.getPostById.mockResolvedValue({
         id: 'post-1',
         authorId: 'usr-author',
       });
@@ -102,6 +106,9 @@ describe('LikesService', () => {
       await expect(service.likePost('post-1', 'usr-liker')).rejects.toThrow(
         new ConflictException('Post already liked'),
       );
+
+      mockLikesRepository.createLike.mockRejectedValueOnce(new Error('DB failure'));
+      await expect(service.likePost('post-1', 'usr-liker')).rejects.toThrow('DB failure');
     });
   });
 
@@ -114,7 +121,7 @@ describe('LikesService', () => {
       expect(mockLikesRepository.deleteLike).toHaveBeenCalledWith('post-1', 'usr-1');
     });
 
-    it('throws NotFoundException on Prisma P2025 error', async () => {
+    it('throws NotFoundException on Prisma P2025 error and rethrows generic errors', async () => {
       mockLikesRepository.deleteLike.mockRejectedValueOnce(
         new Prisma.PrismaClientKnownRequestError('Like not found', {
           code: 'P2025',
@@ -125,6 +132,9 @@ describe('LikesService', () => {
       await expect(service.unlikePost('post-1', 'usr-1')).rejects.toThrow(
         new NotFoundException('Like not found'),
       );
+
+      mockLikesRepository.deleteLike.mockRejectedValueOnce(new Error('DB failure'));
+      await expect(service.unlikePost('post-1', 'usr-1')).rejects.toThrow('DB failure');
     });
   });
 });

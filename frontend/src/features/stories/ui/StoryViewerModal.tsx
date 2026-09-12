@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -9,16 +9,8 @@ import {
   Trash2,
   Send,
   Eye,
-  Star,
-  ChevronLeft,
-  ChevronRight,
   ExternalLink,
   AtSign,
-  Heart,
-  Flame,
-  Zap,
-  PartyPopper,
-  Sparkles,
 } from 'lucide-react';
 import { useStoryViewerStore } from '../model/useStoryViewerStore';
 import {
@@ -96,7 +88,7 @@ export function StoryViewerModal() {
     ) {
       viewStoryMutation.mutate(activeStory.id);
     }
-  }, [activeStory?.id]);
+  }, [activeStory, currentUser, viewStoryMutation]);
 
   // Real-time synchronization for active story (views, reactions, poll updates in Seen-by drawer and screen)
   useEffect(() => {
@@ -222,7 +214,7 @@ export function StoryViewerModal() {
         img.src = nextStoryItem.mediaUrl;
       }
     }
-  }, [activeGroupIndex, activeStoryIndex, groups]);
+  }, [activeGroupIndex, activeStoryIndex, currentGroup, groups]);
 
   // Progress Bar for Images / Voice (5 seconds fixed)
   useEffect(() => {
@@ -249,7 +241,7 @@ export function StoryViewerModal() {
     }, intervalMs);
 
     return () => clearInterval(timer);
-  }, [activeStory?.id, isPaused, isBuffering]);
+  }, [activeStory, isBuffering, isPaused, nextStory]);
 
   // Video Time Update & Buffering Sync
   const handleVideoTimeUpdate = () => {
@@ -385,7 +377,7 @@ export function StoryViewerModal() {
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[9999] flex items-center justify-center overflow-hidden bg-black/95 backdrop-blur-3xl select-none animate-fadeIn">
+      <div className="fixed inset-0 z-9999 flex items-center justify-center overflow-hidden bg-black/95 backdrop-blur-3xl select-none animate-fadeIn">
         {/* Dynamic Blurred Backdrop Tint */}
         <div
           className="absolute inset-0 opacity-25 filter blur-3xl scale-125 pointer-events-none transition-all duration-700"
@@ -408,7 +400,7 @@ export function StoryViewerModal() {
         </button>
 
         {/* 3D Cover Flow Carousel Container */}
-        <div className="relative w-full h-full flex items-center justify-center perspective-[1200px]">
+        <div className="relative w-full h-full flex items-center justify-center perspective-distant">
           {/* Left Neighbor Card (3D Rotated) */}
           {prevGroup && (
             <div
@@ -416,7 +408,7 @@ export function StoryViewerModal() {
               style={{
                 transform: 'perspective(1000px) translateZ(-90px) rotateY(25deg) translateX(-60px)',
               }}
-              className="hidden md:flex absolute left-8 lg:left-24 w-[280px] aspect-[9/16] max-h-[68vh] rounded-3xl overflow-hidden border border-white/10 opacity-40 brightness-75 hover:opacity-75 hover:brightness-100 transition-all duration-300 cursor-pointer shadow-2xl z-10"
+              className="hidden md:flex absolute left-8 lg:left-24 w-70 aspect-9/16 max-h-[68vh] rounded-3xl overflow-hidden border border-white/10 opacity-40 brightness-75 hover:opacity-75 hover:brightness-100 transition-all duration-300 cursor-pointer shadow-2xl z-10"
             >
               {prevGroup.stories[0]?.mediaType === 'VIDEO' ? (
                 <video
@@ -434,7 +426,7 @@ export function StoryViewerModal() {
                   className="w-full h-full object-cover bg-purple-900"
                 />
               )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30 flex flex-col justify-between p-4">
+              <div className="absolute inset-0 bg-linear-to-t from-black/80 via-transparent to-black/30 flex flex-col justify-between p-4">
                 <div className="flex items-center gap-2">
                   <Avatar src={prevGroup.user.avatar} size="xs" />
                   <span className="text-xs font-bold text-white truncate">
@@ -455,7 +447,7 @@ export function StoryViewerModal() {
                 closeViewer();
               }
             }}
-            className="relative w-full max-w-[390px] aspect-[9/16] max-h-[82vh] rounded-3xl overflow-hidden border border-white/15 shadow-[0_25px_70px_rgba(0,0,0,0.85)] z-20 flex flex-col justify-between"
+            className="relative w-full max-w-97.5 aspect-9/16 max-h-[82vh] rounded-3xl overflow-hidden border border-white/15 shadow-[0_25px_70px_rgba(0,0,0,0.85)] z-20 flex flex-col justify-between"
             style={{
               background: activeStory.mediaUrl.startsWith('color:')
                 ? activeStory.mediaUrl.replace('color:', '')
@@ -512,7 +504,7 @@ export function StoryViewerModal() {
                   {overlay.type === 'text' && (
                     <div
                       style={{ color: overlay.color }}
-                      className={`px-3 py-1.5 rounded-2xl text-center font-bold text-base max-w-[270px] leading-snug ${
+                      className={`px-3 py-1.5 rounded-2xl text-center font-bold text-base max-w-67.5 leading-snug ${
                         overlay.fontFamily === 'neon'
                           ? 'drop-shadow-[0_0_12px_rgba(236,72,153,0.85)] font-sans'
                           : overlay.fontFamily === 'cyberpunk'
@@ -538,7 +530,7 @@ export function StoryViewerModal() {
                   {overlay.type === 'poll' && (
                     <div
                       onClick={(e) => e.stopPropagation()}
-                      className="w-[260px] bg-[#14141c]/95 backdrop-blur-2xl border border-white/15 rounded-3xl p-4 shadow-2xl flex flex-col gap-2.5"
+                      className="w-65 bg-[#14141c]/95 backdrop-blur-2xl border border-white/15 rounded-3xl p-4 shadow-2xl flex flex-col gap-2.5"
                     >
                       <span className="text-xs font-bold text-white text-center">
                         {overlay.question}
@@ -615,7 +607,7 @@ export function StoryViewerModal() {
                         closeViewer();
                         navigate(`/profile/${overlay.username}`);
                       }}
-                      className="flex items-center gap-1 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold text-xs shadow-lg hover:scale-105 transition-transform cursor-pointer"
+                      className="flex items-center gap-1 px-3.5 py-1.5 rounded-full bg-linear-to-r from-purple-600 to-pink-600 text-white font-bold text-xs shadow-lg hover:scale-105 transition-transform cursor-pointer"
                     >
                       <AtSign size={13} />
                       <span>{overlay.username}</span>
@@ -626,7 +618,7 @@ export function StoryViewerModal() {
             </div>
 
             {/* Top Header & Segmented Progress Bars */}
-            <div className="relative z-30 pt-3 px-3 pb-6 bg-gradient-to-b from-black/85 via-black/40 to-transparent pointer-events-none">
+            <div className="relative z-30 pt-3 px-3 pb-6 bg-linear-to-b from-black/85 via-black/40 to-transparent pointer-events-none">
               {/* Segmented Progress Bars */}
               <div className="flex items-center gap-1 w-full mb-2.5">
                 {currentGroup.stories.map((s, idx) => {
@@ -657,7 +649,7 @@ export function StoryViewerModal() {
                   <Avatar src={currentGroup.user.avatar} size="sm" />
                   <div className="flex flex-col min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-bold text-white truncate max-w-[140px]">
+                      <span className="text-xs font-bold text-white truncate max-w-35">
                         {currentGroup.user.displayName || currentGroup.user.username}
                       </span>
                       {activeStory.privacy === 'CLOSE_FRIENDS' && (
@@ -698,7 +690,7 @@ export function StoryViewerModal() {
                       </button>
 
                       {showMenu && (
-                        <div className="absolute right-0 top-full mt-1 bg-[#18181f] border border-white/10 rounded-2xl p-1.5 shadow-2xl z-50 min-w-[140px]">
+                        <div className="absolute right-0 top-full mt-1 bg-[#18181f] border border-white/10 rounded-2xl p-1.5 shadow-2xl z-50 min-w-35">
                           <button
                             type="button"
                             onClick={() => {
@@ -719,7 +711,7 @@ export function StoryViewerModal() {
             </div>
 
             {/* Bottom Footer: Reply Input + Reactions + Viewers */}
-            <div className="relative z-30 p-3 bg-gradient-to-t from-black/90 via-black/50 to-transparent flex flex-col gap-2 pointer-events-auto">
+            <div className="relative z-30 p-3 bg-linear-to-t from-black/90 via-black/50 to-transparent flex flex-col gap-2 pointer-events-auto">
               {/* If Own Story: Viewers Button */}
               {isOwnStory ? (
                 <button
@@ -762,7 +754,7 @@ export function StoryViewerModal() {
                     <button
                       type="submit"
                       disabled={!replyText.trim() || isSendingReply}
-                      className="w-9 h-9 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center shadow-lg transition-transform hover:scale-105 active:scale-95 disabled:opacity-40 cursor-pointer shrink-0"
+                      className="w-9 h-9 rounded-full bg-linear-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center shadow-lg transition-transform hover:scale-105 active:scale-95 disabled:opacity-40 cursor-pointer shrink-0"
                     >
                       <Send size={15} className="translate-x-0.5" />
                     </button>
@@ -779,7 +771,7 @@ export function StoryViewerModal() {
               style={{
                 transform: 'perspective(1000px) translateZ(-90px) rotateY(-25deg) translateX(60px)',
               }}
-              className="hidden md:flex absolute right-8 lg:right-24 w-[280px] aspect-[9/16] max-h-[68vh] rounded-3xl overflow-hidden border border-white/10 opacity-40 brightness-75 hover:opacity-75 hover:brightness-100 transition-all duration-300 cursor-pointer shadow-2xl z-10"
+              className="hidden md:flex absolute right-8 lg:right-24 w-70 aspect-9/16 max-h-[68vh] rounded-3xl overflow-hidden border border-white/10 opacity-40 brightness-75 hover:opacity-75 hover:brightness-100 transition-all duration-300 cursor-pointer shadow-2xl z-10"
             >
               {nextGroup.stories[0]?.mediaType === 'VIDEO' ? (
                 <video
@@ -797,7 +789,7 @@ export function StoryViewerModal() {
                   className="w-full h-full object-cover bg-indigo-900"
                 />
               )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30 flex flex-col justify-between p-4">
+              <div className="absolute inset-0 bg-linear-to-t from-black/80 via-transparent to-black/30 flex flex-col justify-between p-4">
                 <div className="flex items-center gap-2">
                   <Avatar src={nextGroup.user.avatar} size="xs" />
                   <span className="text-xs font-bold text-white truncate">
@@ -835,7 +827,7 @@ export function StoryViewerModal() {
                 viewersData.viewers.map((item: any, i: number) => (
                   <div
                     key={i}
-                    className="flex items-center justify-between py-2 px-3 rounded-2xl bg-white/[0.03] border border-white/5"
+                    className="flex items-center justify-between py-2 px-3 rounded-2xl bg-white/3 border border-white/5"
                   >
                     <div className="flex items-center gap-2.5">
                       <Avatar src={item.user.avatar} size="sm" />

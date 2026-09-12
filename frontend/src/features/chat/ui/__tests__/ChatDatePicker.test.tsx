@@ -173,4 +173,81 @@ describe('ChatDatePicker', () => {
       expect(mockOnClose).toHaveBeenCalled();
     }
   });
+
+  it('handles arrow keys, Enter key, hover preview tooltip, roller Cancel, and outside click', () => {
+    render(
+      <ChatDatePicker
+        conversationId="conv-1"
+        isOpen={true}
+        onClose={mockOnClose}
+        onSelectDate={mockOnSelectDate}
+        initialDate={testDate}
+      />,
+      { wrapper: createWrapper() },
+    );
+
+    const container = document.querySelector('.animate-modalPop')!;
+
+    // Arrow keys
+    fireEvent.keyDown(container, { key: 'ArrowRight' });
+    fireEvent.keyDown(container, { key: 'ArrowLeft' });
+    fireEvent.keyDown(container, { key: 'ArrowDown' });
+    fireEvent.keyDown(container, { key: 'ArrowUp' });
+    fireEvent.keyDown(container, { key: 'Enter' });
+    expect(mockOnSelectDate).toHaveBeenCalled();
+
+    // Hover tooltip for text activity
+    const day15 = screen.getByText('15');
+    fireEvent.mouseEnter(day15);
+    expect(screen.getByText(/Test message/i)).toBeInTheDocument();
+    fireEvent.mouseLeave(day15);
+
+    // Hover tooltip for media activity (covers lines 454-461, 463-464)
+    const day20 = screen.getByText('20');
+    fireEvent.mouseEnter(day20);
+    expect(screen.getByText(/Photo attached/i)).toBeInTheDocument();
+    fireEvent.mouseLeave(day20);
+
+    // Roller view Cancel
+    const monthHeader = screen.getByTitle('Click to select month and year');
+    fireEvent.click(monthHeader);
+    fireEvent.click(screen.getByText('Cancel'));
+    expect(screen.queryByText('Select Month & Year')).not.toBeInTheDocument();
+
+    // Outside click
+    fireEvent.mouseDown(document.body);
+    expect(mockOnClose).toHaveBeenCalled();
+  });
+
+  it('renders mobile layout when innerWidth is small', () => {
+    const origInnerWidth = window.innerWidth;
+    window.innerWidth = 400;
+
+    render(
+      <ChatDatePicker
+        conversationId="conv-1"
+        isOpen={true}
+        onClose={mockOnClose}
+        onSelectDate={mockOnSelectDate}
+        initialDate={testDate}
+      />,
+      { wrapper: createWrapper() },
+    );
+
+    expect(screen.getByText(/August 2026/i)).toBeInTheDocument();
+    window.innerWidth = origInnerWidth;
+  });
+
+  it('returns null when isOpen is false', () => {
+    const { container } = render(
+      <ChatDatePicker
+        conversationId="conv-1"
+        isOpen={false}
+        onClose={mockOnClose}
+        onSelectDate={mockOnSelectDate}
+      />,
+      { wrapper: createWrapper() },
+    );
+    expect(container.firstChild).toBeNull();
+  });
 });

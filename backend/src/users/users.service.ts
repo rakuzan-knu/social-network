@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
   Optional,
   UnauthorizedException,
@@ -11,7 +12,7 @@ import {
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import * as argon2 from 'argon2';
 import * as geoip from 'geoip-lite';
-import { FollowStatus, NotificationType, PrivacyDimension, Prisma, User } from '@prisma/client';
+import { NotificationType, PrivacyDimension, Prisma, User } from '@prisma/client';
 import {
   CreateNotificationEvent,
   NOTIFICATION_EVENTS,
@@ -22,6 +23,8 @@ import {
   RESERVED_USERNAMES,
   type UpdateUserDto,
   type UserProfileDto,
+  UserFlags,
+  DEFAULT_USER_FLAGS,
 } from '@common/contracts';
 import { USERS_REPOSITORY } from './interfaces/users-repository.interface';
 import type { IUsersRepository } from './interfaces/users-repository.interface';
@@ -29,7 +32,17 @@ import { RedisService } from '../redis/redis.service';
 import { VisibilityResolver } from './privacy/visibility.resolver';
 import type { VisibilityContext } from './privacy/visibility.resolver';
 import { toLastSeenGranularity } from './privacy/last-seen.util';
-import { PrismaService } from '@common/prisma';
+import { extractHashtags } from '../common/utils/safe-regex.util';
+import {
+  buildInterestVector,
+  FEED_PRESETS,
+  parsePresetName,
+  rankCandidates,
+  topVocabulary,
+  type FeedPresetName,
+} from '@social-network/feed-score';
+import { levenshtein } from '@social-network/text-pipeline';
+import { TextPipelineService } from '../common/text-pipeline/text-pipeline.service';
 
 const MAX_SEARCH_TERM_LENGTH = 64;
 
@@ -44,6 +57,7 @@ type RawProfile = {
   birthDate: string | null;
   isPrivate: boolean;
   isVerified: boolean;
+  flags?: number;
   primaryBadge: string | null;
   badges: string[];
   githubUsername: string | null;
@@ -57,16 +71,23 @@ type RawProfile = {
   postsCount: number;
 };
 
+import { LastSeenCoalescerService } from './coalescing/last-seen-coalescer.service';
+
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     @Inject(USERS_REPOSITORY)
     private readonly usersRepository: IUsersRepository,
     private readonly redis: RedisService,
     private readonly visibility: VisibilityResolver,
-    private readonly prisma: PrismaService,
     @Optional()
     private readonly eventEmitter?: EventEmitter2,
+    @Optional()
+    private readonly lastSeenCoalescer?: LastSeenCoalescerService,
+    @Optional()
+    private readonly textPipeline?: TextPipelineService,
   ) {}
 
   private userKey(id: string): string {
@@ -95,6 +116,10 @@ export class UsersService {
   }
 
   async touchLastSeen(id: string, when: Date = new Date()): Promise<void> {
+    if (this.lastSeenCoalescer) {
+      this.lastSeenCoalescer.touchLastSeen(id, when);
+      return;
+    }
     await this.usersRepository.updateUser(id, { lastSeenAt: when });
     await this.redis.del(this.userKey(id));
   }
@@ -117,19 +142,7 @@ export class UsersService {
   private async getRawProfile(id: string): Promise<RawProfile> {
     const key = this.userKey(id);
     return this.redis.getOrSet(key, 3600, async () => {
-      const user = await this.prisma.user.findUnique({
-        where: { id },
-        include: {
-          badges: true,
-          _count: {
-            select: {
-              followers: { where: { status: 'ACCEPTED' } },
-              following: { where: { status: 'ACCEPTED' } },
-              posts: true,
-            },
-          },
-        },
-      });
+      const user = await this.usersRepository.findFullProfile(id);
       if (!user) {
         throw new NotFoundException(`User with id ${id} not found`);
       }
@@ -141,14 +154,7 @@ export class UsersService {
 
   async getProfileFor(id: string, viewerId: string | null): Promise<UserProfileDto> {
     if (viewerId && viewerId !== id) {
-      const isBlocked = await this.prisma.userBlock.findFirst({
-        where: {
-          OR: [
-            { blockerId: viewerId, blockedId: id },
-            { blockerId: id, blockedId: viewerId },
-          ],
-        },
-      });
+      const isBlocked = await this.usersRepository.isBlocked(viewerId, id);
       if (isBlocked) throw new NotFoundException('User not found');
     }
 
@@ -157,11 +163,9 @@ export class UsersService {
     const profile = this.applyPrivacy(raw, viewerId, ctx);
 
     if (viewerId && viewerId !== id) {
-      const aliasRecord = await this.prisma.userAlias.findUnique({
-        where: { ownerId_targetId: { ownerId: viewerId, targetId: id } },
-      });
-      if (aliasRecord) {
-        profile.alias = aliasRecord.alias;
+      const alias = await this.usersRepository.findUserAlias(viewerId, id);
+      if (alias) {
+        profile.alias = alias;
       }
     }
 
@@ -175,18 +179,12 @@ export class UsersService {
     const target = await this.usersRepository.findById(targetId);
     if (!target) throw new NotFoundException('User not found');
 
-    await this.prisma.userAlias.upsert({
-      where: { ownerId_targetId: { ownerId, targetId } },
-      create: { ownerId, targetId, alias: alias.trim() },
-      update: { alias: alias.trim() },
-    });
+    await this.usersRepository.setUserAlias(ownerId, targetId, alias);
     return { success: true };
   }
 
   async deleteUserAlias(ownerId: string, targetId: string): Promise<{ success: true }> {
-    await this.prisma.userAlias.deleteMany({
-      where: { ownerId, targetId },
-    });
+    await this.usersRepository.deleteUserAlias(ownerId, targetId);
     return { success: true };
   }
 
@@ -195,7 +193,10 @@ export class UsersService {
     if (!clean || (RESERVED_USERNAMES as readonly string[]).includes(clean.toLowerCase())) {
       throw new NotFoundException('User not found');
     }
-    const user = await this.usersRepository.findByUsername(clean);
+    let user = await this.usersRepository.findByUsername(clean);
+    if (!user) {
+      user = await this.usersRepository.findById(clean);
+    }
     if (!user) throw new NotFoundException('User not found');
     return this.getProfileFor(user.id, viewerId);
   }
@@ -226,31 +227,26 @@ export class UsersService {
     return this.getProfileFor(id, null);
   }
 
-  async updatePrimaryBadge(userId: string, badgeId?: string | null): Promise<UserProfileDto> {
-    const targetBadgeId = badgeId && badgeId.trim() !== '' ? badgeId.trim() : null;
-
-    if (targetBadgeId !== null) {
-      const ownership = await this.prisma.userBadge.findUnique({
-        where: {
-          userId_badgeId: {
-            userId,
-            badgeId: targetBadgeId,
-          },
-        },
-      });
-
-      if (!ownership) {
-        throw new ForbiddenException(`You do not own the badge '${targetBadgeId}'`);
-      }
-    }
-
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { primaryBadge: targetBadgeId },
-    });
-
-    await this.redis.del(this.userKey(userId));
+  async getMe(userId: string): Promise<UserProfileDto> {
     return this.getProfileFor(userId, userId);
+  }
+
+  async updatePrimaryBadge(userId: string, badgeId?: string | null): Promise<UserProfileDto> {
+    return this.redis.withLock(`lock:user:badge:${userId}`, async () => {
+      const targetBadgeId = badgeId && badgeId.trim() !== '' ? badgeId.trim() : null;
+
+      if (targetBadgeId !== null) {
+        const hasBadge = await this.usersRepository.hasBadge(userId, targetBadgeId);
+        if (!hasBadge) {
+          throw new ForbiddenException(`You do not own the badge '${targetBadgeId}'`);
+        }
+      }
+
+      await this.usersRepository.updateUser(userId, { primaryBadge: targetBadgeId });
+
+      await this.redis.del(this.userKey(userId));
+      return this.getProfileFor(userId, userId);
+    });
   }
 
   async setVerified(userId: string, isVerified: boolean): Promise<UserProfileDto> {
@@ -258,10 +254,7 @@ export class UsersService {
     if (!user) throw new NotFoundException('User not found');
 
     const wasVerified = user.isVerified;
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { isVerified },
-    });
+    await this.usersRepository.updateUser(userId, { isVerified });
 
     if (!wasVerified && isVerified && this.eventEmitter) {
       this.eventEmitter.emit(
@@ -321,9 +314,9 @@ export class UsersService {
     await this.usersRepository.updateUser(id, data);
     try {
       await this.redis.del(this.userKey(id));
-      await this.redis.del(`user${id}`);
-    } catch {
-      // Safe non-blocking cache invalidation
+      await this.redis.del(`user:${id}`);
+    } catch (e) {
+      this.logger.warn(`Failed to invalidate user cache for ${id}: ${String(e)}`);
     }
     return this.getProfileFor(id, id);
   }
@@ -333,43 +326,14 @@ export class UsersService {
     const term = rawQuery.trim().toLowerCase().slice(0, MAX_SEARCH_TERM_LENGTH);
     if (!term) return [];
 
-    const blockedIds = viewerId
-      ? await this.prisma.userBlock
-          .findMany({
-            where: {
-              OR: [{ blockerId: viewerId }, { blockedId: viewerId }],
-            },
-            select: { blockerId: true, blockedId: true },
-          })
-          .then((blocks: { blockerId: string; blockedId: string }[]) => {
-            const set = new Set<string>();
-            for (const b of blocks) {
-              if (b.blockerId === viewerId) set.add(b.blockedId);
-              if (b.blockedId === viewerId) set.add(b.blockerId);
-            }
-            return Array.from(set);
-          })
-      : [];
+    const blockedIds = viewerId ? await this.usersRepository.getBlockedIds(viewerId) : [];
 
     // Query candidates matching substring or prefix
-    const candidates = await this.prisma.user.findMany({
-      where: {
-        AND: [
-          blockedIds.length > 0 ? { id: { notIn: blockedIds } } : {},
-          { username: { notIn: [...RESERVED_USERNAMES] } },
-        ],
-      },
-      take: 60,
-      include: {
-        badges: true,
-        _count: {
-          select: {
-            followers: { where: { status: 'ACCEPTED' } },
-            following: { where: { status: 'ACCEPTED' } },
-          },
-        },
-      },
-    });
+    const candidates = await this.usersRepository.searchCandidates(
+      blockedIds,
+      [...RESERVED_USERNAMES],
+      60,
+    );
 
     const scored = candidates
       .map((u) => {
@@ -415,23 +379,7 @@ export class UsersService {
     const rawQuery = typeof query === 'string' ? query : '';
     const term = rawQuery.trim().toLowerCase().slice(0, MAX_SEARCH_TERM_LENGTH);
 
-    const blockedIds = viewerId
-      ? await this.prisma.userBlock
-          .findMany({
-            where: {
-              OR: [{ blockerId: viewerId }, { blockedId: viewerId }],
-            },
-            select: { blockerId: true, blockedId: true },
-          })
-          .then((blocks) => {
-            const set = new Set<string>();
-            for (const b of blocks) {
-              if (b.blockerId === viewerId) set.add(b.blockedId);
-              if (b.blockedId === viewerId) set.add(b.blockerId);
-            }
-            return Array.from(set);
-          })
-      : [];
+    const blockedIds = viewerId ? await this.usersRepository.getBlockedIds(viewerId) : [];
 
     let followingIds = new Set<string>();
     let followerIds = new Set<string>();
@@ -439,50 +387,21 @@ export class UsersService {
 
     if (viewerId) {
       const [following, followers, chats] = await Promise.all([
-        this.prisma.follow.findMany({
-          where: { followerId: viewerId, status: 'ACCEPTED' },
-          select: { followingId: true },
-        }),
-        this.prisma.follow.findMany({
-          where: { followingId: viewerId, status: 'ACCEPTED' },
-          select: { followerId: true },
-        }),
-        this.prisma.conversationParticipant.findMany({
-          where: {
-            conversation: {
-              participants: { some: { userId: viewerId } },
-            },
-            userId: { not: viewerId },
-          },
-          select: { userId: true },
-          take: 30,
-        }),
+        this.usersRepository.getFollowingIds(viewerId),
+        this.usersRepository.getFollowerIds(viewerId),
+        this.usersRepository.getRecentChatParticipantIds(viewerId),
       ]);
 
-      followingIds = new Set(following.map((f: { followingId: string }) => f.followingId));
-      followerIds = new Set(followers.map((f: { followerId: string }) => f.followerId));
-      recentChatIds = new Set(chats.map((c: { userId: string }) => c.userId));
+      followingIds = new Set(following);
+      followerIds = new Set(followers);
+      recentChatIds = new Set(chats);
     }
 
-    const candidates = await this.prisma.user.findMany({
-      where: {
-        AND: [
-          viewerId ? { id: { not: viewerId } } : {},
-          blockedIds.length > 0 ? { id: { notIn: blockedIds } } : {},
-          { username: { notIn: [...RESERVED_USERNAMES] } },
-        ],
-      },
-      take: 60,
-      include: {
-        badges: true,
-        _count: {
-          select: {
-            followers: { where: { status: 'ACCEPTED' } },
-            following: { where: { status: 'ACCEPTED' } },
-          },
-        },
-      },
-    });
+    const candidates = await this.usersRepository.searchCandidates(
+      blockedIds,
+      [...RESERVED_USERNAMES],
+      60,
+    );
 
     const scored = candidates
       .map((u) => {
@@ -530,22 +449,14 @@ export class UsersService {
   }
 
   async getTrendingHashtags(limit = 6): Promise<{ tag: string; count: number }[]> {
-    const posts = await this.prisma.post.findMany({
-      where: {
-        author: { isPrivate: false },
-      },
-      select: { content: true },
-      take: 200,
-      orderBy: { createdAt: 'desc' },
-    });
+    const posts = await this.usersRepository.getRecentPublicPostsContent(200);
 
     const tagCounts = new Map<string, number>();
-    const hashtagRegex = /#([a-zA-Z0-9_\u0400-\u04FF]+)/g;
 
     for (const p of posts) {
-      const matches = p.content.match(hashtagRegex) || [];
+      const matches = this.textPipeline?.extractHashtags(p.content) ?? extractHashtags(p.content);
       for (const m of matches) {
-        const tag = m.slice(1).toLowerCase();
+        const tag = m.startsWith('#') ? m.slice(1).toLowerCase() : m.toLowerCase();
         tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
       }
     }
@@ -609,40 +520,20 @@ export class UsersService {
 
     if (viewerId && viewerGeo) {
       await this.redis.geoadd('user_geo', viewerGeo.longitude, viewerGeo.latitude, viewerId);
+      await this.redis.expire('user_geo', 86400 * 30);
       if (viewerGeo.city) {
         await this.redis.set(`user_city:${viewerId}`, viewerGeo.city, 86400 * 30);
       }
     }
 
     // 2. Viewer exclusions (blocked, followed, self)
-    const blockedIds = viewerId
-      ? await this.prisma.userBlock
-          .findMany({
-            where: {
-              OR: [{ blockerId: viewerId }, { blockedId: viewerId }],
-            },
-            select: { blockerId: true, blockedId: true },
-          })
-          .then((blocks: { blockerId: string; blockedId: string }[]) => {
-            const set = new Set<string>();
-            for (const b of blocks) {
-              if (b.blockerId === viewerId) set.add(b.blockedId);
-              if (b.blockedId === viewerId) set.add(b.blockerId);
-            }
-            return Array.from(set);
-          })
-      : [];
+    const blockedIds = viewerId ? await this.usersRepository.getBlockedIds(viewerId) : [];
 
     let followingIds: string[] = [];
     let dismissedIds: string[] = [];
     if (viewerId) {
       [followingIds, dismissedIds] = await Promise.all([
-        this.prisma.follow
-          .findMany({
-            where: { followerId: viewerId, status: FollowStatus.ACCEPTED },
-            select: { followingId: true },
-          })
-          .then((res: { followingId: string }[]) => res.map((r) => r.followingId)),
+        this.usersRepository.getFollowingIds(viewerId),
         this.redis.smembers(`user:dismissed_suggestions:${viewerId}`),
       ]);
     }
@@ -671,29 +562,16 @@ export class UsersService {
     // Pool 2: Friends of Friends (Top 40 2-hop graph)
     let pool2FofIds: string[] = [];
     if (followingIds.length > 0) {
-      const fof = await this.prisma.follow.findMany({
-        where: {
-          followerId: { in: followingIds.slice(0, 50) },
-          status: FollowStatus.ACCEPTED,
-          followingId: { notIn: Array.from(excludeIds) },
-        },
-        select: { followingId: true },
-        take: 40,
-      });
-      pool2FofIds = fof.map((f: { followingId: string }) => f.followingId);
+      pool2FofIds = await this.usersRepository.getFriendsOfFriends(
+        followingIds,
+        Array.from(excludeIds),
+      );
     }
 
     // Pool 3: Popular Profiles (Top 20 by follower count)
-    const pool3Popular = await this.prisma.user.findMany({
-      where: {
-        id: { notIn: Array.from(excludeIds) },
-        username: { notIn: [...RESERVED_USERNAMES] },
-      },
-      orderBy: { followers: { _count: 'desc' } },
-      select: { id: true },
-      take: 20,
-    });
-    const pool3PopularIds = pool3Popular.map((p: { id: string }) => p.id);
+    const pool3PopularIds = await this.usersRepository.getPopularUserIds(Array.from(excludeIds), [
+      ...RESERVED_USERNAMES,
+    ]);
 
     // Merge into combined unique candidate pool (~50-80 candidates)
     const candidateIds = Array.from(
@@ -705,125 +583,85 @@ export class UsersService {
     }
 
     // 4. Fetch candidate user details & mutual followers in bulk
-    const candidateUsers = await this.prisma.user.findMany({
-      where: {
-        id: { in: candidateIds },
-        username: { notIn: [...RESERVED_USERNAMES] },
-      },
-      include: {
-        badges: true,
-        privacy: {
-          select: { allowNearbyRecommendations: true },
-        },
-        _count: {
-          select: {
-            followers: { where: { status: FollowStatus.ACCEPTED } },
-            following: { where: { status: FollowStatus.ACCEPTED } },
-            posts: true,
-          },
-        },
-        followers: {
-          where: {
-            followerId: { in: followingIds },
-            status: FollowStatus.ACCEPTED,
-          },
-          select: {
-            follower: {
-              select: {
-                id: true,
-                username: true,
-                avatar: true,
-              },
-            },
-          },
-          take: 3,
-        },
-      },
-    });
-
-    // 5. Compute Normalized Metric Scores (each normalized to [0.0; 1.0])
-    const scoredCandidates = await Promise.all(
-      candidateUsers.map(async (user) => {
-        // Proximity Score: Score_prox = max(0, 1 - distance_km / 100)
-        let scoreProx = 0.0;
-        let proxReasonText: string | null = null;
-        const allowNearby = user.privacy?.allowNearbyRecommendations ?? true;
-
-        if (viewerId && viewerGeo && allowNearby) {
-          const distKm = await this.redis.geodist('user_geo', viewerId, user.id, 'km');
-          if (distKm !== null && distKm <= 100) {
-            scoreProx = Math.max(0, 1 - distKm / 100);
-            if (distKm <= 10) {
-              proxReasonText = 'Near you';
-            } else {
-              const candidateCity = await this.redis.get(`user_city:${user.id}`);
-              proxReasonText = candidateCity ? `From your city (${candidateCity})` : 'Near you';
-            }
-          }
-        }
-
-        // Mutual Friends Score: Score_mut = min(1, mutual_count / 5)
-        const mutualCount = user.followers.length;
-        const scoreMut = Math.min(1, mutualCount / 5);
-
-        // Popularity Score: Score_pop = min(1, log10(followers_count + 1) / 4)
-        const followersCount = user._count.followers;
-        const scorePop = Math.min(1, Math.log10(followersCount + 1) / 4);
-
-        // Final Composite Score: (0.4 * prox) + (0.4 * mut) + (0.2 * pop)
-        const finalScore = scoreProx * 0.4 + scoreMut * 0.4 + scorePop * 0.2;
-
-        // Contextual Recommendation Reason matching Instagram
-        let recommendationReason: {
-          type: 'MUTUAL_FRIENDS' | 'NEARBY' | 'SAME_CITY' | 'POPULAR';
-          text: string;
-          mutualFriends?: { id: string; username: string; avatar: string | null }[];
-          totalMutualCount?: number;
-        };
-
-        if (mutualCount >= 2) {
-          const first = user.followers[0].follower;
-          const second = user.followers[1].follower;
-          const text = `Followed by ${first.username} and ${mutualCount - 1} other${
-            mutualCount > 2 ? 's' : ''
-          }`;
-          recommendationReason = {
-            type: 'MUTUAL_FRIENDS',
-            text,
-            mutualFriends: [first, second],
-            totalMutualCount: mutualCount,
-          };
-        } else if (mutualCount === 1) {
-          const first = user.followers[0].follower;
-          recommendationReason = {
-            type: 'MUTUAL_FRIENDS',
-            text: `Followed by ${first.username}`,
-            mutualFriends: [first],
-            totalMutualCount: 1,
-          };
-        } else if (proxReasonText) {
-          recommendationReason = {
-            type: proxReasonText.startsWith('From your city') ? 'SAME_CITY' : 'NEARBY',
-            text: proxReasonText,
-          };
-        } else {
-          recommendationReason = {
-            type: 'POPULAR',
-            text: 'Suggested for you',
-          };
-        }
-
-        return {
-          user,
-          finalScore,
-          recommendationReason,
-        };
-      }),
+    const candidateUsers = await this.usersRepository.getCandidateUsersDetails(
+      candidateIds,
+      [...RESERVED_USERNAMES],
+      followingIds,
     );
 
-    // Sort by FinalScore descending and take limit
-    scoredCandidates.sort((a, b) => b.finalScore - a.finalScore);
-    const topCandidates = scoredCandidates.slice(0, limit);
+    // 5. Preload candidate cities & geodistances in TWO roundtrips total
+    // (was: up to 2xN). Privacy-gated members resolve to null without IO.
+    const [candidateCities, candidateDistances] = await Promise.all([
+      this.redis.mget(candidateUsers.map((u) => `user_city:${u.id}`)),
+      viewerId && viewerGeo
+        ? (async (): Promise<Array<number | null>> => {
+            const gatedIds: string[] = [];
+            const gatedIdx: number[] = [];
+            candidateUsers.forEach((u, i) => {
+              if (u.privacy?.allowNearbyRecommendations ?? true) {
+                gatedIds.push(u.id);
+                gatedIdx.push(i);
+              }
+            });
+            const fetched = await this.redis.geodistMany('user_geo', viewerId, gatedIds, 'km');
+            const distances: Array<number | null> = candidateUsers.map(() => null);
+            gatedIdx.forEach((orig, k) => {
+              distances[orig] = fetched[k];
+            });
+            return distances;
+          })()
+        : Promise.resolve(candidateUsers.map(() => null)),
+    ]);
+
+    // 6. Score via @social-network/feed-score. Preset from FEED_PRESET
+    // ('legacy' default = bit-identical legacy composite; 'balanced' adds
+    // recency + affinity). lastSeenAt always maps (neutral under legacy).
+    const preset = this.feedPreset();
+    const interestCtx =
+      preset === 'balanced' ? await this.loadInterestContext(viewerId, candidateIds) : null;
+    const ranked = rankCandidates(
+      candidateUsers.map((user, idx) => ({
+        id: user.id,
+        distKm: candidateDistances[idx],
+        allowNearby: user.privacy?.allowNearbyRecommendations ?? true,
+        city: candidateCities[idx],
+        mutuals: user.followers.map((f) => ({
+          id: f.follower.id,
+          username: f.follower.username,
+          avatar: f.follower.avatar,
+        })),
+        mutualCount: user.followers.length,
+        followersCount: user._count.followers,
+        lastActiveAtMs: user.lastSeenAt ? user.lastSeenAt.getTime() : null,
+        interests: interestCtx?.vectors.get(user.id) ?? null,
+      })),
+      {
+        weights: FEED_PRESETS[preset],
+        viewerInterests: interestCtx?.viewer ?? null,
+      },
+    );
+    const usersById = new Map(candidateUsers.map((user) => [user.id, user] as const));
+    const topCandidates = ranked.slice(0, limit).map((c) => {
+      const user = usersById.get(c.id);
+      // Invariant: ranked ids always come from candidateUsers above.
+      if (!user) throw new Error(`feed-score returned unknown candidate ${c.id}`);
+      // Copy into the mutable DTO shape (core reasons are readonly).
+      const reason = c.reason;
+      return {
+        user,
+        finalScore: c.score,
+        recommendationReason: {
+          type: reason.type,
+          text: reason.text,
+          ...(reason.mutualFriends !== undefined
+            ? { mutualFriends: reason.mutualFriends.map((m) => ({ ...m })) }
+            : {}),
+          ...(reason.totalMutualCount !== undefined
+            ? { totalMutualCount: reason.totalMutualCount }
+            : {}),
+        },
+      };
+    });
 
     const ids = topCandidates.map((c) => c.user.id);
     const ctx = await this.visibility.loadContext(ids, viewerId ?? null);
@@ -843,74 +681,88 @@ export class UsersService {
     await this.redis.dismissSuggestedUser(viewerId, targetId);
   }
 
-  private levenshtein(a: string, b: string): number {
-    const str1 = (typeof a === 'string' ? a : '').slice(0, MAX_SEARCH_TERM_LENGTH);
-    const str2 = (typeof b === 'string' ? b : '').slice(0, MAX_SEARCH_TERM_LENGTH);
-    const m = str1.length;
-    const n = str2.length;
-    if (m === 0) return n;
-    if (n === 0) return m;
-
-    let prevRow: number[] = Array.from({ length: n + 1 }, (_, i) => i);
-    const currRow: number[] = new Array<number>(n + 1).fill(0);
-
-    for (let i = 1; i <= m; i++) {
-      currRow[0] = i;
-      for (let j = 1; j <= n; j++) {
-        const cost = str1[i - 1] === str2[j - 1] ? 0 : 1;
-        currRow[j] = Math.min(
-          currRow[j - 1] + 1, // insertion
-          prevRow[j] + 1, // deletion
-          prevRow[j - 1] + cost, // substitution
-        );
-      }
-      prevRow = [...currRow];
+  /**
+   * Scoring preset from FEED_PRESET ('legacy' default, 'balanced' for the
+   * recency+affinity A/B). Unknown values fall back to legacy with a warning.
+   */
+  private feedPreset(): FeedPresetName {
+    const raw = process.env.FEED_PRESET;
+    const preset = parsePresetName(raw);
+    if (
+      raw !== undefined &&
+      raw.trim() !== '' &&
+      preset === 'legacy' &&
+      raw.trim().toLowerCase() !== 'legacy'
+    ) {
+      this.logger.warn(`Unknown FEED_PRESET=${JSON.stringify(raw)}, using legacy`);
     }
-    return prevRow[n];
+    return preset;
+  }
+
+  private interestVocabCache: { vocab: string[]; expiresAt: number } | null = null;
+
+  /** Global interest vocabulary (top-32 trending tags), cached 5 minutes. */
+  private async getInterestVocabulary(dim: number): Promise<string[]> {
+    const now = Date.now();
+    const cached = this.interestVocabCache;
+    if (cached && cached.expiresAt > now && cached.vocab.length >= dim) {
+      return cached.vocab.slice(0, dim);
+    }
+    const trending = await this.getTrendingHashtags(Math.max(dim, 32));
+    const vocab = topVocabulary(
+      trending.map((t) => [t.tag, t.count] as const),
+      dim,
+    );
+    this.interestVocabCache = { vocab, expiresAt: now + 5 * 60 * 1000 };
+    return vocab;
+  }
+
+  /**
+   * Viewer + candidate interest vectors in ONE contents query. Returns null
+   * (affinity dormant) when no vocabulary exists or on any failure — scoring
+   * must never break suggestions.
+   */
+  private async loadInterestContext(
+    viewerId: string | null | undefined,
+    candidateIds: string[],
+  ): Promise<{ viewer: number[] | undefined; vectors: Map<string, number[]> } | null> {
+    try {
+      const vocab = await this.getInterestVocabulary(32);
+      if (vocab.length === 0) return null;
+      const ids = viewerId ? [viewerId, ...candidateIds] : [...candidateIds];
+      const rows = await this.usersRepository.getRecentContentsByAuthors(ids, 5);
+      const byAuthor = new Map<string, string[]>();
+      for (const row of rows) {
+        const list = byAuthor.get(row.authorId) ?? [];
+        list.push(row.content);
+        byAuthor.set(row.authorId, list);
+      }
+      const vectors = new Map<string, number[]>();
+      for (const [author, contents] of byAuthor) {
+        vectors.set(author, buildInterestVector(contents, vocab));
+      }
+      return { viewer: viewerId ? vectors.get(viewerId) : undefined, vectors };
+    } catch (e) {
+      this.logger.warn(`Interest vectors unavailable, affinity dormant: ${String(e)}`);
+      return null;
+    }
+  }
+
+  private levenshtein(a: string, b: string): number {
+    // Bounded core: exact whenever callers care (dist <= 2), early-exits
+    // otherwise. Same decisions as the former full-matrix version at a
+    // fraction of the cost (no per-row spread allocations).
+    return levenshtein(a, b, 2);
   }
 
   async getTopFollowedUsers(limit = 5, viewerId?: string | null): Promise<UserProfileDto[]> {
-    const blockedIds = viewerId
-      ? await this.prisma.userBlock
-          .findMany({
-            where: {
-              OR: [{ blockerId: viewerId }, { blockedId: viewerId }],
-            },
-            select: { blockerId: true, blockedId: true },
-          })
-          .then((blocks: { blockerId: string; blockedId: string }[]) => {
-            const set = new Set<string>();
-            for (const b of blocks) {
-              if (b.blockerId === viewerId) set.add(b.blockedId);
-              if (b.blockedId === viewerId) set.add(b.blockerId);
-            }
-            return Array.from(set);
-          })
-      : [];
+    const blockedIds = viewerId ? await this.usersRepository.getBlockedIds(viewerId) : [];
 
-    const users = await this.prisma.user.findMany({
-      where: {
-        AND: [
-          blockedIds.length > 0 ? { id: { notIn: blockedIds } } : {},
-          { username: { notIn: [...RESERVED_USERNAMES] } },
-        ],
-      },
-      orderBy: {
-        followers: {
-          _count: 'desc',
-        },
-      },
-      take: limit,
-      include: {
-        badges: true,
-        _count: {
-          select: {
-            followers: { where: { status: 'ACCEPTED' } },
-            following: { where: { status: 'ACCEPTED' } },
-          },
-        },
-      },
-    });
+    const users = await this.usersRepository.searchCandidates(
+      blockedIds,
+      [...RESERVED_USERNAMES],
+      limit,
+    );
 
     const ids = users.map((u) => u.id);
     const ctx = await this.visibility.loadContext(ids, viewerId ?? null);
@@ -926,24 +778,14 @@ export class UsersService {
     const cleanTag = (query || '').replace(/^#+/, '').trim().toLowerCase();
     if (!cleanTag) return [];
 
-    const posts = await this.prisma.post.findMany({
-      where: {
-        content: {
-          contains: `#${cleanTag}`,
-          mode: 'insensitive',
-        },
-      },
-      select: { content: true },
-      take: 100,
-    });
+    const posts = await this.usersRepository.getRecentPublicPostsContent(100);
 
     const tagCounts = new Map<string, number>();
-    const hashtagRegex = /#([a-zA-Z0-9_\u0400-\u04FF]+)/g;
 
     for (const p of posts) {
-      const matches = p.content.match(hashtagRegex) || [];
+      const matches = this.textPipeline?.extractHashtags(p.content) ?? extractHashtags(p.content);
       for (const m of matches) {
-        const tag = m.slice(1).toLowerCase();
+        const tag = m.startsWith('#') ? m.slice(1).toLowerCase() : m.toLowerCase();
         if (tag.includes(cleanTag)) {
           tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
         }
@@ -973,6 +815,13 @@ export class UsersService {
       birthDate: user.birthDate ? user.birthDate.toISOString() : null,
       isPrivate: user.isPrivate,
       isVerified: user.isVerified ?? false,
+      flags:
+        (user as unknown as { flags?: number }).flags !== undefined &&
+        (user as unknown as { flags?: number }).flags !== 0
+          ? (user as unknown as { flags: number }).flags
+          : user.isVerified
+            ? DEFAULT_USER_FLAGS | UserFlags.IS_VERIFIED
+            : DEFAULT_USER_FLAGS,
       primaryBadge: user.primaryBadge ?? null,
       badges,
       githubUsername: user.githubUsername ?? null,
@@ -1010,6 +859,7 @@ export class UsersService {
       bio: null,
       isPrivate: raw.isPrivate,
       isVerified: raw.isVerified ?? false,
+      flags: raw.flags ?? DEFAULT_USER_FLAGS,
       primaryBadge: raw.primaryBadge ?? null,
       badges: raw.badges ?? [],
       githubUsername: raw.githubUsername ?? null,

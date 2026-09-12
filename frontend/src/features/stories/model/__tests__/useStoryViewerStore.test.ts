@@ -121,5 +121,18 @@ describe('useStoryViewerStore', () => {
 
     useStoryViewerStore.getState().setBuffering(true);
     expect(useStoryViewerStore.getState().isBuffering).toBe(true);
+
+    useStoryViewerStore.getState().setMuted(true);
+    expect(useStoryViewerStore.getState().isMuted).toBe(true);
+
+    useStoryViewerStore.getState().setVideoProgress(42);
+    expect(useStoryViewerStore.getState().videoProgress).toBe(42);
+
+    useStoryViewerStore.getState().setGroupAndStory(1, 0);
+    expect(useStoryViewerStore.getState().activeGroupIndex).toBe(1);
+    expect(useStoryViewerStore.getState().activeStoryIndex).toBe(0);
+
+    useStoryViewerStore.getState().setGroups([]);
+    expect(useStoryViewerStore.getState().groups).toEqual([]);
   });
 });

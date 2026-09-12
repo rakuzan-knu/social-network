@@ -18,11 +18,17 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/interfaces/jwt-payload.interface';
 import type {
   GetNotificationsQueryDto,
+  MarkAllAsReadQueryDto,
   NotificationFilterType,
   UpdateNotificationSettingsDto,
 } from '@common/contracts';
-import { getNotificationsQuerySchema, updateNotificationSettingsSchema } from '@common/contracts';
+import {
+  getNotificationsQuerySchema,
+  markAllAsReadQuerySchema,
+  updateNotificationSettingsSchema,
+} from '@common/contracts';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
+import { ConditionalHttpCache } from '../common/cache/etag.interceptor';
 
 @ApiTags('Notifications')
 @Controller('notifications')
@@ -32,8 +38,10 @@ export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Get paginated notifications for current user with filtering' })
-  @ApiResponse({ status: 200, description: 'Notifications returned successfully.' })
+  @ConditionalHttpCache()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Get paginated notifications with filters' })
+  @ApiResponse({ status: 200, description: 'Notifications retrieved successfully.' })
   getNotifications(
     @CurrentUser() user: RequestUser,
     @Query(new ZodValidationPipe(getNotificationsQuerySchema)) query: GetNotificationsQueryDto,
@@ -42,15 +50,23 @@ export class NotificationsController {
   }
 
   @Get('unread-count')
-  @ApiOperation({ summary: 'Get unread notification count breakdown' })
-  @ApiResponse({ status: 200, description: 'Unread counts returned successfully.' })
-  getUnreadCounts(@CurrentUser() user: RequestUser) {
+  @ConditionalHttpCache()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Get categorized unread notification counts' })
+  @ApiResponse({ status: 200, description: 'Unread counts retrieved.' })
+  getUnreadCount(@CurrentUser() user: RequestUser) {
     return this.notificationsService.getUnreadCounts(user.id);
   }
 
+  getUnreadCounts(@CurrentUser() user: RequestUser) {
+    return this.getUnreadCount(user);
+  }
+
   @Get('settings')
-  @ApiOperation({ summary: 'Get current user notification settings' })
-  @ApiResponse({ status: 200, description: 'Settings returned successfully.' })
+  @ConditionalHttpCache()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Get user notification settings' })
+  @ApiResponse({ status: 200, description: 'Settings retrieved.' })
   getSettings(@CurrentUser() user: RequestUser) {
     return this.notificationsService.getSettings(user.id);
   }
@@ -58,18 +74,18 @@ export class NotificationsController {
   @Patch('settings')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Update notification settings' })
-  @ApiResponse({ status: 200, description: 'Settings updated successfully.' })
+  @ApiResponse({ status: 200, description: 'Settings updated.' })
   updateSettings(
     @CurrentUser() user: RequestUser,
     @Body(new ZodValidationPipe(updateNotificationSettingsSchema))
-    body: UpdateNotificationSettingsDto,
+    dto: UpdateNotificationSettingsDto,
   ) {
-    return this.notificationsService.updateSettings(user.id, body);
+    return this.notificationsService.updateSettings(user.id, dto);
   }
 
   @Post('mute-author/:actorId')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Mute notifications from specific author' })
+  @ApiOperation({ summary: 'Mute all notifications from specific author' })
   @ApiResponse({ status: 200, description: 'Author notifications muted.' })
   muteAuthor(@Param('actorId') actorId: string, @CurrentUser() user: RequestUser) {
     return this.notificationsService.muteAuthor(user.id, actorId);
@@ -87,10 +103,14 @@ export class NotificationsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Mark all notifications as read' })
   @ApiResponse({ status: 200, description: 'All notifications marked as read.' })
-  markAllAsRead(@CurrentUser() user: RequestUser, @Query('type') type?: string) {
+  markAllAsRead(
+    @CurrentUser() user: RequestUser,
+    @Query(new ZodValidationPipe(markAllAsReadQuerySchema)) query?: MarkAllAsReadQueryDto | string,
+  ) {
+    const rawType = typeof query === 'string' ? query : query?.type;
     return this.notificationsService.markAllAsRead(
       user.id,
-      type as NotificationFilterType | undefined,
+      rawType as NotificationFilterType | undefined,
     );
   }
 

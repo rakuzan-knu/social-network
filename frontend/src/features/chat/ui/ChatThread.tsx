@@ -1,16 +1,19 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Copy, Forward, Trash2, X, CheckSquare } from 'lucide-react';
+import { Copy, Forward, Trash2, X, CheckSquare, Archive, ArchiveRestore } from 'lucide-react';
 import { useAuthStore } from '@/shared/model/useAuthStore';
 import { ConversationView, MessageView } from '../../../entities/chat/model/types';
 import { getConversationDisplay } from '../lib/getConversationDisplay';
+import { promptEditMessage } from '../lib/promptEditMessage';
 import { useMessages } from '../model/useMessages';
 import { useMessageActions } from '../model/useMessageActions';
+import { useArchiveConversation } from '../model/useConversationMutations';
 import { useConversationRealtime } from '../model/useConversationRealtime';
 import { useQueryOnlineStatus } from '../model/usePresence';
 import { useStagedAttachments } from '@/shared/model/useStagedAttachments';
 import { chatApi } from '../api/chatApi';
 import ChatThreadHeader from './ChatThreadHeader';
+import { CallHandoffBanner } from './Call/CallHandoffBanner';
 import GlobalMediaPlaybackBar from './GlobalMediaPlaybackBar';
 import { useActiveMediaPlaybackStore } from '@/shared/model/useActiveMediaPlaybackStore';
 import PinnedMessagesBar from './PinnedMessagesBar';
@@ -23,6 +26,7 @@ import BatchDeleteModal from './BatchDeleteModal';
 import AttachmentDropZone from '@/shared/ui/AttachmentDropZone';
 import ConversationDetailsPanel from './ConversationDetailsPanel';
 import MessageSearchPanel from './MessageSearchPanel';
+import { useCall } from '../model/CallContext';
 import ChatDatePicker from './ChatDatePicker';
 import { formatMessageTime } from '../lib/groupMessagesByDate';
 import { useChatTheme } from '../model/useChatTheme';
@@ -44,6 +48,7 @@ export default function ChatThread({ conversation }: ChatThreadProps) {
     conversation.type === 'GROUP'
       ? undefined
       : conversation.participants.find((p) => p.userId !== userId);
+  const myParticipant = conversation.participants.find((p) => p.userId === userId);
 
   useQueryOnlineStatus(otherParticipant ? [otherParticipant.userId] : []);
 
@@ -68,6 +73,8 @@ export default function ChatThread({ conversation }: ChatThreadProps) {
   } = useMessages(conversation.id);
   const { typingUserIds } = useConversationRealtime(conversation.id);
   const actions = useMessageActions(conversation.id);
+  const archiveConversation = useArchiveConversation();
+  const { initiateCall } = useCall();
 
   const [replyingTo, setReplyingTo] = useState<MessageView | null>(null);
   const [forwardingMessage, setForwardingMessage] = useState<MessageView | null>(null);
@@ -348,6 +355,7 @@ export default function ChatThread({ conversation }: ChatThreadProps) {
     <div className="flex-1 flex h-full min-w-0">
       <div className="flex-1 flex flex-col h-full min-w-0">
         <ChatThreadHeader
+          conversationId={conversation.id}
           display={display}
           otherUserId={otherParticipant?.userId ?? null}
           isOtherTyping={isOtherTyping}
@@ -356,7 +364,43 @@ export default function ChatThread({ conversation }: ChatThreadProps) {
           isGroup={conversation.type === 'GROUP'}
           memberAvatars={conversation.participants.map((p) => p.user.avatar)}
           memberCount={conversation.participants.length}
+          onStartCall={(type) => {
+            const targetUser = otherParticipant?.user ?? {
+              id: conversation.id,
+              username: display.title,
+              displayName: display.title,
+              avatar: display.avatar,
+              isOnline: true,
+            };
+            void initiateCall({
+              conversationId: conversation.id,
+              callType: type,
+              remoteUser: targetUser,
+            });
+          }}
         />
+
+        {conversation.isArchived && (
+          <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-amber-500/10 border-b border-amber-500/20 text-amber-200 text-xs backdrop-blur-md transition-all">
+            <div className="flex items-center gap-2">
+              <Archive size={15} className="text-amber-400 flex-shrink-0" />
+              <span>
+                This conversation is archived. New messages won't trigger push notifications.
+              </span>
+            </div>
+            <button
+              onClick={() =>
+                archiveConversation.mutate({ conversationId: conversation.id, archived: false })
+              }
+              className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 hover:bg-amber-500/30 text-amber-100 font-medium text-xs border border-amber-500/30 transition-all active:scale-95 cursor-pointer"
+            >
+              <ArchiveRestore size={13} />
+              Unarchive
+            </button>
+          </div>
+        )}
+
+        <CallHandoffBanner />
 
         <GlobalMediaPlaybackBar
           onNearQueueEnd={hasNextPage && !isFetchingNextPage ? fetchNextPage : undefined}
@@ -417,9 +461,11 @@ export default function ChatThread({ conversation }: ChatThreadProps) {
               onLoadMore={fetchNextPage}
               onReply={setReplyingTo}
               onEdit={(message) => {
-                const nextBody = window.prompt('Edit message', message.body ?? '');
-                if (nextBody && nextBody !== message.body)
-                  actions.editMessage(message.id, nextBody).catch(() => {});
+                void promptEditMessage(
+                  message,
+                  otherParticipant?.userId ?? null,
+                  actions.editMessage,
+                );
               }}
               onDelete={handleDelete}
               onForward={setForwardingMessage}
@@ -445,6 +491,9 @@ export default function ChatThread({ conversation }: ChatThreadProps) {
               onLoadNewer={() => {
                 if (messages.length > 0)
                   actions.loadNewerMessages(messages[messages.length - 1].id);
+              }}
+              onRetry={(msgId) => {
+                actions.retrySendMessage(msgId).catch(() => {});
               }}
             />
 
@@ -512,7 +561,7 @@ export default function ChatThread({ conversation }: ChatThreadProps) {
             )}
 
             {isBlocked && otherParticipant ? (
-              <div className="w-full max-w-[960px] mx-auto px-2 sm:px-4">
+              <div className="w-full max-w-240 mx-auto px-2 sm:px-4">
                 <BlockedComposerBanner
                   otherUserId={otherParticipant.userId}
                   blockedByMe={conversation.blockedByMe}
@@ -520,7 +569,7 @@ export default function ChatThread({ conversation }: ChatThreadProps) {
                 />
               </div>
             ) : (
-              <div className="w-full max-w-[960px] mx-auto px-2 sm:px-4 pb-2">
+              <div className="w-full max-w-240 mx-auto px-2 sm:px-4 pb-2">
                 <MessageComposer
                   conversationId={conversation.id}
                   actions={actions}
@@ -535,6 +584,10 @@ export default function ChatThread({ conversation }: ChatThreadProps) {
                   onClearFiles={staged.clear}
                   onDismissFilesError={staged.dismissError}
                   isGroup={conversation.type === 'GROUP'}
+                  permissionsMask={myParticipant?.permissions}
+                  e2eePeerUserId={
+                    conversation.type === 'GROUP' ? null : (otherParticipant?.userId ?? null)
+                  }
                 />
               </div>
             )}
@@ -547,7 +600,7 @@ export default function ChatThread({ conversation }: ChatThreadProps) {
             messageCount={1}
             onClose={() => setForwardingMessage(null)}
             onForward={(conversationIds, _hideAuthor) => {
-              actions.forwardMessage(forwardingMessage.id, conversationIds).catch(() => {});
+              actions.forwardMessage(forwardingMessage, conversationIds).catch(() => {});
               setForwardingMessage(null);
             }}
           />

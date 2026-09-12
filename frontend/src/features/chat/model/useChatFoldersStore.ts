@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { chatApi } from '../api/chatApi';
 
 export type SystemChatFolderId = 'all' | 'unread' | 'groups';
 
@@ -11,12 +12,15 @@ export interface ChatFolder {
   includeIds: string[];
   excludeIds: string[];
   isSystem?: boolean;
+  filterType?: string;
+  order?: number;
 }
 
 interface ChatFoldersState {
   systemFolders: ChatFolder[];
   folders: ChatFolder[];
   folderOrders: Record<string, string[]>;
+  syncWithServer: () => Promise<void>;
   addFolder: (folder: Omit<ChatFolder, 'id'>) => string;
   updateFolder: (id: string, patch: Omit<ChatFolder, 'id' | 'isSystem'>) => void;
   deleteFolder: (id: string) => void;
@@ -31,7 +35,8 @@ const ORDER_STORAGE_KEY = 'eternal-chat-folder-orders';
 function loadFolders() {
   if (typeof window === 'undefined') return [];
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]') as ChatFolder[];
+    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]') as ChatFolder[];
+    return raw.filter((f) => f.filterType !== 'WORK' && f.name.toLowerCase() !== 'work');
   } catch {
     return [];
   }
@@ -39,26 +44,31 @@ function loadFolders() {
 
 function saveFolders(folders: ChatFolder[]) {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(folders));
+  const filtered = folders.filter(
+    (f) => f.filterType !== 'WORK' && f.name.toLowerCase() !== 'work',
+  );
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
 }
 
 export const systemChatFolders: ChatFolder[] = [
   {
     id: 'all',
-    name: 'All',
-    icon: null,
+    name: 'All Chats',
+    icon: 'MessageSquare',
     emoji: null,
     color: '#8b5cf6',
+    filterType: 'ALL',
     includeIds: [],
     excludeIds: [],
     isSystem: true,
   },
   {
-    id: 'unread',
-    name: 'Unread',
-    icon: null,
+    id: 'personal',
+    name: 'Personal',
+    icon: 'User',
     emoji: null,
-    color: '#60a5fa',
+    color: '#3b82f6',
+    filterType: 'PERSONAL',
     includeIds: [],
     excludeIds: [],
     isSystem: true,
@@ -66,9 +76,21 @@ export const systemChatFolders: ChatFolder[] = [
   {
     id: 'groups',
     name: 'Groups',
-    icon: null,
+    icon: 'Users',
     emoji: null,
-    color: '#22c55e',
+    color: '#f59e0b',
+    filterType: 'GROUPS',
+    includeIds: [],
+    excludeIds: [],
+    isSystem: true,
+  },
+  {
+    id: 'unread',
+    name: 'Unread',
+    icon: 'BellRing',
+    emoji: null,
+    color: '#ec4899',
+    filterType: 'UNREAD',
     includeIds: [],
     excludeIds: [],
     isSystem: true,
@@ -80,8 +102,10 @@ function loadSystemFolders() {
   try {
     const saved = JSON.parse(localStorage.getItem(SYSTEM_STORAGE_KEY) ?? '[]') as ChatFolder[];
     return systemChatFolders.map((folder) => {
-      const override = saved.find((item) => item.id === folder.id);
-      return override ? { ...folder, ...override, isSystem: true } : folder;
+      const override = saved.find(
+        (item) => item.id === folder.id || item.filterType === folder.filterType,
+      );
+      return override ? { ...folder, ...override, emoji: null, isSystem: true } : folder;
     });
   } catch {
     return systemChatFolders;
@@ -90,7 +114,10 @@ function loadSystemFolders() {
 
 function saveSystemFolders(folders: ChatFolder[]) {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(SYSTEM_STORAGE_KEY, JSON.stringify(folders));
+  const filtered = folders
+    .filter((f) => f.filterType !== 'WORK' && f.name.toLowerCase() !== 'work')
+    .map((f) => (f.isSystem ? { ...f, emoji: null } : f));
+  localStorage.setItem(SYSTEM_STORAGE_KEY, JSON.stringify(filtered));
 }
 
 function loadFolderOrders() {
@@ -111,16 +138,85 @@ export const useChatFoldersStore = create<ChatFoldersState>((set) => ({
   systemFolders: loadSystemFolders(),
   folders: loadFolders(),
   folderOrders: loadFolderOrders(),
+  syncWithServer: async () => {
+    try {
+      const serverFolders = await chatApi.getFolders();
+      if (!serverFolders || serverFolders.length === 0) return;
+
+      const system: ChatFolder[] = [];
+      const custom: ChatFolder[] = [];
+
+      for (const sf of serverFolders) {
+        if (sf.filterType === 'WORK' || sf.name.toLowerCase() === 'work') {
+          continue;
+        }
+
+        const isSystemFolder = sf.filterType !== 'CUSTOM';
+        const item: ChatFolder = {
+          id: sf.id,
+          name: sf.name,
+          icon: sf.icon,
+          emoji: isSystemFolder ? null : sf.emoji,
+          color: sf.color,
+          includeIds: sf.includeIds,
+          excludeIds: sf.excludeIds,
+          filterType: sf.filterType,
+          order: sf.order,
+          isSystem: isSystemFolder,
+        };
+
+        if (
+          sf.filterType === 'ALL' ||
+          sf.filterType === 'UNREAD' ||
+          sf.filterType === 'GROUPS' ||
+          sf.filterType === 'PERSONAL'
+        ) {
+          system.push(item);
+        } else {
+          custom.push(item);
+        }
+      }
+
+      set({
+        systemFolders: system.length > 0 ? system : loadSystemFolders(),
+        folders: custom,
+      });
+      saveFolders(custom);
+    } catch {
+      // Offline fallback already loaded from localStorage
+    }
+  },
   addFolder: (folder) => {
-    const id = `folder-${Date.now()}`;
+    const tempId = `folder-${Date.now()}`;
     set((state) => {
-      const folders = [{ ...folder, id }, ...state.folders];
+      const folders = [{ ...folder, id: tempId }, ...state.folders];
       saveFolders(folders);
       return { folders };
     });
-    return id;
+
+    chatApi
+      .createFolder({
+        name: folder.name,
+        icon: folder.icon ?? undefined,
+        emoji: folder.emoji ?? undefined,
+        color: folder.color,
+        includeIds: folder.includeIds,
+        excludeIds: folder.excludeIds,
+      })
+      .then((created) => {
+        set((state) => {
+          const folders = state.folders.map((f) =>
+            f.id === tempId ? { ...f, id: created.id } : f,
+          );
+          saveFolders(folders);
+          return { folders };
+        });
+      })
+      .catch(() => {});
+
+    return tempId;
   },
-  updateFolder: (id, patch) =>
+  updateFolder: (id, patch) => {
     set((state) => {
       if (state.systemFolders.some((folder) => folder.id === id)) {
         const systemFolders = state.systemFolders.map((folder) =>
@@ -135,8 +231,22 @@ export const useChatFoldersStore = create<ChatFoldersState>((set) => ({
       );
       saveFolders(folders);
       return { folders };
-    }),
-  deleteFolder: (id) =>
+    });
+
+    if (!id.startsWith('folder-')) {
+      chatApi
+        .updateFolder(id, {
+          name: patch.name,
+          icon: patch.icon ?? undefined,
+          emoji: patch.emoji ?? undefined,
+          color: patch.color,
+          includeIds: patch.includeIds,
+          excludeIds: patch.excludeIds,
+        })
+        .catch(() => {});
+    }
+  },
+  deleteFolder: (id) => {
     set((state) => {
       if (state.systemFolders.some((folder) => folder.id === id)) return state;
       const folders = state.folders.filter((folder) => folder.id !== id);
@@ -149,13 +259,24 @@ export const useChatFoldersStore = create<ChatFoldersState>((set) => ({
       saveFolders(folders);
       saveFolderOrders(folderOrders);
       return { folders, folderOrders };
-    }),
-  reorderFolders: (ownerId, orderedIds) =>
+    });
+
+    if (!id.startsWith('folder-')) {
+      chatApi.deleteFolder(id).catch(() => {});
+    }
+  },
+  reorderFolders: (ownerId, orderedIds) => {
     set((state) => {
       const folderOrders = { ...state.folderOrders, [ownerId]: orderedIds };
       saveFolderOrders(folderOrders);
       return { folderOrders };
-    }),
+    });
+
+    const validUuids = orderedIds.filter((id) => !id.startsWith('folder-') && id.length > 20);
+    if (validUuids.length > 0) {
+      chatApi.reorderFolders(validUuids).catch(() => {});
+    }
+  },
   toggleConversationInFolder: (folderId, conversationId) =>
     set((state) => {
       const targetFolder = state.folders.find((f) => f.id === folderId);

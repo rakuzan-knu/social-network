@@ -11,7 +11,13 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY backend/package.json ./backend/
 COPY frontend/package.json ./frontend/
+COPY packages/msg-codec/package.json ./packages/msg-codec/
+COPY packages/text-pipeline/package.json ./packages/text-pipeline/
+COPY packages/blinded-crypto/package.json ./packages/blinded-crypto/
+COPY packages/feed-score/package.json ./packages/feed-score/
+COPY packages/native/package.json ./packages/native/
 COPY backend/prisma ./backend/prisma/
+COPY backend/prisma.config.ts ./backend/
 COPY scripts ./scripts/
 
 ENV CI=true
@@ -32,8 +38,9 @@ COPY --from=build-deps /app ./
 COPY tsconfig.base.json* nx.json* ./
 COPY backend ./backend
 COPY frontend ./frontend
+COPY packages ./packages
 
-RUN pnpm --filter backend build
+RUN pnpm --filter @social-network/msg-codec build && pnpm --filter @social-network/text-pipeline build && pnpm --filter @social-network/blinded-crypto build && pnpm --filter @social-network/feed-score build && pnpm --filter @social-network/native build && pnpm --filter backend build
 
 # Stage 3: Production Dependencies Only
 FROM node:24-alpine AS prod-deps
@@ -48,7 +55,13 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY backend/package.json ./backend/
 COPY frontend/package.json ./frontend/
+COPY packages/msg-codec/package.json ./packages/msg-codec/
+COPY packages/text-pipeline/package.json ./packages/text-pipeline/
+COPY packages/blinded-crypto/package.json ./packages/blinded-crypto/
+COPY packages/feed-score/package.json ./packages/feed-score/
+COPY packages/native/package.json ./packages/native/
 COPY backend/prisma ./backend/prisma/
+COPY backend/prisma.config.ts ./backend/
 COPY scripts ./scripts/
 
 ENV CI=true
@@ -64,13 +77,13 @@ FROM node:24-alpine AS production
 RUN --mount=type=cache,target=/var/cache/apk \
     apk add --no-cache tini openssl libc6-compat
 
-RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nestjs
+RUN addgroup --system --gid 1000 appgroup && adduser --system --uid 1000 --ingroup appgroup appuser
 WORKDIR /app
 
 COPY package.json pnpm-workspace.yaml ./
 COPY backend/package.json ./backend/
 
-ENV NODE_ENV=production NODE_OPTIONS="--max-old-space-size=512"
+ENV NODE_ENV=production NODE_OPTIONS="--max-old-space-size=2048 --expose-gc" PORT=7860
 ENV PATH="/app/backend/node_modules/.bin:/app/node_modules/.bin:${PATH}"
 ENV NODE_PATH="/app/node_modules:/app/backend/node_modules"
 
@@ -78,15 +91,22 @@ COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=prod-deps /app/backend/node_modules ./backend/node_modules
 RUN if [ -d ./backend/node_modules ]; then cp -rn ./backend/node_modules/* ./node_modules/ 2>/dev/null || true; fi
 COPY --from=builder /app/backend/dist ./backend/dist
+COPY --from=prod-deps /app/packages ./packages
+COPY --from=builder /app/packages/msg-codec/dist ./packages/msg-codec/dist
+COPY --from=builder /app/packages/text-pipeline/dist ./packages/text-pipeline/dist
+COPY --from=builder /app/packages/blinded-crypto/dist ./packages/blinded-crypto/dist
+COPY --from=builder /app/packages/feed-score/dist ./packages/feed-score/dist
+COPY --from=builder /app/packages/native/dist ./packages/native/dist
 COPY --from=prod-deps /app/backend/prisma ./backend/prisma
-COPY --from=builder /app/scripts/backup-db.sh ./scripts/backup-db.sh
+COPY --from=prod-deps /app/backend/prisma.config.ts ./backend/prisma.config.ts
+COPY --from=builder /app/scripts/db/backup-db.sh ./scripts/db/backup-db.sh
 
-RUN chown -R nestjs:nodejs /app
-USER nestjs
+RUN chown -R appuser:appgroup /app
+USER appuser
 
-EXPOSE 3000
+EXPOSE 7860 3000
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["sh", "-c", "export NODE_OPTIONS=$(echo \"${NODE_OPTIONS:-}\" | sed 's/--optimize-for-size//g'); export DIRECT_URL=\"${DIRECT_URL:-$DATABASE_URL}\"; export DATABASE_URL=\"${DATABASE_URL}\"; if [ -n \"$DATABASE_URL\" ] && [ \"$AUTO_MIGRATE\" != \"false\" ]; then echo '🚀 Applying Prisma database migrations via Direct URL...'; npx prisma migrate deploy --schema=./backend/prisma/schema.prisma || npx prisma db push --schema=./backend/prisma/schema.prisma --accept-data-loss || echo '⚠️ Database migration notice: proceed to startup'; fi; if [ -f backend/dist/backend/src/main.js ]; then node backend/dist/backend/src/main; elif [ -f backend/dist/src/main.js ]; then node backend/dist/src/main; else node backend/dist/main; fi"]
+CMD ["sh", "-c", "export NODE_OPTIONS=$(echo \"${NODE_OPTIONS:-}\" | sed 's/--optimize-for-size//g'); export DIRECT_URL=\"${DIRECT_URL:-$DATABASE_URL}\"; export DATABASE_URL=\"${DATABASE_URL}\"; if [ -n \"$DATABASE_URL\" ] && [ \"$AUTO_MIGRATE\" != \"false\" ]; then echo '🚀 Applying Prisma database migrations via Direct URL...'; npx prisma migrate deploy --schema=./backend/prisma/schema.prisma; fi; if [ -f backend/dist/backend/src/main.js ]; then node backend/dist/backend/src/main; elif [ -f backend/dist/src/main.js ]; then node backend/dist/src/main; else node backend/dist/main; fi"]
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD sh -c "export NODE_OPTIONS=\$(echo \"\${NODE_OPTIONS:-}\" | sed 's/--optimize-for-size//g'); node -e \"require('http').get('http://localhost:3000/health', (r) => r.statusCode === 200 ? process.exit(0) : process.exit(1))\""
+    CMD sh -c "export NODE_OPTIONS=\$(echo \"\${NODE_OPTIONS:-}\" | sed 's/--optimize-for-size//g'); node -e \"require('http').get('http://localhost:' + (process.env.PORT || 7860) + '/health', (r) => r.statusCode === 200 ? process.exit(0) : process.exit(1))\""

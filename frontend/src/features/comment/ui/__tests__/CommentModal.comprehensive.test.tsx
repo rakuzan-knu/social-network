@@ -8,6 +8,13 @@ import { useCurrentUser } from '@/entities/profile/model/useCurrentUser';
 import { commentsApi } from '../../api/commentsApi';
 
 vi.mock('@/entities/profile/model/useCurrentUser');
+vi.mock('@/features/posts/api/postsApi', () => ({
+  postsApi: {
+    updatePost: vi.fn().mockResolvedValue({ id: 'post-100' }),
+    deletePost: vi.fn().mockResolvedValue({ success: true }),
+    toggleLike: vi.fn().mockResolvedValue({ isLiked: true, likesCount: 121 }),
+  },
+}));
 
 describe('CommentModal (Comprehensive Suite)', () => {
   const mockPost = {
@@ -167,5 +174,34 @@ describe('CommentModal (Comprehensive Suite)', () => {
 
     expect(useUIStore.getState().activePostForComments?.isLiked).toBe(true);
     expect(useUIStore.getState().activePostForComments?.likes).toBe(121);
+  });
+
+  it('allows owner to edit and delete post from modal', async () => {
+    vi.mocked(useCurrentUser).mockReturnValue({
+      data: { id: 'author-100', username: 'grace' } as any,
+      isLoading: false,
+    } as any);
+
+    const user = userEvent.setup({ delay: null });
+    renderWithProviders(<CommentModal />);
+
+    // Open options menu
+    const optionsBtn = screen.getByLabelText('More options');
+    await user.click(optionsBtn);
+
+    // Edit post
+    const editBtn = screen.getByText('Edit post');
+    await user.click(editBtn);
+
+    const doneBtn = screen.getByRole('button', { name: /done/i });
+    await user.click(doneBtn);
+
+    // Open menu again for Delete
+    await user.click(screen.getByLabelText('More options'));
+    const deleteBtn = screen.getByText('Delete your post');
+    await user.click(deleteBtn);
+
+    const confirmDeleteBtn = screen.getByRole('button', { name: /^delete$/i });
+    await user.click(confirmDeleteBtn);
   });
 });

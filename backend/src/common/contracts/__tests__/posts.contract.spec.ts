@@ -45,6 +45,13 @@ describe('posts.contract', () => {
       });
       expect(valid.gifUrls).toEqual(['single-gif-string']);
       expect(valid.poll).toEqual(['single-poll-string']);
+
+      // Invalid media string fallback
+      expect(() =>
+        createPostSchema.parse({
+          media: 'not-json',
+        }),
+      ).toThrow();
     });
 
     it('validates editPostSchema, getPostsQuerySchema, searchPostsSchema, reportPostSchema', () => {
@@ -168,7 +175,7 @@ describe('posts.contract', () => {
         content: 'Minimal content',
         authorId: 'anon-id',
         author: null,
-        createdAt: now,
+        createdAt: { toISOString: () => '2026-01-01T00:00:00.000Z' } as unknown as Date,
         updatedAt: now,
         isPinned: true,
         pinnedAt: null,
@@ -183,7 +190,7 @@ describe('posts.contract', () => {
       expect(dto.media).toEqual([]);
       expect(dto.poll).toBeNull();
       expect(dto.editedAt).toBe('2026-01-02T00:00:00.000Z');
-      expect(dto.pinnedAt).toBe(now.toISOString());
+      expect(dto.pinnedAt).toBe('2026-01-01T00:00:00.000Z');
     });
   });
 });

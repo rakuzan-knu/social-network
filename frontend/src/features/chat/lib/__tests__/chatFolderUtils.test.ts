@@ -52,6 +52,52 @@ describe('chatFolderUtils', () => {
     expect(res[0].id).toBe('c2');
   });
 
+  it('filters group conversations with UUID and filterType', () => {
+    const groupFolder: ChatFolder = {
+      id: 'uuid-groups-1234',
+      name: 'Groups',
+      icon: 'Users',
+      emoji: null,
+      color: '#000',
+      filterType: 'GROUPS',
+      includeIds: [],
+      excludeIds: [],
+      isSystem: true,
+    };
+
+    const res = getFolderConversations(
+      groupFolder,
+      mockConversations as ConversationView[],
+      new Set(),
+    );
+    expect(res).toHaveLength(1);
+    expect(res[0].id).toBe('c2');
+    expect(res[0].type).toBe('GROUP');
+  });
+
+  it('filters personal conversations with UUID and filterType', () => {
+    const personalFolder: ChatFolder = {
+      id: 'uuid-personal-5678',
+      name: 'Personal',
+      icon: 'User',
+      emoji: null,
+      color: '#000',
+      filterType: 'PERSONAL',
+      includeIds: [],
+      excludeIds: [],
+      isSystem: true,
+    };
+
+    const res = getFolderConversations(
+      personalFolder,
+      mockConversations as ConversationView[],
+      new Set(),
+    );
+    expect(res).toHaveLength(1);
+    expect(res[0].id).toBe('c1');
+    expect(res[0].type).toBe('DIRECT');
+  });
+
   it('calculates unread count correctly', () => {
     const allFolder: ChatFolder = {
       id: 'all',

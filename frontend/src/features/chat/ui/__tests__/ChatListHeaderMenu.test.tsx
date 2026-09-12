@@ -16,5 +16,11 @@ describe('ChatListHeaderMenu', () => {
 
     fireEvent.click(screen.getByText('Archived chats'));
     expect(onOpen).toHaveBeenCalledWith('archive');
+
+    fireEvent.click(screen.getByText('Settings'));
+    expect(onOpen).toHaveBeenCalledWith('settings');
+
+    fireEvent.click(screen.getByText('Privacy and safety'));
+    expect(onOpen).toHaveBeenCalledWith('privacy');
   });
 });

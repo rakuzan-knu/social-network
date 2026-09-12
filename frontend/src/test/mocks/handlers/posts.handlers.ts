@@ -125,6 +125,31 @@ export const postsHandlers = [
       siteName: 'Example',
     }),
   ),
+  http.get('*/posts/:postId/comments', () =>
+    HttpResponse.json({
+      comments: [],
+      data: [],
+      meta: { nextCursor: null, hasNextPage: false },
+    }),
+  ),
+  http.post('*/posts/:postId/comments', () =>
+    HttpResponse.json({
+      id: 'c-1',
+      text: 'comment',
+      createdAt: new Date().toISOString(),
+    }),
+  ),
+  http.get('*/comments/:id/replies', () =>
+    HttpResponse.json({
+      replies: [],
+      data: [],
+      meta: { nextCursor: null, hasNextPage: false },
+    }),
+  ),
+  http.post('*/comments/:id/like', () => HttpResponse.json({ isLiked: true, likesCount: 1 })),
+  http.delete('*/comments/:id/like', () => HttpResponse.json({ isLiked: false, likesCount: 0 })),
+  http.post('*/comments/:id/pin', () => HttpResponse.json({ isPinned: true })),
+  http.delete('*/comments/:id', () => new HttpResponse(null, { status: 204 })),
   http.get('*/posts/:id', ({ params }) =>
     HttpResponse.json({
       ...mockPosts[0],

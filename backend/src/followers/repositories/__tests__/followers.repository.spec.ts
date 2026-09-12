@@ -16,6 +16,10 @@ describe('FollowersRepository', () => {
     user: {
       findUnique: jest.Mock;
     };
+    userBlock?: {
+      findFirst: jest.Mock;
+    };
+    $transaction: jest.Mock;
   };
 
   const sampleUser = {
@@ -40,6 +44,14 @@ describe('FollowersRepository', () => {
       user: {
         findUnique: jest.fn(),
       },
+      userBlock: {
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
+      $transaction: jest.fn(async (cb: unknown) =>
+        typeof cb === 'function'
+          ? (cb as (tx: typeof mockPrisma) => unknown)(mockPrisma)
+          : Promise.all(cb as unknown[]),
+      ),
     };
 
     repository = new FollowersRepository(mockPrisma as unknown as PrismaService);

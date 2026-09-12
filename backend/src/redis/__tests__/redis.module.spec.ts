@@ -74,7 +74,7 @@ describe('RedisModule', () => {
     });
   });
 
-  describe('provider factory retryStrategy', () => {
+  describe('provider factory retryStrategy and error handling', () => {
     it('creates Redis client and configures retryStrategy properly', () => {
       const retryFn = (times: number) => (times > 3 ? null : Math.min(times * 100, 1000));
       expect(retryFn(1)).toBe(100);
@@ -91,6 +91,58 @@ describe('RedisModule', () => {
       });
 
       expect(Redis).toHaveBeenCalledTimes(1);
+    });
+
+    it('attaches error and ready event listeners to Redis client instance', () => {
+      const prevEnv = process.env.NODE_ENV;
+      const prevInMemory = process.env.REDIS_IN_MEMORY;
+      process.env.NODE_ENV = 'production';
+      process.env.REDIS_IN_MEMORY = 'false';
+      try {
+        const mockOn = jest.fn();
+        const mockCall = jest.fn().mockResolvedValue('OK');
+        (Redis as unknown as jest.Mock).mockImplementationOnce(() => ({
+          on: mockOn,
+          call: mockCall,
+        }));
+
+        const mockConfigService = {
+          get: jest.fn().mockReturnValue('redis://localhost:6379'),
+        };
+
+        interface FactoryProvider {
+          provide?: unknown;
+          useFactory?: (config: unknown) => unknown;
+        }
+
+        const providers = (Reflect.getMetadata('providers', RedisModule) ??
+          []) as FactoryProvider[];
+        const redisClientProvider = providers.find(
+          (p): p is FactoryProvider & { useFactory: (config: unknown) => unknown } =>
+            typeof p.useFactory === 'function',
+        );
+        const client = redisClientProvider?.useFactory(mockConfigService);
+
+        expect(mockOn).toHaveBeenCalledWith('error', expect.any(Function));
+        expect(mockOn).toHaveBeenCalledWith('ready', expect.any(Function));
+        expect(client).toBeDefined();
+
+        // Trigger the registered error callback
+        type MockCall = [string, ((err?: Error) => void)?];
+        const calls = mockOn.mock.calls as MockCall[];
+        const errorCall = calls.find((call) => call[0] === 'error');
+        const errorHandler = errorCall?.[1];
+        expect(() => errorHandler?.(new Error('Connection refused'))).not.toThrow();
+        expect(() => errorHandler?.(new Error('Connection refused'))).not.toThrow();
+
+        // Trigger ready callback
+        const readyCall = calls.find((call) => call[0] === 'ready');
+        const readyHandler = readyCall?.[1];
+        expect(() => readyHandler?.()).not.toThrow();
+      } finally {
+        process.env.NODE_ENV = prevEnv;
+        process.env.REDIS_IN_MEMORY = prevInMemory;
+      }
     });
   });
 });

@@ -1,8 +1,15 @@
 import { MessageView } from '../../../entities/chat/model/types';
+import { e2eeManager } from '../../../shared/lib/crypto/e2ee';
 
 export function getMessageToastPreview(message: MessageView) {
   if (message.isDeleted) return 'This message was deleted';
-  if (message.body?.trim()) return message.body.trim();
+  if (message.body?.trim()) {
+    const trimmed = message.body.trim();
+    // Never leak ciphertext JSON into notifications — the envelope is opaque
+    // by design; toasts stay generic until the conversation is opened.
+    if (e2eeManager.isEncrypted(trimmed)) return 'New encrypted message';
+    return trimmed;
+  }
 
   const attachment = message.attachments?.[0];
   if (!attachment) {

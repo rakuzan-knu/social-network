@@ -1,10 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import MessagePermissionsModal from '../MessagePermissionsModal';
 import React from 'react';
 
 describe('MessagePermissionsModal', () => {
-  it('renders permission switches and saves updated permissions', () => {
+  it('renders permission switches and saves updated permissions', async () => {
     const onClose = vi.fn();
     render(<MessagePermissionsModal onClose={onClose} />);
 
@@ -12,9 +12,27 @@ describe('MessagePermissionsModal', () => {
     expect(screen.getByText('Send text messages')).toBeInTheDocument();
     expect(screen.getByText('Send media & files')).toBeInTheDocument();
 
+    // Toggle a permission
+    const textOption = screen.getByText('Send text messages');
+    fireEvent.click(textOption);
+
     const saveBtn = screen.getByRole('button', { name: 'Save' });
     fireEvent.click(saveBtn);
 
-    expect(onClose).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalled();
+    });
+  });
+
+  it('cancels without saving', async () => {
+    const onClose = vi.fn();
+    render(<MessagePermissionsModal onClose={onClose} />);
+
+    const cancelBtn = screen.getByRole('button', { name: 'Cancel' });
+    fireEvent.click(cancelBtn);
+
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalled();
+    });
   });
 });

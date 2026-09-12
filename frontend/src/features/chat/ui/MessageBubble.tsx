@@ -1,6 +1,18 @@
 import React, { useState, useRef } from 'react';
-import { Smile, Reply, MoreHorizontal, Check, CheckCheck, Clock, Pencil } from 'lucide-react';
+import {
+  Smile,
+  Reply,
+  MoreHorizontal,
+  Check,
+  CheckCheck,
+  Clock,
+  Pencil,
+  AlertCircle,
+  Lock,
+} from 'lucide-react';
 import Avatar from '../../../shared/ui/Avatar';
+import { e2eeManager } from '../../../shared/lib/crypto/e2ee';
+import { useDecryptedMessageBody } from '../model/useDecryptedMessageBody';
 import { MessageView } from '../../../entities/chat/model/types';
 import { formatMessageTime } from '../lib/groupMessagesByDate';
 import MessageReactionPicker from './MessageReactionPicker';
@@ -12,6 +24,7 @@ import MessageAttachments from './MessageAttachments';
 import ChatPollCard from './ChatPollCard';
 import { parseChatPoll } from '../lib/chatPoll';
 import { PostEmbedCard } from './PostEmbedCard';
+import { ReelEmbedCard } from './ReelEmbedCard';
 import { LinkPreviewCard } from '../../../shared/ui/LinkPreviewCard';
 import MarkdownContent from '../../../shared/ui/MarkdownContent';
 import { extractFirstUrl } from '../../../shared/lib/urlUtils';
@@ -41,6 +54,9 @@ interface MessageBubbleProps {
   onReact: (messageId: string, emoji: string) => void;
   onUnreact: (messageId: string, emoji: string) => void;
   onJumpToMessage?: (messageId: string) => void;
+  onRetry?: (messageId: string) => void;
+  /** 1:1 peer for message-layer E2EE decrypt; null/undefined = groups or unknown (locked label). */
+  e2eePeerUserId?: string | null;
 }
 
 function getBubbleRounding(isOwnMessage: boolean, position: ClusterPosition = 'single'): string {
@@ -71,18 +87,32 @@ function getBubbleRounding(isOwnMessage: boolean, position: ClusterPosition = 's
   }
 }
 
-function extractPostInfo(body: string): { displayText: string; postId: string | null } {
-  if (!body) return { displayText: '', postId: null };
+function extractMediaInfo(body: string): {
+  displayText: string;
+  postId: string | null;
+  reelId: string | null;
+} {
+  if (!body) return { displayText: '', postId: null, reelId: null };
+
+  const reelMatch = body.match(
+    /(?:https?:\/\/[^\s]+)?(?:\/reels\?id=|\/reels\/|#reel-)([a-zA-Z0-9_-]+)/i,
+  );
+  if (reelMatch) {
+    const reelId = reelMatch[1];
+    const urlRegex = /(?:https?:\/\/[^\s]+)?(?:\/reels\?id=|\/reels\/|#reel-)[a-zA-Z0-9_-]+/gi;
+    const cleanText = body.replace(urlRegex, '').trim();
+    return { displayText: cleanText, postId: null, reelId };
+  }
 
   const postMatch = body.match(/(?:https?:\/\/[^\s]+)?(?:#post-|\/post\/)([a-zA-Z0-9_-]+)/i);
   if (postMatch) {
     const postId = postMatch[1];
     const urlRegex = /(?:https?:\/\/[^\s]+)?(?:#post-|\/post\/)[a-zA-Z0-9_-]+/gi;
     const cleanText = body.replace(urlRegex, '').trim();
-    return { displayText: cleanText, postId };
+    return { displayText: cleanText, postId, reelId: null };
   }
 
-  return { displayText: body, postId: null };
+  return { displayText: body, postId: null, reelId: null };
 }
 
 export default function MessageBubble({
@@ -105,6 +135,8 @@ export default function MessageBubble({
   onReact,
   onUnreact,
   onJumpToMessage,
+  onRetry,
+  e2eePeerUserId = null,
 }: MessageBubbleProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isPickerOpen, setPickerOpen] = useState(false);
@@ -113,8 +145,29 @@ export default function MessageBubble({
   const reactionsContainerRef = useRef<HTMLDivElement | null>(null);
   const bubbleContainerRef = useRef<HTMLDivElement | null>(null);
 
-  const { displayText, postId: embeddedPostId } = extractPostInfo(message.body || '');
-  const firstExternalUrl = !embeddedPostId ? extractFirstUrl(message.body) : null;
+  const displaySource = useDecryptedMessageBody(
+    message.body,
+    e2eePeerUserId,
+    message.conversationId,
+    message.sender?.id ?? null,
+  );
+  // Same dialog, same peer: quoted envelopes decrypt like the body itself.
+  // NOTE: hooks must stay above the early returns below (deleted/leave/system).
+  const replyDisplaySource = useDecryptedMessageBody(
+    message.replyTo?.body ?? null,
+    e2eePeerUserId,
+    message.replyTo?.conversationId ?? message.conversationId,
+    message.replyTo?.sender?.id ?? null,
+  );
+  const {
+    displayText,
+    postId: embeddedPostId,
+    reelId: embeddedReelId,
+  } = extractMediaInfo(displaySource);
+  const isE2ee = Boolean(message.body && e2eeManager.isEncrypted(message.body));
+  const resolvedDisplayText = displayText;
+  const firstExternalUrl =
+    !embeddedPostId && !embeddedReelId ? extractFirstUrl(displaySource) : null;
 
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [isSwiping, setIsSwiping] = useState(false);
@@ -249,10 +302,35 @@ export default function MessageBubble({
           : 'bg-[#12131b]/80 backdrop-blur-xl border border-white/[0.08] text-white/90 shadow-[0_4px_16px_rgba(0,0,0,0.4)]',
       };
 
-  const isSending = Boolean((message as unknown as { isPending?: boolean }).isPending);
-  const statusLabel = isSending ? 'Sending...' : isReadByOther ? 'Read' : 'Delivered';
+  const isSending =
+    message.status === 'SENDING' ||
+    Boolean((message as unknown as { isPending?: boolean }).isPending);
+  const isError = message.status === 'ERROR';
 
-  const statusIcon = isSending ? (
+  const statusLabel = isError
+    ? 'Failed to send. Click to retry'
+    : isSending
+      ? 'Sending...'
+      : isReadByOther
+        ? 'Read'
+        : message.status === 'SENT'
+          ? 'Sent'
+          : 'Delivered';
+
+  const statusIcon = isError ? (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onRetry?.(message.id);
+      }}
+      className="text-red-400 hover:text-red-300 transition-colors inline-flex items-center gap-0.5 cursor-pointer"
+      title="Failed to send. Click to retry"
+    >
+      <AlertCircle size={12} className="stroke-[2.2]" />
+      <span className="text-[10px] underline font-medium">Retry</span>
+    </button>
+  ) : isSending ? (
     <Clock size={11} className="animate-spin opacity-70" style={{ color: contrast?.statusColor }} />
   ) : isReadByOther ? (
     <CheckCheck
@@ -260,11 +338,17 @@ export default function MessageBubble({
       className="stroke-[2.2]"
       style={{ color: contrast?.statusColor || '#c084fc' }}
     />
-  ) : (
+  ) : message.status === 'SENT' ? (
     <Check
       size={13}
-      className="stroke-[2]"
+      className="stroke-2"
       style={{ color: contrast?.timeColor || 'rgba(156, 163, 175, 1)' }}
+    />
+  ) : (
+    <CheckCheck
+      size={13}
+      className="stroke-2"
+      style={{ color: contrast?.timeColor || 'rgba(156, 163, 175, 0.7)' }}
     />
   );
 
@@ -317,7 +401,8 @@ export default function MessageBubble({
 
   const getReplySnippet = () => {
     if (!message.replyTo) return '';
-    if (message.replyTo.body) return message.replyTo.body;
+    // Same dialog, same peer: quoted envelopes decrypt like the body itself.
+    if (message.replyTo.body) return replyDisplaySource;
     if (!replyAttachment) return 'Message';
     if (replyAttachment.type === 'STICKER') return '⭐ Sticker';
     if (replyAttachment.type === 'IMAGE') return '🖼️ Photo';
@@ -354,7 +439,7 @@ export default function MessageBubble({
             e.stopPropagation();
             onToggleSelect?.(message.id, e.shiftKey);
           }}
-          className="flex-shrink-0 cursor-pointer self-center mr-1 focus:outline-none"
+          className="shrink-0 cursor-pointer self-center mr-1 focus:outline-none"
         >
           <div
             className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${
@@ -390,7 +475,7 @@ export default function MessageBubble({
         }}
       >
         {!isOwnMessage && (
-          <div className="w-8 flex-shrink-0 self-end flex items-end justify-center mb-0.5">
+          <div className="w-8 shrink-0 self-end flex items-end justify-center mb-0.5">
             {showAvatar ? (
               <Avatar size="sm" src={message.sender.avatar} />
             ) : (
@@ -540,7 +625,7 @@ export default function MessageBubble({
                 color: contrast ? contrast.textColor : undefined,
               }}
               className={`relative px-3.5 py-2 transition-all ${
-                message.replyTo ? 'min-w-[210px] sm:min-w-[240px]' : 'min-w-[75px] sm:min-w-[85px]'
+                message.replyTo ? 'min-w-52.5 sm:min-w-60' : 'min-w-18.75 sm:min-w-21.25'
               } ${roundingClass} ${bubbleStyles.className}`}
             >
               {/* Interactive Quoted Message */}
@@ -554,11 +639,11 @@ export default function MessageBubble({
                     backgroundColor: contrast ? contrast.quoteBg : undefined,
                     borderLeftColor: contrast ? contrast.quoteBorder : undefined,
                   }}
-                  className={`group/reply relative flex items-center mb-1.5 px-2.5 py-1.5 rounded-lg text-left cursor-pointer transition-all duration-150 select-none overflow-hidden min-w-[190px] sm:min-w-[220px] max-w-full ${
+                  className={`group/reply relative flex items-center mb-1.5 px-2.5 py-1.5 rounded-lg text-left cursor-pointer transition-all duration-150 select-none overflow-hidden min-w-47.5 sm:min-w-55 max-w-full ${
                     !contrast
                       ? isOwnMessage
                         ? 'bg-black/20 hover:bg-black/35 border border-purple-400/25'
-                        : 'bg-black/25 hover:bg-black/40 border border-white/[0.08]'
+                        : 'bg-black/25 hover:bg-black/40 border border-white/8'
                       : 'border-l-2'
                   }`}
                   title="Jump to original message"
@@ -566,7 +651,7 @@ export default function MessageBubble({
                   {/* Left colored vertical bar */}
                   {!contrast && (
                     <div
-                      className={`w-[3px] self-stretch rounded-full mr-2.5 flex-shrink-0 ${
+                      className={`w-0.75 self-stretch rounded-full mr-2.5 shrink-0 ${
                         isOwnMessage ? 'bg-purple-300' : 'bg-sky-400'
                       }`}
                     />
@@ -577,7 +662,7 @@ export default function MessageBubble({
                     <img
                       src={replyThumbnail}
                       alt="Attachment preview"
-                      className="w-9 h-9 rounded-md object-cover flex-shrink-0 mr-2.5 bg-black/40 border border-white/10"
+                      className="w-9 h-9 rounded-md object-cover shrink-0 mr-2.5 bg-black/40 border border-white/10"
                       onError={(e) => {
                         (e.currentTarget as HTMLElement).style.display = 'none';
                       }}
@@ -658,18 +743,22 @@ export default function MessageBubble({
                 )}
 
               {message.body && (
-                <div className="relative text-[14.5px] leading-[1.38] break-words [overflow-wrap:anywhere]">
-                  {displayText && (
+                <div className="relative text-[14.5px] leading-[1.38] wrap-break-word">
+                  {resolvedDisplayText && (
                     <div
                       className="font-normal"
                       style={{ color: contrast ? contrast.textColor : undefined }}
                     >
-                      <MarkdownContent content={displayText} />
+                      <MarkdownContent content={resolvedDisplayText} />
                     </div>
                   )}
 
                   {embeddedPostId && (
                     <PostEmbedCard postId={embeddedPostId} isOwnMessage={isOwnMessage} />
+                  )}
+
+                  {embeddedReelId && (
+                    <ReelEmbedCard reelId={embeddedReelId} isOwnMessage={isOwnMessage} />
                   )}
 
                   {firstExternalUrl && <LinkPreviewCard url={firstExternalUrl} />}
@@ -678,6 +767,14 @@ export default function MessageBubble({
                     className="float-right inline-flex items-center gap-1 ml-2.5 mt-0.5 select-none whitespace-nowrap text-[11px] leading-none"
                     style={{ color: contrast ? contrast.timeColor : undefined }}
                   >
+                    {isE2ee && (
+                      <span
+                        className="inline-flex items-center text-emerald-400 opacity-90 mr-0.5"
+                        title="End-to-End Encrypted (AES-GCM-256)"
+                      >
+                        <Lock size={10} className="stroke-[2.5]" />
+                      </span>
+                    )}
                     {message.isEdited && (
                       <span className="text-[10px] opacity-75 font-normal">edited</span>
                     )}

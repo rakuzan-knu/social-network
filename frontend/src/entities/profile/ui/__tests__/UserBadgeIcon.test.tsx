@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -32,13 +32,29 @@ describe('UserBadgeIcon', () => {
     expect(c2.querySelector('svg')).toBeInTheDocument();
   });
 
-  it('renders premium and contributor badges', () => {
+  it('renders premium and contributor badges and handles modal clicks', () => {
     const { container: c1 } = renderBadge(
       <UserBadgeIcon badgeId="PREMIUM" subscriptionMonths={3} />,
     );
     expect(c1.querySelector('svg')).toBeInTheDocument();
 
+    const iconWrapper = c1.querySelector('.cursor-pointer') as HTMLElement;
+    fireEvent.click(iconWrapper);
+
     const { container: c2 } = renderBadge(<UserBadgeIcon badgeId="CONTRIBUTOR" prCount={5} />);
     expect(c2.querySelector('svg')).toBeInTheDocument();
+
+    const contributorWrapper = c2.querySelector('.cursor-pointer') as HTMLElement;
+    fireEvent.click(contributorWrapper);
+  });
+
+  it('renders tooltip for level 0 premium with subscriptionMonths > 0 and 0', () => {
+    renderBadge(
+      <UserBadgeIcon badgeId="PREMIUM" subscriptionMonths={0.5} subscriptionDate="01.01.2026" />,
+    );
+    expect(screen.getByText(/Subscriber since 01\.01\.2026/)).toBeInTheDocument();
+
+    renderBadge(<UserBadgeIcon badgeId="PREMIUM" subscriptionMonths={0} />);
+    expect(screen.getByText('No active subscription')).toBeInTheDocument();
   });
 });

@@ -28,17 +28,23 @@ describe('Modal', () => {
 
     const closeBtn = screen.getByText('Close Me');
     fireEvent.click(closeBtn);
+    // Click again while closing
+    fireEvent.click(closeBtn);
 
     act(() => {
       vi.advanceTimersByTime(200);
     });
 
-    expect(onClose).toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('closes on Escape key press', () => {
+  it('closes on Escape key press and backdrop click', () => {
     const onClose = vi.fn();
     render(<Modal onClose={onClose}>{() => <div>Modal Content</div>}</Modal>);
+
+    // Backdrop click
+    const backdrop = screen.getByText('Modal Content').parentElement!.parentElement!;
+    fireEvent.click(backdrop);
 
     fireEvent.keyDown(window, { key: 'Escape' });
 
@@ -46,6 +52,6 @@ describe('Modal', () => {
       vi.advanceTimersByTime(200);
     });
 
-    expect(onClose).toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

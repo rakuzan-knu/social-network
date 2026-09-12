@@ -1,18 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Sparkles,
-  Check,
-  Loader2,
-  Cake,
-  Clock,
-  UserCheck,
-  Headphones,
-  Gamepad2,
-  Eye,
-  Lock,
-  Globe,
-  Users,
-} from 'lucide-react';
+import { Sparkles, Check, Loader2, Cake, Clock, UserCheck, Headphones, Eye } from 'lucide-react';
 import { ShowcasePrivacy, type UpdateShowcaseDto } from '@backend/common/contracts';
 import { useCurrentUser } from '@/entities/profile/model/useCurrentUser';
 import { useShowcase, useUpdateShowcase } from '@/entities/showcase/model/useShowcase';
@@ -151,14 +138,14 @@ export const ProfileShowcaseSettingsSection: React.FC = () => {
       </div>
 
       {/* Interactive Live Preview Card */}
-      <div className="flex flex-col gap-2 p-4 rounded-3xl bg-white/[0.02] border border-white/[0.08] relative overflow-hidden">
+      <div className="flex flex-col gap-2 p-4 rounded-3xl bg-white/2 border border-white/8 relative overflow-hidden">
         <div className="flex items-center justify-between">
           <span className="text-xs font-bold text-gray-300 flex items-center gap-1.5">
             <Eye size={14} className="text-cyan-400" />
             Live Preview Window
           </span>
 
-          <div className="flex items-center gap-1 p-0.5 rounded-xl bg-black/40 border border-white/[0.08]">
+          <div className="flex items-center gap-1 p-0.5 rounded-xl bg-black/40 border border-white/8">
             <button
               type="button"
               onClick={() => setPreviewMode('guest')}
@@ -186,7 +173,7 @@ export const ProfileShowcaseSettingsSection: React.FC = () => {
 
         {/* Mini Preview Box */}
         <div
-          className="relative mt-2 p-3.5 rounded-2xl bg-[#121215] border border-white/[0.08] flex flex-col gap-3 transition-all duration-300"
+          className="relative mt-2 p-3.5 rounded-2xl bg-[#121215] border border-white/8 flex flex-col gap-3 transition-all duration-300"
           style={{
             boxShadow: `0 0 30px -8px ${accentColor}50`,
           }}
@@ -201,19 +188,19 @@ export const ProfileShowcaseSettingsSection: React.FC = () => {
           {isMetaVisibleInPreview ? (
             <div className="flex flex-wrap gap-1.5">
               {showBirthdate && (
-                <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white/[0.04] border border-white/[0.08] text-[10px] text-gray-200">
+                <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white/4 border border-white/8 text-[10px] text-gray-200">
                   <Cake size={12} className="text-pink-400" />
                   <span>Aug 15 {showAge ? '(25 y.o.)' : ''}</span>
                 </div>
               )}
               {showGender && (
-                <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white/[0.04] border border-white/[0.08] text-[10px] text-cyan-300">
+                <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white/4 border border-white/8 text-[10px] text-cyan-300">
                   <UserCheck size={12} />
                   <span>{pronouns || currentUser?.gender || 'he/him'}</span>
                 </div>
               )}
               {showTimezone && (
-                <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white/[0.04] border border-white/[0.08] text-[10px] text-emerald-300">
+                <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white/4 border border-white/8 text-[10px] text-emerald-300">
                   <Clock size={12} />
                   <span>18:30 ({timezone})</span>
                 </div>
@@ -227,7 +214,7 @@ export const ProfileShowcaseSettingsSection: React.FC = () => {
 
           {/* Live Activity Preview */}
           {isActivityVisibleInPreview && (
-            <div className="flex items-center justify-between p-2 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+            <div className="flex items-center justify-between p-2 rounded-xl bg-white/3 border border-white/6">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-[#1DB954]">
                   <Headphones size={14} />
@@ -253,7 +240,7 @@ export const ProfileShowcaseSettingsSection: React.FC = () => {
               {[1, 2, 3, 4, 5].map((i) => (
                 <div
                   key={i}
-                  className="w-10 h-14 rounded-lg bg-white/[0.05] border border-white/[0.08] flex items-center justify-center text-[9px] text-gray-400 font-bold"
+                  className="w-10 h-14 rounded-lg bg-white/5 border border-white/8 flex items-center justify-center text-[9px] text-gray-400 font-bold"
                 >
                   #{i}
                 </div>
@@ -286,13 +273,13 @@ export const ProfileShowcaseSettingsSection: React.FC = () => {
       </div>
 
       {/* Meta Widget Controls */}
-      <div className="flex flex-col gap-3 pt-4 border-t border-white/[0.06]">
+      <div className="flex flex-col gap-3 pt-4 border-t border-white/6">
         <span className="text-xs font-bold text-gray-300 uppercase tracking-wider">
           Personal Meta Options:
         </span>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.02] border border-white/[0.08]">
+          <div className="flex items-center justify-between p-3 rounded-2xl bg-white/2 border border-white/8">
             <div>
               <span className="text-xs font-bold text-white block">Show Birthdate</span>
               <span className="text-[10px] text-gray-500">Day & month on profile</span>
@@ -305,7 +292,7 @@ export const ProfileShowcaseSettingsSection: React.FC = () => {
             />
           </div>
 
-          <div className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.02] border border-white/[0.08]">
+          <div className="flex items-center justify-between p-3 rounded-2xl bg-white/2 border border-white/8">
             <div>
               <span className="text-xs font-bold text-white block">Show Age</span>
               <span className="text-[10px] text-gray-500">Calculates age in years</span>
@@ -318,7 +305,7 @@ export const ProfileShowcaseSettingsSection: React.FC = () => {
             />
           </div>
 
-          <div className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.02] border border-white/[0.08]">
+          <div className="flex items-center justify-between p-3 rounded-2xl bg-white/2 border border-white/8">
             <div>
               <span className="text-xs font-bold text-white block">Show Gender / Pronouns</span>
               <span className="text-[10px] text-gray-500">Display gender badge</span>
@@ -331,7 +318,7 @@ export const ProfileShowcaseSettingsSection: React.FC = () => {
             />
           </div>
 
-          <div className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.02] border border-white/[0.08]">
+          <div className="flex items-center justify-between p-3 rounded-2xl bg-white/2 border border-white/8">
             <div>
               <span className="text-xs font-bold text-white block">Show Local Clock</span>
               <span className="text-[10px] text-gray-500">Timezone ticking clock</span>
@@ -354,7 +341,7 @@ export const ProfileShowcaseSettingsSection: React.FC = () => {
               onChange={(e) => setPronouns(e.target.value)}
               placeholder="e.g. he/him, they/them"
               maxLength={20}
-              className="bg-white/[0.04] border border-white/[0.08] rounded-xl px-3.5 py-2 text-xs text-white outline-none"
+              className="bg-white/4 border border-white/8 rounded-xl px-3.5 py-2 text-xs text-white outline-none"
             />
           </div>
 
@@ -363,7 +350,7 @@ export const ProfileShowcaseSettingsSection: React.FC = () => {
             <select
               value={timezone}
               onChange={(e) => setTimezone(e.target.value)}
-              className="bg-[#18181b] border border-white/[0.08] rounded-xl px-3.5 py-2 text-xs text-white outline-none cursor-pointer"
+              className="bg-[#18181b] border border-white/8 rounded-xl px-3.5 py-2 text-xs text-white outline-none cursor-pointer"
             >
               {TIMEZONES.map((tz) => (
                 <option key={tz} value={tz}>
@@ -376,12 +363,12 @@ export const ProfileShowcaseSettingsSection: React.FC = () => {
       </div>
 
       {/* Granular Privacy Tiers */}
-      <div className="flex flex-col gap-2.5 pt-4 border-t border-white/[0.06]">
+      <div className="flex flex-col gap-2.5 pt-4 border-t border-white/6">
         <span className="text-xs font-bold text-gray-300 uppercase tracking-wider">
           Granular Privacy Visibility:
         </span>
 
-        <div className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.02] border border-white/[0.08]">
+        <div className="flex items-center justify-between p-3 rounded-2xl bg-white/2 border border-white/8">
           <div>
             <span className="text-xs font-bold text-white block">Personal Meta Visibility</span>
             <span className="text-[10px] text-gray-500">Birthday, age, pronouns & clock</span>
@@ -389,7 +376,7 @@ export const ProfileShowcaseSettingsSection: React.FC = () => {
           <select
             value={privacyMeta}
             onChange={(e) => setPrivacyMeta(e.target.value as ShowcasePrivacy)}
-            className="bg-[#18181b] border border-white/[0.1] rounded-xl px-3 py-1.5 text-xs text-white outline-none cursor-pointer"
+            className="bg-[#18181b] border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white outline-none cursor-pointer"
           >
             <option value={ShowcasePrivacy.PUBLIC}>Public (Everyone)</option>
             <option value={ShowcasePrivacy.FOLLOWERS}>Followers Only</option>
@@ -397,7 +384,7 @@ export const ProfileShowcaseSettingsSection: React.FC = () => {
           </select>
         </div>
 
-        <div className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.02] border border-white/[0.08]">
+        <div className="flex items-center justify-between p-3 rounded-2xl bg-white/2 border border-white/8">
           <div>
             <span className="text-xs font-bold text-white block">Live Activity & Presence</span>
             <span className="text-[10px] text-gray-500">Spotify & gaming rich status</span>
@@ -405,7 +392,7 @@ export const ProfileShowcaseSettingsSection: React.FC = () => {
           <select
             value={privacyActivity}
             onChange={(e) => setPrivacyActivity(e.target.value as ShowcasePrivacy)}
-            className="bg-[#18181b] border border-white/[0.1] rounded-xl px-3 py-1.5 text-xs text-white outline-none cursor-pointer"
+            className="bg-[#18181b] border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white outline-none cursor-pointer"
           >
             <option value={ShowcasePrivacy.PUBLIC}>Public (Everyone)</option>
             <option value={ShowcasePrivacy.FOLLOWERS}>Followers Only</option>
@@ -413,7 +400,7 @@ export const ProfileShowcaseSettingsSection: React.FC = () => {
           </select>
         </div>
 
-        <div className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.02] border border-white/[0.08]">
+        <div className="flex items-center justify-between p-3 rounded-2xl bg-white/2 border border-white/8">
           <div>
             <span className="text-xs font-bold text-white block">Showcase & Spotlight Grid</span>
             <span className="text-[10px] text-gray-500">Top 5 Games, Anime & Cinema</span>
@@ -421,7 +408,7 @@ export const ProfileShowcaseSettingsSection: React.FC = () => {
           <select
             value={privacyShowcase}
             onChange={(e) => setPrivacyShowcase(e.target.value as ShowcasePrivacy)}
-            className="bg-[#18181b] border border-white/[0.1] rounded-xl px-3 py-1.5 text-xs text-white outline-none cursor-pointer"
+            className="bg-[#18181b] border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white outline-none cursor-pointer"
           >
             <option value={ShowcasePrivacy.PUBLIC}>Public (Everyone)</option>
             <option value={ShowcasePrivacy.FOLLOWERS}>Followers Only</option>
@@ -431,7 +418,7 @@ export const ProfileShowcaseSettingsSection: React.FC = () => {
       </div>
 
       {/* Save Button */}
-      <div className="flex justify-end pt-4 border-t border-white/[0.06]">
+      <div className="flex justify-end pt-4 border-t border-white/6">
         <button
           type="button"
           onClick={handleSave}

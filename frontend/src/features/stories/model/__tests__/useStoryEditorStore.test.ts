@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useStoryEditorStore } from '../useStoryEditorStore';
-import type { TextOverlay, PollOverlay } from '../types';
+import type { TextOverlay } from '../types';
 
 describe('useStoryEditorStore', () => {
   beforeEach(() => {
@@ -38,11 +38,26 @@ describe('useStoryEditorStore', () => {
     expect(useStoryEditorStore.getState().overlays.length).toBe(0);
   });
 
-  it('updates privacy and background color', () => {
+  it('updates privacy, background color, caption, media, active tool and editing overlay', () => {
     useStoryEditorStore.getState().setPrivacy('CLOSE_FRIENDS');
     expect(useStoryEditorStore.getState().privacy).toBe('CLOSE_FRIENDS');
 
     useStoryEditorStore.getState().setBackgroundColor('#000000');
     expect(useStoryEditorStore.getState().backgroundColor).toBe('#000000');
+
+    useStoryEditorStore.getState().setCaption('My cool story');
+    expect(useStoryEditorStore.getState().caption).toBe('My cool story');
+
+    useStoryEditorStore.getState().setMedia(null, 'https://img.jpg', 'IMAGE');
+    expect(useStoryEditorStore.getState().mediaUrl).toBe('https://img.jpg');
+
+    useStoryEditorStore.getState().setActiveTool('poll');
+    expect(useStoryEditorStore.getState().activeTool).toBe('poll');
+
+    useStoryEditorStore.getState().setEditingOverlayId('ov-1');
+    expect(useStoryEditorStore.getState().editingOverlayId).toBe('ov-1');
+
+    useStoryEditorStore.getState().closeEditor();
+    expect(useStoryEditorStore.getState().isOpen).toBe(false);
   });
 });

@@ -2,10 +2,10 @@ import React from 'react';
 import { UserBadgeIcon } from './UserBadgeIcon';
 
 interface VerifiedCheckmarkProps {
-  isVerified?: boolean;
-  primaryBadge?: string | null;
-  size?: 'xs' | 'sm' | 'md' | 'lg';
-  className?: string;
+  isVerified?: boolean | undefined;
+  primaryBadge?: string | null | undefined;
+  size?: ('xs' | 'sm' | 'md' | 'lg') | undefined;
+  className?: string | undefined;
 }
 
 export function VerifiedCheckmark({

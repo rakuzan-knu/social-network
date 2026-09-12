@@ -1,10 +1,11 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import React from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { FollowButton } from '../FollowButton';
 import * as useFollowMutationModule from '../../model/useFollowMutation';
 import { useAuthStore } from '@/shared/model/useAuthStore';
+import { chatApi } from '@/features/chat/api/chatApi';
 
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
@@ -78,7 +79,8 @@ describe('FollowButton', () => {
     expect(screen.getByRole('button', { name: 'Following' })).toBeInTheDocument();
   });
 
-  it('opens subtle dropdown when clicking Friends button, and calls mutate on Unfriend', () => {
+  it('opens subtle dropdown when clicking Friends button, starts chat, and handles outside click', async () => {
+    vi.spyOn(chatApi, 'createDirectConversation').mockResolvedValue({ id: 'conv-123' } as any);
     renderComponent({ authorId: 'user-1', isFollowing: true, isFriend: true });
     const btn = screen.getByRole('button', { name: /Friends/i });
 
@@ -87,7 +89,25 @@ describe('FollowButton', () => {
     expect(screen.getByText('Send message')).toBeInTheDocument();
     expect(screen.getByText('Unfriend')).toBeInTheDocument();
 
-    // Click Unfriend
+    // Click Send message
+    await act(async () => {
+      fireEvent.click(screen.getByText('Send message'));
+    });
+    expect(chatApi.createDirectConversation).toHaveBeenCalledWith('user-1');
+    expect(mockNavigate).toHaveBeenCalledWith('/messages/conv-123');
+
+    // Reopen and test outside click
+    fireEvent.click(btn);
+    expect(screen.getByText('Unfriend')).toBeInTheDocument();
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByText('Unfriend')).not.toBeInTheDocument();
+  });
+
+  it('calls unfriend on Unfriend click in dropdown', () => {
+    renderComponent({ authorId: 'user-1', isFollowing: true, isFriend: true });
+    const btn = screen.getByRole('button', { name: /Friends/i });
+
+    fireEvent.click(btn);
     fireEvent.click(screen.getByText('Unfriend'));
     expect(mockMutate).toHaveBeenCalled();
   });

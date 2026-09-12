@@ -1,4 +1,3 @@
-import type { Request } from 'express';
 import { UsersController } from '../users.controller';
 import type { UsersService } from '../users.service';
 import type { PostsService } from '../../posts/posts.service';
@@ -23,9 +22,14 @@ describe('UsersController', () => {
     blockUser: jest.Mock;
     unblockUser: jest.Mock;
     getBlockedUsers: jest.Mock;
+    dismissSuggestedUser: jest.Mock;
+    searchHashtags: jest.Mock;
+    getTrendingHashtags: jest.Mock;
   };
   let mockPostsService: {
     getUserPosts: jest.Mock;
+    getSavedPosts: jest.Mock;
+    getUserReposts: jest.Mock;
   };
 
   const mockUser: RequestUser = {
@@ -53,10 +57,15 @@ describe('UsersController', () => {
       blockUser: jest.fn(),
       unblockUser: jest.fn(),
       getBlockedUsers: jest.fn(),
+      dismissSuggestedUser: jest.fn(),
+      searchHashtags: jest.fn(),
+      getTrendingHashtags: jest.fn(),
     };
 
     mockPostsService = {
       getUserPosts: jest.fn(),
+      getSavedPosts: jest.fn(),
+      getUserReposts: jest.fn(),
     };
 
     controller = new UsersController(
@@ -68,7 +77,7 @@ describe('UsersController', () => {
   it('searchUsers delegates query to UsersService with viewer context', async () => {
     mockUsersService.searchUsers.mockResolvedValueOnce([{ id: 'usr-found' }]);
 
-    const result = await controller.searchUsers('alex', mockUser);
+    const result = await controller.searchUsers({ q: 'alex' }, mockUser);
 
     expect(mockUsersService.searchUsers).toHaveBeenCalledWith('alex', 'usr-current');
     expect(result).toHaveLength(1);
@@ -77,14 +86,14 @@ describe('UsersController', () => {
   it('searchMentionSuggestions delegates to UsersService', async () => {
     mockUsersService.searchMentionSuggestions.mockResolvedValueOnce([]);
 
-    await controller.searchMentionSuggestions('@sam', mockUser);
+    await controller.searchMentionSuggestions({ q: '@sam' }, mockUser);
     expect(mockUsersService.searchMentionSuggestions).toHaveBeenCalledWith('@sam', 'usr-current');
   });
 
   it('getTopUsers parses limit and calls getTopFollowedUsers', async () => {
     mockUsersService.getTopFollowedUsers.mockResolvedValueOnce([]);
 
-    await controller.getTopUsers('10', mockUser);
+    await controller.getTopUsers({ limit: 10 }, mockUser);
     expect(mockUsersService.getTopFollowedUsers).toHaveBeenCalledWith(10, 'usr-current');
   });
 
@@ -174,5 +183,47 @@ describe('UsersController', () => {
 
     await controller.unblockUser('usr-target', mockUser);
     expect(mockUsersService.unblockUser).toHaveBeenCalledWith('usr-current', 'usr-target');
+
+    await controller.updatePrimaryBadgeProfileAlias(mockUser, { badgeId: 'badge-vip' });
+    expect(mockUsersService.updatePrimaryBadge).toHaveBeenCalledWith('usr-current', 'badge-vip');
+  });
+
+  it('suggested users, dismiss, hashtags, saved posts and reposts delegate properly', async () => {
+    mockUsersService.getSuggestedUsers.mockResolvedValueOnce([]);
+    mockUsersService.dismissSuggestedUser = jest.fn().mockResolvedValueOnce(undefined);
+    mockUsersService.searchHashtags = jest.fn().mockResolvedValueOnce([{ tag: 'cool', count: 5 }]);
+    mockUsersService.getTrendingHashtags = jest
+      .fn()
+      .mockResolvedValueOnce([{ tag: 'trending', count: 10 }]);
+    mockPostsService.getSavedPosts = jest.fn().mockResolvedValueOnce({ data: [] });
+    mockPostsService.getUserReposts = jest.fn().mockResolvedValueOnce({ data: [] });
+
+    await controller.getSuggestedUsers({ limit: 5 }, mockUser, { ip: '127.0.0.1' } as never);
+    expect(mockUsersService.getSuggestedUsers).toHaveBeenCalledWith(
+      'usr-current',
+      5,
+      '127.0.0.1',
+      undefined,
+    );
+
+    const dismissRes = await controller.dismissSuggestedUser('usr-target', mockUser);
+    expect(dismissRes.success).toBe(true);
+
+    const searchTags = await controller.searchHashtags({ q: 'cool' });
+    expect(searchTags).toHaveLength(1);
+
+    const trendingTags = await controller.getTrendingHashtags({ limit: 6 });
+    expect(trendingTags).toHaveLength(1);
+
+    await controller.getSavedPosts({ limit: 10 }, mockUser);
+    expect(mockPostsService.getSavedPosts).toHaveBeenCalledWith('usr-current', 10, undefined);
+
+    await controller.getUserReposts('usr-target', { limit: 10 }, mockUser);
+    expect(mockPostsService.getUserReposts).toHaveBeenCalledWith(
+      'usr-target',
+      10,
+      undefined,
+      'usr-current',
+    );
   });
 });

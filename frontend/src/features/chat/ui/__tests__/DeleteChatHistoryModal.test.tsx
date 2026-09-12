@@ -23,7 +23,12 @@ describe('DeleteChatHistoryModal', () => {
     expect(
       screen.getByText(/This will delete all messages from all users in this chat/i),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Enable Auto-Delete/i)).toBeInTheDocument();
+    const autoDeleteBtn = screen.getByText(/Enable Auto-Delete/i);
+    fireEvent.click(autoDeleteBtn);
+    expect(onClose).toHaveBeenCalled();
+
+    const cancelBtn = screen.getByRole('button', { name: /^Cancel$/i });
+    fireEvent.click(cancelBtn);
 
     const deleteBtn = screen.getByRole('button', { name: /^Delete$/i });
     fireEvent.click(deleteBtn);
@@ -57,5 +62,18 @@ describe('DeleteChatHistoryModal', () => {
     fireEvent.click(deleteBtn);
 
     expect(onConfirm).toHaveBeenCalled();
+  });
+
+  it('renders loading state when isLoading is true', () => {
+    render(
+      <DeleteChatHistoryModal
+        conversationName="Design Team"
+        isGroup={true}
+        onClose={vi.fn()}
+        onConfirm={vi.fn()}
+        isLoading={true}
+      />,
+    );
+    expect(screen.getByText('Deleting...')).toBeInTheDocument();
   });
 });

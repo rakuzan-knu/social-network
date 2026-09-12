@@ -39,9 +39,35 @@ jest.mock('@nestjs/swagger', () => {
   };
 });
 
-jest.mock('helmet', () => jest.fn(() => jest.fn()));
+jest.mock('@fastify/helmet', () => jest.fn(() => jest.fn()));
+jest.mock('@fastify/compress', () => jest.fn(() => jest.fn()));
+jest.mock('@fastify/cookie', () => jest.fn(() => jest.fn()));
+jest.mock('@fastify/multipart', () => jest.fn(() => jest.fn()));
+jest.mock('@nestjs/platform-fastify', () => {
+  return {
+    FastifyAdapter: jest.fn().mockImplementation(() => ({})),
+  };
+});
 jest.mock('@nestjs/platform-socket.io', () => ({
   IoAdapter: jest.fn().mockImplementation(() => ({})),
+}));
+jest.mock('../common/adapters/redis-io.adapter', () => ({
+  RedisIoAdapter: jest.fn().mockImplementation(() => ({
+    connectToRedis: jest.fn().mockResolvedValue(undefined),
+    createIOServer: jest.fn(),
+    close: jest.fn().mockResolvedValue(undefined),
+  })),
+}));
+
+jest.mock('nestjs-pino', () => ({
+  Logger: class MockPinoLogger {
+    log = jest.fn();
+    warn = jest.fn();
+    error = jest.fn();
+  },
+  LoggerModule: {
+    forRootAsync: jest.fn().mockReturnValue({}),
+  },
 }));
 
 interface CorsCallback {
@@ -62,10 +88,16 @@ describe('main.ts handler and bootstrap', () => {
   let mockApp: {
     set: jest.Mock;
     use: jest.Mock;
+    register: jest.Mock;
+    useGlobalPipes: jest.Mock;
+    useLogger: jest.Mock;
+    get: jest.Mock;
     enableCors: jest.Mock;
+    enableShutdownHooks: jest.Mock;
     useWebSocketAdapter: jest.Mock;
     listen: jest.Mock;
     init: jest.Mock;
+    getHttpServer: jest.Mock;
     getHttpAdapter: jest.Mock;
   };
   let mockHttpInstance: jest.Mock;
@@ -78,12 +110,27 @@ describe('main.ts handler and bootstrap', () => {
     mockApp = {
       set: jest.fn(),
       use: jest.fn(),
+      register: jest.fn().mockResolvedValue(undefined),
+      useGlobalPipes: jest.fn(),
+      useLogger: jest.fn(),
+      get: jest.fn().mockReturnValue({ log: jest.fn(), error: jest.fn(), warn: jest.fn() }),
       enableCors: jest.fn(),
+      enableShutdownHooks: jest.fn(),
       useWebSocketAdapter: jest.fn(),
       listen: jest.fn().mockResolvedValue(undefined),
       init: jest.fn().mockResolvedValue(undefined),
+      getHttpServer: jest.fn().mockReturnValue({
+        close: jest.fn((cb?: () => void) => {
+          if (typeof cb === 'function') {
+            cb();
+          }
+        }),
+      }),
       getHttpAdapter: jest.fn().mockReturnValue({
-        getInstance: () => mockHttpInstance,
+        getInstance: () => ({
+          ready: jest.fn().mockResolvedValue(undefined),
+          server: { emit: mockHttpInstance },
+        }),
       }),
     };
 
@@ -110,7 +157,6 @@ describe('main.ts handler and bootstrap', () => {
     const res = { status: jest.fn() } as unknown as Response;
 
     const createSpy = jest.spyOn(NestFactory, 'create');
-    const setSpy = jest.spyOn(mockApp, 'set');
     const initSpy = jest.spyOn(mockApp, 'init');
 
     // First call: initializes app
@@ -119,9 +165,9 @@ describe('main.ts handler and bootstrap', () => {
     }
 
     expect(createSpy).toHaveBeenCalledTimes(1);
-    expect(setSpy).toHaveBeenCalledWith('trust proxy', 1);
+    expect(mockApp.register).toHaveBeenCalled();
     expect(initSpy).toHaveBeenCalledTimes(1);
-    expect(mockHttpInstance).toHaveBeenCalledWith(req, res);
+    expect(mockHttpInstance).toHaveBeenCalledWith('request', req, res);
 
     // Second call: re-uses cachedApp
     const req2 = { url: '/api/users' } as unknown as Request;
@@ -129,7 +175,7 @@ describe('main.ts handler and bootstrap', () => {
       await handler(req2, res);
     }
     expect(createSpy).toHaveBeenCalledTimes(1);
-    expect(mockHttpInstance).toHaveBeenCalledWith(req2, res);
+    expect(mockHttpInstance).toHaveBeenCalledWith('request', req2, res);
   });
 
   it('handles CORS options callback in bootstrap', async () => {

@@ -107,6 +107,36 @@ describe('LoginForm', () => {
     await waitFor(() => expect(screen.getByText('Feed')).toBeInTheDocument());
   });
 
+  it('calls onSuccess prop if provided', async () => {
+    setupMutations({
+      mutateAsyncImpl: () =>
+        Promise.resolve({
+          accessToken: 'mock-access',
+          refreshToken: 'mock-refresh',
+          user: {
+            id: 'u1',
+            username: 'testuser',
+            displayName: 'Test',
+            avatar: 'https://avatar.png',
+          },
+        }),
+    });
+    const onSuccess = vi.fn();
+    const user = userEvent.setup({ delay: null });
+
+    render(
+      <MemoryRouter>
+        <LoginForm onSuccess={onSuccess} redirectOnSuccess={false} />
+      </MemoryRouter>,
+    );
+
+    await user.type(screen.getByPlaceholderText('Email address or phone number'), 'user@test.com');
+    await user.type(screen.getByPlaceholderText('Password'), 'secret123');
+    await user.click(screen.getByRole('button', { name: 'Log in' }));
+
+    await waitFor(() => expect(onSuccess).toHaveBeenCalled());
+  });
+
   it('shows the user-not-found error when the server responds with USER_NOT_FOUND', async () => {
     setupMutations({
       mutateAsyncImpl: () =>
@@ -152,6 +182,26 @@ describe('LoginForm', () => {
   it('shows a generic error banner for an unmapped error', async () => {
     setupMutations({
       mutateAsyncImpl: () => Promise.reject(new Error('network down')),
+    });
+    const user = userEvent.setup({ delay: null });
+    renderLoginForm();
+
+    await user.type(screen.getByPlaceholderText('Email address or phone number'), 'user@test.com');
+    await user.type(screen.getByPlaceholderText('Password'), 'secret123');
+    await user.click(screen.getByRole('button', { name: 'Log in' }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/You entered incorrect credentials/)).toBeInTheDocument(),
+    );
+  });
+
+  it('shows a generic error banner for an axios response with unmapped server message', async () => {
+    setupMutations({
+      mutateAsyncImpl: () =>
+        Promise.reject({
+          isAxiosError: true,
+          response: { status: 500, data: { message: 'INTERNAL_SERVER_ERROR' } },
+        }),
     });
     const user = userEvent.setup({ delay: null });
     renderLoginForm();

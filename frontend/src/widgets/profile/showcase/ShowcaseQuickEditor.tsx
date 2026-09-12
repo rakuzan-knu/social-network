@@ -13,15 +13,12 @@ import {
   Sparkles,
   Lock,
   Globe,
-  Users,
   MoveUp,
   MoveDown,
   Music2,
   Bookmark,
   Play,
   Pause,
-  Clock,
-  Eye,
 } from 'lucide-react';
 import {
   ShowcaseMediaType,
@@ -116,13 +113,9 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
   const [trackSearchQuery, setTrackSearchQuery] = useState('');
   const debouncedTrackSearch = useDebounce(trackSearchQuery, 400);
 
-  const { data: searchResults = [], isFetching: isSearching } = useMediaSearch(
-    debouncedSearch,
-    selectedMediaType,
-  );
+  const { data: searchResults = [] } = useMediaSearch(debouncedSearch, selectedMediaType);
 
-  const { data: trackResults = [], isFetching: isSearchingTracks } =
-    useTrackSearch(debouncedTrackSearch);
+  const { data: trackResults = [] } = useTrackSearch(debouncedTrackSearch);
 
   // Audio preview state
   const [previewTrackUrl, setPreviewTrackUrl] = useState<string | null>(null);
@@ -375,13 +368,13 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
       <div
-        className="relative w-full max-w-2xl max-h-[90vh] bg-[#0e0e11] border border-white/[0.1] rounded-3xl p-6 shadow-2xl flex flex-col gap-5 text-white overflow-hidden"
+        className="relative w-full max-w-2xl max-h-[90vh] bg-[#0e0e11] border border-white/10 rounded-3xl p-6 shadow-2xl flex flex-col gap-5 text-white overflow-hidden"
         style={{
           boxShadow: `0 0 50px -10px ${accentColor}40`,
         }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
+        <div className="flex items-center justify-between pb-3 border-b border-white/8">
           <div className="flex items-center gap-2.5">
             <div
               className="w-3 h-3 rounded-full shadow-[0_0_10px]"
@@ -395,14 +388,14 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-gray-400 hover:text-white transition-colors cursor-pointer"
+            className="p-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-colors cursor-pointer"
           >
             <X size={18} />
           </button>
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-white/[0.03] border border-white/[0.06] overflow-x-auto no-scrollbar shrink-0">
+        <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-white/3 border border-white/6 overflow-x-auto no-scrollbar shrink-0">
           <button
             type="button"
             onClick={() => setActiveTab('media')}
@@ -491,7 +484,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
             }`}
           >
             <Lock size={13} />
-            <span>Privacy</span>
+            <span>Privacy & Theme</span>
           </button>
         </div>
 
@@ -501,7 +494,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
           {activeTab === 'anthem' && (
             <div className="flex flex-col gap-4">
               {anthemTrack ? (
-                <div className="flex flex-col gap-3 p-4 rounded-2xl bg-white/[0.02] border border-white/[0.08]">
+                <div className="flex flex-col gap-3 p-4 rounded-2xl bg-white/2 border border-white/8">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
                       <Music2 size={14} /> Active Profile Anthem
@@ -552,7 +545,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                   </div>
                 </div>
               ) : (
-                <div className="text-xs text-gray-400 p-4 rounded-2xl bg-white/[0.02] border border-dashed border-white/10 text-center">
+                <div className="text-xs text-gray-400 p-4 rounded-2xl bg-white/2 border border-dashed border-white/10 text-center">
                   No anthem selected. Search for any song below to pin it to your profile.
                 </div>
               )}
@@ -570,7 +563,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                     value={trackSearchQuery}
                     onChange={(e) => setTrackSearchQuery(e.target.value)}
                     placeholder="Search Spotify / iTunes tracks (e.g. Starboy, After Dark)..."
-                    className="w-full bg-white/[0.04] border border-white/[0.08] focus:border-indigo-500 rounded-xl pl-9 pr-4 py-2.5 text-xs text-white placeholder-gray-500 outline-none transition-colors"
+                    className="w-full bg-white/4 border border-white/8 focus:border-indigo-500 rounded-xl pl-9 pr-4 py-2.5 text-xs text-white placeholder-gray-500 outline-none transition-colors"
                   />
                 </div>
 
@@ -580,7 +573,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                     {trackResults.map((track) => (
                       <div
                         key={`${track.title}-${track.artist}`}
-                        className="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-white/[0.02] hover:bg-white/[0.06] border border-white/[0.06] transition-colors"
+                        className="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-white/2 hover:bg-white/6 border border-white/6 transition-colors"
                       >
                         <div className="flex items-center gap-2.5 min-w-0 flex-1">
                           <div className="relative w-10 h-10 rounded-lg overflow-hidden shrink-0 border border-white/10">
@@ -651,7 +644,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                   className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     selectedMediaType === ShowcaseMediaType.GAME
                       ? 'bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 shadow-sm'
-                      : 'bg-white/[0.04] text-gray-400 hover:text-white'
+                      : 'bg-white/4 text-gray-400 hover:text-white'
                   }`}
                 >
                   <Gamepad2 size={14} />
@@ -663,7 +656,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                   className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     selectedMediaType === ShowcaseMediaType.ANIME
                       ? 'bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 shadow-sm'
-                      : 'bg-white/[0.04] text-gray-400 hover:text-white'
+                      : 'bg-white/4 text-gray-400 hover:text-white'
                   }`}
                 >
                   <Tv size={14} />
@@ -675,7 +668,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                   className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     selectedMediaType === ShowcaseMediaType.MOVIE
                       ? 'bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 shadow-sm'
-                      : 'bg-white/[0.04] text-gray-400 hover:text-white'
+                      : 'bg-white/4 text-gray-400 hover:text-white'
                   }`}
                 >
                   <Film size={14} />
@@ -693,7 +686,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                   {currentCategoryWishlist.map((item, idx) => (
                     <div
                       key={item.title}
-                      className="flex flex-col gap-2 p-2.5 rounded-2xl bg-white/[0.02] border border-white/[0.06]"
+                      className="flex flex-col gap-2 p-2.5 rounded-2xl bg-white/2 border border-white/6"
                     >
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2.5 min-w-0 flex-1">
@@ -729,7 +722,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                             type="button"
                             disabled={idx === 0}
                             onClick={() => handleMoveMedia(idx, 'up', true)}
-                            className="p-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-gray-400 hover:text-white disabled:opacity-30 cursor-pointer"
+                            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white disabled:opacity-30 cursor-pointer"
                           >
                             <MoveUp size={13} />
                           </button>
@@ -737,7 +730,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                             type="button"
                             disabled={idx === currentCategoryWishlist.length - 1}
                             onClick={() => handleMoveMedia(idx, 'down', true)}
-                            className="p-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-gray-400 hover:text-white disabled:opacity-30 cursor-pointer"
+                            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white disabled:opacity-30 cursor-pointer"
                           >
                             <MoveDown size={13} />
                           </button>
@@ -752,7 +745,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                       </div>
 
                       {/* Expectation Tag Selector */}
-                      <div className="flex flex-wrap gap-1 pt-1 border-t border-white/[0.04]">
+                      <div className="flex flex-wrap gap-1 pt-1 border-t border-white/4">
                         {WISHLIST_PRESET_TAGS.map((tag) => {
                           const isSelected = item.tags?.includes(tag);
                           return (
@@ -763,7 +756,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                               className={`px-2 py-0.5 rounded-lg text-[10px] font-semibold transition-all cursor-pointer ${
                                 isSelected
                                   ? 'bg-indigo-500/20 border border-indigo-500/40 text-indigo-200'
-                                  : 'bg-white/[0.03] text-gray-400 hover:text-gray-200'
+                                  : 'bg-white/3 text-gray-400 hover:text-gray-200'
                               }`}
                             >
                               {tag}
@@ -795,7 +788,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder={`Search ${selectedMediaType.toLowerCase()} to add to wishlist...`}
-                      className="w-full bg-white/[0.04] border border-white/[0.08] focus:border-indigo-500 rounded-xl pl-9 pr-4 py-2.5 text-xs text-white placeholder-gray-500 outline-none transition-colors"
+                      className="w-full bg-white/4 border border-white/8 focus:border-indigo-500 rounded-xl pl-9 pr-4 py-2.5 text-xs text-white placeholder-gray-500 outline-none transition-colors"
                     />
                   </div>
 
@@ -805,7 +798,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                         <div
                           key={item.id}
                           onClick={() => handleAddMediaToCategory(item, true)}
-                          className="flex items-center gap-2 p-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.06] cursor-pointer transition-colors group"
+                          className="flex items-center gap-2 p-2 rounded-xl bg-white/3 hover:bg-white/8 border border-white/6 cursor-pointer transition-colors group"
                         >
                           <img
                             src={item.posterUrl}
@@ -858,7 +851,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                       className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                         selectedMediaType === type
                           ? 'bg-indigo-600 text-white'
-                          : 'bg-white/[0.04] text-gray-400 hover:text-white'
+                          : 'bg-white/4 text-gray-400 hover:text-white'
                       }`}
                     >
                       {type === ShowcaseMediaType.GAME
@@ -872,7 +865,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
               </div>
 
               {/* Current Top 5 Slots */}
-              <div className="flex flex-col gap-2 p-3 rounded-2xl bg-white/[0.02] border border-white/[0.06]">
+              <div className="flex flex-col gap-2 p-3 rounded-2xl bg-white/2 border border-white/6">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-gray-300">
                     Selected Titles ({currentCategoryMedia.length}/5)
@@ -883,7 +876,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                   {currentCategoryMedia.map((item, idx) => (
                     <div
                       key={item.id || idx}
-                      className="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08]"
+                      className="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-white/4 border border-white/8"
                     >
                       <div className="flex items-center gap-3 min-w-0 flex-1">
                         <img
@@ -937,7 +930,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                           type="button"
                           disabled={idx === 0}
                           onClick={() => handleMoveMedia(idx, 'up')}
-                          className="p-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-gray-400 hover:text-white disabled:opacity-30 cursor-pointer"
+                          className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white disabled:opacity-30 cursor-pointer"
                         >
                           <MoveUp size={13} />
                         </button>
@@ -945,7 +938,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                           type="button"
                           disabled={idx === currentCategoryMedia.length - 1}
                           onClick={() => handleMoveMedia(idx, 'down')}
-                          className="p-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-gray-400 hover:text-white disabled:opacity-30 cursor-pointer"
+                          className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white disabled:opacity-30 cursor-pointer"
                         >
                           <MoveDown size={13} />
                         </button>
@@ -981,7 +974,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder={`Search ${selectedMediaType.toLowerCase()} titles...`}
-                      className="w-full bg-white/[0.04] border border-white/[0.08] focus:border-indigo-500 rounded-xl pl-9 pr-4 py-2.5 text-xs text-white placeholder-gray-500 outline-none transition-colors"
+                      className="w-full bg-white/4 border border-white/8 focus:border-indigo-500 rounded-xl pl-9 pr-4 py-2.5 text-xs text-white placeholder-gray-500 outline-none transition-colors"
                     />
                   </div>
 
@@ -992,7 +985,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                         <div
                           key={item.id}
                           onClick={() => handleAddMediaToCategory(item)}
-                          className="flex items-center gap-2 p-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.06] cursor-pointer transition-colors group"
+                          className="flex items-center gap-2 p-2 rounded-xl bg-white/3 hover:bg-white/8 border border-white/6 cursor-pointer transition-colors group"
                         >
                           <img
                             src={item.posterUrl}
@@ -1026,7 +1019,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
           {activeTab === 'spotlight' && (
             <div className="flex flex-col gap-4">
               {spotlightMedia ? (
-                <div className="flex flex-col gap-3 p-4 rounded-2xl bg-white/[0.02] border border-white/[0.08]">
+                <div className="flex flex-col gap-3 p-4 rounded-2xl bg-white/2 border border-white/8">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
                       <Flame size={14} /> Active Spotlight Card
@@ -1066,7 +1059,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                         }
                         placeholder="Custom subtitle / role (e.g. Pos 1 Carry)"
                         maxLength={60}
-                        className="bg-white/[0.04] border border-white/[0.08] rounded-lg px-2.5 py-1 text-xs text-white outline-none"
+                        className="bg-white/4 border border-white/8 rounded-lg px-2.5 py-1 text-xs text-white outline-none"
                       />
                       <input
                         type="url"
@@ -1078,13 +1071,13 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                           })
                         }
                         placeholder="Custom cover art / GIF (URL)..."
-                        className="bg-white/[0.04] border border-white/[0.08] rounded-lg px-2.5 py-1 text-[11px] text-gray-200 outline-none placeholder-gray-500"
+                        className="bg-white/4 border border-white/8 rounded-lg px-2.5 py-1 text-[11px] text-gray-200 outline-none placeholder-gray-500"
                       />
                     </div>
                   </div>
 
                   {/* Preset Tag Chips */}
-                  <div className="flex flex-col gap-1.5 pt-2 border-t border-white/[0.06]">
+                  <div className="flex flex-col gap-1.5 pt-2 border-t border-white/6">
                     <span className="text-[11px] font-semibold text-gray-400">
                       Preset & Custom Tags (max 5):
                     </span>
@@ -1099,7 +1092,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                             className={`px-2.5 py-1 rounded-xl text-[11px] font-semibold transition-all cursor-pointer ${
                               isSelected
                                 ? 'bg-amber-500/20 border border-amber-500/50 text-amber-300'
-                                : 'bg-white/[0.04] border border-white/[0.08] text-gray-400 hover:text-white'
+                                : 'bg-white/4 border border-white/8 text-gray-400 hover:text-white'
                             }`}
                           >
                             {tag}
@@ -1117,12 +1110,12 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                         onKeyDown={(e) => e.key === 'Enter' && handleAddCustomSpotlightTag()}
                         placeholder="Add custom tag (e.g. 2000+ hours)..."
                         maxLength={20}
-                        className="flex-1 bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-1.5 text-xs text-white outline-none"
+                        className="flex-1 bg-white/4 border border-white/8 rounded-xl px-3 py-1.5 text-xs text-white outline-none"
                       />
                       <button
                         type="button"
                         onClick={handleAddCustomSpotlightTag}
-                        className="px-3 py-1.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.15] text-xs font-bold cursor-pointer"
+                        className="px-3 py-1.5 rounded-xl bg-white/8 hover:bg-white/15 text-xs font-bold cursor-pointer"
                       >
                         Add Tag
                       </button>
@@ -1144,7 +1137,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder="Search title to spotlight..."
-                      className="w-full bg-white/[0.04] border border-white/[0.08] focus:border-amber-500 rounded-xl pl-9 pr-4 py-2.5 text-xs text-white placeholder-gray-500 outline-none transition-colors"
+                      className="w-full bg-white/4 border border-white/8 focus:border-amber-500 rounded-xl pl-9 pr-4 py-2.5 text-xs text-white placeholder-gray-500 outline-none transition-colors"
                     />
                   </div>
 
@@ -1154,7 +1147,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                         <div
                           key={item.id}
                           onClick={() => handleSetSpotlight(item)}
-                          className="flex items-center gap-2.5 p-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.06] cursor-pointer group"
+                          className="flex items-center gap-2.5 p-2 rounded-xl bg-white/3 hover:bg-white/8 border border-white/6 cursor-pointer group"
                         >
                           <img
                             src={item.posterUrl}
@@ -1182,7 +1175,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
           {activeTab === 'meta' && (
             <div className="flex flex-col gap-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.02] border border-white/[0.08]">
+                <div className="flex items-center justify-between p-3 rounded-2xl bg-white/2 border border-white/8">
                   <div>
                     <span className="text-xs font-bold text-white block">Show Birthdate</span>
                     <span className="text-[10px] text-gray-500">Displays birth day & month</span>
@@ -1195,7 +1188,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                   />
                 </div>
 
-                <div className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.02] border border-white/[0.08]">
+                <div className="flex items-center justify-between p-3 rounded-2xl bg-white/2 border border-white/8">
                   <div>
                     <span className="text-xs font-bold text-white block">Show Age</span>
                     <span className="text-[10px] text-gray-500">Calculates age in years</span>
@@ -1208,7 +1201,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                   />
                 </div>
 
-                <div className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.02] border border-white/[0.08]">
+                <div className="flex items-center justify-between p-3 rounded-2xl bg-white/2 border border-white/8">
                   <div>
                     <span className="text-xs font-bold text-white block">Show Gender</span>
                     <span className="text-[10px] text-gray-500">Registration gender tag</span>
@@ -1221,7 +1214,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                   />
                 </div>
 
-                <div className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.02] border border-white/[0.08]">
+                <div className="flex items-center justify-between p-3 rounded-2xl bg-white/2 border border-white/8">
                   <div>
                     <span className="text-xs font-bold text-white block">Show Local Clock</span>
                     <span className="text-[10px] text-gray-500">Live ticking timezone time</span>
@@ -1245,7 +1238,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                   onChange={(e) => setPronouns(e.target.value)}
                   maxLength={20}
                   placeholder="he/him"
-                  className="bg-white/[0.04] border border-white/[0.08] rounded-xl px-3.5 py-2 text-xs text-white outline-none"
+                  className="bg-white/4 border border-white/8 rounded-xl px-3.5 py-2 text-xs text-white outline-none"
                 />
               </div>
 
@@ -1254,7 +1247,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                 <select
                   value={timezone}
                   onChange={(e) => setTimezone(e.target.value)}
-                  className="bg-[#18181b] border border-white/[0.08] rounded-xl px-3.5 py-2 text-xs text-white outline-none cursor-pointer"
+                  className="bg-[#18181b] border border-white/8 rounded-xl px-3.5 py-2 text-xs text-white outline-none cursor-pointer"
                 >
                   {TIMEZONES.map((tz) => (
                     <option key={tz} value={tz}>
@@ -1282,7 +1275,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                       setConnectedAccounts({ ...connectedAccounts, steam: e.target.value })
                     }
                     placeholder="Steam username"
-                    className="bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-xs text-white outline-none"
+                    className="bg-white/4 border border-white/8 rounded-xl px-3 py-2 text-xs text-white outline-none"
                   />
                 </div>
 
@@ -1295,7 +1288,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                       setConnectedAccounts({ ...connectedAccounts, spotify: e.target.value })
                     }
                     placeholder="Spotify username"
-                    className="bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-xs text-white outline-none"
+                    className="bg-white/4 border border-white/8 rounded-xl px-3 py-2 text-xs text-white outline-none"
                   />
                 </div>
 
@@ -1308,7 +1301,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                       setConnectedAccounts({ ...connectedAccounts, discord: e.target.value })
                     }
                     placeholder="username#0001"
-                    className="bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-xs text-white outline-none"
+                    className="bg-white/4 border border-white/8 rounded-xl px-3 py-2 text-xs text-white outline-none"
                   />
                 </div>
 
@@ -1321,7 +1314,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                       setConnectedAccounts({ ...connectedAccounts, twitch: e.target.value })
                     }
                     placeholder="twitch_channel"
-                    className="bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-xs text-white outline-none"
+                    className="bg-white/4 border border-white/8 rounded-xl px-3 py-2 text-xs text-white outline-none"
                   />
                 </div>
               </div>
@@ -1353,17 +1346,17 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
               </div>
 
               {/* Granular 3-tier Privacy Dropdowns */}
-              <div className="flex flex-col gap-2.5 pt-3 border-t border-white/[0.06]">
+              <div className="flex flex-col gap-2.5 pt-3 border-t border-white/6">
                 <span className="text-xs font-bold text-gray-300 uppercase tracking-wider">
                   Granular Privacy Tiers:
                 </span>
 
-                <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/2 border border-white/6">
                   <span className="text-xs text-gray-200">Personal Meta Visibility</span>
                   <select
                     value={privacyMeta}
                     onChange={(e) => setPrivacyMeta(e.target.value as ShowcasePrivacy)}
-                    className="bg-[#18181b] border border-white/[0.1] rounded-lg px-2.5 py-1 text-xs text-white outline-none cursor-pointer"
+                    className="bg-[#18181b] border border-white/10 rounded-lg px-2.5 py-1 text-xs text-white outline-none cursor-pointer"
                   >
                     <option value={ShowcasePrivacy.PUBLIC}>Public (Everyone)</option>
                     <option value={ShowcasePrivacy.FOLLOWERS}>Followers Only</option>
@@ -1371,12 +1364,12 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                   </select>
                 </div>
 
-                <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/2 border border-white/6">
                   <span className="text-xs text-gray-200">Activity & Live Presence</span>
                   <select
                     value={privacyActivity}
                     onChange={(e) => setPrivacyActivity(e.target.value as ShowcasePrivacy)}
-                    className="bg-[#18181b] border border-white/[0.1] rounded-lg px-2.5 py-1 text-xs text-white outline-none cursor-pointer"
+                    className="bg-[#18181b] border border-white/10 rounded-lg px-2.5 py-1 text-xs text-white outline-none cursor-pointer"
                   >
                     <option value={ShowcasePrivacy.PUBLIC}>Public (Everyone)</option>
                     <option value={ShowcasePrivacy.FOLLOWERS}>Followers Only</option>
@@ -1384,12 +1377,12 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                   </select>
                 </div>
 
-                <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/2 border border-white/6">
                   <span className="text-xs text-gray-200">Showcase & Spotlight Grid</span>
                   <select
                     value={privacyShowcase}
                     onChange={(e) => setPrivacyShowcase(e.target.value as ShowcasePrivacy)}
-                    className="bg-[#18181b] border border-white/[0.1] rounded-lg px-2.5 py-1 text-xs text-white outline-none cursor-pointer"
+                    className="bg-[#18181b] border border-white/10 rounded-lg px-2.5 py-1 text-xs text-white outline-none cursor-pointer"
                   >
                     <option value={ShowcasePrivacy.PUBLIC}>Public (Everyone)</option>
                     <option value={ShowcasePrivacy.FOLLOWERS}>Followers Only</option>
@@ -1397,12 +1390,12 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                   </select>
                 </div>
 
-                <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/2 border border-white/6">
                   <span className="text-xs text-gray-200">Connected Accounts Strip</span>
                   <select
                     value={privacyLinks}
                     onChange={(e) => setPrivacyLinks(e.target.value as ShowcasePrivacy)}
-                    className="bg-[#18181b] border border-white/[0.1] rounded-lg px-2.5 py-1 text-xs text-white outline-none cursor-pointer"
+                    className="bg-[#18181b] border border-white/10 rounded-lg px-2.5 py-1 text-xs text-white outline-none cursor-pointer"
                   >
                     <option value={ShowcasePrivacy.PUBLIC}>Public (Everyone)</option>
                     <option value={ShowcasePrivacy.FOLLOWERS}>Followers Only</option>
@@ -1415,7 +1408,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/[0.08]">
+        <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/8">
           <button
             type="button"
             onClick={onClose}

@@ -23,7 +23,7 @@ describe('StoriesRetentionService', () => {
         { provide: StoriesRepository, useValue: mockRepo },
         {
           provide: ConfigService,
-          useValue: { get: jest.fn((k, def) => def || 'test') },
+          useValue: { get: jest.fn((_k: string, def?: string) => def || 'test') },
         },
       ],
     }).compile();

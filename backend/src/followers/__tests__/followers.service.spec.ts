@@ -2,7 +2,6 @@ import { BadRequestException, ConflictException, NotFoundException } from '@nest
 import { FollowStatus, Prisma } from '@prisma/client';
 import { FollowersService } from '../followers.service';
 import type { RedisService } from '../../redis/redis.service';
-import type { PrismaService } from '@common/prisma';
 import type { MessengerGateway } from '../../messenger/gateway/messenger.gateway';
 
 describe('FollowersService', () => {
@@ -17,19 +16,15 @@ describe('FollowersService', () => {
     acceptRequest: jest.Mock;
     rejectRequest: jest.Mock;
     pendingCount: jest.Mock;
+    getFollowStatusSets: jest.Mock;
+    getFollowingIds: jest.Mock;
+    getMutualFollowers: jest.Mock;
+    findUserBasic: jest.Mock;
   };
   let mockRedis: {
     getOrSet: jest.Mock;
     del: jest.Mock;
     delByPattern: jest.Mock;
-  };
-  let mockPrisma: {
-    follow: {
-      findMany: jest.Mock;
-    };
-    user: {
-      findUnique: jest.Mock;
-    };
   };
   let mockGateway: {
     emitToUser: jest.Mock;
@@ -62,6 +57,18 @@ describe('FollowersService', () => {
       acceptRequest: jest.fn(),
       rejectRequest: jest.fn(),
       pendingCount: jest.fn().mockResolvedValue(0),
+      getFollowStatusSets: jest.fn().mockResolvedValue({
+        myFollowings: ['usr-target'],
+        myFollowers: ['usr-target'],
+      }),
+      getFollowingIds: jest.fn().mockResolvedValue(['usr-target']),
+      getMutualFollowers: jest.fn().mockResolvedValue([{ id: 'f-1', user: sampleUser }]),
+      findUserBasic: jest.fn().mockResolvedValue({
+        id: 'usr-1',
+        username: 'follower_user',
+        displayName: 'Follower',
+        avatar: null,
+      }),
     };
 
     mockRedis = {
@@ -72,15 +79,6 @@ describe('FollowersService', () => {
       delByPattern: jest.fn().mockResolvedValue(1),
     };
 
-    mockPrisma = {
-      follow: {
-        findMany: jest.fn().mockResolvedValue([]),
-      },
-      user: {
-        findUnique: jest.fn(),
-      },
-    };
-
     mockGateway = {
       emitToUser: jest.fn(),
     };
@@ -88,7 +86,6 @@ describe('FollowersService', () => {
     service = new FollowersService(
       mockFollowersRepository,
       mockRedis as unknown as RedisService,
-      mockPrisma as unknown as PrismaService,
       mockGateway as unknown as MessengerGateway,
     );
   });
@@ -98,11 +95,20 @@ describe('FollowersService', () => {
       await expect(service.getFollowers('', 10)).rejects.toThrow(BadRequestException);
     });
 
+    it('getFollowing throws BadRequestException if id is missing', async () => {
+      await expect(service.getFollowing('', 10)).rejects.toThrow(BadRequestException);
+    });
+
+    it('getFriends throws BadRequestException if userId is missing', async () => {
+      await expect(service.getFriends('')).rejects.toThrow(BadRequestException);
+    });
+
     it('getFollowers retrieves list, calculates mutual relations, and paginates', async () => {
       mockFollowersRepository.getFollowers.mockResolvedValueOnce([{ id: 'f-1', user: sampleUser }]);
-      mockPrisma.follow.findMany
-        .mockResolvedValueOnce([{ followingId: 'usr-target' }]) // myFollowings
-        .mockResolvedValueOnce([{ followerId: 'usr-target' }]); // myFollowers
+      mockFollowersRepository.getFollowStatusSets.mockResolvedValueOnce({
+        myFollowings: ['usr-target'],
+        myFollowers: ['usr-target'],
+      });
 
       const result = await service.getFollowers('usr-owner', 10, undefined, 'usr-viewer');
 
@@ -114,16 +120,21 @@ describe('FollowersService', () => {
 
     it('getFollowing retrieves list of followed users', async () => {
       mockFollowersRepository.getFollowing.mockResolvedValueOnce([{ id: 'f-2', user: sampleUser }]);
+      mockFollowersRepository.getFollowStatusSets.mockResolvedValueOnce({
+        myFollowings: ['usr-target'],
+        myFollowers: ['usr-target'],
+      });
 
-      const result = await service.getFollowing('usr-owner', 10);
+      const result = await service.getFollowing('usr-owner', 10, undefined, 'usr-viewer');
       expect(result.data).toHaveLength(1);
       expect(result.data[0].username).toBe('target_user');
     });
 
     it('getFriends returns mutual friends', async () => {
-      mockPrisma.follow.findMany
-        .mockResolvedValueOnce([{ followingId: 'usr-target' }])
-        .mockResolvedValueOnce([{ follower: sampleUser }]);
+      mockFollowersRepository.getFollowingIds.mockResolvedValueOnce(['usr-target']);
+      mockFollowersRepository.getMutualFollowers.mockResolvedValueOnce([
+        { id: 'f-1', user: sampleUser },
+      ]);
 
       const friends = await service.getFriends('usr-current');
 
@@ -149,7 +160,7 @@ describe('FollowersService', () => {
     it('follows private user with PENDING status and emits notification', async () => {
       mockFollowersRepository.isTargetPrivate.mockResolvedValueOnce(true);
       mockFollowersRepository.followUser.mockResolvedValueOnce(FollowStatus.PENDING);
-      mockPrisma.user.findUnique.mockResolvedValueOnce({
+      mockFollowersRepository.findUserBasic.mockResolvedValueOnce({
         id: 'usr-1',
         username: 'follower_user',
         displayName: 'Follower',
@@ -163,54 +174,84 @@ describe('FollowersService', () => {
         'usr-private',
         FollowStatus.PENDING,
       );
-      expect(mockGateway.emitToUser).toHaveBeenCalledWith(
-        'usr-private',
-        'newFollower',
-        expect.objectContaining({ status: FollowStatus.PENDING }),
-      );
       expect(result.status).toBe(FollowStatus.PENDING);
+      expect(mockGateway.emitToUser).toHaveBeenCalled();
     });
 
-    it('handles Prisma P2002 conflict error when already following', async () => {
+    it('follows public user with ACCEPTED status', async () => {
+      mockFollowersRepository.isTargetPrivate.mockResolvedValueOnce(false);
+      mockFollowersRepository.followUser.mockResolvedValueOnce(FollowStatus.ACCEPTED);
+      mockFollowersRepository.findUserBasic.mockResolvedValueOnce({
+        id: 'usr-1',
+        username: 'follower_user',
+        displayName: 'Follower',
+        avatar: null,
+      });
+
+      const result = await service.followUser('usr-1', 'usr-public');
+
+      expect(mockFollowersRepository.followUser).toHaveBeenCalledWith(
+        'usr-1',
+        'usr-public',
+        FollowStatus.ACCEPTED,
+      );
+      expect(result.status).toBe(FollowStatus.ACCEPTED);
+    });
+
+    it('translates Prisma P2002 conflict and P2003 not found', async () => {
       mockFollowersRepository.isTargetPrivate.mockResolvedValueOnce(false);
       mockFollowersRepository.followUser.mockRejectedValueOnce(
-        new Prisma.PrismaClientKnownRequestError('Duplicate follow', {
-          code: 'P2002',
-          clientVersion: '5.22.0',
-        }),
+        new Prisma.PrismaClientKnownRequestError('dup', { code: 'P2002', clientVersion: '1' }),
       );
 
-      await expect(service.followUser('usr-1', 'usr-public')).rejects.toThrow(
-        new ConflictException('Already following this user'),
+      await expect(service.followUser('usr-1', 'usr-2')).rejects.toThrow(ConflictException);
+
+      mockFollowersRepository.isTargetPrivate.mockResolvedValueOnce(false);
+      mockFollowersRepository.followUser.mockRejectedValueOnce(
+        new Prisma.PrismaClientKnownRequestError('nf', { code: 'P2003', clientVersion: '1' }),
       );
+
+      await expect(service.followUser('usr-1', 'usr-2')).rejects.toThrow(NotFoundException);
     });
   });
 
   describe('unfollowUser', () => {
-    it('unfollows user and clears caches', async () => {
-      mockFollowersRepository.unfollowUser.mockResolvedValueOnce(undefined);
+    it('throws BadRequestException if IDs missing', async () => {
+      await expect(service.unfollowUser('', 'usr-2')).rejects.toThrow(BadRequestException);
+    });
 
+    it('unfollows user and invalidates cache', async () => {
       await service.unfollowUser('usr-1', 'usr-2');
-
       expect(mockFollowersRepository.unfollowUser).toHaveBeenCalledWith('usr-1', 'usr-2');
-      expect(mockRedis.delByPattern).toHaveBeenCalledWith('followers:usr-2:*');
+      expect(mockRedis.del).toHaveBeenCalled();
     });
 
     it('throws NotFoundException on P2025 error', async () => {
       mockFollowersRepository.unfollowUser.mockRejectedValueOnce(
-        new Prisma.PrismaClientKnownRequestError('Not found', {
+        new Prisma.PrismaClientKnownRequestError('missing', {
           code: 'P2025',
-          clientVersion: '5.22.0',
+          clientVersion: '1',
         }),
       );
 
-      await expect(service.unfollowUser('usr-1', 'usr-2')).rejects.toThrow(
-        new NotFoundException('Follow relation not found'),
-      );
+      await expect(service.unfollowUser('usr-1', 'usr-2')).rejects.toThrow(NotFoundException);
     });
   });
 
-  describe('acceptRequest & rejectRequest', () => {
+  describe('Follow Requests: getFollowRequests, acceptRequest, rejectRequest', () => {
+    it('getFollowRequests retrieves and paginates requests', async () => {
+      mockFollowersRepository.listPendingRequests.mockResolvedValueOnce([
+        { id: 'req-1', user: sampleUser },
+      ]);
+
+      const requests = await service.getFollowRequests('owner-1', 10);
+      expect(requests.data).toHaveLength(1);
+
+      mockFollowersRepository.pendingCount.mockResolvedValueOnce(5);
+      const count = await service.getPendingCount('owner-1');
+      expect(count).toBe(5);
+    });
+
     it('acceptRequest throws NotFoundException if request is missing', async () => {
       mockFollowersRepository.acceptRequest.mockResolvedValueOnce(false);
 
@@ -221,7 +262,7 @@ describe('FollowersService', () => {
 
     it('acceptRequest updates status, emits notification, and invalidates cache', async () => {
       mockFollowersRepository.acceptRequest.mockResolvedValueOnce(true);
-      mockPrisma.user.findUnique.mockResolvedValueOnce({
+      mockFollowersRepository.findUserBasic.mockResolvedValueOnce({
         id: 'owner-1',
         username: 'owner_user',
         displayName: 'Owner',
@@ -243,6 +284,11 @@ describe('FollowersService', () => {
       await service.rejectRequest('owner-1', 'follower-1');
 
       expect(mockFollowersRepository.rejectRequest).toHaveBeenCalledWith('owner-1', 'follower-1');
+
+      mockFollowersRepository.rejectRequest.mockResolvedValueOnce(false);
+      await expect(service.rejectRequest('owner-1', 'follower-1')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

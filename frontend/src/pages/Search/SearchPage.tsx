@@ -268,6 +268,7 @@ export default function SearchPage() {
     queryKey: ['currentUserProfile'],
     queryFn: () => userApi.getMe(),
     staleTime: 10 * 1000,
+    enabled: Boolean(currentUserId),
   });
 
   // Sync meProfile with recent searches

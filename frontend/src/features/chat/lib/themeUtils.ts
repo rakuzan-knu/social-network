@@ -6,7 +6,7 @@ import {
   DEFAULT_DARK_THEME_CONFIG,
   PresetTheme,
 } from '../model/chatTheme';
-import { idbGet, idbSet, idbDelete } from '../../../shared/lib/indexedDbStorage';
+import { idbGet, idbSet } from '../../../shared/lib/indexedDbStorage';
 
 // Safe URL validator for theme image / background URLs to protect against XSS (e.g. javascript:, vbscript:, data:)
 const safeUrlSchema = z

@@ -65,9 +65,10 @@ const MOCK_CONVERSATION = {
 
 test.describe('Chat (authenticated, mocked API)', () => {
   test.beforeEach(async ({ authenticatedPage }) => {
+    await mockApi(authenticatedPage, '/users/me', { json: ME });
     await mockApi(authenticatedPage, '/conversations', { json: [MOCK_CONVERSATION] });
     await mockApi(authenticatedPage, '/conversations/conv-1', { json: MOCK_CONVERSATION });
-    await mockApi(authenticatedPage, '/conversations/conv-1/messages?**', {
+    await mockApi(authenticatedPage, '/conversations/conv-1/messages', {
       json: {
         data: [MOCK_MESSAGE('msg-1', 'Hey there from the mocked chat!')],
         hasMore: false,

@@ -14,10 +14,10 @@ export type LinkEmbedType = z.infer<typeof linkEmbedTypeSchema>;
 
 export interface YouTubeEmbedDetails {
   videoId: string;
-  author?: string | null;
-  duration?: string | null;
-  startSeconds?: number | null;
-  isShorts?: boolean;
+  author?: string | null | undefined;
+  duration?: string | null | undefined;
+  startSeconds?: number | null | undefined;
+  isShorts?: boolean | undefined;
 }
 
 export interface GitHubEmbedDetails {
@@ -25,33 +25,33 @@ export interface GitHubEmbedDetails {
   repo: string;
   stars: number;
   forks: number;
-  language?: string | null;
-  languageColor?: string | null;
-  avatarUrl?: string | null;
+  language?: string | null | undefined;
+  languageColor?: string | null | undefined;
+  avatarUrl?: string | null | undefined;
 }
 
 export interface AudioEmbedDetails {
   provider: 'spotify' | 'soundcloud';
   audioType: 'track' | 'album' | 'playlist' | 'episode';
-  artist?: string | null;
-  embedUrl?: string | null;
+  artist?: string | null | undefined;
+  embedUrl?: string | null | undefined;
 }
 
 export interface FigmaEmbedDetails {
-  title?: string | null;
-  author?: string | null;
-  thumbnailUrl?: string | null;
+  title?: string | null | undefined;
+  author?: string | null | undefined;
+  thumbnailUrl?: string | null | undefined;
 }
 
 export interface TwitterEmbedDetails {
-  authorName?: string | null;
-  authorHandle?: string | null;
-  text?: string | null;
+  authorName?: string | null | undefined;
+  authorHandle?: string | null | undefined;
+  text?: string | null | undefined;
 }
 
 export interface CodePenEmbedDetails {
-  author?: string | null;
-  penId?: string | null;
+  author?: string | null | undefined;
+  penId?: string | null | undefined;
 }
 
 export interface LinkEmbedData {
@@ -62,17 +62,18 @@ export interface LinkEmbedData {
   siteName: string | null;
   image: string | null;
   favicon: string | null;
-  youtube?: YouTubeEmbedDetails;
-  github?: GitHubEmbedDetails;
-  audio?: AudioEmbedDetails;
-  figma?: FigmaEmbedDetails;
-  twitter?: TwitterEmbedDetails;
-  codePen?: CodePenEmbedDetails;
+  youtube?: YouTubeEmbedDetails | undefined;
+  github?: GitHubEmbedDetails | undefined;
+  audio?: AudioEmbedDetails | undefined;
+  figma?: FigmaEmbedDetails | undefined;
+  twitter?: TwitterEmbedDetails | undefined;
+  codePen?: CodePenEmbedDetails | undefined;
 }
 
 // Backward compatibility alias
 export type OpenGraphMetadata = LinkEmbedData;
 
 export const linkPreviewQuerySchema = z.object({
-  url: z.string().min(1),
+  url: z.string().min(1).max(2048),
 });
+export type LinkPreviewQueryDto = z.infer<typeof linkPreviewQuerySchema>;

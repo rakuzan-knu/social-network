@@ -164,6 +164,14 @@ describe('CommentsRepository', () => {
       );
       expect(replies).toHaveLength(1);
     });
+
+    it('throws NotFoundException if root comment does not exist', async () => {
+      mockPrisma.comment.findUnique.mockResolvedValueOnce(null);
+
+      await expect(repository.getRepliesByRootId('missing-root', 10)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
   });
 
   describe('toggleCommentLike', () => {
@@ -195,7 +203,7 @@ describe('CommentsRepository', () => {
   });
 
   describe('togglePinComment', () => {
-    it('throws ForbiddenException if user is not post author', async () => {
+    it('throws ForbiddenException if user is not post author or if pinning child comment', async () => {
       mockPrisma.comment.findUnique.mockResolvedValueOnce({
         ...baseComment,
         post: { authorId: 'other-user' },
@@ -203,6 +211,16 @@ describe('CommentsRepository', () => {
 
       await expect(repository.togglePinComment('comment-1', 'usr-1')).rejects.toThrow(
         ForbiddenException,
+      );
+
+      mockPrisma.comment.findUnique.mockResolvedValueOnce({
+        ...baseComment,
+        parentId: 'parent-1',
+        post: { authorId: 'usr-1' },
+      });
+
+      await expect(repository.togglePinComment('comment-1', 'usr-1')).rejects.toThrow(
+        new ForbiddenException('Only root comments can be pinned'),
       );
     });
 
@@ -232,6 +250,18 @@ describe('CommentsRepository', () => {
 
       await expect(repository.deleteComment('missing-comment', 'usr-1')).rejects.toThrow(
         new NotFoundException('Comment not found'),
+      );
+    });
+
+    it('throws ForbiddenException if user is not comment author or post author', async () => {
+      mockPrisma.comment.findUnique.mockResolvedValueOnce({
+        ...baseComment,
+        userId: 'author-comment',
+        post: { authorId: 'author-post' },
+      });
+
+      await expect(repository.deleteComment('comment-1', 'intruder')).rejects.toThrow(
+        ForbiddenException,
       );
     });
 

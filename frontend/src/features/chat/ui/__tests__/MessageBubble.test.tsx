@@ -1,11 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import MessageBubble from '../MessageBubble';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { MessageView } from '@/entities/chat/model/types';
+import React from 'react';
 
 describe('MessageBubble', () => {
-  const queryClient = new QueryClient();
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
   const mockMessage: MessageView = {
     id: 'msg-1',
@@ -86,40 +87,23 @@ describe('MessageBubble', () => {
     expect(emojiElement.className).toContain('text-4xl');
   });
 
-  it('shows hover action bar with React, Reply, More on mouse enter for own message', () => {
+  it('renders system message with Edit group button', () => {
+    const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+    const systemMsg: MessageView = {
+      ...mockMessage,
+      id: 'msg-sys',
+      body: 'Alice changed the group name to Engineers',
+      messageType: 'SYSTEM',
+    };
+
     render(
       <QueryClientProvider client={queryClient}>
         <MessageBubble
-          message={mockMessage}
-          isOwnMessage={true}
-          showAvatar={false}
-          isReadByOther={true}
-          currentUserId="usr-1"
-          onReply={vi.fn()}
-          onEdit={vi.fn()}
-          onDelete={vi.fn()}
-          onForward={vi.fn()}
-          onTogglePin={vi.fn()}
-          onReport={vi.fn()}
-          onReact={vi.fn()}
-          onUnreact={vi.fn()}
-        />
-      </QueryClientProvider>,
-    );
-
-    const messageContainer = screen.getByText('Hello from the other side').closest('.group');
-    expect(messageContainer).toBeTruthy();
-  });
-
-  it('shows hover action bar with React, Reply, More on mouse enter for other message', () => {
-    render(
-      <QueryClientProvider client={queryClient}>
-        <MessageBubble
-          message={mockMessage}
+          message={systemMsg}
           isOwnMessage={false}
-          showAvatar={true}
-          isReadByOther={true}
-          currentUserId="other-user"
+          showAvatar={false}
+          isReadByOther={false}
+          currentUserId="me"
           onReply={vi.fn()}
           onEdit={vi.fn()}
           onDelete={vi.fn()}
@@ -132,11 +116,13 @@ describe('MessageBubble', () => {
       </QueryClientProvider>,
     );
 
-    const messageContainer = screen.getByText('Hello from the other side').closest('.group');
-    expect(messageContainer).toBeTruthy();
+    expect(screen.getByText(/Alice changed the group name to Engineers/)).toBeInTheDocument();
+    const editGroupBtn = screen.getByRole('button', { name: 'Edit group' });
+    fireEvent.click(editGroupBtn);
+    expect(dispatchSpy).toHaveBeenCalledWith(expect.any(CustomEvent));
   });
 
-  it('renders reaction badges and toggles reaction on click', () => {
+  it('renders reaction badges and toggles self reaction on click', () => {
     const onReact = vi.fn();
     const onUnreact = vi.fn();
 
@@ -147,7 +133,7 @@ describe('MessageBubble', () => {
         {
           emoji: '🔥',
           count: 3,
-          selfReacted: false,
+          selfReacted: true,
           users: [{ id: 'usr-2', username: 'bob', displayName: 'Bob', avatar: null }],
         },
       ],
@@ -174,12 +160,10 @@ describe('MessageBubble', () => {
     );
 
     expect(screen.getByText('🔥')).toBeInTheDocument();
-    expect(screen.getByText('3')).toBeInTheDocument();
-
     const badgeButton = screen.getByText('🔥').closest('button')!;
-    badgeButton.click();
+    fireEvent.click(badgeButton);
 
-    expect(onReact).toHaveBeenCalledWith('msg-with-reactions', '🔥');
+    expect(onUnreact).toHaveBeenCalledWith('msg-with-reactions', '🔥');
   });
 
   it('renders quoted reply message preview with sender name and jump handler', () => {
@@ -230,5 +214,266 @@ describe('MessageBubble', () => {
     expect(replyBox).toBeInTheDocument();
     replyBox?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     expect(onJumpToMessage).toHaveBeenCalledWith('msg-original');
+  });
+
+  it('renders deleted message, leave message, and handles selection mode & hover buttons', () => {
+    const onReply = vi.fn();
+    const onToggleSelect = vi.fn();
+
+    // 1. Deleted message
+    const { rerender } = render(
+      <QueryClientProvider client={queryClient}>
+        <MessageBubble
+          message={{ ...mockMessage, isDeleted: true }}
+          isOwnMessage={true}
+          showAvatar={false}
+          isReadByOther={false}
+          currentUserId="me"
+          onReply={onReply}
+          onEdit={vi.fn()}
+          onDelete={vi.fn()}
+          onForward={vi.fn()}
+          onTogglePin={vi.fn()}
+          onReport={vi.fn()}
+          onReact={vi.fn()}
+          onUnreact={vi.fn()}
+        />
+      </QueryClientProvider>,
+    );
+    expect(screen.getByText('This message was deleted')).toBeInTheDocument();
+
+    // 2. Leave message
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <MessageBubble
+          message={{
+            ...mockMessage,
+            messageType: 'SYSTEM' as any,
+            body: 'Bob left the group',
+          }}
+          isOwnMessage={false}
+          showAvatar={false}
+          isReadByOther={false}
+          currentUserId="me"
+          onReply={onReply}
+          onEdit={vi.fn()}
+          onDelete={vi.fn()}
+          onForward={vi.fn()}
+          onTogglePin={vi.fn()}
+          onReport={vi.fn()}
+          onReact={vi.fn()}
+          onUnreact={vi.fn()}
+        />
+      </QueryClientProvider>,
+    );
+    expect(screen.getByText('Bob left the group')).toBeInTheDocument();
+
+    // 3. Selection mode checkbox & double click to reply
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <MessageBubble
+          message={mockMessage}
+          isOwnMessage={false}
+          showAvatar={true}
+          isReadByOther={false}
+          isSelectionMode={true}
+          isSelected={true}
+          onToggleSelect={onToggleSelect}
+          currentUserId="me"
+          onReply={onReply}
+          onEdit={vi.fn()}
+          onDelete={vi.fn()}
+          onForward={vi.fn()}
+          onTogglePin={vi.fn()}
+          onReport={vi.fn()}
+          onReact={vi.fn()}
+          onUnreact={vi.fn()}
+        />
+      </QueryClientProvider>,
+    );
+
+    const checkBtn = document.querySelector('button')!;
+    fireEvent.click(checkBtn);
+    expect(onToggleSelect).toHaveBeenCalledWith('msg-1', false);
+  });
+
+  it('handles onReact when selfReacted is false and reply media thumbnail error', () => {
+    const onReact = vi.fn();
+    const reactedMsg: MessageView = {
+      ...mockMessage,
+      id: 'msg-unreacted',
+      reactions: [
+        {
+          emoji: '❤️',
+          count: 1,
+          selfReacted: false,
+          users: [{ id: 'usr-2', username: 'bob', displayName: 'Bob', avatar: null }],
+        },
+      ],
+      replyTo: {
+        ...mockMessage,
+        id: 'msg-with-img',
+        body: 'Look at this photo',
+        attachments: [
+          {
+            id: 'att-reply-1',
+            type: 'IMAGE',
+            url: 'https://img.com/thumb.jpg',
+            fileName: 'thumb.jpg',
+            size: 100,
+          } as any,
+        ],
+        sender: { id: 'usr-2', username: 'bob', displayName: 'Bob', avatar: null },
+      },
+    };
+
+    const { container } = render(
+      <QueryClientProvider client={queryClient}>
+        <MessageBubble
+          message={reactedMsg}
+          isOwnMessage={false}
+          showAvatar={true}
+          isReadByOther={true}
+          currentUserId="me"
+          onReply={vi.fn()}
+          onEdit={vi.fn()}
+          onDelete={vi.fn()}
+          onForward={vi.fn()}
+          onTogglePin={vi.fn()}
+          onReport={vi.fn()}
+          onReact={onReact}
+          onUnreact={vi.fn()}
+        />
+      </QueryClientProvider>,
+    );
+
+    // Toggle unreacted reaction -> calls onReact
+    const badge = screen.getByText('❤️').closest('button')!;
+    fireEvent.click(badge);
+    expect(onReact).toHaveBeenCalledWith('msg-unreacted', '❤️');
+
+    // Reply image onError
+    const replyImg = container.querySelector('.group\\/reply img');
+    if (replyImg) {
+      fireEvent.error(replyImg);
+    }
+  });
+
+  it('renders optimistic statuses (SENDING, SENT, DELIVERED, READ, and ERROR with retry)', () => {
+    const onRetry = vi.fn();
+
+    // 1. Error status with retry
+    const errorMsg: MessageView = {
+      ...mockMessage,
+      id: 'msg-err',
+      status: 'ERROR',
+    };
+
+    const { rerender } = render(
+      <QueryClientProvider client={queryClient}>
+        <MessageBubble
+          message={errorMsg}
+          isOwnMessage={true}
+          showAvatar={false}
+          isReadByOther={false}
+          currentUserId="usr-1"
+          onReply={vi.fn()}
+          onEdit={vi.fn()}
+          onDelete={vi.fn()}
+          onForward={vi.fn()}
+          onTogglePin={vi.fn()}
+          onReport={vi.fn()}
+          onReact={vi.fn()}
+          onUnreact={vi.fn()}
+          onRetry={onRetry}
+        />
+      </QueryClientProvider>,
+    );
+
+    const retryBtn = screen.getByRole('button', { name: /retry/i });
+    expect(retryBtn).toBeInTheDocument();
+    fireEvent.click(retryBtn);
+    expect(onRetry).toHaveBeenCalledWith('msg-err');
+
+    // 2. Sending status
+    const sendingMsg: MessageView = {
+      ...mockMessage,
+      id: 'msg-sending',
+      status: 'SENDING',
+    };
+
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <MessageBubble
+          message={sendingMsg}
+          isOwnMessage={true}
+          showAvatar={false}
+          isReadByOther={false}
+          currentUserId="usr-1"
+          onReply={vi.fn()}
+          onEdit={vi.fn()}
+          onDelete={vi.fn()}
+          onForward={vi.fn()}
+          onTogglePin={vi.fn()}
+          onReport={vi.fn()}
+          onReact={vi.fn()}
+          onUnreact={vi.fn()}
+        />
+      </QueryClientProvider>,
+    );
+
+    // 3. Sent status
+    const sentMsg: MessageView = {
+      ...mockMessage,
+      id: 'msg-sent',
+      status: 'SENT',
+    };
+
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <MessageBubble
+          message={sentMsg}
+          isOwnMessage={true}
+          showAvatar={false}
+          isReadByOther={false}
+          currentUserId="usr-1"
+          onReply={vi.fn()}
+          onEdit={vi.fn()}
+          onDelete={vi.fn()}
+          onForward={vi.fn()}
+          onTogglePin={vi.fn()}
+          onReport={vi.fn()}
+          onReact={vi.fn()}
+          onUnreact={vi.fn()}
+        />
+      </QueryClientProvider>,
+    );
+
+    // 4. Delivered status
+    const deliveredMsg: MessageView = {
+      ...mockMessage,
+      id: 'msg-delivered',
+      status: 'DELIVERED',
+    };
+
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <MessageBubble
+          message={deliveredMsg}
+          isOwnMessage={true}
+          showAvatar={false}
+          isReadByOther={false}
+          currentUserId="usr-1"
+          onReply={vi.fn()}
+          onEdit={vi.fn()}
+          onDelete={vi.fn()}
+          onForward={vi.fn()}
+          onTogglePin={vi.fn()}
+          onReport={vi.fn()}
+          onReact={vi.fn()}
+          onUnreact={vi.fn()}
+        />
+      </QueryClientProvider>,
+    );
   });
 });

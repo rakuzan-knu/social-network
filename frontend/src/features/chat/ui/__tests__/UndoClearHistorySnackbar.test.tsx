@@ -66,4 +66,19 @@ describe('UndoClearHistorySnackbar', () => {
     expect(rollback).not.toHaveBeenCalled();
     expect(useClearHistoryUndoStore.getState().activeUndo).toBeNull();
   });
+
+  it('renders default text when conversationTitle is empty', () => {
+    act(() => {
+      useClearHistoryUndoStore.getState().startUndo({
+        conversationId: 'conv-3',
+        conversationTitle: '',
+        forAll: false,
+        rollback: vi.fn(),
+        execute: vi.fn(),
+      });
+    });
+
+    render(<UndoClearHistorySnackbar />);
+    expect(screen.getByText('Chat history cleared')).toBeInTheDocument();
+  });
 });

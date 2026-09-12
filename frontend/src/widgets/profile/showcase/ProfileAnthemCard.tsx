@@ -5,9 +5,9 @@ import { SpotifyBrandIcon } from '@/shared/ui/BrandIcons';
 import { audioCoordinator } from '@/shared/lib/audioCoordinator';
 
 interface ProfileAnthemCardProps {
-  anthem?: ProfileAnthemDto | null;
+  anthem?: ProfileAnthemDto | null | undefined;
   isOwner: boolean;
-  onEditClick?: () => void;
+  onEditClick?: (() => void) | undefined;
 }
 
 export const ProfileAnthemCard: React.FC<ProfileAnthemCardProps> = ({

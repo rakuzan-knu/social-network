@@ -26,6 +26,27 @@ describe('StoryReplyEmbed', () => {
     );
   });
 
+  it('renders video story preview and handles video playback error', () => {
+    const { container } = render(
+      <StoryReplyEmbed
+        attachment={{
+          id: 'att-video',
+          url: 'https://example.com/story.mp4',
+          type: 'VIDEO',
+          name: 'story.mp4',
+          size: 2048,
+        }}
+        createdAt={new Date().toISOString()}
+      />,
+    );
+
+    const video = container.querySelector('video')!;
+    expect(video).toBeInTheDocument();
+
+    fireEvent.error(video);
+    expect(screen.getByText('История недоступна или срок её действия истек')).toBeInTheDocument();
+  });
+
   it('renders fallback glassmorphism banner when image encounters an error (404/expired)', () => {
     render(
       <StoryReplyEmbed
@@ -46,9 +67,9 @@ describe('StoryReplyEmbed', () => {
     expect(screen.getByText('История недоступна или срок её действия истек')).toBeInTheDocument();
   });
 
-  it('renders fallback banner when story is older than 24 hours', () => {
+  it('renders fallback banner when story is older than 24 hours or missing url', () => {
     const expiredTimestamp = new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString();
-    render(
+    const { rerender } = render(
       <StoryReplyEmbed
         attachment={{
           id: 'att-1',
@@ -61,6 +82,9 @@ describe('StoryReplyEmbed', () => {
       />,
     );
 
+    expect(screen.getByText('История недоступна или срок её действия истек')).toBeInTheDocument();
+
+    rerender(<StoryReplyEmbed attachment={null} />);
     expect(screen.getByText('История недоступна или срок её действия истек')).toBeInTheDocument();
   });
 });

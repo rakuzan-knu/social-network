@@ -14,12 +14,14 @@ export default function ReactionBadge({ reaction, currentUserId, onToggle }: Rea
   const [isBouncing, setIsBouncing] = useState(false);
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const leaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const bounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const badgeRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     return () => {
       if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
       if (leaveTimeoutRef.current) clearTimeout(leaveTimeoutRef.current);
+      if (bounceTimeoutRef.current) clearTimeout(bounceTimeoutRef.current);
     };
   }, []);
 
@@ -60,7 +62,8 @@ export default function ReactionBadge({ reaction, currentUserId, onToggle }: Rea
     };
 
     setIsBouncing(true);
-    setTimeout(() => setIsBouncing(false), 380);
+    if (bounceTimeoutRef.current) clearTimeout(bounceTimeoutRef.current);
+    bounceTimeoutRef.current = setTimeout(() => setIsBouncing(false), 380);
 
     if (!reaction.selfReacted) {
       triggerReactionBurst(origin.x, origin.y, reaction.emoji);

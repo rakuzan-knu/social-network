@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Gamepad2, Play, Pause, ExternalLink, Pencil, Headphones, Check } from 'lucide-react';
+import { Gamepad2, Play, Pause, ExternalLink, Pencil, Headphones } from 'lucide-react';
 import type { ProfileShowcaseDto } from '@backend/common/contracts';
 import {
   SpotifyBrandIcon,
@@ -100,7 +100,7 @@ export const LivePresenceWidget: React.FC<LivePresenceWidgetProps> = ({
 
   return (
     <div
-      className="relative overflow-hidden rounded-3xl bg-white/[0.03] backdrop-blur-2xl border border-white/[0.08] p-4.5 transition-all duration-300 hover:border-white/[0.16] shadow-xl flex flex-col gap-3.5 group"
+      className="relative overflow-hidden rounded-3xl bg-white/3 backdrop-blur-2xl border border-white/8 p-4.5 transition-all duration-300 hover:border-white/16 shadow-xl flex flex-col gap-3.5 group"
       style={{ boxShadow: `0 8px 32px 0 rgba(0, 0, 0, 0.37)` }}
     >
       {/* Background Accent Glow */}
@@ -110,7 +110,7 @@ export const LivePresenceWidget: React.FC<LivePresenceWidgetProps> = ({
       />
 
       {/* Widget Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-white/[0.06]">
+      <div className="flex items-center justify-between pb-3 border-b border-white/6">
         <div className="flex items-center gap-2">
           {activityStatus?.type === 'spotify' ? (
             <div className="w-2.5 h-2.5 rounded-full bg-[#1DB954] shadow-[0_0_8px_rgba(29,185,84,0.8)] animate-pulse" />
@@ -135,7 +135,7 @@ export const LivePresenceWidget: React.FC<LivePresenceWidgetProps> = ({
           <button
             type="button"
             onClick={onEditClick}
-            className="opacity-0 group-hover:opacity-100 p-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-gray-400 hover:text-white transition-all cursor-pointer"
+            className="opacity-0 group-hover:opacity-100 p-1.5 rounded-xl bg-white/6 hover:bg-white/12 text-gray-400 hover:text-white transition-all cursor-pointer"
             title="Edit Activity"
           >
             <Pencil size={13} />
@@ -151,7 +151,7 @@ export const LivePresenceWidget: React.FC<LivePresenceWidgetProps> = ({
               window.open(activityStatus.externalUrl, '_blank', 'noopener,noreferrer');
             }
           }}
-          className={`relative flex items-center gap-3.5 p-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] transition-all duration-200 ${
+          className={`relative flex items-center gap-3.5 p-3 rounded-2xl bg-white/4 border border-white/8 transition-all duration-200 ${
             activityStatus.externalUrl ? 'hover:bg-white/[0.07] cursor-pointer' : ''
           }`}
         >
@@ -242,7 +242,7 @@ export const LivePresenceWidget: React.FC<LivePresenceWidgetProps> = ({
         <button
           type="button"
           onClick={onEditClick}
-          className="py-2.5 border border-dashed border-white/10 rounded-2xl text-xs text-gray-400 hover:text-white hover:border-white/20 transition-all flex items-center justify-center gap-1.5 bg-white/[0.01]"
+          className="py-2.5 border border-dashed border-white/10 rounded-2xl text-xs text-gray-400 hover:text-white hover:border-white/20 transition-all flex items-center justify-center gap-1.5 bg-white/1"
         >
           <Headphones size={13} />
           <span>Broadcast live Spotify or gaming activity</span>
@@ -251,7 +251,7 @@ export const LivePresenceWidget: React.FC<LivePresenceWidgetProps> = ({
 
       {/* Connected Accounts Strip */}
       {hasConnectedAccounts && (
-        <div className="flex flex-col gap-1.5 pt-1 border-t border-white/[0.05]">
+        <div className="flex flex-col gap-1.5 pt-1 border-t border-white/5">
           <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
             Connected Accounts
           </span>
@@ -261,41 +261,41 @@ export const LivePresenceWidget: React.FC<LivePresenceWidgetProps> = ({
                 href={`https://github.com/${connectedAccounts.github}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-[11px] text-gray-200 transition-colors"
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/4 hover:bg-white/8 border border-white/8 text-[11px] text-gray-200 transition-colors"
                 title={`GitHub: @${connectedAccounts.github}`}
               >
                 <GitHubBrandIcon size={14} />
-                <span className="truncate max-w-[100px]">@{connectedAccounts.github}</span>
+                <span className="truncate max-w-25">@{connectedAccounts.github}</span>
               </a>
             )}
 
             {connectedAccounts?.steam && (
               <div
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/[0.04] border border-white/[0.08] text-[11px] text-gray-200"
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/4 border border-white/8 text-[11px] text-gray-200"
                 title={`Steam: ${connectedAccounts.steam}`}
               >
                 <SteamBrandIcon size={14} />
-                <span className="truncate max-w-[100px]">{connectedAccounts.steam}</span>
+                <span className="truncate max-w-25">{connectedAccounts.steam}</span>
               </div>
             )}
 
             {connectedAccounts?.spotify && (
               <div
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/[0.04] border border-white/[0.08] text-[11px] text-gray-200"
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/4 border border-white/8 text-[11px] text-gray-200"
                 title={`Spotify: ${connectedAccounts.spotify}`}
               >
                 <SpotifyBrandIcon size={14} />
-                <span className="truncate max-w-[100px]">{connectedAccounts.spotify}</span>
+                <span className="truncate max-w-25">{connectedAccounts.spotify}</span>
               </div>
             )}
 
             {connectedAccounts?.discord && (
               <div
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/[0.04] border border-white/[0.08] text-[11px] text-gray-200"
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/4 border border-white/8 text-[11px] text-gray-200"
                 title={`Discord: ${connectedAccounts.discord}`}
               >
                 <DiscordBrandIcon size={14} />
-                <span className="truncate max-w-[100px]">{connectedAccounts.discord}</span>
+                <span className="truncate max-w-25">{connectedAccounts.discord}</span>
               </div>
             )}
 
@@ -304,11 +304,11 @@ export const LivePresenceWidget: React.FC<LivePresenceWidgetProps> = ({
                 href={`https://twitch.tv/${connectedAccounts.twitch}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-[11px] text-[#9146FF] transition-colors"
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/4 hover:bg-white/8 border border-white/8 text-[11px] text-[#9146FF] transition-colors"
                 title={`Twitch: ${connectedAccounts.twitch}`}
               >
                 <TwitchBrandIcon size={14} />
-                <span className="truncate max-w-[100px]">twitch/{connectedAccounts.twitch}</span>
+                <span className="truncate max-w-25">twitch/{connectedAccounts.twitch}</span>
               </a>
             )}
           </div>

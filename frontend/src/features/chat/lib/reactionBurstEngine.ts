@@ -95,11 +95,11 @@ class ReactionBurstEngine {
   }
 
   public triggerBurst(originX: number, originY: number, emoji: string) {
-    const newParticles: Particle[] = [];
     const count = this.getParticleCount(emoji);
+    const newParticles: Particle[] = new Array<Particle>(count);
 
     for (let i = 0; i < count; i++) {
-      newParticles.push(this.createParticle(originX, originY, emoji, i, count));
+      newParticles[i] = this.createParticle(originX, originY, emoji, i, count);
     }
 
     this.particles.push(...newParticles);

@@ -1,12 +1,10 @@
 generator client {
-  provider      = "prisma-client-js"
-  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+  provider = "prisma-client-js"
+  output   = "../../node_modules/.prisma/client"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -21,6 +19,7 @@ model User {
   bannerPosition   Int              @default(50)
   isPrivate        Boolean          @default(false)
   isVerified       Boolean          @default(false) @map("is_verified")
+  flags            Int              @default(0)
   primaryBadge     String?          @map("primary_badge")
   githubId         String?          @unique @map("github_id")
   githubUsername   String?          @map("github_username")
@@ -69,6 +68,14 @@ model User {
   storyPollVotes           StoryPollVote[]
   closeFriends             CloseFriend[]             @relation("CloseFriendsOwner")
   closeFriendOf            CloseFriend[]             @relation("CloseFriendsTarget")
+  callsInitiated           Call[]                    @relation("CallInitiator")
+  callParticipations       CallParticipant[]
+  callTelemetries          CallTelemetry[]
+  chatFolders              ChatFolder[]
+  prekeyBundle             UserPrekeyBundle?
+  reels                    Reel[]
+  reelLikes                ReelLike[]
+  reelComments             ReelComment[]
 }
 
 model UserBadge {
@@ -102,6 +109,8 @@ model Post {
   notifications Notification[]
 
   @@index([authorId])
+  @@index([createdAt, id])
+  @@index([authorId, createdAt, id])
 }
 
 model PostMedia {
@@ -110,6 +119,9 @@ model PostMedia {
   type      MediaType
   url       String
   poster    String?
+  blurhash  String?
+  thumbhash String?
+  hlsUrl    String?   @map("hls_url")
   order     Int       @default(0)
   createdAt DateTime  @default(now())
 
@@ -135,6 +147,7 @@ model Repost {
   @@unique([postId, userId])
   @@index([userId])
   @@index([postId])
+  @@index([userId, createdAt, id])
 }
 
 model SavedPost {
@@ -149,6 +162,7 @@ model SavedPost {
   @@unique([postId, userId])
   @@index([userId])
   @@index([postId])
+  @@index([userId, createdAt, id])
 }
 
 model Like {
@@ -173,6 +187,9 @@ model Follow {
 
   @@unique([followerId, followingId])
   @@index([followingId, status])
+  @@index([followerId, status])
+  @@index([followingId, status, createdAt, id])
+  @@index([followerId, status, createdAt, id])
 }
 
 enum FollowStatus {
@@ -203,6 +220,7 @@ model Comment {
 
   @@index([postId, parentId, createdAt])
   @@index([postId, rootParentId, createdAt])
+  @@index([postId, parentId, isPinned, createdAt, id])
   @@index([parentId, createdAt])
   @@index([rootParentId, createdAt])
   @@index([userId])
@@ -240,8 +258,10 @@ model Conversation {
   participants   ConversationParticipant[]
   messages       Message[]
   pinnedMessages PinnedMessage[]
+  calls          Call[]
 
   @@index([createdAt])
+  @@index([updatedAt, id])
 }
 
 enum ConversationType {
@@ -255,6 +275,7 @@ model ConversationParticipant {
   userId         String
   nickname       String?
   role           ParticipantRole @default(MEMBER)
+  permissions    Int             @default(0)
   theme          String?         @default("default")
   muteLevel      MuteLevel       @default(NONE)
   mutedUntil     DateTime?
@@ -271,6 +292,7 @@ model ConversationParticipant {
   @@unique([conversationId, userId])
   @@index([userId])
   @@index([conversationId])
+  @@index([userId, leftAt])
 }
 
 enum ParticipantRole {
@@ -291,6 +313,7 @@ model Message {
   conversationId  String
   senderId        String
   body            String?
+  clientSeq       Int?        @map("client_seq")
   messageType     MessageType @default(TEXT)
   replyToId       String?
   forwardedFromId String?
@@ -311,6 +334,9 @@ model Message {
   pinnedIn      PinnedMessage[]
 
   @@index([conversationId, createdAt])
+  @@index([conversationId, createdAt, id])
+  @@index([conversationId, createdAt, clientSeq])
+  @@index([conversationId, deletedForAll, createdAt, id])
   @@index([senderId])
   @@index([createdAt])
 }
@@ -408,6 +434,7 @@ model UserBlock {
   blocked User @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
 
   @@id([blockerId, blockedId])
+  @@index([blockedId])
 }
 
 model Report {
@@ -621,6 +648,7 @@ model Notification {
 
   @@index([userId, isRead])
   @@index([userId, createdAt])
+  @@index([userId, createdAt, id])
   @@index([userId, type])
   @@index([userId, isRead, createdAt])
   @@index([userId, type, postId])
@@ -769,6 +797,7 @@ model Story {
   pollVotes StoryPollVote[]
 
   @@index([authorId, expiresAt])
+  @@index([authorId, expiresAt, createdAt])
   @@index([expiresAt])
   @@index([createdAt])
   @@map("stories")
@@ -832,6 +861,242 @@ model CloseFriend {
   @@index([userId])
   @@index([friendId])
   @@map("close_friends")
+}
+
+enum OutboxStatus {
+  PENDING
+  PROCESSING
+  PUBLISHED
+  FAILED
+}
+
+model OutboxEvent {
+  id            String       @id @default(uuid())
+  aggregateType String       @map("aggregate_type")
+  aggregateId   String       @map("aggregate_id")
+  eventType     String       @map("event_type")
+  payload       Json
+  headers       Json?
+  status        OutboxStatus @default(PENDING)
+  retryCount    Int          @default(0) @map("retry_count")
+  lastError     String?      @map("last_error") @db.Text
+  processedAt   DateTime?    @map("processed_at")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+
+  @@index([status, createdAt])
+  @@index([aggregateType, aggregateId])
+  @@map("outbox_events")
+}
+
+model Call {
+  id             String         @id @default(uuid())
+  conversationId String
+  type           CallType       @default(AUDIO)
+  status         CallStatus     @default(INITIATED)
+  initiatorId    String
+  startedAt      DateTime       @default(now())
+  endedAt        DateTime?
+  endedReason    CallEndReason?
+  durationMs     Int?
+  recordingUrl   String?
+  e2eeEnabled    Boolean        @default(true)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  conversation Conversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  initiator    User              @relation("CallInitiator", fields: [initiatorId], references: [id], onDelete: Cascade)
+  participants CallParticipant[]
+  telemetries  CallTelemetry[]
+
+  @@index([conversationId, startedAt])
+  @@index([initiatorId, startedAt])
+  @@map("calls")
+}
+
+model CallParticipant {
+  id          String          @id @default(uuid())
+  callId      String
+  userId      String
+  joinedAt    DateTime?
+  leftAt      DateTime?
+  muteState   Boolean         @default(false)
+  videoState  Boolean         @default(true)
+  screenShare Boolean         @default(false)
+  role        ParticipantRole @default(MEMBER)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  call Call @relation(fields: [callId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([callId, userId])
+  @@index([userId])
+  @@map("call_participants")
+}
+
+model CallTelemetry {
+  id              String   @id @default(uuid())
+  callId          String   @map("call_id")
+  userId          String   @map("user_id")
+  avgRttMs        Float    @map("avg_rtt_ms")
+  maxRttMs        Float?   @map("max_rtt_ms")
+  packetLossRatio Float    @map("packet_loss_ratio")
+  jitterMs        Float?   @map("jitter_ms")
+  audioCodec      String?  @map("audio_codec")
+  videoCodec      String?  @map("video_codec")
+  durationMs      Int      @map("duration_ms")
+  endReason       String?  @map("end_reason")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  call Call @relation(fields: [callId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([callId])
+  @@map("call_telemetries")
+}
+
+enum CallType {
+  AUDIO
+  VIDEO
+  SCREEN_SHARE
+}
+
+enum CallStatus {
+  INITIATED
+  RINGING
+  CONNECTED
+  ENDED
+  MISSED
+  DECLINED
+  FAILED
+}
+
+enum CallEndReason {
+  ENDED_BY_USER
+  MISSED
+  DECLINED
+  NETWORK_ERROR
+  PARTICIPANT_LEFT
+  SYSTEM
+}
+
+model ChatFolder {
+  id         String           @id @default(uuid())
+  userId     String           @map("user_id")
+  name       String
+  icon       String?
+  emoji      String?
+  color      String           @default("#8b5cf6")
+  order      Int              @default(0)
+  filterType FolderFilterType @default(CUSTOM) @map("filter_type")
+  includeIds String[]         @default([]) @map("include_ids")
+  excludeIds String[]         @default([]) @map("exclude_ids")
+  createdAt  DateTime         @default(now()) @map("created_at")
+  updatedAt  DateTime         @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, order])
+  @@map("chat_folders")
+}
+
+enum FolderFilterType {
+  ALL
+  PERSONAL
+  WORK
+  GROUPS
+  CHANNELS
+  UNREAD
+  CUSTOM
+}
+
+model UserPrekeyBundle {
+  id               String   @id @default(uuid())
+  userId           String   @unique @map("user_id")
+  identityKeySpki  String   @map("identity_key_spki")
+  signedPrekeySpki String   @map("signed_prekey_spki")
+  signedPrekeySig  String   @map("signed_prekey_sig")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  oneTimePrekeys UserOneTimePrekey[]
+
+  @@map("user_prekey_bundles")
+}
+
+model UserOneTimePrekey {
+  id        String   @id @default(uuid())
+  bundleId  String   @map("bundle_id")
+  keyId     Int      @map("key_id")
+  keySpki   String   @map("key_spki")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  bundle UserPrekeyBundle @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+
+  @@unique([bundleId, keyId])
+  @@map("user_one_time_prekeys")
+}
+
+model Reel {
+  id           String        @id @default(uuid())
+  authorId     String        @map("author_id")
+  caption      String        @default("")
+  videoUrl     String        @map("video_url")
+  hlsUrl       String?       @map("hls_url")
+  thumbnailUrl String?       @map("thumbnail_url")
+  blurhash     String?
+  thumbhash    String?
+  duration     Float?
+  width        Int?
+  height       Int?
+  audioTitle   String?       @map("audio_title")
+  audioArtist  String?       @map("audio_artist")
+  audioUrl     String?       @map("audio_url")
+  viewsCount   Int           @default(0) @map("views_count")
+  likesCount   Int           @default(0) @map("likes_count")
+  commentsCount Int          @default(0) @map("comments_count")
+  sharesCount  Int           @default(0) @map("shares_count")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  author   User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  likes    ReelLike[]
+  comments ReelComment[]
+
+  @@index([authorId, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+  @@map("reels")
+}
+
+model ReelLike {
+  id        String   @id @default(uuid())
+  reelId    String   @map("reel_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  reel Reel @relation(fields: [reelId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([reelId, userId])
+  @@index([userId])
+  @@map("reel_likes")
+}
+
+model ReelComment {
+  id        String   @id @default(uuid())
+  reelId    String   @map("reel_id")
+  userId    String   @map("user_id")
+  content   String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  reel Reel @relation(fields: [reelId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([reelId, createdAt(sort: Asc)])
+  @@map("reel_comments")
 }
 
 

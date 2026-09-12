@@ -30,6 +30,10 @@ describe('DeleteChatModal', () => {
     fireEvent.click(checkbox);
     expect(checkbox).toBeChecked();
 
+    const cancelBtn = screen.getByRole('button', { name: /^Cancel$/i });
+    fireEvent.click(cancelBtn);
+    expect(onClose).toHaveBeenCalled();
+
     const deleteBtn = screen.getByRole('button', { name: /^Delete$/i });
     fireEvent.click(deleteBtn);
 
@@ -65,5 +69,19 @@ describe('DeleteChatModal', () => {
     fireEvent.click(deleteBtn);
 
     expect(onConfirm).toHaveBeenCalledWith(false);
+  });
+
+  it('renders group avatarUrl and loading state', () => {
+    render(
+      <DeleteChatModal
+        conversationName="Dev Group"
+        avatarUrl="https://example.com/avatar.jpg"
+        isGroup={true}
+        onClose={vi.fn()}
+        onConfirm={vi.fn()}
+        isLoading={true}
+      />,
+    );
+    expect(screen.getByText('Deleting...')).toBeInTheDocument();
   });
 });

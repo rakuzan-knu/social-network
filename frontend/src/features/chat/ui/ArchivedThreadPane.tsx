@@ -11,6 +11,7 @@ import { useArchiveConversation } from '../model/useConversationMutations';
 import { useMessages } from '../model/useMessages';
 import { useMessageActions } from '../model/useMessageActions';
 import { getConversationDisplay } from '../lib/getConversationDisplay';
+import { promptEditMessage } from '../lib/promptEditMessage';
 import MessageList from './MessageList';
 import MessageComposer from './MessageComposer';
 import ForwardMessageModal from './ForwardMessageModal';
@@ -46,8 +47,14 @@ export default function ArchivedThreadPane({
   const [forwardingMessage, setForwardingMessage] = useState<MessageView | null>(null);
 
   const handleUnarchive = () => {
-    archiveConversation.mutate({ conversationId: conversation.id, archived: false });
-    onUnarchived();
+    archiveConversation.mutate(
+      { conversationId: conversation.id, archived: false },
+      {
+        onSuccess: () => {
+          onUnarchived();
+        },
+      },
+    );
   };
 
   const handleDelete = (messageId: string, forAll: boolean) => {
@@ -113,9 +120,7 @@ export default function ArchivedThreadPane({
           onLoadMore={fetchNextPage}
           onReply={setReplyingTo}
           onEdit={(message) => {
-            const nextBody = window.prompt('Edit message', message.body ?? '');
-            if (nextBody && nextBody !== message.body)
-              actions.editMessage(message.id, nextBody).catch(() => {});
+            void promptEditMessage(message, otherParticipant?.userId ?? null, actions.editMessage);
           }}
           onDelete={handleDelete}
           onForward={setForwardingMessage}
@@ -138,6 +143,7 @@ export default function ArchivedThreadPane({
           onClearFiles={staged.clear}
           onDismissFilesError={staged.dismissError}
           isGroup={isGroup}
+          e2eePeerUserId={isGroup ? null : (otherParticipant?.userId ?? null)}
         />
       </AttachmentDropZone>
 
@@ -145,7 +151,7 @@ export default function ArchivedThreadPane({
         <ForwardMessageModal
           onClose={() => setForwardingMessage(null)}
           onForward={(conversationIds) => {
-            actions.forwardMessage(forwardingMessage.id, conversationIds).catch(() => {});
+            actions.forwardMessage(forwardingMessage, conversationIds).catch(() => {});
             setForwardingMessage(null);
           }}
         />

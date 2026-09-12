@@ -76,4 +76,46 @@ describe('useMediaRecorderGesture', () => {
     expect(typeof audioMime).toBe('string');
     expect(typeof videoMime).toBe('string');
   });
+
+  it('handles media permission error and invokes onError callback', async () => {
+    vi.useFakeTimers();
+    const onError = vi.fn();
+    const onSend = vi.fn();
+
+    // Mock getUserMedia rejecting
+    const origGUM = navigator.mediaDevices?.getUserMedia;
+    if (!navigator.mediaDevices) {
+      (navigator as any).mediaDevices = {};
+    }
+    navigator.mediaDevices.getUserMedia = vi.fn().mockRejectedValue(new Error('Permission denied'));
+
+    const { result } = renderHook(() => useMediaRecorderGesture({ onSend, onError }));
+
+    // Hold pointer down > 300ms to start recording
+    act(() => {
+      result.current.handlePointerDown({ clientX: 100, clientY: 100 } as React.PointerEvent);
+      vi.advanceTimersByTime(350);
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(onError).toHaveBeenCalledWith(
+      'Camera or microphone access is required to record notes.',
+    );
+    if (origGUM) navigator.mediaDevices.getUserMedia = origGUM;
+    vi.useRealTimers();
+  });
+
+  it('handles stopAndSend when previewPayload is present and allows sending from preview', () => {
+    const onSend = vi.fn();
+    const { result } = renderHook(() => useMediaRecorderGesture({ onSend }));
+
+    // When idle and no preview payload, stopAndSend is a no-op
+    act(() => {
+      result.current.stopAndSend();
+    });
+    expect(onSend).not.toHaveBeenCalled();
+  });
 });

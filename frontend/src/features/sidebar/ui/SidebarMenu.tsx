@@ -127,7 +127,7 @@ export function ProfileMenu({ isSidebarExpanded }: ProfileMenuProps) {
       {isOpen && (
         <div
           role="menu"
-          className="absolute bottom-full left-0 mb-2 w-72 bg-[#16161a]/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl p-2 z-[60] animate-menuIn origin-bottom-left"
+          className="absolute bottom-full left-0 mb-2 w-72 max-h-[calc(100vh-100px)] overflow-y-auto bg-[#16161a]/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl p-2 z-[60] animate-menuIn origin-bottom-left"
         >
           <MenuItem
             icon={Settings}
@@ -148,6 +148,10 @@ export function ProfileMenu({ isSidebarExpanded }: ProfileMenuProps) {
                 navigate('/');
               }
             }}
+          />
+          <AccountSwitcherMenuItem
+            onSwitchAccount={handleSwitchAccount}
+            onOpenManageAccounts={() => openModal('manageAccounts')}
           />
           <ThemeMenuItem />
           <MenuItem
@@ -181,13 +185,6 @@ export function ProfileMenu({ isSidebarExpanded }: ProfileMenuProps) {
               navigate('/privacy');
               setIsOpen(false);
             }}
-          />
-
-          <div className="h-px bg-white/10 my-2" />
-
-          <AccountSwitcherMenuItem
-            onSwitchAccount={handleSwitchAccount}
-            onOpenManageAccounts={() => openModal('manageAccounts')}
           />
 
           <div className="h-px bg-white/10 my-2" />

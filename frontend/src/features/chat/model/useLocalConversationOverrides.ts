@@ -8,23 +8,22 @@ export function useLocalConversationOverrides() {
   const [locallyReadConversations, setLocallyReadConversations] = useState<Set<string>>(new Set());
 
   const togglePinLocally = (id: string, onLimitReached?: () => void) => {
-    let limitReached = false;
+    if (!pinnedLocally.has(id) && pinnedLocally.size >= MAX_PINNED_CHATS) {
+      onLimitReached?.();
+      return;
+    }
     setPinnedLocally((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
         next.delete(id);
       } else {
         if (next.size >= MAX_PINNED_CHATS) {
-          limitReached = true;
           return prev;
         }
         next.add(id);
       }
       return next;
     });
-    if (limitReached && onLimitReached) {
-      onLimitReached();
-    }
   };
 
   const toggleUnreadLocally = (id: string) => {

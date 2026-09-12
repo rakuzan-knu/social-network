@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AddEmojiButton } from '../AddEmojiButton';
@@ -16,12 +16,12 @@ vi.mock('emoji-picker-react', () => ({
 function mockBoundingRectTop(top: number) {
   vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
     top,
-    bottom: 0,
-    left: 0,
-    right: 0,
-    width: 0,
-    height: 0,
-    x: 0,
+    bottom: top + 40,
+    left: 100,
+    right: 140,
+    width: 40,
+    height: 40,
+    x: 100,
     y: top,
     toJSON: () => {},
   });
@@ -90,5 +90,54 @@ describe('AddEmojiButton', () => {
 
     const picker = await screen.findByTestId('mock-emoji-picker');
     expect(picker.closest('div.absolute')).toHaveClass('top-full', 'mt-3');
+  });
+
+  it('supports usePortal and positions fixed with forceDirection', async () => {
+    mockBoundingRectTop(200);
+    const onToggle = vi.fn();
+    render(
+      <AddEmojiButton
+        isOpen={true}
+        onToggle={onToggle}
+        onEmojiSelect={vi.fn()}
+        usePortal={true}
+        forceDirection="top"
+      />,
+    );
+
+    expect(await screen.findByTestId('mock-emoji-picker')).toBeInTheDocument();
+
+    // Trigger window resize and scroll
+    fireEvent(window, new Event('resize'));
+    fireEvent(window, new Event('scroll'));
+  });
+
+  it('closes when clicking outside or pressing Escape', async () => {
+    const onToggle = vi.fn();
+    render(
+      <div>
+        <div data-testid="outside-element">Outside</div>
+        <AddEmojiButton isOpen={true} onToggle={onToggle} onEmojiSelect={vi.fn()} />
+      </div>,
+    );
+
+    expect(await screen.findByTestId('mock-emoji-picker')).toBeInTheDocument();
+
+    // Click outside
+    fireEvent.mouseDown(screen.getByTestId('outside-element'));
+    expect(onToggle).toHaveBeenCalledTimes(1);
+
+    // Press Escape
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(onToggle).toHaveBeenCalledTimes(2);
+  });
+
+  it('calculates auto portal direction when forceDirection is omitted', async () => {
+    // When space below is small, opens top
+    mockBoundingRectTop(600);
+    render(
+      <AddEmojiButton isOpen={true} onToggle={vi.fn()} onEmojiSelect={vi.fn()} usePortal={true} />,
+    );
+    expect(await screen.findByTestId('mock-emoji-picker')).toBeInTheDocument();
   });
 });

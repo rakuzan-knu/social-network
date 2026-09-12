@@ -44,7 +44,7 @@ describe('GithubController', () => {
     controller.redirectToGithub(req, res);
     expect(mockGithubService.getAuthorizationUrl).toHaveBeenCalledWith(req, res);
 
-    await controller.handleCallback('code123', 'state123', req, res);
+    await controller.handleCallback({ code: 'code123', state: 'state123' }, req, res);
     expect(mockGithubService.handleOAuthCallback).toHaveBeenCalledWith(
       'code123',
       'state123',

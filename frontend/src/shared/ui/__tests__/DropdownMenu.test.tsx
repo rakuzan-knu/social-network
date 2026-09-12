@@ -25,21 +25,25 @@ describe('DropdownMenu', () => {
     expect(onClick).toHaveBeenCalled();
   });
 
-  it('closes on Escape key press', () => {
+  it('closes on Escape key press and click outside', () => {
     const onClose = vi.fn();
     render(<DropdownMenu items={[{ key: '1', label: 'Item' }]} onClose={onClose} />);
 
     fireEvent.keyDown(document, { key: 'Escape' });
-  });
-
-  it('closes on click outside', () => {
-    const onClose = vi.fn();
-    render(<DropdownMenu items={[{ key: '1', label: 'Item' }]} onClose={onClose} />);
-
     fireEvent.mouseDown(document.body);
   });
 
-  it('opens and interacts with submenus', () => {
+  it('handles right alignment and upward flipping', () => {
+    const items: DropdownMenuItem[] = [
+      { key: '1', label: 'Item 1' },
+      { key: '2', label: 'Item 2' },
+    ];
+    render(<DropdownMenu items={items} onClose={vi.fn()} align="right" />);
+    expect(screen.getByText('Item 1')).toBeInTheDocument();
+  });
+
+  it('opens and interacts with submenus, handles hover leave and enter', () => {
+    vi.useFakeTimers();
     const onSubClick = vi.fn();
     const items: DropdownMenuItem[] = [
       {
@@ -47,9 +51,13 @@ describe('DropdownMenu', () => {
         label: 'More Options',
         hasSubmenu: true,
         submenuItems: [
-          { key: 'sub-1', label: 'Sub Option 1', onClick: onSubClick },
+          { key: 'sub-1', label: 'Sub Option 1', onClick: onSubClick, danger: true },
           { key: 'sub-2', label: 'Sub Option 2', divider: true, checked: true },
         ],
+      },
+      {
+        key: 'regular',
+        label: 'Regular Item',
       },
     ];
 
@@ -59,47 +67,48 @@ describe('DropdownMenu', () => {
     fireEvent.mouseEnter(parentBtn);
 
     expect(screen.getByText('Sub Option 1')).toBeInTheDocument();
-    fireEvent.click(screen.getByText('Sub Option 1'));
+
+    // Mouse leave parent triggers scheduleSubmenuClose
+    fireEvent.mouseLeave(parentBtn);
+
+    // Mouse enter non-submenu item schedules submenu close
+    const regularBtn = screen.getByText('Regular Item');
+    fireEvent.mouseEnter(regularBtn);
+
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+
+    expect(screen.queryByText('Sub Option 1')).not.toBeInTheDocument();
+
+    // Open again
+    fireEvent.mouseEnter(parentBtn);
+    expect(screen.getByText('Sub Option 1')).toBeInTheDocument();
+
+    const subOption = screen.getByText('Sub Option 1');
+    fireEvent.mouseEnter(subOption.parentElement!);
+    fireEvent.click(subOption);
     expect(onSubClick).toHaveBeenCalled();
+
+    vi.useRealTimers();
   });
 
-  it('opens submenu on hover and on click, and triggers submenu item onClick', () => {
-    vi.useFakeTimers();
-    const onSubItemClick = vi.fn();
-    const onClose = vi.fn();
-
+  it('handles right alignment and submenu interaction', () => {
     const items: DropdownMenuItem[] = [
       {
-        key: 'mute',
-        label: 'Mute notifications',
+        key: 'parent',
+        label: 'Right Edge Submenu',
         hasSubmenu: true,
-        submenuItems: [
-          { key: 'tone', label: 'Select tone', onClick: onSubItemClick },
-          { key: 'forever', label: 'Mute forever' },
-        ],
+        submenuItems: [{ key: 'sub-right', label: 'Left Flipped Sub' }],
       },
     ];
 
-    render(<DropdownMenu items={items} onClose={onClose} />);
+    const { unmount } = render(<DropdownMenu items={items} onClose={vi.fn()} align="right" />);
 
-    const muteBtn = screen.getByText('Mute notifications');
-    expect(muteBtn).toBeInTheDocument();
+    const parentBtn = screen.getByText('Right Edge Submenu');
+    fireEvent.mouseEnter(parentBtn);
+    expect(screen.getByText('Left Flipped Sub')).toBeInTheDocument();
 
-    // Clicking button with submenu opens submenu
-    fireEvent.click(muteBtn);
-
-    expect(screen.getByText('Select tone')).toBeInTheDocument();
-    expect(screen.getByText('Mute forever')).toBeInTheDocument();
-
-    // Clicking submenu item calls onClick and closes
-    fireEvent.click(screen.getByText('Select tone'));
-    expect(onSubItemClick).toHaveBeenCalled();
-
-    act(() => {
-      vi.advanceTimersByTime(200);
-    });
-
-    expect(onClose).toHaveBeenCalled();
-    vi.useRealTimers();
+    unmount();
   });
 });

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import SlideOverPanel from '../SlideOverPanel';
+import { SettingsPanelHost } from '../SettingsPanelHost';
 
 describe('SlideOverPanel', () => {
   beforeEach(() => {
@@ -24,12 +25,14 @@ describe('SlideOverPanel', () => {
 
     const backButton = screen.getByRole('button', { name: /back/i });
     fireEvent.click(backButton);
+    // Rapid duplicate click while closing
+    fireEvent.click(backButton);
 
     act(() => {
       vi.advanceTimersByTime(200);
     });
 
-    expect(onClose).toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it('closes when Escape key is pressed', () => {
@@ -47,5 +50,19 @@ describe('SlideOverPanel', () => {
     });
 
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('renders inside host element when host context is provided', () => {
+    render(
+      <SettingsPanelHost>
+        <SlideOverPanel title="Hosted Panel" onClose={vi.fn()} headerRight={<button>Save</button>}>
+          <div>Inside Host</div>
+        </SlideOverPanel>
+      </SettingsPanelHost>,
+    );
+
+    expect(screen.getByText('Hosted Panel')).toBeInTheDocument();
+    expect(screen.getByText('Inside Host')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
   });
 });

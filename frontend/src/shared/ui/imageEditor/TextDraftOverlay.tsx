@@ -24,11 +24,15 @@ export default function TextDraftOverlay({
     const canvas = canvasRef.current;
     if (!canvas) return;
     const canvasRect = canvas.getBoundingClientRect();
-    const parentRect = canvas.parentElement!.getBoundingClientRect();
-    const scale = canvasRect.width / canvas.width;
+    const parentRect = canvas.parentElement?.getBoundingClientRect();
+    const scale = canvas.width ? (canvasRect.width || canvas.width) / canvas.width : 1;
+    const parentLeft = Number.isFinite(parentRect?.left) ? parentRect!.left : 0;
+    const parentTop = Number.isFinite(parentRect?.top) ? parentRect!.top : 0;
+    const canvasLeft = Number.isFinite(canvasRect.left) ? canvasRect.left : 0;
+    const canvasTop = Number.isFinite(canvasRect.top) ? canvasRect.top : 0;
     setScreenPos({
-      left: canvasRect.left - parentRect.left + draft.x * scale,
-      top: canvasRect.top - parentRect.top + draft.y * scale,
+      left: canvasLeft - parentLeft + (draft.x || 0) * scale,
+      top: canvasTop - parentTop + (draft.y || 0) * scale,
       scale,
     });
   }, [canvasRef, draft.x, draft.y]);
@@ -41,6 +45,7 @@ export default function TextDraftOverlay({
     <textarea
       ref={textareaRef}
       value={draft.value}
+      placeholder="Type text..."
       onChange={(e) => onChange(e.target.value)}
       onBlur={onCommit}
       onKeyDown={(e) => {

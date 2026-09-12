@@ -129,4 +129,19 @@ describe('CheckoutButton', () => {
 
     await waitFor(() => expect(onError).toHaveBeenCalledWith('Something went wrong'));
   });
+
+  it('ignores click when isPending is true', async () => {
+    const pending = deferred<{ orderId: string }>();
+    checkoutMock.mockReturnValueOnce(pending.promise);
+    const { button } = setup();
+    const user = userEvent.setup();
+
+    await user.click(button);
+    expect(button).toBeDisabled();
+    // Simulate direct click call
+    button.click();
+    expect(checkoutMock).toHaveBeenCalledTimes(1);
+
+    pending.resolve({ orderId: 'ord-1' });
+  });
 });

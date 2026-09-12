@@ -156,7 +156,7 @@ export async function optimizeGroupAvatar(buffer: Buffer): Promise<ProcessedImag
 }
 
 /**
- * Uploads a buffer to S3/MinIO with automatic retry and resilient data-URI fallback
+ * Uploads a buffer to S3/MinIO/R2 with automatic retry and resilient data-URI fallback
  */
 export async function uploadToStorageWithFallback(
   s3: S3Client,
@@ -166,9 +166,10 @@ export async function uploadToStorageWithFallback(
     buffer: Buffer;
     contentType: string;
     publicUrl: string;
+    cacheControl?: string;
   },
 ): Promise<string> {
-  const { bucket, key, buffer, contentType, publicUrl } = params;
+  const { bucket, key, buffer, contentType, publicUrl, cacheControl } = params;
 
   try {
     await s3.send(
@@ -177,9 +178,25 @@ export async function uploadToStorageWithFallback(
         Key: key,
         Body: buffer,
         ContentType: contentType,
+        CacheControl: cacheControl ?? 'public, max-age=31536000, immutable',
       }),
     );
-    return `${publicUrl}/${bucket}/${key}`;
+
+    const cleanPublicUrl = publicUrl.replace(/\/+$/, '');
+    const cleanKey = key.replace(/^\/+/, '');
+
+    // Cloudflare R2 bucket domains (e.g. .r2.dev or custom domain mapped to bucket)
+    // or when S3_FORCE_PATH_STYLE is explicitly disabled
+    const isDirectBucketDomain =
+      cleanPublicUrl.includes('.r2.dev') ||
+      cleanPublicUrl.endsWith(`/${bucket}`) ||
+      process.env.S3_FORCE_PATH_STYLE === 'false';
+
+    if (isDirectBucketDomain) {
+      return `${cleanPublicUrl}/${cleanKey}`;
+    }
+
+    return `${cleanPublicUrl}/${bucket}/${cleanKey}`;
   } catch {
     // Resilient fallback for local / offline / memory storage
     return `data:${contentType};base64,${buffer.toString('base64')}`;
@@ -187,7 +204,7 @@ export async function uploadToStorageWithFallback(
 }
 
 /**
- * Deletes an object by public URL from S3/MinIO
+ * Deletes an object by public URL from S3/MinIO/R2
  */
 export async function deleteFromStorage(
   s3: S3Client,
@@ -199,6 +216,30 @@ export async function deleteFromStorage(
 ): Promise<void> {
   const { url, bucket, publicUrl } = params;
   if (!url || url.startsWith('data:') || !url.startsWith(publicUrl)) return;
-  const key = url.replace(`${publicUrl}/${bucket}/`, '');
-  await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key })).catch(() => {});
+  const cleanPublicUrl = publicUrl.replace(/\/+$/, '');
+  const key = url.replace(`${cleanPublicUrl}/${bucket}/`, '').replace(`${cleanPublicUrl}/`, '');
+  try {
+    await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+  } catch {
+    // Graceful no-op on non-existent storage objects
+  }
+}
+
+/**
+ * Generates an Enterprise BlurHash for immediate zero-CLS layout rendering
+ */
+export async function generateBlurHash(buffer: Buffer): Promise<{ blurhash: string }> {
+  try {
+    const { encode } = await import('blurhash');
+    const { data, info } = await sharp(buffer)
+      .resize(32, 32, { fit: 'inside' })
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+
+    const blurhash = encode(new Uint8ClampedArray(data), info.width, info.height, 4, 3);
+    return { blurhash };
+  } catch {
+    return { blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4' };
+  }
 }

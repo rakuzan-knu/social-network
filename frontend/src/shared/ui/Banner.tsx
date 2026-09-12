@@ -1,9 +1,9 @@
 import React from 'react';
 
 interface BannerProps {
-  src?: string | null;
-  positionY?: number;
-  alt?: string;
+  src?: string | null | undefined;
+  positionY?: number | undefined;
+  alt?: string | undefined;
 }
 
 export default function Banner({ src, positionY = 50, alt = 'User profile banner' }: BannerProps) {

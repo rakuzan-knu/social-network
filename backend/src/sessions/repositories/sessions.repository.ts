@@ -32,6 +32,25 @@ export class SessionsRepository implements ISessionsRepository {
     return this.prisma.session.findUnique({ where: { id } });
   }
 
+  findByUserAndAgent(userId: string, userAgent: string): Promise<Session | null> {
+    return this.prisma.session.findFirst({
+      where: {
+        userId,
+        userAgent,
+      },
+    });
+  }
+
+  async updateSession(
+    id: string,
+    data: Partial<CreateSessionData> & { lastActiveAt?: Date },
+  ): Promise<void> {
+    await this.prisma.session.update({
+      where: { id },
+      data,
+    });
+  }
+
   listForUser(userId: string): Promise<Session[]> {
     return this.prisma.session.findMany({
       where: { userId },
@@ -43,6 +62,13 @@ export class SessionsRepository implements ISessionsRepository {
     await this.prisma.session.updateMany({
       where: { jti },
       data: { lastActiveAt: new Date() },
+    });
+  }
+
+  async touchWithMeta(jti: string, data: Record<string, unknown>): Promise<void> {
+    await this.prisma.session.updateMany({
+      where: { jti },
+      data,
     });
   }
 

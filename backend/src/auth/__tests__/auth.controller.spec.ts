@@ -1,6 +1,7 @@
 import type { Request } from 'express';
 import { AuthController } from '../auth.controller';
 import type { AuthService } from '../auth.service';
+import type { TurnstileService } from '../turnstile.service';
 import type { RequestUser } from '../interfaces/jwt-payload.interface';
 
 describe('AuthController', () => {
@@ -13,6 +14,9 @@ describe('AuthController', () => {
     changePassword: jest.Mock;
     logout: jest.Mock;
   };
+  let mockTurnstileService: {
+    verifyToken: jest.Mock;
+  };
 
   beforeEach(() => {
     mockAuthService = {
@@ -24,7 +28,14 @@ describe('AuthController', () => {
       logout: jest.fn(),
     };
 
-    controller = new AuthController(mockAuthService as unknown as AuthService);
+    mockTurnstileService = {
+      verifyToken: jest.fn().mockResolvedValue(true),
+    };
+
+    controller = new AuthController(
+      mockAuthService as unknown as AuthService,
+      mockTurnstileService as unknown as TurnstileService,
+    );
   });
 
   it('delegates checkUsername query to AuthService', async () => {

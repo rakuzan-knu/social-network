@@ -3,7 +3,7 @@ import { Search, Clock, Zap, Smile, PartyPopper, Utensils } from 'lucide-react';
 import { triggerReactionBurst } from '../lib/reactionBurstEngine';
 import { getStoredRecentReactions } from '../model/useRecentReactions';
 
-export const EXPANDED_REACTIONS: {
+const EXPANDED_REACTIONS: {
   id: string;
   name: string;
   icon: React.ReactNode;
@@ -176,10 +176,10 @@ export default function ExpandedReactionPicker({
       ref={containerRef}
       className={`absolute bottom-full mb-2 z-50 ${
         align === 'right' ? 'right-0' : 'left-0'
-      } w-[345px] max-h-[460px] flex flex-col bg-[#161522]/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-[0_24px_60px_rgba(0,0,0,0.8)] overflow-hidden animate-popIn select-none`}
+      } w-86.25 max-h-115 flex flex-col bg-[#161522]/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-[0_24px_60px_rgba(0,0,0,0.8)] overflow-hidden animate-popIn select-none`}
     >
       {/* Top Category Tabs Bar */}
-      <div className="flex items-center gap-1 px-3 pt-2.5 pb-2 border-b border-white/[0.08] overflow-x-auto custom-scrollbar">
+      <div className="flex items-center gap-1 px-3 pt-2.5 pb-2 border-b border-white/8 overflow-x-auto custom-scrollbar">
         {EXPANDED_REACTIONS.map((tab) => {
           const isActive = activeTab === tab.id;
           return (
@@ -204,7 +204,7 @@ export default function ExpandedReactionPicker({
       </div>
 
       {/* Search Input & Quick Filter Pills */}
-      <div className="px-3 py-2 flex items-center gap-2 border-b border-white/[0.06] bg-black/20">
+      <div className="px-3 py-2 flex items-center gap-2 border-b border-white/6 bg-black/20">
         <div className="relative flex-1 flex items-center">
           <Search size={14} className="absolute left-2.5 text-gray-400 pointer-events-none" />
           <input
@@ -233,7 +233,7 @@ export default function ExpandedReactionPicker({
       {/* Scrollable Emojis List Grid */}
       <div
         ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-4 max-h-[330px]"
+        className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-4 max-h-82.5"
       >
         {filteredCategories.length > 0 ? (
           filteredCategories.map((cat) => (

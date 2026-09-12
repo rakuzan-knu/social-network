@@ -97,3 +97,22 @@ export type ParticipantWithUser = Prisma.ConversationParticipantGetPayload<{
 export type ConversationWithDetails = Prisma.ConversationGetPayload<{
   include: typeof conversationInclude;
 }>;
+
+export const callParticipantInclude = {
+  user: { select: userSnapshot },
+} satisfies Prisma.CallParticipantInclude;
+
+export const callInclude = {
+  initiator: { select: userSnapshot },
+  participants: {
+    include: callParticipantInclude,
+  },
+} satisfies Prisma.CallInclude;
+
+export type CallWithDetails = Prisma.CallGetPayload<{
+  include: typeof callInclude;
+}>;
+
+export type CallParticipantWithUser = Prisma.CallParticipantGetPayload<{
+  include: typeof callParticipantInclude;
+}>;

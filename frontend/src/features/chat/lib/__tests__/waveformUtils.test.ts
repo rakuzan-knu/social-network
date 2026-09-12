@@ -37,6 +37,32 @@ describe('waveformUtils', () => {
       expect(Math.max(...resampled)).toBe(1.0);
       expect(Math.min(...resampled)).toBeGreaterThanOrEqual(0.12);
     });
+
+    it('handles exact targetCount length directly and non-numeric peaks array', () => {
+      const exactPeaks = new Array(45).fill(0.5);
+      const resampled = samplePeaks(exactPeaks, 45);
+      expect(resampled).toHaveLength(45);
+      expect(resampled.every((b) => b === 1.0)).toBe(true);
+
+      const invalidPeaks = [NaN, Infinity, 'abc' as any];
+      const fallback = samplePeaks(invalidPeaks, 45);
+      expect(fallback).toHaveLength(45);
+    });
+
+    it('returns default waveform when validPeaks is empty after map (simulated via monkey-patch)', () => {
+      const origMap = Array.prototype.map;
+      try {
+        // Simulate the case where all mapped values result in empty validPeaks
+        Array.prototype.map = function () {
+          return [];
+        };
+        const resFallback = samplePeaks([1, 2, 3], 45, 'empty-seed');
+        expect(resFallback).toHaveLength(45);
+        expect(resFallback.every((b) => b >= 0.12 && b <= 1.0)).toBe(true);
+      } finally {
+        Array.prototype.map = origMap;
+      }
+    });
   });
 
   describe('formatVoiceTime', () => {

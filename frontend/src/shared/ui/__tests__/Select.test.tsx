@@ -76,12 +76,15 @@ describe('Select', () => {
     expect(screen.getByRole('listbox')).toBeInTheDocument();
   });
 
-  it('selects the highlighted option on Enter', async () => {
+  it('selects the highlighted option on Enter and Space', async () => {
     const onChange = vi.fn();
     const user = userEvent.setup({ delay: null });
     render(<Select value="Beta" onChange={onChange} options={OPTIONS} />);
     const combobox = screen.getByRole('combobox');
     await user.click(combobox);
+
+    // Other key (default case in switch)
+    fireEvent.keyDown(combobox, { key: 'a' });
 
     fireEvent.keyDown(combobox, { key: 'ArrowDown' });
     fireEvent.keyDown(combobox, { key: 'Enter' });
@@ -140,5 +143,13 @@ describe('Select', () => {
 
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
     expect(onBlur).toHaveBeenCalledTimes(1);
+  });
+
+  it('defaults highlightedIndex to 0 when current value is not found in options', async () => {
+    const user = userEvent.setup({ delay: null });
+    render(<Select value="NonExistent" onChange={vi.fn()} options={OPTIONS} />);
+    const combobox = screen.getByRole('combobox');
+    await user.click(combobox);
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
   });
 });

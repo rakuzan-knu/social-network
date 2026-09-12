@@ -57,4 +57,51 @@ describe('ChangePasswordModal', () => {
       });
     });
   });
+
+  it('handles visibility toggle, validation errors, and 401 error', async () => {
+    vi.mocked(securityApi.changePassword).mockRejectedValueOnce({
+      response: { status: 401 },
+    });
+    const onClose = vi.fn();
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ChangePasswordModal onClose={onClose} />
+      </QueryClientProvider>,
+    );
+
+    const showBtn = screen.getByRole('button', { name: 'Show password' });
+    fireEvent.click(showBtn);
+
+    const currentInput = screen.getByPlaceholderText('Current password');
+    const newInput = screen.getByPlaceholderText('New password');
+    const confirmInput = screen.getByPlaceholderText('Confirm new password');
+
+    // Too short
+    fireEvent.change(newInput, { target: { value: 'short' } });
+    expect(screen.getByText(/Use at least 8 characters/i)).toBeInTheDocument();
+
+    // Mismatch
+    fireEvent.change(newInput, { target: { value: 'longenoughpass' } });
+    fireEvent.change(confirmInput, { target: { value: 'differentpass' } });
+    expect(screen.getByText('Passwords do not match.')).toBeInTheDocument();
+
+    // Submit with wrong current password
+    fireEvent.change(currentInput, { target: { value: 'wrongcurrent' } });
+    fireEvent.change(confirmInput, { target: { value: 'longenoughpass' } });
+
+    const submitBtn = screen.getByRole('button', { name: 'Change password' });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('Current password is incorrect.')).toBeInTheDocument();
+    });
+
+    // Close button
+    const closeBtn = screen.getByRole('button', { name: 'Close' });
+    fireEvent.click(closeBtn);
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalled();
+    });
+  });
 });

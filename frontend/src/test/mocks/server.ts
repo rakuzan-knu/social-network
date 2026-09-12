@@ -7,8 +7,8 @@ import { notificationsHandlers } from './handlers/notifications.handlers';
 import { storiesHandlers } from './handlers/stories.handlers';
 
 export const server = setupServer(
-  ...authHandlers,
   ...profileHandlers,
+  ...authHandlers,
   ...postsHandlers,
   ...chatHandlers,
   ...notificationsHandlers,

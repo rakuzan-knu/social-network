@@ -13,6 +13,7 @@ COPY pnpm-lock.yaml package.json pnpm-workspace.yaml ./
 COPY frontend/package.json ./frontend/
 COPY backend/package.json ./backend/
 COPY backend/prisma ./backend/prisma/
+COPY backend/prisma.config.ts ./backend/
 COPY scripts ./scripts/
 
 # Copy source code needed for build

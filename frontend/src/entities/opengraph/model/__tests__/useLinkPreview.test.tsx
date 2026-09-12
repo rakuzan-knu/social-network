@@ -28,6 +28,9 @@ describe('useLinkPreview', () => {
 
     expect(result.current.data).toBeUndefined();
     expect(result.current.isLoading).toBe(false);
+
+    const refetched = await result.current.refetch();
+    expect(refetched.data).toBeNull();
   });
 
   it('fetches link-preview data for a valid url via messenger endpoint', async () => {

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import VoiceRecorderBar from '../VoiceRecorderBar';
+import React from 'react';
 
 describe('VoiceRecorderBar', () => {
   it('renders recording state with timer, live visualizer, and slide hints', () => {
@@ -53,5 +54,51 @@ describe('VoiceRecorderBar', () => {
     const sendBtn = screen.getByTitle('Send voice note');
     fireEvent.click(sendBtn);
     expect(onSend).toHaveBeenCalled();
+  });
+
+  it('renders preview state and toggles audio preview playback', async () => {
+    const playSpy = vi
+      .spyOn(window.HTMLMediaElement.prototype, 'play')
+      .mockImplementation(() => Promise.resolve());
+    const pauseSpy = vi
+      .spyOn(window.HTMLMediaElement.prototype, 'pause')
+      .mockImplementation(() => {});
+
+    const mockFile = new File([''], 'audio.webm', { type: 'audio/webm' });
+    const { unmount } = render(
+      <VoiceRecorderBar
+        recordState="preview"
+        duration={15}
+        liveAmplitudes={[]}
+        previewPayload={{
+          file: mockFile,
+          mode: 'voice',
+          duration: 15,
+          previewUrl: 'blob:audio-note',
+        }}
+        dragOffset={{ x: 0, y: 0 }}
+        onDiscard={vi.fn()}
+        onPausePreview={vi.fn()}
+        onSend={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('0:15')).toBeInTheDocument();
+    const playBtn = screen.getByTestId('voice-recorder-bar').querySelector('button')!;
+
+    await act(async () => {
+      fireEvent.click(playBtn);
+    });
+    expect(playSpy).toHaveBeenCalled();
+
+    // Pause click
+    await act(async () => {
+      fireEvent.click(playBtn);
+    });
+    expect(pauseSpy).toHaveBeenCalled();
+
+    unmount();
+    playSpy.mockRestore();
+    pauseSpy.mockRestore();
   });
 });

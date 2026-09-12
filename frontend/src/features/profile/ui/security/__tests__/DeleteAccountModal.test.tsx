@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
@@ -17,9 +17,10 @@ vi.mock('@/shared/model/useUIStore', () => ({
   }),
 }));
 
-vi.mock('../../model/useDeleteAccount', () => ({
+const mockMutateAsync = vi.fn().mockResolvedValue({ success: true });
+vi.mock('../../../model/useDeleteAccount', () => ({
   useDeleteAccount: () => ({
-    mutateAsync: vi.fn().mockResolvedValue({ success: true }),
+    mutateAsync: mockMutateAsync,
     isPending: false,
   }),
 }));
@@ -69,5 +70,30 @@ describe('DeleteAccountModal', () => {
 
     const submitBtn = screen.getByRole('button', { name: 'Delete Account' });
     expect(submitBtn).not.toBeDisabled();
+  });
+
+  it('submits account deletion and handles 401 error and visibility toggle', async () => {
+    mockMutateAsync.mockRejectedValueOnce({ response: { status: 401 } });
+
+    renderWithProviders(<DeleteAccountModal onClose={onCloseMock} />);
+
+    // Toggle password visibility
+    const showBtn = screen.getByRole('button', { name: 'Show password' });
+    fireEvent.click(showBtn);
+
+    const input = screen.getByPlaceholderText('Enter your password');
+    fireEvent.change(input, { target: { value: 'wrongpass' } });
+
+    const submitBtn = screen.getByRole('button', { name: 'Delete Account' });
+    fireEvent.click(submitBtn);
+
+    await screen.findByText(/Incorrect password/i);
+
+    // Cancel button
+    const cancelBtn = screen.getByRole('button', { name: 'Cancel' });
+    fireEvent.click(cancelBtn);
+    await waitFor(() => {
+      expect(onCloseMock).toHaveBeenCalled();
+    });
   });
 });

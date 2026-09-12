@@ -92,6 +92,7 @@ export class MessagesController {
 
   @Post('batch-delete')
   @HttpCode(HttpStatus.OK)
+  @Throttle({ sensitive: { limit: 10, ttl: 60_000 } })
   @ApiOperation({ summary: 'Batch delete up to 50 messages' })
   batchDelete(
     @Param('conversationId') conversationId: string,
@@ -103,6 +104,7 @@ export class MessagesController {
 
   @Post('batch-forward')
   @HttpCode(HttpStatus.OK)
+  @Throttle({ sensitive: { limit: 10, ttl: 60_000 } })
   @ApiOperation({ summary: 'Batch forward up to 50 messages' })
   batchForward(
     @Param('conversationId') conversationId: string,
@@ -123,7 +125,8 @@ export class MessagesController {
   }
 
   @Post('attachments')
-  @UseInterceptors(FileInterceptor('file'))
+  @Throttle({ sensitive: { limit: 10, ttl: 60_000 } })
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 25 * 1024 * 1024, files: 1 } }))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Upload attachment for conversation message' })
   uploadAttachment(
@@ -135,7 +138,7 @@ export class MessagesController {
   }
 
   @Get('search')
-  @Throttle({ default: { limit: 30, ttl: 60000 } })
+  @Throttle({ default: { limit: 30, ttl: 60_000 }, sensitive: { limit: 30, ttl: 60_000 } })
   @ApiOperation({ summary: 'Full-text search messages in a conversation' })
   search(
     @Param('conversationId') conversationId: string,
@@ -146,6 +149,7 @@ export class MessagesController {
   }
 
   @Post()
+  @Throttle({ sensitive: { limit: 30, ttl: 60_000 } })
   @ApiOperation({ summary: 'Send a message' })
   send(
     @Param('conversationId') conversationId: string,

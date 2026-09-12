@@ -28,4 +28,17 @@ describe('CollectionCardCover', () => {
     const { container } = render(<CollectionCardCover />);
     expect(container.querySelector('svg')).toBeInTheDocument();
   });
+
+  it('renders poll badge when post has a poll', () => {
+    const post: Partial<PostType> = {
+      id: 'post-poll-1',
+      handle: 'author',
+      text: '',
+      avatar: null,
+      poll: { id: 'poll-1', options: [], totalVotes: 0, myVoteOptionId: null },
+    };
+
+    render(<CollectionCardCover post={post as PostType} />);
+    expect(screen.getByText('Poll')).toBeInTheDocument();
+  });
 });

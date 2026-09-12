@@ -1,6 +1,12 @@
+import { EventEmitter } from 'node:events';
 import * as Sentry from '@sentry/nestjs';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
+
+EventEmitter.defaultMaxListeners = 50;
+if (typeof process.setMaxListeners === 'function') {
+  process.setMaxListeners(50);
+}
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 

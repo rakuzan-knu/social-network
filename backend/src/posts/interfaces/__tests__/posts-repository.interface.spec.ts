@@ -27,7 +27,15 @@ describe('posts-repository.interface', () => {
       repost: jest.fn().mockResolvedValue(undefined),
       unrepost: jest.fn().mockResolvedValue(undefined),
       incrementShareCount: incShareMock,
+      incrementManyShareCounts: jest.fn().mockResolvedValue(undefined),
       reportPost: jest.fn().mockResolvedValue({ id: 'rep-1' }),
+      createPollForPost: jest.fn().mockResolvedValue(undefined),
+      findMentionUsers: jest.fn().mockResolvedValue([]),
+      findUserBasic: jest.fn().mockResolvedValue(null),
+      getPollForVote: jest.fn().mockResolvedValue(null),
+      updateVote: jest.fn().mockResolvedValue(undefined),
+      createVote: jest.fn().mockResolvedValue(undefined),
+      getPollVoters: jest.fn().mockResolvedValue(null),
     };
 
     expect(await mockRepo.reportPost('post-1', 'usr-1', ReportCategory.SPAM, 'Spam post')).toEqual({

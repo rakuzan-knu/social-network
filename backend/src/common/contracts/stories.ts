@@ -7,28 +7,28 @@ export const StoryPrivacySchema = z.enum(['ALL_FOLLOWERS', 'CLOSE_FRIENDS']);
 export type StoryPrivacy = z.infer<typeof StoryPrivacySchema>;
 
 export const TextOverlaySchema = z.object({
-  id: z.string(),
+  id: z.string().max(128),
   type: z.literal('text'),
-  text: z.string(),
+  text: z.string().max(2000),
   xPercent: z.number().min(0).max(100),
   yPercent: z.number().min(0).max(100),
   scale: z.number().default(1),
   rotation: z.number().default(0),
-  color: z.string().default('#ffffff'),
-  fontFamily: z.string().default('sans'),
+  color: z.string().max(32).default('#ffffff'),
+  fontFamily: z.string().max(64).default('sans'),
   backgroundStyle: z.enum(['none', 'solid', 'neon', 'glass']).default('none'),
   fontSize: z.number().default(24),
   textAlign: z.enum(['left', 'center', 'right']).default('center'),
 });
 
 export const PollOptionSchema = z.object({
-  text: z.string().min(1),
+  text: z.string().min(1).max(100),
 });
 
 export const PollOverlaySchema = z.object({
-  id: z.string(),
+  id: z.string().max(128),
   type: z.literal('poll'),
-  question: z.string().min(1),
+  question: z.string().min(1).max(255),
   options: z.array(PollOptionSchema).min(2).max(4),
   xPercent: z.number().min(0).max(100),
   yPercent: z.number().min(0).max(100),
@@ -37,10 +37,10 @@ export const PollOverlaySchema = z.object({
 });
 
 export const LinkOverlaySchema = z.object({
-  id: z.string(),
+  id: z.string().max(128),
   type: z.literal('link'),
-  url: z.string().url(),
-  title: z.string().min(1),
+  url: z.string().url().max(2048),
+  title: z.string().min(1).max(128),
   xPercent: z.number().min(0).max(100),
   yPercent: z.number().min(0).max(100),
   scale: z.number().default(1),
@@ -48,10 +48,10 @@ export const LinkOverlaySchema = z.object({
 });
 
 export const MentionOverlaySchema = z.object({
-  id: z.string(),
+  id: z.string().max(128),
   type: z.literal('mention'),
-  username: z.string(),
-  displayName: z.string().optional(),
+  username: z.string().min(1).max(32),
+  displayName: z.string().max(64).optional(),
   xPercent: z.number().min(0).max(100),
   yPercent: z.number().min(0).max(100),
   scale: z.number().default(1),
@@ -59,12 +59,12 @@ export const MentionOverlaySchema = z.object({
 });
 
 export const AudioOverlaySchema = z.object({
-  id: z.string(),
+  id: z.string().max(128),
   type: z.literal('audio'),
-  title: z.string().optional(),
-  audioUrl: z.string().optional(),
+  title: z.string().max(128).optional(),
+  audioUrl: z.string().max(2048).optional(),
   duration: z.number().optional(),
-  waveform: z.array(z.number()).optional(),
+  waveform: z.array(z.number()).max(256).optional(),
   xPercent: z.number().min(0).max(100),
   yPercent: z.number().min(0).max(100),
 });
@@ -87,9 +87,9 @@ export type AudioOverlay = z.infer<typeof AudioOverlaySchema>;
 export const CreateStoryDtoSchema = z.object({
   mediaType: StoryMediaTypeSchema.optional().default('IMAGE'),
   caption: z.string().max(1000).optional(),
-  overlays: z.array(StoryOverlaySchema).optional(),
+  overlays: z.array(StoryOverlaySchema).max(30).optional(),
   privacy: StoryPrivacySchema.optional().default('ALL_FOLLOWERS'),
-  backgroundColor: z.string().optional(),
+  backgroundColor: z.string().max(32).optional(),
 });
 
 export type CreateStoryDto = z.input<typeof CreateStoryDtoSchema>;

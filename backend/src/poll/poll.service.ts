@@ -9,14 +9,14 @@ import {
 import type { IPollRepository } from './interfaces/poll-repository.interface';
 import { POLL_REPOSITORY } from './interfaces/poll-repository.interface';
 import { type CreatePollDto } from '@common/contracts';
-import { PrismaService } from '@common/prisma';
+import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class PollService {
   constructor(
     @Inject(POLL_REPOSITORY)
     private readonly pollRepository: IPollRepository,
-    private readonly prisma: PrismaService,
+    private readonly redis: RedisService,
   ) {}
 
   async getPollByPostId(postId: string) {
@@ -28,9 +28,7 @@ export class PollService {
   }
 
   async addPoll(authorId: string, dto: CreatePollDto): Promise<void> {
-    const post = await this.prisma.post.findUnique({
-      where: { id: dto.postId },
-    });
+    const post = await this.pollRepository.findPostById(dto.postId);
     if (!post) {
       throw new NotFoundException('Post not found');
     }
@@ -47,9 +45,7 @@ export class PollService {
   }
 
   async getVoters(pollId: string, userId: string) {
-    const poll = await this.prisma.poll.findUnique({
-      where: { id: pollId },
-    });
+    const poll = await this.pollRepository.findPollById(pollId);
     if (!poll) {
       throw new NotFoundException('Poll not found');
     }
@@ -57,24 +53,11 @@ export class PollService {
       throw new ForbiddenException('Only the poll author can view voters');
     }
 
-    return this.prisma.vote.findMany({
-      where: { pollId },
-      select: {
-        optionId: true,
-        user: {
-          select: {
-            id: true,
-            username: true,
-          },
-        },
-      },
-    });
+    return this.pollRepository.findVoters(pollId);
   }
 
   async deletePoll(pollId: string, userId: string): Promise<void> {
-    const poll = await this.prisma.poll.findUnique({
-      where: { id: pollId },
-    });
+    const poll = await this.pollRepository.findPollById(pollId);
     if (!poll) {
       throw new NotFoundException('Poll not found');
     }
@@ -86,43 +69,34 @@ export class PollService {
   }
 
   async addVote(pollId: string, optionId: string, userId: string): Promise<void> {
-    const poll = await this.prisma.poll.findUnique({
-      where: { id: pollId },
-      include: { options: true },
+    return this.redis.withLock(`lock:poll:vote:${pollId}:${userId}`, async () => {
+      const poll = await this.pollRepository.findPollById(pollId);
+      if (!poll) {
+        throw new NotFoundException('Poll not found');
+      }
+      if (!poll.isActive) {
+        throw new GoneException('Poll is no longer active');
+      }
+      if (poll.expiresAt && poll.expiresAt < new Date()) {
+        throw new GoneException('Poll has expired');
+      }
+
+      const optionExists = poll.options.some((o) => o.id === optionId);
+      if (!optionExists) {
+        throw new NotFoundException('Option not found in this poll');
+      }
+
+      const existingVote = await this.pollRepository.findVote(pollId, userId);
+      if (existingVote) {
+        throw new ConflictException('You have already voted in this poll');
+      }
+
+      await this.pollRepository.addVote(pollId, optionId, userId);
     });
-    if (!poll) {
-      throw new NotFoundException('Poll not found');
-    }
-    if (!poll.isActive) {
-      throw new GoneException('Poll is no longer active');
-    }
-    if (poll.expiresAt && poll.expiresAt < new Date()) {
-      throw new GoneException('Poll has expired');
-    }
-
-    const optionExists = poll.options.some((o) => o.id === optionId);
-    if (!optionExists) {
-      throw new NotFoundException('Option not found in this poll');
-    }
-
-    const existingVote = await this.prisma.vote.findUnique({
-      where: {
-        unique_user_vote_per_poll: { pollId, userId },
-      },
-    });
-    if (existingVote) {
-      throw new ConflictException('You have already voted in this poll');
-    }
-
-    await this.pollRepository.addVote(pollId, optionId, userId);
   }
 
   async deleteVote(pollId: string, userId: string): Promise<void> {
-    const vote = await this.prisma.vote.findUnique({
-      where: {
-        unique_user_vote_per_poll: { pollId, userId },
-      },
-    });
+    const vote = await this.pollRepository.findVote(pollId, userId);
     if (!vote) {
       throw new NotFoundException('Vote not found');
     }

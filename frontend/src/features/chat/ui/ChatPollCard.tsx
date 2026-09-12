@@ -42,10 +42,10 @@ export default function ChatPollCard({ messageId, poll }: ChatPollCardProps) {
   };
 
   return (
-    <div className="w-full min-w-[240px] max-w-[340px] rounded-2xl bg-black/20 border border-white/10 backdrop-blur-xl p-3.5 flex flex-col gap-2.5 select-none shadow-lg">
+    <div className="w-full min-w-60 max-w-85 rounded-2xl bg-black/20 border border-white/10 backdrop-blur-xl p-3.5 flex flex-col gap-2.5 select-none shadow-lg">
       <div className="flex items-center justify-between gap-2 border-b border-white/10 pb-2">
         <div className="flex items-center gap-1.5 min-w-0">
-          <BarChart2 size={15} className="text-purple-400 flex-shrink-0" />
+          <BarChart2 size={15} className="text-purple-400 shrink-0" />
           <span className="text-xs font-semibold text-purple-300 uppercase tracking-wider">
             Poll
           </span>
@@ -80,18 +80,19 @@ export default function ChatPollCard({ messageId, poll }: ChatPollCardProps) {
           return (
             <div
               key={opt.id}
+              onClick={() => handleVote(opt.id)}
               className={`relative overflow-hidden rounded-xl border transition-all p-2.5 flex flex-col justify-center ${
                 isSelected
                   ? 'border-purple-500/50 bg-purple-900/20 shadow-md'
-                  : 'border-white/5 bg-white/[0.03]'
+                  : 'border-white/5 bg-white/3'
               }`}
             >
               {/* Progress fill bar */}
               <div
                 className={`absolute inset-y-0 left-0 transition-all duration-700 ease-out ${
                   isSelected
-                    ? 'bg-gradient-to-r from-purple-600/35 via-violet-600/35 to-indigo-600/25 border-r border-purple-400/40'
-                    : 'bg-white/[0.06] border-r border-white/10'
+                    ? 'bg-linear-to-r from-purple-600/35 via-violet-600/35 to-indigo-600/25 border-r border-purple-400/40'
+                    : 'bg-white/6 border-r border-white/10'
                 }`}
                 style={{ width: `${opt.percentage}%` }}
               />

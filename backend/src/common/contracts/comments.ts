@@ -35,10 +35,11 @@ export const createCommentSchema = z.object({
     .min(1)
     .max(1000)
     .transform((val) => val.trim()),
-  parentId: z.string().nullable().optional(),
-  replyToUserId: z.string().nullable().optional(),
+  parentId: z.string().max(128).nullable().optional(),
+  replyToUserId: z.string().max(128).nullable().optional(),
   mediaUrl: z
     .string()
+    .max(2048)
     .nullable()
     .optional()
     .refine(
@@ -50,13 +51,13 @@ export const createCommentSchema = z.object({
         val.startsWith('data:image/'),
       { message: 'mediaUrl must be a valid HTTP(S) URL or data:image/ URI' },
     ),
-  clientMutationId: z.string().nullable().optional(),
+  clientMutationId: z.string().max(128).nullable().optional(),
 });
 export type CreateCommentDto = z.infer<typeof createCommentSchema>;
 
 export const getCommentsQuerySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(100).default(20),
-  after: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+  after: z.string().max(128).optional(),
 });
 export type GetCommentsQueryDto = z.infer<typeof getCommentsQuerySchema>;
 

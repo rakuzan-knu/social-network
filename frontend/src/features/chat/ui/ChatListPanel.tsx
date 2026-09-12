@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Search, UserPlus, MoreHorizontal, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useUIStore } from '../../../shared/model/useUIStore';
 import { useAuthStore } from '../../../shared/model/useAuthStore';
@@ -22,7 +22,10 @@ import ChatFolderContextMenu from './ChatFolderContextMenu';
 import DeleteChatFolderModal from './DeleteChatFolderModal';
 import ArchivedChatsModal from './ArchivedChatsModal';
 import RestrictedAccountsPanel from './RestrictedAccountsPanel';
+import GlobalSearchModal from './GlobalSearchModal';
+import { initializeAndPublishPrekeys } from '../lib/e2ee/x3dhRatchet';
 import { ChatListSkeleton, ChatListMoreSkeleton } from './ChatListSkeletons';
+import { chatApi } from '../api/chatApi';
 
 const MIN_WIDTH = 280;
 const MAX_WIDTH = 480;
@@ -79,7 +82,7 @@ export default function ChatListPanel({
   );
   useQueryOnlineStatus(visibleDirectUserIds);
 
-  const [search, setSearch] = useState('');
+  const [isGlobalSearchOpen, setGlobalSearchOpen] = useState(false);
   const [activeFolderId, setActiveFolderId] = useState('all');
   const [isHeaderMenuOpen, setHeaderMenuOpen] = useState(false);
   const [isNewGroupModalOpen, setNewGroupModalOpen] = useState(false);
@@ -94,6 +97,24 @@ export default function ChatListPanel({
   } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ChatFolder | null>(null);
   const [visibleConversationCount, setVisibleConversationCount] = useState(CHAT_RENDER_BATCH_SIZE);
+
+  useEffect(() => {
+    if (userId) {
+      void useChatFoldersStore.getState().syncWithServer();
+      void initializeAndPublishPrekeys(userId).catch(() => {});
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setGlobalSearchOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const {
     pinnedLocally,
@@ -133,7 +154,12 @@ export default function ChatListPanel({
   );
 
   const activeFolder = useMemo(
-    () => allFolders.find((folder) => folder.id === activeFolderId) ?? allFolders[0],
+    () =>
+      allFolders.find(
+        (folder) =>
+          folder.id === activeFolderId ||
+          (activeFolderId === 'all' && (folder.id === 'all' || folder.filterType === 'ALL')),
+      ) ?? allFolders[0],
     [activeFolderId, allFolders],
   );
 
@@ -141,27 +167,25 @@ export default function ChatListPanel({
 
   const filteredConversations = useMemo(() => {
     if (!activeFolder) return [];
-    return getFolderConversations(activeFolder, effectiveConversations, forcedUnreadLocally)
-      .filter((c: ConversationView) =>
-        getConversationDisplay(c, userId).title.toLowerCase().includes(search.toLowerCase()),
-      )
-      .sort((a, b) => {
+    return getFolderConversations(activeFolder, effectiveConversations, forcedUnreadLocally).sort(
+      (a, b) => {
         const hasDraftA = Boolean(drafts[a.id]?.text?.trim());
         const hasDraftB = Boolean(drafts[b.id]?.text?.trim());
         if (hasDraftA !== hasDraftB) {
           return hasDraftA ? -1 : 1;
         }
         return getConversationActivityTime(b) - getConversationActivityTime(a);
-      });
-  }, [activeFolder, drafts, effectiveConversations, forcedUnreadLocally, search, userId]);
+      },
+    );
+  }, [activeFolder, drafts, effectiveConversations, forcedUnreadLocally]);
 
   const visibleConversations = filteredConversations.slice(0, visibleConversationCount);
   const visiblePinnedConversations = visibleConversations.filter((c) => pinnedLocally.has(c.id));
   const visibleUnpinnedConversations = visibleConversations.filter((c) => !pinnedLocally.has(c.id));
   const hasMoreVisibleConversations = visibleConversationCount < filteredConversations.length;
 
-  const [visibleCountResetKey, setVisibleCountResetKey] = useState(`${activeFolderId}:${search}`);
-  const currentVisibleCountKey = `${activeFolderId}:${search}`;
+  const [visibleCountResetKey, setVisibleCountResetKey] = useState(activeFolderId);
+  const currentVisibleCountKey = activeFolderId;
   if (currentVisibleCountKey !== visibleCountResetKey) {
     setVisibleCountResetKey(currentVisibleCountKey);
     setVisibleConversationCount(CHAT_RENDER_BATCH_SIZE);
@@ -197,8 +221,6 @@ export default function ChatListPanel({
       openEditProfile('privacy');
       return;
     }
-    // TODO: wire the remaining sections to real routes/modals once they exist
-    console.log('open section:', section);
   };
 
   const handleCreateFolder = () => {
@@ -248,7 +270,7 @@ export default function ChatListPanel({
         width: isChatListExpanded ? width : COLLAPSED_WIDTH,
         transitionDuration: isResizing ? '0ms' : '300ms',
       }}
-      className="relative h-full flex-shrink-0 flex flex-col bg-[#16161a]/60 backdrop-blur-2xl border-r border-white/5 py-6 transition-[width] ease-in-out overflow-hidden"
+      className="relative h-full shrink-0 flex flex-col bg-[#16161a]/60 backdrop-blur-2xl border-r border-white/5 py-6 transition-[width] ease-in-out overflow-hidden"
     >
       {!isChatListExpanded ? (
         <div className="h-full flex flex-col items-center pt-0 gap-4">
@@ -305,18 +327,20 @@ export default function ChatListPanel({
           </div>
 
           <div className="px-5 mb-4">
-            <div className="relative">
+            <div
+              onClick={() => setGlobalSearchOpen(true)}
+              className="relative cursor-pointer group"
+            >
               <Search
                 size={16}
-                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500"
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 group-hover:text-gray-300 transition-colors pointer-events-none"
               />
-              <input
-                value={search}
-                maxLength={100}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search in Messenger"
-                className="w-full h-10 pl-10 pr-4 rounded-full bg-white/5 border border-white/5 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-white/20 transition-colors"
-              />
+              <div className="w-full h-10 pl-10 pr-14 flex items-center rounded-full bg-white/5 border border-white/5 text-sm text-gray-400 group-hover:bg-white/10 group-hover:border-white/10 transition-all select-none">
+                <span className="truncate">Search in Messenger</span>
+              </div>
+              <kbd className="absolute right-3 top-1/2 -translate-y-1/2 px-1.5 py-0.5 text-[10px] font-semibold text-gray-400 bg-white/5 border border-white/10 rounded pointer-events-none">
+                Ctrl K
+              </kbd>
             </div>
           </div>
 
@@ -347,7 +371,7 @@ export default function ChatListPanel({
                       <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
                         Pinned
                       </span>
-                      <div className="h-px flex-1 bg-white/[0.08]" />
+                      <div className="h-px flex-1 bg-white/8" />
                     </div>
                     <div className="flex flex-col gap-0.5 mb-3">
                       {visiblePinnedConversations.map((c) => (
@@ -471,6 +495,23 @@ export default function ChatListPanel({
       )}
 
       {isRestrictedOpen && <RestrictedAccountsPanel onClose={() => setRestrictedOpen(false)} />}
+
+      <GlobalSearchModal
+        isOpen={isGlobalSearchOpen}
+        onClose={() => setGlobalSearchOpen(false)}
+        onSelectConversation={onSelectConversation}
+        onStartDirectChat={async (targetUserId) => {
+          try {
+            const conv = await chatApi.createDirectConversation(targetUserId);
+            onSelectConversation(conv.id);
+          } catch {
+            const existing = conversations?.find(
+              (c) => c.type === 'DIRECT' && c.participants.some((p) => p.userId === targetUserId),
+            );
+            if (existing) onSelectConversation(existing.id);
+          }
+        }}
+      />
     </div>
   );
 }

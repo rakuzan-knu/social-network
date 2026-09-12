@@ -80,4 +80,77 @@ describe('useMessengerRealtime (Comprehensive Suite)', () => {
       expect.any(Function),
     );
   });
+
+  it('handles conversationDeleted, messagesCleared, and userTyping socket events', () => {
+    window.history.pushState({}, '', '/messages/conv-1');
+
+    renderHook(() => useMessengerRealtime(['conv-1'], 'conv-1', true), { wrapper });
+
+    // 1. messagesCleared
+    const clearedHandler = mockSocket.on.mock.calls.find((c) => c[0] === 'messagesCleared')?.[1];
+    clearedHandler?.({ conversationId: 'conv-1' });
+
+    let convs = queryClient.getQueryData<any>([CONVERSATIONS_KEY]);
+    expect(convs[0].lastMessage).toBeNull();
+    expect(convs[0].unreadCount).toBe(0);
+
+    // 2. userTyping / typing
+    const typingHandler = mockSocket.on.mock.calls.find((c) => c[0] === 'typing')?.[1];
+    typingHandler?.({ conversationId: 'conv-1', userId: 'user-2', isTyping: true });
+
+    // 3. conversationDeleted
+    const deletedHandler = mockSocket.on.mock.calls.find(
+      (c) => c[0] === 'conversationDeleted',
+    )?.[1];
+    deletedHandler?.({ conversationId: 'conv-1' });
+
+    convs = queryClient.getQueryData<any>([CONVERSATIONS_KEY]);
+    expect(convs).toHaveLength(0);
+  });
+
+  it('handles social:notification events with batching and invalidates queries on COMMENT', () => {
+    renderHook(() => useMessengerRealtime(['conv-1'], 'conv-1', true), { wrapper });
+
+    const socialHandler = mockSocket.on.mock.calls.find((c) => c[0] === 'socialNotification')?.[1];
+
+    // 1. LIKE notification
+    socialHandler?.({
+      type: 'LIKE',
+      actor: { id: 'act-1', username: 'charlie', displayName: 'Charlie' },
+      postId: 'post-100',
+      authorUsername: 'user-me',
+      message: 'Charlie liked your post',
+    });
+
+    // 2. Second LIKE on same post within 10s (batching)
+    socialHandler?.({
+      type: 'LIKE',
+      actor: { id: 'act-2', username: 'dan', displayName: 'Dan' },
+      postId: 'post-100',
+      authorUsername: 'user-me',
+      message: 'Dan liked your post',
+    });
+
+    // 3. COMMENT notification (invalidates comments query)
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    socialHandler?.({
+      type: 'COMMENT',
+      actor: { id: 'act-3', username: 'eve', displayName: 'Eve' },
+      postId: 'post-100',
+      authorUsername: 'user-me',
+      message: 'Eve commented on your post',
+    });
+    expect(invalidateSpy).toHaveBeenCalled();
+
+    // 4. REPOST notification
+    socialHandler?.({
+      type: 'REPOST',
+      actor: { id: 'act-4', username: 'frank', displayName: 'Frank' },
+      postId: 'post-100',
+      authorUsername: 'user-me',
+      message: 'Frank reposted your post',
+    });
+
+    expect(useMessageToastStore.getState().toasts.length).toBeGreaterThan(0);
+  });
 });

@@ -21,5 +21,18 @@ describe('ScreenLocationMonitor', () => {
     const maxCount5Btn = screen.getByRole('button', { name: '5' });
     fireEvent.click(maxCount5Btn);
     expect(useNotificationSettingsStore.getState().maxToasts).toBe(5);
+
+    // Corner buttons
+    const cornerButtons = document.querySelectorAll('.relative.flex-1 button');
+    if (cornerButtons.length > 0) {
+      fireEvent.mouseEnter(cornerButtons[0]);
+      expect(onHoverCorner).toHaveBeenCalledWith('top-left');
+
+      fireEvent.mouseLeave(cornerButtons[0]);
+      expect(onHoverCorner).toHaveBeenCalledWith(null);
+
+      fireEvent.click(cornerButtons[0]);
+      expect(useNotificationSettingsStore.getState().toastPosition).toBe('top-left');
+    }
   });
 });

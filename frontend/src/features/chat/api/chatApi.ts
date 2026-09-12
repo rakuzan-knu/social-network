@@ -7,6 +7,11 @@ import {
   OutgoingAttachment,
   PaginatedMessages,
   UserSnapshot,
+  ChatFolderView,
+  CreateFolderPayload,
+  UpdateFolderPayload,
+  GlobalSearchResult,
+  PrekeyBundleView,
 } from '../../../entities/chat/model/types';
 
 export const chatApi = {
@@ -111,6 +116,7 @@ export const chatApi = {
       replyToId?: string;
       attachments?: OutgoingAttachment[];
       clientMessageId?: string;
+      clientSeq?: number;
     },
   ) =>
     api
@@ -142,10 +148,17 @@ export const chatApi = {
       .then((r) => r.data),
 
   archive: (conversationId: string) =>
-    api.post(`/conversations/${conversationId}/archive`).then((r) => r.data),
+    api.post<ConversationView>(`/conversations/${conversationId}/archive`).then((r) => r.data),
 
-  unarchive: (conversationId: string) =>
-    api.delete(`/conversations/${conversationId}/archive`).then((r) => r.data),
+  unarchive: async (conversationId: string) => {
+    try {
+      const res = await api.post<ConversationView>(`/conversations/${conversationId}/unarchive`);
+      return res.data;
+    } catch {
+      const res = await api.delete<ConversationView>(`/conversations/${conversationId}/archive`);
+      return res.data;
+    }
+  },
 
   blockUser: (userId: string) =>
     api.post(`/conversations/users/${userId}/block`).then((r) => r.data),
@@ -192,17 +205,22 @@ export const chatApi = {
   updateAdminPermissions: (
     conversationId: string,
     userId: string,
-    permissions: {
-      canEditGroup?: boolean;
-      canDeleteMessages?: boolean;
-      canManageMembers?: boolean;
-      canPinMessages?: boolean;
-      canInviteUsers?: boolean;
-    },
-  ) =>
-    api
-      .patch(`/conversations/${conversationId}/members/${userId}/permissions`, permissions)
-      .then((r) => r.data),
+    permissions:
+      | number
+      | {
+          permissions?: number;
+          canEditGroup?: boolean;
+          canDeleteMessages?: boolean;
+          canManageMembers?: boolean;
+          canPinMessages?: boolean;
+          canInviteUsers?: boolean;
+        },
+  ) => {
+    const payload = typeof permissions === 'number' ? { permissions } : permissions;
+    return api
+      .patch(`/conversations/${conversationId}/members/${userId}/permissions`, payload)
+      .then((r) => r.data);
+  },
 
   setTheme: (conversationId: string, theme: string | null, applyToAll?: boolean) =>
     api.patch(`/conversations/${conversationId}/theme`, { theme, applyToAll }).then((r) => r.data),
@@ -224,4 +242,51 @@ export const chatApi = {
 
   unlinkSharedTheme: (conversationId: string) =>
     api.delete(`/conversations/${conversationId}/theme/shared`).then((r) => r.data),
+
+  // Folders
+  getFolders: () => api.get<ChatFolderView[]>('/conversations/folders').then((r) => r.data),
+
+  createFolder: (payload: CreateFolderPayload) =>
+    api.post<ChatFolderView>('/conversations/folders', payload).then((r) => r.data),
+
+  updateFolder: (id: string, payload: UpdateFolderPayload) =>
+    api.patch<ChatFolderView>(`/conversations/folders/${id}`, payload).then((r) => r.data),
+
+  deleteFolder: (id: string) => api.delete(`/conversations/folders/${id}`).then((r) => r.data),
+
+  reorderFolders: (folderIds: string[]) =>
+    api.put<ChatFolderView[]>('/conversations/folders/reorder', { folderIds }).then((r) => r.data),
+
+  // Global Full-Text Search
+  globalSearch: (
+    q: string,
+    type: 'all' | 'messages' | 'media' | 'files' | 'links' | 'people' = 'all',
+    conversationId?: string,
+    limit = 20,
+    offset = 0,
+  ) =>
+    api
+      .get<GlobalSearchResult>('/conversations/search', {
+        params: { q, type, conversationId, limit, offset },
+      })
+      .then((r) => r.data),
+
+  // Prekeys / Asynchronous E2EE
+  uploadPrekeys: (data: {
+    identityKeySpki: string;
+    signedPrekeySpki: string;
+    signedPrekeySig: string;
+    oneTimePrekeys: Array<{ keyId: number; keySpki: string }>;
+  }) => api.post('/crypto/prekeys', data).then((r) => r.data),
+
+  getPrekeyBundle: (targetUserId: string) =>
+    api.get<PrekeyBundleView>(`/crypto/prekeys/${targetUserId}`).then((r) => r.data),
+
+  replenishPrekeys: (oneTimePrekeys: Array<{ keyId: number; keySpki: string }>) =>
+    api
+      .post<{ remaining: number }>('/crypto/prekeys/replenish', { oneTimePrekeys })
+      .then((r) => r.data),
+
+  getPrekeyCount: () =>
+    api.get<{ count: number }>('/crypto/prekeys/status/count').then((r) => r.data),
 };

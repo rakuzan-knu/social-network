@@ -66,4 +66,37 @@ describe('AutoDeleteTimerRow', () => {
       expect(privacyApi.updatePrivacy).toHaveBeenCalledWith({ autoDeletePeriod: 'DAY' });
     });
   });
+
+  it('handles selecting OFF directly and cancelling confirmation modal', async () => {
+    vi.mocked(privacyApi.updatePrivacy).mockResolvedValue({
+      autoDeletePeriod: 'OFF',
+    } as unknown as never);
+    queryClient.setQueryData([PRIVACY_KEY], { autoDeletePeriod: 'DAY' });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <AutoDeleteTimerRow />
+      </QueryClientProvider>,
+    );
+
+    fireEvent.click(screen.getByText('Auto-Delete Timer'));
+
+    // Select Disabled (OFF)
+    fireEvent.click(screen.getByText('Disabled'));
+    await waitFor(() => {
+      expect(privacyApi.updatePrivacy).toHaveBeenCalledWith({ autoDeletePeriod: 'OFF' });
+    });
+
+    // Reopen and test cancel
+    fireEvent.click(screen.getByText('Auto-Delete Timer'));
+    fireEvent.click(screen.getByText('After 1 week'));
+    expect(screen.getByText('Enable Auto-Delete Timer?')).toBeInTheDocument();
+
+    const cancelBtn = screen.getByRole('button', { name: 'Cancel' });
+    fireEvent.click(cancelBtn);
+
+    await waitFor(() => {
+      expect(screen.queryByText('Enable Auto-Delete Timer?')).not.toBeInTheDocument();
+    });
+  });
 });

@@ -9,10 +9,15 @@ import { SpotlightMediaWidget } from './SpotlightMediaWidget';
 import { MediaShowcaseWidget } from './MediaShowcaseWidget';
 import { ShowcaseWishlistWidget } from './ShowcaseWishlistWidget';
 import { ProfileAnthemCard } from './ProfileAnthemCard';
-import { ShowcaseQuickEditor } from './ShowcaseQuickEditor';
 import { TasteMatchBanner } from './TasteMatchBanner';
-import { ExportShowcaseModal } from './ExportShowcaseModal';
 import { ShowcaseMediaType } from '@backend/common/contracts';
+
+const ShowcaseQuickEditor = React.lazy(() =>
+  import('./ShowcaseQuickEditor').then((m) => ({ default: m.ShowcaseQuickEditor })),
+);
+const ExportShowcaseModal = React.lazy(() =>
+  import('./ExportShowcaseModal').then((m) => ({ default: m.ExportShowcaseModal })),
+);
 
 interface ProfileShowcaseSidebarProps {
   username: string;
@@ -247,23 +252,27 @@ export const ProfileShowcaseSidebar: React.FC<ProfileShowcaseSidebarProps> = ({
 
       {/* In-Place Quick Editor Modal */}
       {isOwner && isEditorOpen && (
-        <ShowcaseQuickEditor
-          isOpen={isEditorOpen}
-          onClose={() => setIsEditorOpen(false)}
-          showcase={showcase}
-          initialTab={editorInitialTab}
-          initialMediaType={editorInitialMediaType}
-        />
+        <React.Suspense fallback={null}>
+          <ShowcaseQuickEditor
+            isOpen={isEditorOpen}
+            onClose={() => setIsEditorOpen(false)}
+            showcase={showcase}
+            initialTab={editorInitialTab}
+            initialMediaType={editorInitialMediaType}
+          />
+        </React.Suspense>
       )}
 
       {/* Export Showcase Card Modal */}
       {isExportOpen && (
-        <ExportShowcaseModal
-          isOpen={isExportOpen}
-          onClose={() => setIsExportOpen(false)}
-          showcase={showcase}
-          user={userProfile}
-        />
+        <React.Suspense fallback={null}>
+          <ExportShowcaseModal
+            isOpen={isExportOpen}
+            onClose={() => setIsExportOpen(false)}
+            showcase={showcase}
+            user={userProfile}
+          />
+        </React.Suspense>
       )}
     </>
   );

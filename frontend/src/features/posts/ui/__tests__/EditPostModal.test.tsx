@@ -41,4 +41,27 @@ describe('EditPostModal', () => {
     fireEvent.click(screen.getByText('Cancel'));
     expect(onClose).toHaveBeenCalled();
   });
+
+  it('handles preview tab toggle, emoji selection, escape key, and formatting hotkeys', () => {
+    const onClose = vi.fn();
+    render(<EditPostModal post={mockPost} isOpen={true} onClose={onClose} onSave={vi.fn()} />);
+
+    // 1. Preview tab
+    const previewBtn = screen.getByRole('button', { name: /preview/i });
+    fireEvent.click(previewBtn);
+    expect(screen.getByText(/Original caption text/)).toBeInTheDocument();
+
+    const writeBtn = screen.getByRole('button', { name: /write/i });
+    fireEvent.click(writeBtn);
+
+    // 2. Formatting hotkey (Ctrl+B)
+    const textarea = screen.getByPlaceholderText(/Write a caption.../i) as HTMLTextAreaElement;
+    textarea.setSelectionRange(0, 8);
+    fireEvent.keyDown(textarea, { key: 'b', ctrlKey: true });
+    expect(textarea.value).toContain('**');
+
+    // 3. Escape key to close
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalled();
+  });
 });

@@ -21,6 +21,12 @@ describe('useHiddenUndoStore', () => {
     expect(useHiddenUndoStore.getState().activeUndo).toBeNull();
   });
 
+  it('handles decrementTimer when activeUndo is null', () => {
+    useHiddenUndoStore.setState({ activeUndo: null });
+    useHiddenUndoStore.getState().decrementTimer();
+    expect(useHiddenUndoStore.getState().activeUndo).toBeNull();
+  });
+
   it('clears undo on clearUndo', () => {
     useHiddenUndoStore.getState().showUndo('post-123');
     useHiddenUndoStore.getState().clearUndo();

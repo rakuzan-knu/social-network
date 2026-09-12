@@ -10,39 +10,14 @@ import {
   ChevronUp,
   Trash2,
 } from 'lucide-react';
-
-export interface ConsoleMessage {
-  id: string;
-  level: 'log' | 'warn' | 'error' | 'info';
-  text: string;
-  timestamp: number;
-}
+import type { ConsoleMessage } from '../lib/codeSandboxUtils';
+export type { ConsoleMessage };
 
 interface CodeSandboxPreviewProps {
   code: string;
   language: string;
   title?: string;
   className?: string;
-}
-
-const RUNNABLE_LANGS = new Set([
-  'html',
-  'htm',
-  'xhtml',
-  'svg',
-  'xml',
-  'javascript',
-  'js',
-  'jsx',
-  'typescript',
-  'ts',
-  'tsx',
-  'css',
-]);
-
-export function isRunnableLanguage(lang: string): boolean {
-  const normalized = lang.toLowerCase().trim();
-  return RUNNABLE_LANGS.has(normalized);
 }
 
 function buildSandboxHtml(rawCode: string, language: string, instanceId: string): string {
@@ -312,6 +287,7 @@ export default function CodeSandboxPreview({
   }, []);
 
   const srcDoc = useMemo(() => {
+    void reloadKey;
     return buildSandboxHtml(code, language, instanceIdRef.current);
   }, [code, language, reloadKey]);
 
@@ -380,7 +356,7 @@ export default function CodeSandboxPreview({
       {/* Collapsible Sleek Dark Console Output Panel */}
       {isConsoleOpen && (
         <div className="flex flex-col max-h-48 border-t border-white/10 bg-[#0a0a10]/95 backdrop-blur-md animate-fadeIn">
-          <div className="flex items-center justify-between px-3 py-1 bg-white/[0.03] border-b border-white/5 text-[10.5px] font-mono text-gray-400">
+          <div className="flex items-center justify-between px-3 py-1 bg-white/3 border-b border-white/5 text-[10.5px] font-mono text-gray-400">
             <span className="flex items-center gap-1.5">
               <Terminal size={11} className="text-purple-400" />
               <span>Console Output ({consoleMessages.length})</span>
@@ -412,10 +388,10 @@ export default function CodeSandboxPreview({
                         ? 'bg-amber-950/40 border-amber-800/40 text-amber-200'
                         : msg.level === 'info'
                           ? 'bg-sky-950/40 border-sky-800/40 text-sky-200'
-                          : 'bg-white/[0.02] border-white/5 text-gray-300'
+                          : 'bg-white/2 border-white/5 text-gray-300'
                   }`}
                 >
-                  <span className="mt-0.5 flex-shrink-0">
+                  <span className="mt-0.5 shrink-0">
                     {msg.level === 'error' && <AlertCircle size={12} className="text-rose-400" />}
                     {msg.level === 'warn' && <AlertTriangle size={12} className="text-amber-400" />}
                     {msg.level === 'info' && <Info size={12} className="text-sky-400" />}

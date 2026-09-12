@@ -8,10 +8,17 @@ import { StoriesService } from './stories.service';
 import { StoriesRepository } from './stories.repository';
 import { StoriesRetentionService } from './stories-retention.service';
 
+import { StoryViewsCoalescerService } from './coalescing/story-views-coalescer.service';
+
 @Module({
   imports: [PrismaModule, RedisModule, FollowersModule, forwardRef(() => MessengerModule)],
   controllers: [StoriesController],
-  providers: [StoriesService, StoriesRepository, StoriesRetentionService],
-  exports: [StoriesService, StoriesRepository],
+  providers: [
+    StoriesService,
+    StoryViewsCoalescerService,
+    StoriesRepository,
+    StoriesRetentionService,
+  ],
+  exports: [StoriesService, StoryViewsCoalescerService, StoriesRepository],
 })
 export class StoriesModule {}

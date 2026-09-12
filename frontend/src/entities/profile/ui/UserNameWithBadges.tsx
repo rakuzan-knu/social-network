@@ -3,13 +3,13 @@ import VerifiedCheckmark from './VerifiedCheckmark';
 import UserBadgeIcon from './UserBadgeIcon';
 
 interface UserNameWithBadgesProps {
-  displayName?: string | null;
+  displayName?: string | null | undefined;
   username: string;
-  isVerified?: boolean;
-  primaryBadge?: string | null;
-  size?: 'sm' | 'md' | 'lg';
-  className?: string;
-  nameClassName?: string;
+  isVerified?: boolean | undefined;
+  primaryBadge?: string | null | undefined;
+  size?: ('sm' | 'md' | 'lg') | undefined;
+  className?: string | undefined;
+  nameClassName?: string | undefined;
 }
 
 export function UserNameWithBadges({

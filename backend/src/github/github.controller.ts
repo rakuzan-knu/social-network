@@ -21,6 +21,15 @@ import { AuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/interfaces/jwt-payload.interface';
 
+import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
+import { z } from 'zod';
+
+const githubCallbackQuerySchema = z.object({
+  code: z.string().min(1).max(256),
+  state: z.string().min(1).max(256),
+});
+type GithubCallbackQueryDto = z.infer<typeof githubCallbackQuerySchema>;
+
 @ApiTags('github')
 @Controller()
 export class GithubController {
@@ -35,12 +44,11 @@ export class GithubController {
   @Get('auth/github/callback')
   @ApiOperation({ summary: 'GitHub OAuth authorization callback' })
   async handleCallback(
-    @Query('code') code: string,
-    @Query('state') state: string,
+    @Query(new ZodValidationPipe(githubCallbackQuerySchema)) query: GithubCallbackQueryDto,
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
-    await this.githubService.handleOAuthCallback(code, state, req, res);
+    await this.githubService.handleOAuthCallback(query.code, query.state, req, res);
   }
 
   @Delete('auth/github')

@@ -46,12 +46,12 @@ export function detectCodeSnippet(text: string): DetectedCodeSnippet {
 
   if (/(#include\s*<[a-z0-9_.]+>|std::|int\s+main\s*\(|cout\s*<<|printf\s*\()/i.test(trimmed)) {
     language = 'cpp';
+  } else if (/\b(using\s+System|namespace\s+\w+|public\s+class\s+\w+\s*:\s*\w+)\b/.test(trimmed)) {
+    language = 'csharp';
   } else if (
     /\b(public\s+class\s+\w+|public\s+static\s+void\s+main|System\.out\.println)\b/.test(trimmed)
   ) {
     language = 'java';
-  } else if (/\b(using\s+System;|namespace\s+\w+|public\s+class\s+\w+\s*:\s*\w+)\b/.test(trimmed)) {
-    language = 'csharp';
   } else if (/\b(fn\s+\w+\s*\(|let\s+mut\s+|impl\s+\w+|use\s+std::|println!\s*\()/i.test(trimmed)) {
     language = 'rust';
   } else if (/\b(package\s+\w+|func\s+\w+\s*\(|import\s+\(|fmt\.Print)/.test(trimmed)) {
@@ -87,7 +87,7 @@ export function detectCodeSnippet(text: string): DetectedCodeSnippet {
   } else if (/(<div\b|<p\b|<span\b|<table\b|<form\b|<button\b|<input\b)/i.test(trimmed)) {
     language = 'html';
   } else if (
-    /\b(SELECT\s+.*?FROM|INSERT\s+INTO|CREATE\s+TABLE|ALTER\s+TABLE|UPDATE\s+\w+\s+SET)\b/i.test(
+    /\b(SELECT\s+[\s\S]*?\s+FROM|INSERT\s+INTO|CREATE\s+TABLE|ALTER\s+TABLE|UPDATE\s+\w+\s+SET)\b/i.test(
       trimmed,
     )
   ) {

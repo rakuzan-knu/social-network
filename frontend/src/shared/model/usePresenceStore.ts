@@ -6,6 +6,7 @@ interface PresenceState {
   setOffline: (userId: string) => void;
   setBulk: (userIds: string[]) => void;
   setKnownStatuses: (userIds: string[], onlineUserIds: string[]) => void;
+  applyBatch: (onlineUserIds: string[], offlineUserIds: string[]) => void;
 }
 
 export const usePresenceStore = create<PresenceState>((set) => ({
@@ -28,6 +29,13 @@ export const usePresenceStore = create<PresenceState>((set) => ({
     set((state) => {
       const next = new Set(state.onlineUserIds);
       userIds.forEach((id) => next.delete(id));
+      onlineUserIds.forEach((id) => next.add(id));
+      return { onlineUserIds: next };
+    }),
+  applyBatch: (onlineUserIds, offlineUserIds) =>
+    set((state) => {
+      const next = new Set(state.onlineUserIds);
+      offlineUserIds.forEach((id) => next.delete(id));
       onlineUserIds.forEach((id) => next.add(id));
       return { onlineUserIds: next };
     }),

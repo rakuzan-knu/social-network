@@ -96,6 +96,103 @@ describe('chat.contract', () => {
     });
   });
 
+  describe('E2EE envelope headroom', () => {
+    const envelopeOf = (pad: number) =>
+      JSON.stringify({
+        e2ee: true,
+        v: 1,
+        iv: 'a'.repeat(16),
+        ct: 'b'.repeat(pad),
+      });
+
+    it('accepts a v1 envelope above the plaintext cap (base64 overhead)', () => {
+      // ~3000-char plaintext inflates to ~4/3 in base64 РІР‚вЂќ must not 400.
+      const big = envelopeOf(4100);
+      expect(big.length).toBeGreaterThan(4096);
+      const res = sendMessageSchema.parse({ conversationId: validUuid1, text: big });
+      expect(res.text).toBe(big);
+    });
+
+    it('still rejects over-cap plaintext that is NOT an envelope', () => {
+      expect(() =>
+        sendMessageSchema.parse({ conversationId: validUuid1, text: 'x'.repeat(4097) }),
+      ).toThrow(/valid E2EE envelope/);
+    });
+
+    it('rejects fake envelopes (marker without shape)', () => {
+      expect(() =>
+        sendMessageSchema.parse({
+          conversationId: validUuid1,
+          text: `note {"e2ee":true} ${'x'.repeat(4097)}`,
+        }),
+      ).toThrow(/valid E2EE envelope/);
+      expect(() =>
+        sendMessageSchema.parse({
+          conversationId: validUuid1,
+          text: JSON.stringify({ e2ee: true, v: 1, iv: 'a'.repeat(16) }) + 'x'.repeat(4100),
+        }),
+      ).toThrow(/valid E2EE envelope/);
+    });
+
+    it('rejects envelopes above the envelope cap', () => {
+      expect(() =>
+        sendMessageSchema.parse({ conversationId: validUuid1, text: envelopeOf(9000) }),
+      ).toThrow();
+    });
+
+    it('applies the same rule to editMessageSchema.body', () => {
+      const big = envelopeOf(4100);
+      expect(editMessageSchema.parse({ messageId: validUuid1, body: big }).body).toBe(big);
+      expect(() =>
+        editMessageSchema.parse({ messageId: validUuid1, body: 'x'.repeat(4097) }),
+      ).toThrow(/valid E2EE envelope/);
+    });
+
+    it('accepts v2/v3 envelopes with dialog binding (rejects malformed ones)', () => {
+      const v2 = JSON.stringify({
+        e2ee: true,
+        v: 2,
+        iv: 'AAAAAAAAAAAAAAAA',
+        ct: 'd29ybGQ',
+        from: 'dev-1',
+        aad: { conversationId: 'conv-1', senderId: 'u1', senderDevice: 'dev-1', seq: 3 },
+      });
+      const v3 = JSON.stringify({
+        e2ee: true,
+        v: 3,
+        iv: 'AAAAAAAAAAAAAAAA',
+        ct: 'd29ybGQ'.repeat(700),
+        from: 'dev-1',
+        keys: { 'dev-2': { iv: 'AAAAAAAAAAAAAAAA', k: 'a2V5' } },
+        aad: { conversationId: 'conv-1', senderId: 'u1', senderDevice: 'dev-1', seq: 4 },
+      });
+      expect(v3.length).toBeGreaterThan(4096);
+      expect(sendMessageSchema.parse({ conversationId: validUuid1, text: v2 }).text).toBe(v2);
+      expect(sendMessageSchema.parse({ conversationId: validUuid1, text: v3 }).text).toBe(v3);
+
+      const noAad = JSON.stringify({ e2ee: true, v: 2, iv: 'AAAAAAAAAAAAAAAA', ct: 'd29ybGQ' });
+      const noKeys = JSON.stringify({
+        e2ee: true,
+        v: 3,
+        iv: 'AAAAAAAAAAAAAAAA',
+        ct: 'd29ybGQ',
+        from: 'dev-1',
+        keys: {},
+        aad: { conversationId: 'c', senderId: 'u', senderDevice: 'd', seq: 1 },
+      });
+      const longPlain = `${noAad}${'x'.repeat(4200)}`;
+      expect(() =>
+        sendMessageSchema.parse({ conversationId: validUuid1, text: longPlain }),
+      ).toThrow(/valid E2EE envelope/);
+      expect(() =>
+        sendMessageSchema.parse({
+          conversationId: validUuid1,
+          text: `${noKeys}${'x'.repeat(4200)}`,
+        }),
+      ).toThrow(/valid E2EE envelope/);
+    });
+  });
+
   describe('Message mutations schemas', () => {
     it('validates editMessageSchema, deleteMessageSchema, batchDeleteMessagesSchema', () => {
       expect(editMessageSchema.parse({ messageId: validUuid1, body: 'New text' })).toEqual({
@@ -136,9 +233,9 @@ describe('chat.contract', () => {
         }),
       ).toBeDefined();
 
-      expect(reactToMessageSchema.parse({ messageId: validUuid1, emoji: '❤️' })).toEqual({
+      expect(reactToMessageSchema.parse({ messageId: validUuid1, emoji: 'РІСњВ¤РїС‘РЏ' })).toEqual({
         messageId: validUuid1,
-        emoji: '❤️',
+        emoji: 'РІСњВ¤РїС‘РЏ',
       });
 
       expect(pinMessageSchema.parse({ messageId: validUuid1 })).toEqual({

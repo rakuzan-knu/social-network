@@ -1,13 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import {
-  ChevronLeft,
-  ChevronRight,
-  ChevronUp,
-  ChevronDown,
-  Calendar as CalendarIcon,
-  X,
-} from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useChatActivityMap } from '../model/useChatActivityMap';
 import type { DayActivityItem } from '../../../entities/chat/model/types';
 
@@ -58,7 +51,6 @@ export default function ChatDatePicker({
   const [rollerYear, setRollerYear] = useState<number>(baseDate.getFullYear());
 
   // Hover preview tooltip state
-  const [hoveredDayKey, setHoveredDayKey] = useState<string | null>(null);
   const [hoveredDayData, setHoveredDayData] = useState<{
     date: Date;
     data: DayActivityItem;
@@ -72,7 +64,7 @@ export default function ChatDatePicker({
   const popoverRef = useRef<HTMLDivElement>(null);
 
   // Fetch monthly message activity map (cached with TanStack query)
-  const { activityMap, isLoading } = useChatActivityMap(conversationId, {
+  const { activityMap } = useChatActivityMap(conversationId, {
     year: currentYear,
     month: currentMonth,
   });
@@ -243,23 +235,23 @@ export default function ChatDatePicker({
   ]);
 
   // Navigation handlers
-  const handlePrevMonth = () => {
+  const handlePrevMonth = useCallback(() => {
     if (currentMonth === 1) {
       setCurrentYear((y) => y - 1);
       setCurrentMonth(12);
     } else {
       setCurrentMonth((m) => m - 1);
     }
-  };
+  }, [currentMonth]);
 
-  const handleNextMonth = () => {
+  const handleNextMonth = useCallback(() => {
     if (currentMonth === 12) {
       setCurrentYear((y) => y + 1);
       setCurrentMonth(1);
     } else {
       setCurrentMonth((m) => m + 1);
     }
-  };
+  }, [currentMonth]);
 
   const handleJumpToToday = () => {
     const today = new Date();
@@ -267,10 +259,13 @@ export default function ChatDatePicker({
     onClose();
   };
 
-  const handleSelectDay = (cellDate: Date) => {
-    onSelectDate(cellDate);
-    onClose();
-  };
+  const handleSelectDay = useCallback(
+    (cellDate: Date) => {
+      onSelectDate(cellDate);
+      onClose();
+    },
+    [onClose, onSelectDate],
+  );
 
   // Keyboard navigation
   const handleKeyDown = useCallback(
@@ -329,7 +324,17 @@ export default function ChatDatePicker({
         handleSelectDay(targetDate);
       }
     },
-    [viewMode, focusedDay, daysInMonth, currentYear, currentMonth, onClose],
+    [
+      viewMode,
+      focusedDay,
+      daysInMonth,
+      currentYear,
+      currentMonth,
+      onClose,
+      handlePrevMonth,
+      handleNextMonth,
+      handleSelectDay,
+    ],
   );
 
   // Close on outside click
@@ -447,7 +452,6 @@ export default function ChatDatePicker({
                     onClick={() => handleSelectDay(cell.date)}
                     onMouseEnter={(e) => {
                       const rect = e.currentTarget.getBoundingClientRect();
-                      setHoveredDayKey(cell.dayKey);
                       setHoveredDayData({
                         date: cell.date,
                         data: cell.activity!,
@@ -456,7 +460,6 @@ export default function ChatDatePicker({
                       });
                     }}
                     onMouseLeave={() => {
-                      setHoveredDayKey(null);
                       setHoveredDayData(null);
                     }}
                     className={`relative w-9 h-9 rounded-full overflow-hidden flex items-center justify-center group cursor-pointer transition transform hover:scale-110 shadow-md ${
@@ -490,7 +493,6 @@ export default function ChatDatePicker({
                     onClick={() => handleSelectDay(cell.date)}
                     onMouseEnter={(e) => {
                       const rect = e.currentTarget.getBoundingClientRect();
-                      setHoveredDayKey(cell.dayKey);
                       setHoveredDayData({
                         date: cell.date,
                         data: cell.activity!,
@@ -499,7 +501,6 @@ export default function ChatDatePicker({
                       });
                     }}
                     onMouseLeave={() => {
-                      setHoveredDayKey(null);
                       setHoveredDayData(null);
                     }}
                     className={`w-9 h-9 rounded-full flex items-center justify-center font-semibold text-xs cursor-pointer transition transform hover:scale-110 shadow-sm ${
@@ -570,7 +571,7 @@ export default function ChatDatePicker({
                     onClick={() => setRollerMonth(mNumber)}
                     className={`py-1 px-3 rounded-lg text-sm transition-all snap-center cursor-pointer ${
                       isSelected
-                        ? 'font-bold text-white scale-110 text-purple-300'
+                        ? 'font-bold scale-110 text-purple-300'
                         : 'text-gray-400 hover:text-gray-200'
                     }`}
                   >
@@ -591,7 +592,7 @@ export default function ChatDatePicker({
                     onClick={() => setRollerYear(yr)}
                     className={`py-1 px-3 rounded-lg text-sm transition-all snap-center cursor-pointer ${
                       isSelected
-                        ? 'font-bold text-white scale-110 text-purple-300'
+                        ? 'font-bold scale-110 text-purple-300'
                         : 'text-gray-400 hover:text-gray-200'
                     }`}
                   >
@@ -651,7 +652,7 @@ export default function ChatDatePicker({
             border: '1px solid rgba(255, 255, 255, 0.12)',
             boxShadow: '0 10px 25px rgba(0, 0, 0, 0.6), 0 0 15px rgba(168, 85, 247, 0.3)',
           }}
-          className="z-50 pointer-events-none p-2.5 rounded-xl text-left min-w-[160px] max-w-[220px] animate-popIn"
+          className="z-50 pointer-events-none p-2.5 rounded-xl text-left min-w-40 max-w-55 animate-popIn"
         >
           <p className="text-[11px] font-bold text-purple-300">
             {hoveredDayData.date.toLocaleDateString([], {

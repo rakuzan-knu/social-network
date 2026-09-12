@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Lock, X, Maximize2, Minimize2, KeyRound, MessageSquare, ShieldCheck } from 'lucide-react';
 import Modal from '@/shared/ui/Modal';
 import { useAuthStore } from '@/shared/model/useAuthStore';
@@ -37,7 +37,12 @@ export default function ArchivedChatsModal({ onClose }: ArchivedChatsModalProps)
   );
 
   const activeConversation = archived.find((c: ConversationView) => c.id === activeId) ?? null;
-  if (activeId && !activeConversation) setActiveId(null);
+
+  useEffect(() => {
+    if (activeId && !archived.some((c: ConversationView) => c.id === activeId)) {
+      setActiveId(null);
+    }
+  }, [activeId, archived]);
 
   const sizeClass = isExpanded
     ? 'w-screen h-screen rounded-none'

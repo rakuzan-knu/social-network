@@ -26,12 +26,16 @@ describe('useCurrentUser', () => {
     vi.clearAllMocks();
   });
 
-  it('stays idle when unauthenticated', () => {
+  it('stays idle when unauthenticated and throws on explicit refetch', async () => {
     const { result } = renderHook(() => useCurrentUser(), {
       wrapper: createWrapper(),
     });
     expect(result.current.fetchStatus).toBe('idle');
     expect(userApi.getProfile).not.toHaveBeenCalled();
+
+    const refetchResult = await result.current.refetch();
+    expect(refetchResult.isError).toBe(true);
+    expect(refetchResult.error?.message).toBe('User not identified');
   });
 
   it('fetches profile for authenticated user', async () => {
