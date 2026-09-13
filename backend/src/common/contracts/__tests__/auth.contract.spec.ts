@@ -39,6 +39,8 @@ describe('auth.contract', () => {
       expect(RESERVED_USERNAMES).toContain('explore');
       expect(RESERVED_USERNAMES).toContain('about');
       expect(RESERVED_USERNAMES).toContain('safety');
+      expect(RESERVED_USERNAMES).toContain('faq');
+      expect(RESERVED_USERNAMES).toContain('help-center');
       expect(RESERVED_USERNAMES).toContain('download');
       expect(RESERVED_USERNAMES).toContain('privacy');
       expect(RESERVED_USERNAMES).toContain('terms');

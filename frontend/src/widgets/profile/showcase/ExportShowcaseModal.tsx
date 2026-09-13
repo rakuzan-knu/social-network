@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { toPng, toBlob } from 'html-to-image';
 import { X, Copy, Download, Check, Loader2, Share2, Sparkles, Flame, Star } from 'lucide-react';
 import type { ProfileShowcaseDto } from '@backend/common/contracts';
@@ -120,8 +121,10 @@ export const ExportShowcaseModal: React.FC<ExportShowcaseModalProps> = ({
   const bannerSource =
     showcase.spotlightMedia?.customBannerUrl || showcase.spotlightMedia?.posterUrl || '';
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
+  if (!isOpen) return null;
+
+  const modalContent = (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
       <div
         className="relative w-full max-w-xl max-h-[95vh] bg-[#0d0d10] border border-white/10 rounded-3xl p-6 shadow-2xl flex flex-col gap-4 text-white overflow-hidden"
         style={{
@@ -217,7 +220,7 @@ export const ExportShowcaseModal: React.FC<ExportShowcaseModalProps> = ({
               <div className="relative rounded-2xl overflow-hidden bg-white/[0.04] border border-white/[0.08] p-3 flex flex-col gap-2 backdrop-blur-xl">
                 <div className="flex items-center gap-1.5 text-amber-400 text-[11px] font-bold uppercase tracking-wider">
                   <Flame size={13} />
-                  <span>Spotlight Title</span>
+                  <span>Favorite</span>
                 </div>
 
                 <div className="relative rounded-xl overflow-hidden aspect-[16/9] border border-white/10 bg-black/40">
@@ -338,4 +341,6 @@ export const ExportShowcaseModal: React.FC<ExportShowcaseModalProps> = ({
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : null;
 };

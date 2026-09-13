@@ -152,8 +152,6 @@ export const CompanyAboutPage: React.FC = () => {
                         <VerifiedCheckmark isVerified={true} size="xs" />
                       </div>
 
-                      <span className="text-[11px] text-gray-400 truncate">Nikolaj Agh</span>
-
                       {/* Handle Pill */}
                       <div className="mt-0.5">
                         <span className="inline-flex items-center gap-1 px-2 py-0.2 rounded-full bg-white/[0.06] border border-white/[0.08] text-[10px] text-gray-300 font-medium">

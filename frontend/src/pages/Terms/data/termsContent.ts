@@ -173,9 +173,9 @@ export const TERMS_SECTIONS: TermsSection[] = [
   {
     id: 'software-and-music',
     number: '6',
-    title: 'Software, Voice Hangouts, Music & Developer Bots',
+    title: 'Software, Voice Hangouts, Third-Party Integrations & Developer Bots',
     iconName: 'Cpu',
-    tldr: 'Client apps and voice hangouts are real-time and never recorded. Spotify/SoundCloud integration includes Ghost Mode. Custom bot developers must adhere to Developer Terms.',
+    tldr: 'Client software is licensed, not sold. Voice hangouts are zero-recording. By connecting third-party platforms (YouTube, Spotify, Twitch, Steam, Roblox, GitHub), you agree to their respective terms of service and developer policies.',
     subsections: [
       {
         id: 'software-license',
@@ -185,16 +185,95 @@ export const TERMS_SECTIONS: TermsSection[] = [
         ],
       },
       {
-        id: 'music-and-voice-terms',
-        title: '6.2 Voice Hangouts & Music Presence',
+        id: 'voice-hangouts-terms',
+        title: '6.2 Voice Hangouts & Zero-Recording Policy',
         content: [
-          'Voice and video rooms operate in real time over WebRTC. Eternal never records, listens to, or saves live audio/video calls.',
-          'When you link Spotify or SoundCloud, your current song is shared in your profile status. You have complete 1-click control in Settings to turn on Ghost Mode or disable music status sharing anytime. We never access your billing info or passwords from third-party streaming providers.',
+          'Voice and video rooms operate in real time over WebRTC. Eternal never records, listens to, or saves live audio/video calls on our servers.',
+        ],
+      },
+      {
+        id: 'youtube-api-terms',
+        title: '6.3 YouTube API Services Terms of Service Agreement',
+        content: [
+          'Eternal features YouTube integration powered by YouTube API Services. By connecting your YouTube account or viewing YouTube content on Eternal, you explicitly agree to be bound by the YouTube Terms of Service (https://www.youtube.com/t/terms).',
+          'You acknowledge that your data will be accessed, processed, and stored in accordance with the Google Privacy Policy (https://policies.google.com/privacy).',
+          'You may revoke Eternal’s access to your Google account at any time via the Google Security Settings permissions page at https://security.google.com/settings/security/permissions or by unlinking YouTube in Eternal Settings.',
+        ],
+        bullets: [
+          'YouTube Terms of Service: https://www.youtube.com/t/terms',
+          'Google Privacy Policy: https://policies.google.com/privacy',
+          'Google Security Settings: https://security.google.com/settings/security/permissions',
+        ],
+      },
+      {
+        id: 'spotify-terms',
+        title: '6.4 Spotify Terms of Service & Music Content Rights',
+        content: [
+          'Eternal connects with the Spotify Web API to enable music rich presence, display your favorite tracks and playlists, and allow audio preview streaming.',
+          'All sound recordings, song titles, album artwork, and artist names are the proprietary content of Spotify AB or its licensors. You agree not to capture, rip, download, or record streaming audio provided through the Spotify integration.',
+          'You can disconnect Spotify at any time in Eternal Settings, or revoke access via the Spotify Account Apps dashboard at https://www.spotify.com/account/apps/.',
+        ],
+        bullets: [
+          'Spotify Terms of Service: https://www.spotify.com/legal/end-user-agreement/',
+          'Spotify Privacy Policy: https://www.spotify.com/legal/privacy-policy/',
+          'Spotify Account Apps (Revoke Access): https://www.spotify.com/account/apps/',
+        ],
+      },
+      {
+        id: 'twitch-terms',
+        title: '6.5 Twitch Terms of Service & Streaming Data',
+        content: [
+          'Twitch live streaming presence and broadcaster statistics are powered by the official Twitch Helix API.',
+          'By linking your Twitch account, you agree to the Twitch Terms of Service (https://www.twitch.tv/p/legal/terms-of-service/) and Twitch Privacy Notice (https://www.twitch.tv/p/legal/privacy-notice/).',
+          'You may revoke Eternal’s authorization at any time in your Twitch Settings → Connections (https://www.twitch.tv/settings/connections) or by unlinking Twitch in your Eternal profile.',
+        ],
+        bullets: [
+          'Twitch Terms of Service: https://www.twitch.tv/p/legal/terms-of-service/',
+          'Twitch Privacy Notice: https://www.twitch.tv/p/legal/privacy-notice/',
+          'Twitch Connection Settings: https://www.twitch.tv/settings/connections',
+        ],
+      },
+      {
+        id: 'steam-terms',
+        title: '6.6 Valve Corporation / Steam Subscriber Agreement & Disclaimer',
+        content: [
+          'Steam integration is powered by Steam OpenID 2.0 and the Steam Web API to verify account ownership and display public game statistics and ranks.',
+          'Steam and the Steam logo are trademarks and/or registered trademarks of Valve Corporation in the U.S. and/or other countries. Eternal is not affiliated with, endorsed by, or sponsored by Valve Corporation. Powered by Steam.',
+          'Your use of Steam is subject to the Steam Subscriber Agreement (https://store.steampowered.com/subscriber_agreement/) and Valve Privacy Policy (https://store.steampowered.com/privacy_agreement/).',
+        ],
+        bullets: [
+          'Steam Subscriber Agreement: https://store.steampowered.com/subscriber_agreement/',
+          'Valve Privacy Policy: https://store.steampowered.com/privacy_agreement/',
+        ],
+      },
+      {
+        id: 'roblox-terms',
+        title: '6.7 Roblox Terms of Use & Non-Affiliation Disclaimer',
+        content: [
+          'Roblox showcase features and ownership verification are enabled by official Roblox Web APIs and Roblox Open Cloud.',
+          'Roblox, the Roblox logo, and Powering Imagination are among the registered and unregistered trademarks of Roblox Corporation in the U.S. and other countries. Eternal is not affiliated with, sponsored by, or endorsed by Roblox Corporation.',
+          'Your use of Roblox data is subject to the Roblox Terms of Use (https://en.help.roblox.com/hc/en-us/articles/115004647846-Roblox-Terms-of-Use) and Roblox Privacy Policy (https://en.help.roblox.com/hc/en-us/articles/115004630823-Roblox-Privacy-and-Cookie-Policy).',
+        ],
+        bullets: [
+          'Roblox Terms of Use: https://en.help.roblox.com/hc/en-us/articles/115004647846-Roblox-Terms-of-Use',
+          'Roblox Privacy Policy: https://en.help.roblox.com/hc/en-us/articles/115004630823-Roblox-Privacy-and-Cookie-Policy',
+        ],
+      },
+      {
+        id: 'github-terms',
+        title: '6.8 GitHub Terms of Service & Developer Guidelines',
+        content: [
+          'GitHub developer showcase cards are enabled by GitHub OAuth and the GitHub REST API.',
+          'Connecting GitHub is governed by the GitHub Terms of Service (https://docs.github.com/en/site-policy/github-terms/github-terms-of-service) and GitHub Privacy Statement (https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement). You can revoke access at https://github.com/settings/applications.',
+        ],
+        bullets: [
+          'GitHub Terms of Service: https://docs.github.com/en/site-policy/github-terms/github-terms-of-service',
+          'GitHub Privacy Statement: https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement',
         ],
       },
       {
         id: 'developer-bots-roadmap',
-        title: '6.3 Custom Bots, Community Servers & Developer APIs',
+        title: '6.9 Custom Bots, Community Servers & Developer APIs',
         content: [
           'Users and developers may create automated bots and integrations using the Eternal Developer Portal. All bot integrations must be registered, keep API tokens confidential, follow rate limits, and comply with our dedicated Developer Terms of Service.',
         ],

@@ -6,12 +6,12 @@ export const registerSchema = z.object({
     .string()
     .min(1, 'Enter first name')
     .max(32, 'First name cannot exceed 32 characters')
-    .regex(/^[A-Za-zА-Яа-яЁёІіЇїЄєҐґ']+$/, 'The name can only contain letters.'),
+    .regex(/^[\p{L}']+$/u, 'The name can only contain letters.'),
   lastName: z
     .string()
     .min(1, 'Enter last name')
     .max(32, 'Last name cannot exceed 32 characters')
-    .regex(/^[A-Za-zА-Яа-яЁёІіЇїЄєҐґ']+$/, 'Last name can only contain letters'),
+    .regex(/^[\p{L}']+$/u, 'Last name can only contain letters'),
   username: z
     .string()
     .transform((val) => (val.startsWith('@') ? val.slice(1) : val))

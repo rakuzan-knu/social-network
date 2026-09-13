@@ -1,10 +1,10 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Heart, MoreHorizontal, Pin, Trash2, Copy, Check, Flag } from 'lucide-react';
 import Avatar from '../../../shared/ui/Avatar';
 import { CommentType } from '../model/types';
 import { FormattedText } from '@/shared/ui/FormattedText';
-import { UserNameWithBadges } from '@/entities/profile/ui/UserNameWithBadges';
+import { VerifiedCheckmark } from '@/entities/profile/ui/VerifiedCheckmark';
 import { MiniProfileHoverCard } from '@/entities/profile/ui/MiniProfileHoverCard';
 
 interface CommentItemProps {
@@ -36,6 +36,10 @@ export function CommentItem({
   const [isHeartPopping, setIsHeartPopping] = useState(false);
   const [isLikePending, setIsLikePending] = useState(false);
   const lastTapRef = useRef<number>(0);
+  const likePendingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const heartBurstTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const heartPoppingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isAuthor = postAuthorId && comment.userId === postAuthorId;
   const isCommentOwner = currentUserId && comment.userId === currentUserId;
@@ -43,6 +47,15 @@ export function CommentItem({
   const canDelete = !comment.isDeleted && (isCommentOwner || isPostOwner);
   const canPin = !isReply && !comment.isDeleted && isPostOwner;
   const canReport = !comment.isDeleted && !isCommentOwner;
+
+  useEffect(() => {
+    return () => {
+      if (likePendingTimerRef.current) clearTimeout(likePendingTimerRef.current);
+      if (heartBurstTimerRef.current) clearTimeout(heartBurstTimerRef.current);
+      if (heartPoppingTimerRef.current) clearTimeout(heartPoppingTimerRef.current);
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+    };
+  }, []);
 
   const handleDoubleTap = (e: React.MouseEvent | React.TouchEvent) => {
     e.stopPropagation();
@@ -52,10 +65,12 @@ export function CommentItem({
       if (!comment.isLiked && onLike) {
         setIsLikePending(true);
         onLike(comment.id);
-        setTimeout(() => setIsLikePending(false), 500);
+        if (likePendingTimerRef.current) clearTimeout(likePendingTimerRef.current);
+        likePendingTimerRef.current = setTimeout(() => setIsLikePending(false), 500);
       }
       setShowHeartBurst(true);
-      setTimeout(() => setShowHeartBurst(false), 800);
+      if (heartBurstTimerRef.current) clearTimeout(heartBurstTimerRef.current);
+      heartBurstTimerRef.current = setTimeout(() => setShowHeartBurst(false), 800);
       lastTapRef.current = 0;
     } else {
       lastTapRef.current = now;
@@ -67,16 +82,19 @@ export function CommentItem({
     if (isLikePending) return;
     setIsLikePending(true);
     setIsHeartPopping(true);
-    setTimeout(() => setIsHeartPopping(false), 400);
+    if (heartPoppingTimerRef.current) clearTimeout(heartPoppingTimerRef.current);
+    heartPoppingTimerRef.current = setTimeout(() => setIsHeartPopping(false), 400);
     onLike?.(comment.id);
-    setTimeout(() => setIsLikePending(false), 500);
+    if (likePendingTimerRef.current) clearTimeout(likePendingTimerRef.current);
+    likePendingTimerRef.current = setTimeout(() => setIsLikePending(false), 500);
   };
 
   const handleCopyText = (e: React.MouseEvent) => {
     e.stopPropagation();
     navigator.clipboard.writeText(comment.text);
     setIsCopied(true);
-    setTimeout(() => {
+    if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+    copiedTimerRef.current = setTimeout(() => {
       setIsCopied(false);
       setIsMenuOpen(false);
     }, 1200);
@@ -119,17 +137,16 @@ export function CommentItem({
               <Link
                 to={`/profile/${comment.handle}`}
                 onClick={(e) => e.stopPropagation()}
-                className="hover:underline inline-flex items-center"
+                className="hover:underline inline-flex items-center text-xs font-semibold text-white truncate"
               >
-                <UserNameWithBadges
-                  displayName={comment.author}
-                  username={comment.handle}
-                  isVerified={comment.isVerified}
-                  primaryBadge={comment.primaryBadge}
-                  size="sm"
-                />
+                {comment.author || comment.handle}
               </Link>
             </MiniProfileHoverCard>
+            <VerifiedCheckmark
+              isVerified={comment.isVerified}
+              primaryBadge={comment.primaryBadge}
+              size="sm"
+            />
 
             {/* Author Pill Badge */}
             {isAuthor && (

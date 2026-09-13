@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   Search,
@@ -389,8 +390,8 @@ export function ShareModal() {
   const hasSelectedUsers = selectedUserIds.length > 0;
   const isLoadingUsers = isFollowingLoading || isFollowersLoading;
 
-  return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+  const modalContent = (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/80 backdrop-blur-md animate-fadeIn"
@@ -568,6 +569,8 @@ export function ShareModal() {
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : null;
 }
 
 export default ShareModal;

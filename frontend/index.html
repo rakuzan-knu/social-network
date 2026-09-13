@@ -2,6 +2,56 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!-- Global Error Shield: Suppresses crashes from third-party extensions (e.g. Web Vitals, React DevTools, MetaMask) -->
+    <script>
+      (function () {
+        function shouldSuppress(msg, src, err) {
+          var m = String(msg || (err && err.message) || '');
+          var s = String(src || (err && err.stack) || '');
+          // 1. Suppress Web Vitals extension bug (reportAllChanges reading 'startTime')
+          if (m.indexOf("reading 'startTime'") !== -1 || m.indexOf('reportAllChanges') !== -1) {
+            return true;
+          }
+          // 2. Suppress Chrome / Firefox extension script injections
+          if (s.indexOf('chrome-extension://') !== -1 || s.indexOf('moz-extension://') !== -1) {
+            return true;
+          }
+          // 3. Suppress anonymous VM script errors from extensions
+          if (
+            m.indexOf('Cannot read properties of undefined') !== -1 &&
+            s.indexOf('VM') !== -1 &&
+            s.indexOf('/src/') === -1
+          ) {
+            return true;
+          }
+          return false;
+        }
+
+        window.addEventListener(
+          'error',
+          function (e) {
+            if (shouldSuppress(e.message, e.filename, e.error)) {
+              e.preventDefault();
+              if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+              return true;
+            }
+          },
+          true,
+        );
+
+        window.addEventListener(
+          'unhandledrejection',
+          function (e) {
+            if (shouldSuppress('', '', e.reason)) {
+              e.preventDefault();
+              if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+              return true;
+            }
+          },
+          true,
+        );
+      })();
+    </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="icon" type="image/png" sizes="96x96" href="/icons/icon-96.png" />
@@ -14,6 +64,7 @@
       title="Eternal"
       href="/opensearch.xml"
     />
+    <link rel="dns-prefetch" href="https://sdk.scdn.co" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#070709" />
     <meta

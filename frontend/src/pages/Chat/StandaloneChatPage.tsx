@@ -37,8 +37,10 @@ import { chatApi } from '@/features/chat/api/chatApi';
 import { initCrossTabSync } from '@/shared/lib/broadcastSync';
 import { useChatDraftsStore } from '@/features/chat/model/useChatDraftsStore';
 import { SEOHead } from '@/shared/seo';
+import { useSpotifyDockOffset } from '@/shared/model/useSpotifyDockOffset';
 
 export default function StandaloneChatPage() {
+  const { dockOffset } = useSpotifyDockOffset();
   const { conversationId } = useParams<{ conversationId: string }>();
   const navigate = useNavigate();
   const { userId, isAuthenticated } = useAuthStore();
@@ -211,7 +213,11 @@ export default function StandaloneChatPage() {
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 min-w-0">
               <span className="text-[14px] font-semibold text-white truncate">{display.title}</span>
-              {display.isVerified && <VerifiedCheckmark size="sm" />}
+              <VerifiedCheckmark
+                isVerified={display.isVerified}
+                primaryBadge={display.primaryBadge}
+                size="sm"
+              />
             </div>
             <p className="text-[11.5px] text-gray-400 truncate leading-none mt-0.5">
               {isOtherTyping ? (
@@ -383,7 +389,10 @@ export default function StandaloneChatPage() {
           )}
 
           {/* Bottom Message Composer */}
-          <div className="p-3 bg-[#111520]/90 backdrop-blur-2xl border-t border-white/10 flex items-center gap-2 flex-shrink-0">
+          <div
+            className="p-3 bg-[#111520]/90 backdrop-blur-2xl border-t border-white/10 flex items-center gap-2 flex-shrink-0 transition-[padding-bottom] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
+            style={{ paddingBottom: `${12 + dockOffset}px` }}
+          >
             <button
               type="button"
               className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-400 hover:bg-white/10 hover:text-white transition-colors flex-shrink-0"

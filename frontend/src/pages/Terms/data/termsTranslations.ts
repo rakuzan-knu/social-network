@@ -223,9 +223,10 @@ const UK_TERMS_SECTIONS: TermsSection[] = [
   {
     id: 'software-and-music',
     number: '6',
-    title: 'Програмне забезпечення, голос та музика',
+    title:
+      'Програмне забезпечення, сторонні інтеграції (YouTube, Spotify, Twitch, Steam, Roblox, GitHub) та боти',
     iconName: 'Cpu',
-    tldr: 'Ми надаємо додатки та інтеграції зі Spotify/SoundCloud. Дзвінки транслюються наживо без запису. Доступний режим невидимки (Ghost Mode).',
+    tldr: 'Клієнтське ПЗ надається за ліцензією. Голосові кімнати не записуються. Підключаючи сторонні платформи (YouTube, Spotify, Twitch, Steam, Roblox, GitHub), ви погоджуєтеся з їхніми умовами використання та політиками розробників.',
     subsections: [
       {
         id: 'software-license',
@@ -235,11 +236,62 @@ const UK_TERMS_SECTIONS: TermsSection[] = [
         ],
       },
       {
-        id: 'music-and-voice-terms',
-        title: '6.2 Голосові кімнати та статус музики',
+        id: 'voice-hangouts-terms',
+        title: '6.2 Голосові кімнати та політика нульового запису',
         content: [
-          'Голосові кімнати працюють у реальному часі без запису чи збереження аудіо на серверах.',
-          'При підключенні Spotify або SoundCloud ваш статус показує поточний трек. Ви можете в будь-який момент увімкнути Режим невидимки (Ghost Mode) або вимкнути показ музики.',
+          'Голосові та відеокімнати працюють у реальному часі за технологією WebRTC без запису чи збереження аудіо на серверах.',
+        ],
+      },
+      {
+        id: 'youtube-api-terms',
+        title: '6.3 Умови використання YouTube API Services',
+        content: [
+          'Eternal використовує YouTube API Services. Підключаючи YouTube канал або переглядаючи контент YouTube на Eternal, ви прямо погоджуєтеся дотримуватися Умов використання YouTube (YouTube Terms of Service: https://www.youtube.com/t/terms) та підтверджуєте, що ваші дані оброблятимуться відповідно до Політики конфіденційності Google (Google Privacy Policy: https://policies.google.com/privacy).',
+          'Ви можете в будь-який момент відкликати доступ на сторінці безпеки Google: https://security.google.com/settings/security/permissions.',
+        ],
+      },
+      {
+        id: 'spotify-terms',
+        title: '6.4 Умови використання Spotify та права на музичний контент',
+        content: [
+          'Інтеграція зі Spotify реалізована за допомогою Spotify Web API. Усі назви пісень, обкладинки альбомів та імена виконавців є власністю Spotify AB або її ліцензіарів. Користувачам суворо заборонено копіювати, записувати чи завантажувати аудіопотоки.',
+          'Відкликати доступ можна в Налаштуваннях або на сторінці https://www.spotify.com/account/apps/.',
+        ],
+      },
+      {
+        id: 'twitch-terms',
+        title: '6.5 Умови використання Twitch та трансляції',
+        content: [
+          'Статус прямої трансляції підтримується через Twitch Helix API. Підключаючи Twitch, ви погоджуєтеся з Умовами використання Twitch (https://www.twitch.tv/p/legal/terms-of-service/) та Політикою конфіденційності Twitch (https://www.twitch.tv/p/legal/privacy-notice/).',
+        ],
+      },
+      {
+        id: 'steam-terms',
+        title: '6.6 Угода передплатника Steam та відмова від відповідальності Valve',
+        content: [
+          'Інтеграція Steam працює через Steam OpenID 2.0 та Steam Web API. Steam та логотип Steam є торговельними марками Valve Corporation. Eternal не є афілійованим із Valve Corporation. Powered by Steam.',
+          'Використання регулюється Угодою передплатника Steam (https://store.steampowered.com/subscriber_agreement/).',
+        ],
+      },
+      {
+        id: 'roblox-terms',
+        title: '6.7 Умови використання Roblox',
+        content: [
+          'Дані Roblox отримуються через офіційні API Roblox. Roblox є зареєстрованою торговельною маркою Roblox Corporation. Eternal не є афілійованим із Roblox Corporation. Використання регулюється Умовами Roblox (https://en.help.roblox.com/hc/en-us/articles/115004647846-Roblox-Terms-of-Use).',
+        ],
+      },
+      {
+        id: 'github-terms',
+        title: '6.8 Умови використання GitHub',
+        content: [
+          'Інтеграція підпорядковується Умовам GitHub (https://docs.github.com/en/site-policy/github-terms/github-terms-of-service) та Заяві про конфіденційність GitHub (https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement).',
+        ],
+      },
+      {
+        id: 'developer-bots-roadmap',
+        title: '6.9 Боти та API для розробників',
+        content: [
+          'Розробники можуть створювати автоматизованих ботів через Портал розробників Eternal за умови дотримання лімітів та Умов для розробників.',
         ],
       },
     ],

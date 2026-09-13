@@ -18,6 +18,8 @@ import { isReservedUsername } from '@/features/profile/model/profileSchema';
 import { SEOHead } from '@/shared/seo';
 import { RESERVED_USERNAMES } from '@/features/profile/model/profileSchema';
 import { ProfileShowcaseSidebar } from '@/widgets/profile/showcase/ProfileShowcaseSidebar';
+import { storiesApi } from '@/features/stories/api/storiesApi';
+import { useStoryViewerStore } from '@/features/stories/model/useStoryViewerStore';
 
 function SkeletonProfileHeader() {
   return (
@@ -101,6 +103,38 @@ export default function ProfilePage() {
       }, 100);
     }
   }, [postsQuery.isLoading]);
+
+  const storyParam = searchParams.get('story');
+  useEffect(() => {
+    if (!storyParam || !user?.id) return;
+
+    let isMounted = true;
+    (async () => {
+      try {
+        const userGroup = await storiesApi.getUserStories(user.id);
+        if (!isMounted) return;
+        if (userGroup && userGroup.stories.length > 0) {
+          const storyIdx = userGroup.stories.findIndex((s) => s.id === storyParam);
+          useStoryViewerStore.getState().openViewer([userGroup], 0, storyIdx !== -1 ? storyIdx : 0);
+          return;
+        }
+
+        const feed = await storiesApi.getFeed();
+        if (!isMounted) return;
+        const gIdx = feed.findIndex((g) => g.stories.some((s) => s.id === storyParam));
+        if (gIdx !== -1) {
+          const sIdx = feed[gIdx].stories.findIndex((s) => s.id === storyParam);
+          useStoryViewerStore.getState().openViewer(feed, gIdx, sIdx !== -1 ? sIdx : 0);
+        }
+      } catch (err) {
+        console.error('Failed to open story from URL param', err);
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [storyParam, user?.id]);
 
   if (isReserved) {
     return (
@@ -187,77 +221,95 @@ export default function ProfilePage() {
     `Check out ${profileName} (@${user.username}) on Eternal. Follow to see their photos, videos and updates.`;
 
   return (
-    <div className="w-full flex flex-col animate-fadeIn">
-      <SEOHead
-        title={`${profileName} (@${user.username}) • Eternal Profile`}
-        description={profileDescription}
-        image={user.avatar || undefined}
-        canonical={`/@${user.username}`}
-        type="profile"
-        structuredData={{
-          type: 'ProfilePage',
-          name: profileName,
-          username: user.username,
-          bio: user.bio || undefined,
-          avatar: user.avatar || undefined,
-          breadcrumbs: [{ name: profileName, url: `/@${user.username}` }],
-        }}
-      />
-      <div className="bg-white/[0.02] backdrop-blur-2xl border border-white/[0.05] rounded-[2.5rem] overflow-hidden shadow-[0_12px_40px_rgba(0,0,0,0.6)] mb-6">
-        <ProfileHeader
-          userId={user.id}
-          displayName={user.displayName}
-          username={user.username}
-          bio={user.bio}
-          avatar={user.avatar}
-          banner={user.banner}
-          bannerPosition={user.bannerPosition}
-          createdAt={user.createdAt}
-          isOwnProfile={isOwnProfile}
-          isFollowing={user.isFollowing}
-          followsYou={user.followsYou}
-          isVerified={user.isVerified}
-          primaryBadge={user.primaryBadge}
-          badges={user.badges}
-          followersCount={user.followersCount}
-          followingCount={user.followingCount}
-          onEditClick={() => openEditProfile('account')}
+    <div className="w-full flex justify-center gap-6 xl:gap-8 animate-fadeIn">
+      {/* Central Profile & Feed Column (Smoothly centered) */}
+      <div className="w-full max-w-2xl flex flex-col transition-all duration-300 ease-in-out">
+        <SEOHead
+          title={`${profileName} (@${user.username}) • Eternal Profile`}
+          description={profileDescription}
+          image={user.avatar || undefined}
+          canonical={`/@${user.username}`}
+          type="profile"
+          structuredData={{
+            type: 'ProfilePage',
+            name: profileName,
+            username: user.username,
+            bio: user.bio || undefined,
+            avatar: user.avatar || undefined,
+            breadcrumbs: [{ name: profileName, url: `/@${user.username}` }],
+          }}
         />
-        <ProfileTabs
-          activeTab={activeTab}
-          setActiveTab={handleTabChange}
-          showSavedTab={isOwnProfile}
-        />
-      </div>
+        <div className="bg-white/[0.02] backdrop-blur-2xl border border-white/[0.05] rounded-[2.5rem] overflow-hidden shadow-[0_12px_40px_rgba(0,0,0,0.6)] mb-6">
+          <ProfileHeader
+            userId={user.id}
+            displayName={user.displayName}
+            username={user.username}
+            bio={user.bio}
+            avatar={user.avatar}
+            banner={user.banner}
+            bannerPosition={user.bannerPosition}
+            createdAt={user.createdAt}
+            isOwnProfile={isOwnProfile}
+            isFollowing={user.isFollowing}
+            followsYou={user.followsYou}
+            isVerified={user.isVerified}
+            primaryBadge={user.primaryBadge}
+            badges={user.badges}
+            mergedPrsCount={user.mergedPrsCount}
+            reportCount={user.reportCount}
+            subscriptionMonths={user.subscriptionMonths}
+            subscriptionDate={user.subscriptionDate}
+            followersCount={user.followersCount}
+            followingCount={user.followingCount}
+            onEditClick={() => openEditProfile('account')}
+          />
 
-      {isOwnProfile && activeTab === 'posts' && (
-        <div className="mb-4">
-          <CreatePost
-            onSubmitFormData={(fd, optimisticPost) =>
-              createPost.mutateAsync({ formData: fd, optimisticPost })
-            }
-            isPending={createPost.isPending}
+          {/* Mobile Showcase View (< 1024px) */}
+          <div className="px-6 pt-2 lg:hidden relative z-20">
+            <ProfileShowcaseSidebar
+              username={user.username}
+              userId={user.id}
+              isOwner={isOwnProfile}
+              variant="mobile"
+            />
+          </div>
+
+          <ProfileTabs
+            activeTab={activeTab}
+            setActiveTab={handleTabChange}
+            showSavedTab={isOwnProfile}
           />
         </div>
-      )}
 
-      {activeTab === 'saved' && isOwnProfile ? (
-        <SavedPostsView userId={user.id} />
-      ) : activeQuery.isLoading ? (
-        <SkeletonFeed count={4} />
-      ) : activeFeed.length > 0 ? (
-        <div className="flex flex-col gap-4">
-          {activeFeed.map((post) => (
-            <PostCard key={post.id} post={post} queryKey={feedQueryKey} />
-          ))}
-        </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-white/5 rounded-[2rem] bg-white/[0.01]">
-          <p className="text-gray-500 font-medium text-base">
-            {activeTab === 'posts' ? 'No posts have been created yet.' : 'No reposts yet'}
-          </p>
-        </div>
-      )}
+        {isOwnProfile && activeTab === 'posts' && (
+          <div className="mb-4">
+            <CreatePost
+              onSubmitFormData={(fd, optimisticPost) =>
+                createPost.mutateAsync({ formData: fd, optimisticPost })
+              }
+              isPending={createPost.isPending}
+            />
+          </div>
+        )}
+
+        {activeTab === 'saved' && isOwnProfile ? (
+          <SavedPostsView userId={user.id} />
+        ) : activeQuery.isLoading ? (
+          <SkeletonFeed count={4} />
+        ) : activeFeed.length > 0 ? (
+          <div className="flex flex-col gap-4">
+            {activeFeed.map((post) => (
+              <PostCard key={post.id} post={post} queryKey={feedQueryKey} />
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-white/5 rounded-[2rem] bg-white/[0.01]">
+            <p className="text-gray-500 font-medium text-base">
+              {activeTab === 'posts' ? 'No posts have been created yet.' : 'No reposts yet'}
+            </p>
+          </div>
+        )}
+      </div>
 
       {/* Desktop Sticky Profile Showcase Sidebar (>= 1024px) */}
       <ProfileShowcaseSidebar

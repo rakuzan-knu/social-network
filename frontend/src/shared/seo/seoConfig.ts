@@ -76,8 +76,8 @@ export function toCleanTitleCase(str: string): string {
   const trimmed = str.trim();
 
   // If text is already mixed-case with lowercases, return as-is
-  const hasUppercase = /[A-ZА-ЯЁ]/.test(trimmed);
-  const hasLowercase = /[a-zа-яё]/.test(trimmed);
+  const hasUppercase = /[A-Z]/.test(trimmed);
+  const hasLowercase = /[a-z]/.test(trimmed);
   if (hasLowercase) {
     return trimmed;
   }
@@ -105,12 +105,11 @@ export function toCleanTitleCase(str: string): string {
           'to',
           'a',
           'an',
-          'и',
-          'в',
-          'на',
-          'с',
-          'по',
-          'для',
+          'and',
+          'in',
+          'on',
+          'with',
+          'for',
         ].includes(lower)
       ) {
         return lower;

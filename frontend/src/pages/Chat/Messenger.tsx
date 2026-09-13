@@ -47,7 +47,7 @@ export default function MessengerPage() {
       <MessengerSidebar />
 
       <div
-        className={`flex flex-1 transition-all duration-300 ease-in-out ${
+        className={`flex flex-1 min-w-0 overflow-hidden transition-all duration-300 ease-in-out ${
           isSidebarExpanded ? 'ml-[200px]' : 'ml-16'
         }`}
       >

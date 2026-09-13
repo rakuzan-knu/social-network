@@ -37,6 +37,7 @@
     "axios": "^1.18.1",
     "emoji-picker-react": "^4.19.1",
     "framer-motion": "^13.1.1",
+    "hls.js": "^1.7.2",
     "html-to-image": "^1.11.13",
     "katex": "^0.18.4",
     "lucide-react": "^1.33.0",

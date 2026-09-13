@@ -105,6 +105,9 @@ export const RESERVED_USERNAMES = [
   'law-enforcement',
   'law',
   'police',
+  'faq',
+  'help-center',
+  'support-center',
 
   // Legal, Privacy & Terms
   'privacy',

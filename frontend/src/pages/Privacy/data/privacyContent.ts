@@ -205,15 +205,128 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
     ],
   },
   {
-    id: 'contact-us',
+    id: 'third-party-integrations',
     number: '6',
+    title: 'Third-Party Platform Integrations & API Developer Compliance',
+    iconName: 'ShieldCheck',
+    tldr: 'We provide optional integrations with YouTube, Spotify, Twitch, Steam, Roblox, and GitHub. We strictly adhere to each provider’s developer policies, never sell your data, request only minimal read-only permissions, and give you 1-click unlinking and complete revocation options.',
+    subsections: [
+      {
+        id: 'third-party-overview',
+        title: '6.1 Overview, User Consent & Zero Data-Broker Promise',
+        content: [
+          'Eternal offers optional third-party integrations to enrich your profile showcase with verified gaming ranks, streaming presence, repositories, and music playlists. Connecting any external service is completely voluntary.',
+          'We adhere to a strict Zero Data-Broker standard: Eternal never sells, rents, monetizes, or transfers your third-party account data, credentials, or statistics to advertisers, data brokers, or any commercial third parties.',
+          'You retain full control over your connections at all times. You can disconnect any platform with one click in Settings → Connected Accounts & Integrations, which immediately purges all associated tokens and cached showcase data from our databases and Redis cache.',
+        ],
+        bullets: [
+          'Strictly Read-Only Access: We only request public profile statistics, activity presence, and ranks.',
+          'No Password Storage: All authentication flows operate through official OAuth 2.0 or OpenID protocols.',
+          'Instant 1-Click Revocation: Unlinking in your profile permanently deletes stored tokens and cached data.',
+        ],
+      },
+      {
+        id: 'youtube-api-compliance',
+        title: '6.2 YouTube API Services & Google User Data Policy Compliance',
+        content: [
+          'Eternal uses YouTube API Services to allow you to display verified channel statistics and recent video uploads on your profile showcase.',
+          'By connecting your YouTube account or interacting with YouTube features on Eternal, you explicitly agree to be bound by the YouTube Terms of Service (https://www.youtube.com/t/terms).',
+          'Eternal accesses, collects, and processes Google and YouTube user data strictly in accordance with the Google Privacy Policy (https://policies.google.com/privacy) and Google API Services User Data Policy, including the Limited Use requirements.',
+          'Data Accessed & Displayed: When authorized, Eternal accesses your public YouTube channel details (channel title, handle, custom URL, avatar thumbnail), public channel statistics (subscriber count, total view count, video count), and up to 3 recent video uploads (video title, thumbnail URL, ISO duration, and video link).',
+          'Data Storage & Security: We store only authorized channel identifiers and metadata in our secured database to render your profile card. We do not access or store private videos, comments, watch history, search history, Gmail, or Google Drive data.',
+          'Revocation of Access: In addition to disconnecting YouTube via Eternal’s Profile Settings (which permanently deletes all stored channel metadata from our databases), you can revoke Eternal’s access to your Google account at any time through the Google Security Settings page at https://security.google.com/settings/security/permissions.',
+        ],
+        bullets: [
+          'YouTube Terms of Service: https://www.youtube.com/t/terms',
+          'Google Privacy Policy: https://policies.google.com/privacy',
+          'Google Security Permissions (Revoke Access): https://security.google.com/settings/security/permissions',
+        ],
+      },
+      {
+        id: 'spotify-api-compliance',
+        title: '6.3 Spotify Developer Policy & Web API Compliance',
+        content: [
+          'Eternal integrates with the official Spotify Web API to enable real-time music presence, track showcase cards, and audio preview playback.',
+          'Authorized Scopes: When linking Spotify, we request permission to read your public profile, current playback state, top tracks, liked songs, and playlists. We never access your billing details, credit cards, or Spotify account passwords.',
+          'Streaming & Audio Protection: Eternal does not store, rip, record, distribute, or permanently cache streaming audio files or music streams. All audio previews and playback controls communicate directly with official Spotify endpoints.',
+          'Intellectual Property Notice: All song titles, artist names, album artwork, and audio content are the intellectual property of Spotify AB or their respective rights holders and licensors.',
+          'Revocation of Access: You can disconnect Spotify at any time in Eternal Settings, which immediately deletes all stored Spotify access tokens and refresh tokens. You can also revoke access directly in your Spotify Account Apps page at https://www.spotify.com/account/apps/.',
+        ],
+        bullets: [
+          'Spotify Privacy Policy: https://www.spotify.com/legal/privacy-policy/',
+          'Spotify Account Apps (Revoke Access): https://www.spotify.com/account/apps/',
+          'Ghost Mode: You can toggle off music sharing in Settings anytime without disconnecting.',
+        ],
+      },
+      {
+        id: 'twitch-api-compliance',
+        title: '6.4 Twitch Developer Services Agreement (Helix API)',
+        content: [
+          'Eternal connects with the official Twitch Helix API to display your live streaming status, game category, live viewer count, and channel follower count.',
+          'Real-Time Live Presence: When you broadcast on Twitch, Eternal automatically displays an authentic red LIVE badge with viewer count and stream title. When you are offline, an Offline indicator is displayed.',
+          'Intellectual Property & Policies: Twitch channel assets, emotes, and broadcast streams belong to Twitch Interactive, Inc. or the respective broadcaster. By connecting Twitch, you agree to the Twitch Terms of Service (https://www.twitch.tv/p/legal/terms-of-service/) and Twitch Privacy Notice (https://www.twitch.tv/p/legal/privacy-notice/).',
+          'Revocation of Access: You can disconnect Twitch at any time in Eternal Settings or revoke Eternal’s authorization in your Twitch Settings → Connections at https://www.twitch.tv/settings/connections.',
+        ],
+        bullets: [
+          'Twitch Terms of Service: https://www.twitch.tv/p/legal/terms-of-service/',
+          'Twitch Privacy Notice: https://www.twitch.tv/p/legal/privacy-notice/',
+          'Twitch Connection Settings: https://www.twitch.tv/settings/connections',
+        ],
+      },
+      {
+        id: 'steam-api-compliance',
+        title: '6.5 Steam (Valve Corporation) Web API & OpenID',
+        content: [
+          'Eternal utilizes Steam OpenID 2.0 and the Steam Web API to verify account ownership and display your public Steam gaming level, total games count, and competitive ranks (such as Dota 2 MMR and Counter-Strike 2 Premier Rating).',
+          'Valve Trademark Disclaimer: Steam and the Steam logo are trademarks and/or registered trademarks of Valve Corporation in the U.S. and/or other countries. Eternal is not affiliated with, endorsed by, or sponsored by Valve Corporation. Powered by Steam.',
+          'Security: Authentication occurs entirely on Steam’s official OpenID portal. Eternal never receives, handles, or stores your Steam password, credit card, or Steam Guard authentication codes.',
+          'External Terms: Your use of Steam services is governed by the Steam Subscriber Agreement (https://store.steampowered.com/subscriber_agreement/) and Valve Privacy Policy (https://store.steampowered.com/privacy_agreement/).',
+        ],
+        bullets: [
+          'Steam Subscriber Agreement: https://store.steampowered.com/subscriber_agreement/',
+          'Valve Privacy Policy: https://store.steampowered.com/privacy_agreement/',
+        ],
+      },
+      {
+        id: 'roblox-api-compliance',
+        title: '6.6 Roblox Open Cloud & Anti-Impersonation Verification',
+        content: [
+          'Eternal connects to official Roblox Web APIs and Roblox Open Cloud to showcase your 3D avatar bust thumbnail, friends count, followers count, 5 inventory collectibles, or top 5 favorite places.',
+          'Anti-Impersonation Ownership Protocol: To ensure zero identity theft or false account claims, Eternal never uses insecure username inputs. Users must complete a cryptographic ownership verification challenge by temporarily placing an unguessable verification code into their Roblox profile "About" section, which our backend verifies directly against Roblox API servers before the connection is authorized.',
+          'Roblox Trademark Disclaimer: Roblox, the Roblox logo, and Powering Imagination are among the registered and unregistered trademarks of Roblox Corporation in the U.S. and other countries. Eternal is not affiliated with, sponsored by, or endorsed by Roblox Corporation.',
+          'External Terms: User data retrieved from Roblox is governed by the Roblox Terms of Use (https://en.help.roblox.com/hc/en-us/articles/115004647846-Roblox-Terms-of-Use) and Roblox Privacy Policy (https://en.help.roblox.com/hc/en-us/articles/115004630823-Roblox-Privacy-and-Cookie-Policy).',
+        ],
+        bullets: [
+          'Roblox Terms of Use: https://en.help.roblox.com/hc/en-us/articles/115004647846-Roblox-Terms-of-Use',
+          'Roblox Privacy Policy: https://en.help.roblox.com/hc/en-us/articles/115004630823-Roblox-Privacy-and-Cookie-Policy',
+        ],
+      },
+      {
+        id: 'github-api-compliance',
+        title: '6.7 GitHub API Services & Developer Compliance',
+        content: [
+          'Eternal integrates with GitHub OAuth (read:user scope) and the GitHub REST API to display your public developer profile, public repositories count, star count, and pinned repository.',
+          'External Terms: Connecting GitHub is subject to the GitHub Terms of Service (https://docs.github.com/en/site-policy/github-terms/github-terms-of-service) and GitHub Privacy Statement (https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement).',
+          'Revocation of Access: You can revoke Eternal’s OAuth access at any time through GitHub Settings → Applications → Authorized OAuth Apps at https://github.com/settings/applications.',
+        ],
+        bullets: [
+          'GitHub Terms of Service: https://docs.github.com/en/site-policy/github-terms/github-terms-of-service',
+          'GitHub Privacy Statement: https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement',
+          'GitHub Authorized Apps: https://github.com/settings/applications',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'contact-us',
+    number: '7',
     title: 'Contact Us',
     iconName: 'Mail',
     tldr: 'If you ever have a question about your privacy, need help with your data, or want to speak with our Data Protection Officer, we are here to help.',
     subsections: [
       {
         id: 'reach-out',
-        title: '6.1 How to Contact Our Privacy Team',
+        title: '7.1 How to Contact Our Privacy Team',
         content: [
           'Email us at privacy@eternal.app with any questions about this Privacy Policy or how we process your information. We will be happy to help.',
           'To contact Eternal’s Data Protection Officer, please email dpo@eternal.app.',

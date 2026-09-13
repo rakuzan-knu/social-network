@@ -29,6 +29,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { SitemapModule } from './sitemap/sitemap.module';
 import { ShowcaseModule } from './showcase/showcase.module';
 import { StoriesModule } from './stories/stories.module';
+import { IntegrationsModule } from './integrations/integrations.module';
 
 import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware';
 import { MetricsMiddleware } from './metrics/metrics.middleware';
@@ -68,6 +69,7 @@ import type { MiddlewareConsumer, NestModule } from '@nestjs/common';
     SitemapModule,
     ShowcaseModule,
     StoriesModule,
+    IntegrationsModule,
   ],
   controllers: [],
   providers: [
