@@ -12,7 +12,7 @@ import Tooltip from '@/shared/ui/Tooltip';
 import { useSpotifyPlayerStore, type SpotifyTrack } from '@/shared/model/useSpotifyPlayerStore';
 import { useMusicHubStore } from '../model/useMusicHubStore';
 import { SpotifyBrandIcon, SoundCloudBrandIcon } from '@/shared/ui/BrandIcons';
-import { getSafeSpotifyTrackUrl } from '@/shared/lib/spotifyUrl';
+import { getSafeSpotifyTrackUrl, isSoundCloudUrl } from '@/shared/lib/spotifyUrl';
 import { useMusicPanelResizer } from '../model/useMusicPanelResizer';
 import { TrackActionMenu } from './TrackActionMenu';
 
@@ -58,7 +58,7 @@ export const MusicNowPlayingSidebar: React.FC = () => {
     currentTrack.source === 'soundcloud' ||
     currentTrack.id.startsWith('sc-') ||
     currentTrack.id.startsWith('soundcloud-') ||
-    currentTrack.spotifyUrl?.includes('soundcloud.com'),
+    isSoundCloudUrl(currentTrack.spotifyUrl),
   );
 
   const externalLink = isSoundCloud

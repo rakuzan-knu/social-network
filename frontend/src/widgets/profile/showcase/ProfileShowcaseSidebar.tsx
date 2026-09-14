@@ -15,13 +15,18 @@ import { SpotlightMediaWidget } from './SpotlightMediaWidget';
 import { MediaShowcaseWidget } from './MediaShowcaseWidget';
 import { ShowcaseWishlistWidget } from './ShowcaseWishlistWidget';
 import { ProfileAnthemCard } from './ProfileAnthemCard';
-import { ShowcaseQuickEditor } from './ShowcaseQuickEditor';
 import { TasteMatchBanner } from './TasteMatchBanner';
-import { ExportShowcaseModal } from './ExportShowcaseModal';
 import { MediaDetailModal } from '@/shared/ui/media';
 import { ShowcaseWidgetWrapper } from './ShowcaseWidgetWrapper';
 import { UnsavedChangesBar } from './UnsavedChangesBar';
 import { ShowcaseMediaType, type ShowcaseMediaItemDto } from '@backend/common/contracts';
+
+const ShowcaseQuickEditor = React.lazy(() =>
+  import('./ShowcaseQuickEditor').then((m) => ({ default: m.ShowcaseQuickEditor })),
+);
+const ExportShowcaseModal = React.lazy(() =>
+  import('./ExportShowcaseModal').then((m) => ({ default: m.ExportShowcaseModal })),
+);
 
 interface ProfileShowcaseSidebarProps {
   username: string;
@@ -494,26 +499,30 @@ export const ProfileShowcaseSidebar: React.FC<ProfileShowcaseSidebarProps> = ({
 
       {/* In-Place Quick Editor Modal */}
       {isOwner && isEditorOpen && showcase && (
-        <ShowcaseQuickEditor
-          isOpen={isEditorOpen}
-          onClose={() => setIsEditorOpen(false)}
-          showcase={{
-            ...showcase,
-            mediaItems: localMediaItems.length > 0 ? localMediaItems : showcase.mediaItems || [],
-          }}
-          initialTab={editorInitialTab}
-          initialMediaType={editorInitialMediaType}
-        />
+        <React.Suspense fallback={null}>
+          <ShowcaseQuickEditor
+            isOpen={isEditorOpen}
+            onClose={() => setIsEditorOpen(false)}
+            showcase={{
+              ...showcase,
+              mediaItems: localMediaItems.length > 0 ? localMediaItems : showcase.mediaItems || [],
+            }}
+            initialTab={editorInitialTab}
+            initialMediaType={editorInitialMediaType}
+          />
+        </React.Suspense>
       )}
 
       {/* Export Showcase Card Modal */}
       {isExportOpen && (
-        <ExportShowcaseModal
-          isOpen={isExportOpen}
-          onClose={() => setIsExportOpen(false)}
-          showcase={showcase}
-          user={userProfile}
-        />
+        <React.Suspense fallback={null}>
+          <ExportShowcaseModal
+            isOpen={isExportOpen}
+            onClose={() => setIsExportOpen(false)}
+            showcase={showcase}
+            user={userProfile}
+          />
+        </React.Suspense>
       )}
 
       {/* 1-to-1 Media Detail Modal (Shared UI for Games, Anime, Movies) */}

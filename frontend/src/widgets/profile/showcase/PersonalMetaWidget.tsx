@@ -17,6 +17,7 @@ import {
 import type { ProfileShowcaseDto } from '@backend/common/contracts';
 import { MiniProfileHoverCard } from '@/entities/profile/ui/MiniProfileHoverCard';
 import { MarqueeText } from '@/shared/ui/MarqueeText';
+import { sanitizeImageUrl } from '@/shared/lib/urlSecurity';
 import {
   getLanguageFlag,
   formatRelationshipDuration,
@@ -355,7 +356,7 @@ export const PersonalMetaWidget: React.FC<PersonalMetaWidgetProps> = ({
                           <Link to={`/${member.username}`} className="relative shrink-0 block">
                             {member.avatarUrl ? (
                               <img
-                                src={member.avatarUrl}
+                                src={sanitizeImageUrl(member.avatarUrl)}
                                 alt={member.name || member.customName || 'Relative'}
                                 className="w-6 h-6 rounded-full object-cover border border-white/10"
                               />
@@ -370,7 +371,7 @@ export const PersonalMetaWidget: React.FC<PersonalMetaWidgetProps> = ({
                         <div className="relative shrink-0">
                           {member.avatarUrl ? (
                             <img
-                              src={member.avatarUrl}
+                              src={sanitizeImageUrl(member.avatarUrl)}
                               alt={member.name || member.customName || 'Relative'}
                               className="w-6 h-6 rounded-full object-cover border border-white/10"
                             />

@@ -23,6 +23,7 @@ import { useCurrentUser } from '@/entities/profile/model/useCurrentUser';
 import Tooltip from '@/shared/ui/Tooltip';
 import { TrackActionMenu } from './TrackActionMenu';
 import { PlaylistActionMenu } from './PlaylistActionMenu';
+import { isSoundCloudUrl } from '@/shared/lib/urlSecurity';
 
 export type SearchCategory = 'all' | 'tracks' | 'playlists';
 
@@ -673,7 +674,7 @@ export const MusicSearchResultsView: React.FC<MusicSearchResultsViewProps> = ({
         Boolean(track.streamUrl) ||
         track.id.startsWith('sc-') ||
         track.id.startsWith('soundcloud-') ||
-        track.spotifyUrl?.includes('soundcloud.com');
+        isSoundCloudUrl(track.spotifyUrl);
 
       let queue = [...trackList.slice(index + 1), ...trackList.slice(0, index)];
       if (isSoundCloud) {
@@ -683,7 +684,7 @@ export const MusicSearchResultsView: React.FC<MusicSearchResultsViewProps> = ({
             Boolean(t.streamUrl) ||
             t.id.startsWith('sc-') ||
             t.id.startsWith('soundcloud-') ||
-            t.spotifyUrl?.includes('soundcloud.com'),
+            isSoundCloudUrl(t.spotifyUrl),
         );
       }
       playTrack(track, queue, `Search: ${query}`);

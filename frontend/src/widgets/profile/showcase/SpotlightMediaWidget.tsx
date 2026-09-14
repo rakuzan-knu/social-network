@@ -5,6 +5,7 @@ import type { ProfileShowcaseDto } from '@backend/common/contracts';
 import { chatApi } from '@/features/chat/api/chatApi';
 import { useChatDraftsStore } from '@/features/chat/model/useChatDraftsStore';
 import { useMediaDetailModalStore } from '@/entities/showcase/model/useMediaDetailModalStore';
+import { sanitizeImageUrl, sanitizeExternalUrl } from '@/shared/lib/urlSecurity';
 
 interface SpotlightMediaWidgetProps {
   showcase: ProfileShowcaseDto;
@@ -95,7 +96,7 @@ export const SpotlightMediaWidget: React.FC<SpotlightMediaWidgetProps> = ({
             )}
 
             <img
-              src={bannerSource}
+              src={sanitizeImageUrl(bannerSource)}
               alt={spotlightMedia.title}
               onError={() => setImageError(true)}
               className="relative w-full h-full object-cover transition-transform duration-500 group-hover/hero:scale-105"
@@ -124,7 +125,7 @@ export const SpotlightMediaWidget: React.FC<SpotlightMediaWidgetProps> = ({
 
             {spotlightMedia.externalUrl && (
               <a
-                href={spotlightMedia.externalUrl}
+                href={sanitizeExternalUrl(spotlightMedia.externalUrl, '#')}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="absolute top-2.5 right-2.5 p-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-white/80 hover:text-white hover:scale-105 transition-all shadow-md"

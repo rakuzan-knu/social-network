@@ -4,17 +4,7 @@ import { X, Play, Pause, Mic2, SkipBack, SkipForward } from 'lucide-react';
 import { useSpotifyPlayerStore } from '@/shared/model/useSpotifyPlayerStore';
 import { integrationsApi } from '@/entities/showcase/api/integrationsApi';
 import { SpotifyBrandIcon, SoundCloudBrandIcon } from '@/shared/ui/BrandIcons';
-import { getSafeSpotifyTrackUrl } from '@/shared/lib/spotifyUrl';
-
-const unescapeHtml = (str?: string): string => {
-  if (!str) return '';
-  return str
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'");
-};
+import { getSafeSpotifyTrackUrl, unescapeHtml, isSoundCloudUrl } from '@/shared/lib/spotifyUrl';
 
 const DEFAULT_ARTWORK_FALLBACK =
   'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=200&auto=format&fit=crop&q=80';
@@ -45,7 +35,7 @@ export const SpotifyLyricsModal: React.FC = () => {
     currentTrack?.source === 'soundcloud' ||
     currentTrack?.id?.startsWith('sc-') ||
     currentTrack?.id?.startsWith('soundcloud-') ||
-    currentTrack?.spotifyUrl?.includes('soundcloud.com'),
+    isSoundCloudUrl(currentTrack?.spotifyUrl),
   );
 
   // Fetch lyrics whenever currentTrack changes or lyrics modal opens

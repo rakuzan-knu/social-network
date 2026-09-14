@@ -121,6 +121,8 @@ export default function Sidebar() {
                 <div key={item.label} className="relative" ref={createMenuRef}>
                   <NavLink
                     to="/create"
+                    aria-label={item.label}
+                    title={item.label}
                     onClick={(e) => {
                       e.preventDefault();
                       setIsCreateMenuOpen((v) => !v);
@@ -179,6 +181,8 @@ export default function Sidebar() {
                 key={item.to}
                 to={item.to}
                 end={item.to === '/'}
+                aria-label={item.label}
+                title={item.label}
                 className={({ isActive }) =>
                   `flex items-center rounded-2xl transition-all duration-300 ease-out group relative h-12 ${
                     isActive

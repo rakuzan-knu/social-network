@@ -5,17 +5,29 @@ import Sidebar from '../widgets/sidebar/ui/Sidebar';
 import { UndoHideSnackbar } from '../features/posts/ui/UndoHideSnackbar';
 import { UndoClearHistorySnackbar } from '../features/chat/ui/UndoClearHistorySnackbar';
 import DeviceLockGate from '../features/profile/ui/security/DeviceLockGate';
-import MessageToastViewport from '../features/chat/ui/MessageToastViewport';
-import FloatingVideoNotePiP from '../features/chat/ui/FloatingVideoNotePiP';
-import ReactionBurstCanvas from '../features/chat/ui/ReactionBurstCanvas';
+const MessageToastViewport = lazy(() => import('../features/chat/ui/MessageToastViewport'));
+const FloatingVideoNotePiP = lazy(() => import('../features/chat/ui/FloatingVideoNotePiP'));
+const ReactionBurstCanvas = lazy(() => import('../features/chat/ui/ReactionBurstCanvas'));
 
 import { useUIStore } from '../shared/model/useUIStore';
 import { useAuthStore } from '../shared/model/useAuthStore';
 import { useSpotifyPlayerStore } from '../shared/model/useSpotifyPlayerStore';
-import { SpotifyBottomDock } from '../widgets/player/SpotifyBottomDock';
-import { SpotifyLyricsModal } from '../widgets/player/SpotifyLyricsModal';
-import { SpotifyMobilePlayerSheet } from '../widgets/player/SpotifyMobilePlayerSheet';
-import { SpotifyGameModePlayer } from '../widgets/player/SpotifyGameModePlayer';
+const SpotifyBottomDock = lazy(() =>
+  import('../widgets/player/SpotifyBottomDock').then((m) => ({ default: m.SpotifyBottomDock })),
+);
+const SpotifyLyricsModal = lazy(() =>
+  import('../widgets/player/SpotifyLyricsModal').then((m) => ({ default: m.SpotifyLyricsModal })),
+);
+const SpotifyMobilePlayerSheet = lazy(() =>
+  import('../widgets/player/SpotifyMobilePlayerSheet').then((m) => ({
+    default: m.SpotifyMobilePlayerSheet,
+  })),
+);
+const SpotifyGameModePlayer = lazy(() =>
+  import('../widgets/player/SpotifyGameModePlayer').then((m) => ({
+    default: m.SpotifyGameModePlayer,
+  })),
+);
 
 const EditProfileModal = lazy(() => import('../features/profile/ui/EditProfileModal'));
 const ShareModal = lazy(() =>
@@ -110,7 +122,11 @@ const CreatorsPage = lazy(() =>
   import('../pages/Creators/CreatorsPage').then((m) => ({ default: m.CreatorsPage })),
 );
 
-import { OnlineFriendsSidebar } from '../widgets/sidebar/ui/OnlineFriendsSidebar';
+const OnlineFriendsSidebar = lazy(() =>
+  import('../widgets/sidebar/ui/OnlineFriendsSidebar').then((m) => ({
+    default: m.OnlineFriendsSidebar,
+  })),
+);
 import { usePresenceSync } from '../features/chat/model/usePresence';
 import { useDynamicTabBadge } from '../shared/lib/useDynamicTabBadge';
 import { ScrollToTop } from '../shared/lib/ScrollToTop';
@@ -142,7 +158,9 @@ function FeedLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex w-full justify-center gap-8 py-8 px-4">
       <div className="w-full max-w-2xl">{children}</div>
-      <OnlineFriendsSidebar />
+      <Suspense fallback={null}>
+        <OnlineFriendsSidebar />
+      </Suspense>
     </div>
   );
 }
@@ -363,10 +381,10 @@ export default function App() {
       >
         <ScrollToTop />
         {isGameModeOpen ? (
-          <>
+          <Suspense fallback={null}>
             <SpotifyGameModePlayer />
             <SpotifyLyricsModal />
-          </>
+          </Suspense>
         ) : (
           <>
             {!isStandaloneRoute && <Sidebar />}
@@ -379,14 +397,18 @@ export default function App() {
             </Suspense>
             <UndoHideSnackbar />
             <UndoClearHistorySnackbar />
-            <FloatingVideoNotePiP />
-            <ReactionBurstCanvas />
-            {!isMessengerRoute && <MessageToastViewport />}
+            <Suspense fallback={null}>
+              <FloatingVideoNotePiP />
+              <ReactionBurstCanvas />
+              {!isMessengerRoute && <MessageToastViewport />}
+            </Suspense>
 
             {/* Global Spotify Apple Liquid Glass Player Dock & Overlays */}
-            <SpotifyBottomDock />
-            <SpotifyLyricsModal />
-            <SpotifyMobilePlayerSheet />
+            <Suspense fallback={null}>
+              <SpotifyBottomDock />
+              <SpotifyLyricsModal />
+              <SpotifyMobilePlayerSheet />
+            </Suspense>
 
             <main
               className={

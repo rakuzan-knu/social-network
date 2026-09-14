@@ -25,6 +25,7 @@ import { useShowcase } from '@/entities/showcase/model/useShowcase';
 import { useMediaDetailModalStore } from '@/entities/showcase/model/useMediaDetailModalStore';
 import { chatApi } from '@/features/chat/api/chatApi';
 import { useChatDraftsStore } from '@/features/chat/model/useChatDraftsStore';
+import { sanitizeImageUrl, sanitizeExternalUrl } from '@/shared/lib/urlSecurity';
 
 interface ShowcaseWishlistWidgetProps {
   showcase: ProfileShowcaseDto;
@@ -223,7 +224,7 @@ export const ShowcaseWishlistWidget: React.FC<ShowcaseWishlistWidgetProps> = ({
                 className="flex items-center gap-3 p-2.5 rounded-2xl bg-white/[0.02] hover:bg-white/[0.06] border border-white/[0.06] transition-all cursor-pointer hover:border-indigo-500/40"
               >
                 <img
-                  src={item.posterUrl}
+                  src={sanitizeImageUrl(item.posterUrl)}
                   alt={item.title}
                   loading="lazy"
                   decoding="async"
@@ -241,9 +242,9 @@ export const ShowcaseWishlistWidget: React.FC<ShowcaseWishlistWidgetProps> = ({
                     <span className="text-xs font-bold text-white truncate">{item.title}</span>
                     {item.externalUrl && (
                       <a
-                        href={item.externalUrl}
+                        href={sanitizeExternalUrl(item.externalUrl, '#')}
                         target="_blank"
-                        rel="noreferrer"
+                        rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
                         className="text-gray-500 hover:text-gray-300 shrink-0 pointer-events-auto"
                       >
@@ -314,7 +315,7 @@ export const ShowcaseWishlistWidget: React.FC<ShowcaseWishlistWidgetProps> = ({
                   className="flex items-center gap-3 p-2.5 rounded-2xl bg-white/[0.02] hover:bg-white/[0.06] border border-white/[0.06] transition-all cursor-pointer hover:border-indigo-500/40"
                 >
                   <img
-                    src={item.posterUrl}
+                    src={sanitizeImageUrl(item.posterUrl)}
                     alt={item.title}
                     loading="lazy"
                     decoding="async"
@@ -331,9 +332,9 @@ export const ShowcaseWishlistWidget: React.FC<ShowcaseWishlistWidgetProps> = ({
                       <span className="text-xs font-bold text-white truncate">{item.title}</span>
                       {item.externalUrl && (
                         <a
-                          href={item.externalUrl}
+                          href={sanitizeExternalUrl(item.externalUrl, '#')}
                           target="_blank"
-                          rel="noreferrer"
+                          rel="noopener noreferrer"
                           className="text-gray-500 hover:text-gray-300 shrink-0"
                         >
                           <ExternalLink size={11} />

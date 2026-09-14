@@ -5,6 +5,7 @@ import { X, Copy, Download, Check, Loader2, Share2, Sparkles, Flame, Star } from
 import type { ProfileShowcaseDto } from '@backend/common/contracts';
 import { useMessageToastStore } from '@/shared/model/useMessageToastStore';
 import Avatar from '@/shared/ui/Avatar';
+import { sanitizeImageUrl } from '@/shared/lib/urlSecurity';
 
 interface ExportShowcaseModalProps {
   isOpen: boolean;
@@ -192,14 +193,14 @@ export const ExportShowcaseModal: React.FC<ExportShowcaseModalProps> = ({
             <div className="relative rounded-2xl overflow-hidden bg-white/[0.03] border border-white/[0.08] p-3 flex items-center gap-3.5 backdrop-blur-xl">
               {user.banner && (
                 <img
-                  src={user.banner}
+                  src={sanitizeImageUrl(user.banner)}
                   alt="Banner"
                   crossOrigin="anonymous"
                   className="absolute inset-0 w-full h-full object-cover opacity-20 blur-xs pointer-events-none"
                 />
               )}
               <Avatar
-                src={user.avatar}
+                src={sanitizeImageUrl(user.avatar)}
                 alt={user.displayName}
                 size="md"
                 className="w-13 h-13 rounded-2xl border-2 border-white/20 shrink-0"
@@ -225,7 +226,7 @@ export const ExportShowcaseModal: React.FC<ExportShowcaseModalProps> = ({
 
                 <div className="relative rounded-xl overflow-hidden aspect-[16/9] border border-white/10 bg-black/40">
                   <img
-                    src={bannerSource}
+                    src={sanitizeImageUrl(bannerSource)}
                     alt={showcase.spotlightMedia.title}
                     crossOrigin="anonymous"
                     className="w-full h-full object-cover"
@@ -281,7 +282,7 @@ export const ExportShowcaseModal: React.FC<ExportShowcaseModalProps> = ({
                       className="aspect-[2/3] rounded-xl overflow-hidden border border-white/10 bg-black/40 relative"
                     >
                       <img
-                        src={m.posterUrl}
+                        src={sanitizeImageUrl(m.posterUrl)}
                         alt={m.title}
                         crossOrigin="anonymous"
                         className="w-full h-full object-cover"

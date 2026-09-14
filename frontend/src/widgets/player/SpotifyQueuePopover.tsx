@@ -3,16 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Play, Trash2, ListMusic, Music, RefreshCw, Sparkles, Loader2 } from 'lucide-react';
 import { SoundCloudBrandIcon, SpotifyBrandIcon } from '@/shared/ui/BrandIcons';
 import { useSpotifyPlayerStore } from '@/shared/model/useSpotifyPlayerStore';
-
-const unescapeHtml = (str?: string) => {
-  if (!str) return '';
-  return str
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'");
-};
+import { unescapeHtml, isSoundCloudUrl } from '@/shared/lib/spotifyUrl';
 
 const DEFAULT_ARTWORK_FALLBACK =
   'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=200&auto=format&fit=crop&q=80';
@@ -74,7 +65,7 @@ export const SpotifyQueuePopover: React.FC<SpotifyQueuePopoverProps> = ({ align 
     currentTrack?.source === 'soundcloud' ||
     currentTrack?.id?.startsWith('sc-') ||
     currentTrack?.id?.startsWith('soundcloud-') ||
-    currentTrack?.spotifyUrl?.includes('soundcloud.com'),
+    isSoundCloudUrl(currentTrack?.spotifyUrl),
   );
 
   const displayedQueue = queue.slice(0, 10);
@@ -299,7 +290,7 @@ export const SpotifyQueuePopover: React.FC<SpotifyQueuePopoverProps> = ({ align 
                       track.source === 'soundcloud' ||
                       track.id?.startsWith('sc-') ||
                       track.id?.startsWith('soundcloud-') ||
-                      track.spotifyUrl?.includes('soundcloud.com'),
+                      isSoundCloudUrl(track.spotifyUrl),
                     );
 
                     return (
@@ -410,7 +401,7 @@ export const SpotifyQueuePopover: React.FC<SpotifyQueuePopoverProps> = ({ align 
                       track.source === 'soundcloud' ||
                       track.id?.startsWith('sc-') ||
                       track.id?.startsWith('soundcloud-') ||
-                      track.spotifyUrl?.includes('soundcloud.com'),
+                      isSoundCloudUrl(track.spotifyUrl),
                     );
 
                     return (

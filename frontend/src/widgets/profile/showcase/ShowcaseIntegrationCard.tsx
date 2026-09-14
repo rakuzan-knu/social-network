@@ -5,13 +5,9 @@ import {
   GitFork,
   Check,
   Flame,
-  Radio,
   Gamepad2,
-  Trophy,
-  Shield,
   Play,
   Layers,
-  Heart,
   Music,
   Users,
   Code2,
@@ -38,7 +34,11 @@ import { CS2PremierBadge } from '@/shared/ui/CS2PremierBadge';
 import { SteamLevelBadge } from '@/shared/ui/SteamLevelBadge';
 import { calculateDotaRank } from '@/entities/showcase/lib/dotaRanks';
 import { calculateCS2Premier } from '@/entities/showcase/lib/cs2Ranks';
-import { getSafeSpotifyTrackUrl } from '@/shared/lib/spotifyUrl';
+import {
+  getSafeSpotifyTrackUrl,
+  sanitizeImageUrl,
+  sanitizePlatformUrl,
+} from '@/shared/lib/spotifyUrl';
 
 interface ShowcaseIntegrationCardProps {
   platform: string;
@@ -215,7 +215,7 @@ export const ShowcaseIntegrationCard: React.FC<ShowcaseIntegrationCardProps> = (
             <div className="flex items-center justify-between p-3 rounded-2xl bg-gradient-to-r from-indigo-950/40 via-purple-950/30 to-black/60 border border-indigo-500/30">
               <div className="flex items-center gap-3">
                 <img
-                  src={data.lol.rankIcon}
+                  src={sanitizeImageUrl(data.lol.rankIcon)}
                   alt="LoL Rank"
                   loading="lazy"
                   decoding="async"
@@ -241,10 +241,10 @@ export const ShowcaseIntegrationCard: React.FC<ShowcaseIntegrationCardProps> = (
             <div className="flex items-center justify-between p-3 rounded-2xl bg-gradient-to-r from-rose-950/40 via-red-950/30 to-black/60 border border-rose-500/30">
               <div className="flex items-center gap-3">
                 <img
-                  src={
-                    data.valorant?.rankIcon ||
-                    'https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/23/largeicon.png'
-                  }
+                  src={sanitizeImageUrl(
+                    data.valorant?.rankIcon,
+                    'https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/23/largeicon.png',
+                  )}
                   alt="Valorant Rank"
                   loading="lazy"
                   decoding="async"
@@ -275,7 +275,7 @@ export const ShowcaseIntegrationCard: React.FC<ShowcaseIntegrationCardProps> = (
         <div className="flex items-center justify-between p-3 rounded-2xl bg-gradient-to-r from-blue-950/40 to-black/60 border border-blue-500/30">
           <div className="flex items-center gap-3">
             <img
-              src={data.wow.classIcon}
+              src={sanitizeImageUrl(data.wow.classIcon)}
               alt="WoW Class"
               loading="lazy"
               decoding="async"
@@ -351,9 +351,9 @@ export const ShowcaseIntegrationCard: React.FC<ShowcaseIntegrationCardProps> = (
           {data.showPinnedRepo !== false && data.pinnedRepo && (
             <a
               href={
-                data.pinnedRepo.url ||
+                sanitizePlatformUrl(data.pinnedRepo.url, ['github.com']) ||
                 `https://github.com/${encodeURIComponent(data.username || '')}/${encodeURIComponent(
-                  data.pinnedRepo.name,
+                  data.pinnedRepo.name || '',
                 )}`
               }
               target="_blank"
@@ -417,7 +417,12 @@ export const ShowcaseIntegrationCard: React.FC<ShowcaseIntegrationCardProps> = (
 
             {data.url && (
               <a
-                href={data.url}
+                href={
+                  sanitizePlatformUrl(data.url, ['youtube.com', 'youtu.be']) ||
+                  (data.username
+                    ? `https://www.youtube.com/@${encodeURIComponent(data.username)}`
+                    : 'https://youtube.com')
+                }
                 target="_blank"
                 rel="noopener noreferrer"
                 className="ml-auto flex items-center gap-1 text-[11px] font-semibold text-red-400 hover:text-red-300 hover:underline transition-colors py-0.5"
@@ -438,18 +443,29 @@ export const ShowcaseIntegrationCard: React.FC<ShowcaseIntegrationCardProps> = (
                 {data.videos.slice(0, 3).map((v: any, idx: number) => (
                   <a
                     key={v.id || idx}
-                    href={v.url || `https://www.youtube.com/watch?v=${v.id}`}
+                    href={
+                      sanitizePlatformUrl(v.url, ['youtube.com', 'youtu.be']) ||
+                      (v.id
+                        ? `https://www.youtube.com/watch?v=${encodeURIComponent(v.id)}`
+                        : 'https://youtube.com')
+                    }
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex flex-col gap-1.5 group/vid cursor-pointer"
                   >
                     <div className="relative aspect-video rounded-xl overflow-hidden bg-black/50 border border-white/10 group-hover/vid:border-red-500/50 group-hover/vid:shadow-[0_0_12px_rgba(239,68,68,0.25)] transition-all">
-                      <img
-                        src={v.thumbnailUrl}
-                        alt={v.title}
-                        loading="lazy"
-                        className="w-full h-full object-cover transition-transform duration-300 group-hover/vid:scale-105"
-                      />
+                      {sanitizeImageUrl(v.thumbnailUrl) ? (
+                        <img
+                          src={sanitizeImageUrl(v.thumbnailUrl)}
+                          alt={v.title}
+                          loading="lazy"
+                          className="w-full h-full object-cover transition-transform duration-300 group-hover/vid:scale-105"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-red-950/40 flex items-center justify-center">
+                          <Play size={20} className="text-red-500/60" />
+                        </div>
+                      )}
                       <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover/vid:opacity-100 transition-opacity">
                         <div className="w-7 h-7 rounded-full bg-red-600/90 text-white flex items-center justify-center shadow-lg transform group-hover/vid:scale-110 transition-transform">
                           <Play size={12} className="fill-white translate-x-0.5" />
@@ -477,16 +493,17 @@ export const ShowcaseIntegrationCard: React.FC<ShowcaseIntegrationCardProps> = (
         <div className="flex flex-col gap-3">
           {/* Avatar Render & Stats Header */}
           <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.02] border border-white/[0.06]">
-            {data.showAvatarRender !== false && (data.avatarBustUrl || data.avatarUrl) && (
-              <div className="relative w-12 h-12 rounded-2xl overflow-hidden bg-gradient-to-b from-blue-900/30 to-black/60 border border-white/10 shrink-0 shadow-inner flex items-center justify-center">
-                <img
-                  src={data.avatarBustUrl || data.avatarUrl}
-                  alt={data.username || 'Roblox Avatar'}
-                  loading="lazy"
-                  className="w-full h-full object-cover scale-110"
-                />
-              </div>
-            )}
+            {data.showAvatarRender !== false &&
+              Boolean(sanitizeImageUrl(data.avatarBustUrl || data.avatarUrl)) && (
+                <div className="relative w-12 h-12 rounded-2xl overflow-hidden bg-gradient-to-b from-blue-900/30 to-black/60 border border-white/10 shrink-0 shadow-inner flex items-center justify-center">
+                  <img
+                    src={sanitizeImageUrl(data.avatarBustUrl || data.avatarUrl)}
+                    alt={data.username || 'Roblox Avatar'}
+                    loading="lazy"
+                    className="w-full h-full object-cover scale-110"
+                  />
+                </div>
+              )}
 
             <div className="flex flex-col min-w-0 flex-1">
               <div className="flex items-center gap-1.5 min-w-0">
@@ -523,7 +540,12 @@ export const ShowcaseIntegrationCard: React.FC<ShowcaseIntegrationCardProps> = (
 
             {(data.url || data.userId) && (
               <a
-                href={data.url || `https://www.roblox.com/users/${data.userId}/profile`}
+                href={
+                  sanitizePlatformUrl(data.url, ['roblox.com']) ||
+                  (data.userId
+                    ? `https://www.roblox.com/users/${encodeURIComponent(data.userId)}/profile`
+                    : 'https://www.roblox.com')
+                }
                 target="_blank"
                 rel="noopener noreferrer"
                 className="shrink-0 p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-gray-400 hover:text-white transition-colors"
@@ -568,11 +590,11 @@ export const ShowcaseIntegrationCard: React.FC<ShowcaseIntegrationCardProps> = (
                   <div className="grid grid-cols-5 gap-2">
                     {list.map((item: any, idx: number) => {
                       const itemUrl =
-                        item.url ||
+                        sanitizePlatformUrl(item.url, ['roblox.com']) ||
                         (item.placeId
-                          ? `https://www.roblox.com/games/${item.placeId}`
+                          ? `https://www.roblox.com/games/${encodeURIComponent(item.placeId)}`
                           : item.assetId
-                            ? `https://www.roblox.com/catalog/${item.assetId}`
+                            ? `https://www.roblox.com/catalog/${encodeURIComponent(item.assetId)}`
                             : null);
 
                       const content = (
@@ -580,9 +602,9 @@ export const ShowcaseIntegrationCard: React.FC<ShowcaseIntegrationCardProps> = (
                           className="group/item relative aspect-square rounded-xl bg-white/[0.03] hover:bg-white/[0.07] border border-white/[0.08] hover:border-white/[0.25] p-1 flex items-center justify-center transition-all overflow-hidden shadow-sm hover:shadow-md cursor-pointer"
                           title={item.name}
                         >
-                          {item.iconUrl ? (
+                          {sanitizeImageUrl(item.iconUrl) ? (
                             <img
-                              src={item.iconUrl}
+                              src={sanitizeImageUrl(item.iconUrl)}
                               alt={item.name || 'Roblox Item'}
                               loading="lazy"
                               className={`w-full h-full ${
@@ -609,7 +631,7 @@ export const ShowcaseIntegrationCard: React.FC<ShowcaseIntegrationCardProps> = (
                       return itemUrl ? (
                         <a
                           key={item.assetId || item.placeId || item.universeId || idx}
-                          href={itemUrl}
+                          href={sanitizePlatformUrl(itemUrl, ['roblox.com'], '#')}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="block focus:outline-none focus:ring-1 focus:ring-white/30 rounded-xl"
@@ -638,7 +660,7 @@ export const ShowcaseIntegrationCard: React.FC<ShowcaseIntegrationCardProps> = (
                   <div className="relative shrink-0">
                     <div className="w-10 h-10 rounded-xl overflow-hidden bg-purple-950/60 border border-purple-400/40 shadow-sm">
                       <img
-                        src={data.avatarUrl || '/icons/brands/twitch.png'}
+                        src={sanitizeImageUrl(data.avatarUrl, '/icons/brands/twitch.png')}
                         alt={data.displayName || data.username}
                         className="w-full h-full object-cover"
                       />
@@ -693,7 +715,12 @@ export const ShowcaseIntegrationCard: React.FC<ShowcaseIntegrationCardProps> = (
 
               {/* Watch on Twitch Link Button */}
               <a
-                href={data.url || `https://twitch.tv/${data.username}`}
+                href={
+                  sanitizePlatformUrl(data.url, ['twitch.tv']) ||
+                  (data.username
+                    ? `https://twitch.tv/${encodeURIComponent(data.username)}`
+                    : 'https://twitch.tv')
+                }
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center justify-center gap-1.5 text-xs font-bold text-white bg-[#9146FF] hover:bg-[#772ce8] transition-all rounded-xl py-2 px-3 shadow-[0_4px_14px_rgba(145,70,255,0.35)] hover:scale-101 active:scale-99 cursor-pointer"
@@ -709,7 +736,7 @@ export const ShowcaseIntegrationCard: React.FC<ShowcaseIntegrationCardProps> = (
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div className="w-10 h-10 rounded-xl overflow-hidden bg-purple-950/30 border border-white/10 shrink-0">
                     <img
-                      src={data.avatarUrl || '/icons/brands/twitch.png'}
+                      src={sanitizeImageUrl(data.avatarUrl, '/icons/brands/twitch.png')}
                       alt={data.displayName || data.username}
                       className="w-full h-full object-cover"
                     />
@@ -737,7 +764,12 @@ export const ShowcaseIntegrationCard: React.FC<ShowcaseIntegrationCardProps> = (
 
               {/* Visit Channel Link */}
               <a
-                href={data.url || `https://twitch.tv/${data.username}`}
+                href={
+                  sanitizePlatformUrl(data.url, ['twitch.tv']) ||
+                  (data.username
+                    ? `https://twitch.tv/${encodeURIComponent(data.username)}`
+                    : 'https://twitch.tv')
+                }
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center justify-center gap-1.5 text-xs font-semibold text-purple-300 hover:text-white bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 rounded-xl py-2 px-3 transition-colors cursor-pointer"
@@ -807,7 +839,7 @@ export const ShowcaseIntegrationCard: React.FC<ShowcaseIntegrationCardProps> = (
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
                           <img
-                            src={track.albumArt || '/icons/brands/spotify.png'}
+                            src={sanitizeImageUrl(track.albumArt, '/icons/brands/spotify.png')}
                             alt={track.title}
                             loading="lazy"
                             decoding="async"
@@ -856,7 +888,12 @@ export const ShowcaseIntegrationCard: React.FC<ShowcaseIntegrationCardProps> = (
                     displayPlaylists.map((pl) => (
                       <a
                         key={pl.id}
-                        href={pl.externalUrl || `https://open.spotify.com/playlist/${pl.id}`}
+                        href={
+                          sanitizePlatformUrl(pl.externalUrl, ['spotify.com']) ||
+                          (pl.id
+                            ? `https://open.spotify.com/playlist/${encodeURIComponent(pl.id)}`
+                            : 'https://open.spotify.com')
+                        }
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center justify-between p-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] hover:border-white/[0.12] transition-all group/pl cursor-pointer"
@@ -864,7 +901,7 @@ export const ShowcaseIntegrationCard: React.FC<ShowcaseIntegrationCardProps> = (
                         <div className="flex items-center gap-2.5 min-w-0">
                           {pl.coverUrl ? (
                             <img
-                              src={pl.coverUrl}
+                              src={sanitizeImageUrl(pl.coverUrl)}
                               alt={pl.name}
                               loading="lazy"
                               decoding="async"
@@ -903,9 +940,8 @@ export const ShowcaseIntegrationCard: React.FC<ShowcaseIntegrationCardProps> = (
                 {data.spotifyUrl && (
                   <a
                     href={
-                      data.spotifyUrl?.includes('spotify.com')
-                        ? data.spotifyUrl
-                        : 'https://open.spotify.com'
+                      sanitizePlatformUrl(data.spotifyUrl, ['spotify.com']) ||
+                      'https://open.spotify.com'
                     }
                     target="_blank"
                     rel="noopener noreferrer"

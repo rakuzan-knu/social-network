@@ -10,6 +10,7 @@ import {
 import { chatApi } from '@/features/chat/api/chatApi';
 import { useChatDraftsStore } from '@/features/chat/model/useChatDraftsStore';
 import { useMediaDetailModalStore } from '@/entities/showcase/model/useMediaDetailModalStore';
+import { sanitizeImageUrl, sanitizeExternalUrl } from '@/shared/lib/urlSecurity';
 
 interface MediaShowcaseWidgetProps {
   showcase: ProfileShowcaseDto;
@@ -94,7 +95,7 @@ const SpecularPosterSlot: React.FC<SpecularPosterSlotProps> = ({ item, isOwner, 
       }`}
     >
       <img
-        src={item.posterUrl}
+        src={sanitizeImageUrl(item.posterUrl)}
         alt={item.title}
         loading="lazy"
         decoding="async"
@@ -171,7 +172,7 @@ const SpecularPosterSlot: React.FC<SpecularPosterSlotProps> = ({ item, isOwner, 
 
         {item.externalUrl && (
           <a
-            href={item.externalUrl}
+            href={sanitizeExternalUrl(item.externalUrl, '#')}
             target="_blank"
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}

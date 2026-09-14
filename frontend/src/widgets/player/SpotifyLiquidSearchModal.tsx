@@ -4,6 +4,7 @@ import { Search, X, Play, Loader2, Music, Clock } from 'lucide-react';
 import { integrationsApi } from '@/entities/showcase/api/integrationsApi';
 import { useSpotifyPlayerStore, type SpotifyTrack } from '@/shared/model/useSpotifyPlayerStore';
 import { SpotifyBrandIcon, SoundCloudBrandIcon } from '@/shared/ui/BrandIcons';
+import { unescapeHtml } from '@/shared/lib/spotifyUrl';
 
 const formatDuration = (ms?: number): string => {
   if (!ms || ms <= 0) return '0:00';
@@ -11,16 +12,6 @@ const formatDuration = (ms?: number): string => {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-};
-
-const unescapeHtml = (str?: string): string => {
-  if (!str) return '';
-  return str
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'");
 };
 
 interface SpotifyLiquidSearchModalProps {

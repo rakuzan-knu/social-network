@@ -15,6 +15,7 @@ import {
 import type { SpotifyTrack } from '@/shared/model/useSpotifyPlayerStore';
 import { SoundCloudBrandIcon, SpotifyBrandIcon } from '@/shared/ui/BrandIcons';
 import { useMessageToastStore } from '@/shared/model/useMessageToastStore';
+import { isSoundCloudUrl } from '@/shared/lib/urlSecurity';
 
 interface TrackDetailsModalProps {
   isOpen: boolean;
@@ -58,9 +59,7 @@ export const TrackDetailsModal: React.FC<TrackDetailsModalProps> = ({ isOpen, on
   if (!isOpen) return null;
 
   const isSoundCloud =
-    track.source === 'soundcloud' ||
-    Boolean(track.streamUrl) ||
-    track.spotifyUrl?.includes('soundcloud.com');
+    track.source === 'soundcloud' || Boolean(track.streamUrl) || isSoundCloudUrl(track.spotifyUrl);
 
   const formatDuration = (ms?: number) => {
     if (!ms) return '0:00';

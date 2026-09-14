@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { calculateDotaRank, DotaRankInfo } from '@/entities/showcase/lib/dotaRanks';
+import { sanitizeImageUrl } from '@/shared/lib/urlSecurity';
 
 interface DotaRankMedalProps {
   mmr?: number;
@@ -21,16 +22,17 @@ export const DotaRankMedal: React.FC<DotaRankMedalProps> = ({
   showTooltip = true,
 }) => {
   const rank = customRankInfo || calculateDotaRank(mmr);
-  const initialIcon = rankIcon || rank.medalIcon;
+  const initialIcon = sanitizeImageUrl(rankIcon, rank.medalIcon);
   const [imgSrc, setImgSrc] = useState<string>(initialIcon);
   const [hasError, setHasError] = useState(false);
 
   React.useEffect(() => {
     if (rankIcon) {
-      setImgSrc(rankIcon);
-      setHasError(false);
+      const safe = sanitizeImageUrl(rankIcon, rank.medalIcon);
+      setImgSrc(safe);
+      setHasError(!safe);
     }
-  }, [rankIcon]);
+  }, [rankIcon, rank.medalIcon]);
 
   const sizeClasses = {
     sm: 'w-7 h-7',
@@ -40,7 +42,18 @@ export const DotaRankMedal: React.FC<DotaRankMedalProps> = ({
   }[size];
 
   const handleImageError = () => {
-    if (imgSrc.includes('dotabuff/panorama')) {
+    let isDotabuff = false;
+    try {
+      const parsed = new URL(imgSrc);
+      isDotabuff =
+        parsed.hostname === 'dotabuff.com' ||
+        parsed.hostname.endsWith('.dotabuff.com') ||
+        parsed.pathname.includes('/panorama/');
+    } catch {
+      isDotabuff = false;
+    }
+
+    if (isDotabuff) {
       // Fallback to opendota rank asset
       setImgSrc(
         `https://www.opendota.com/assets/images/dota2/rank_icons/rank_icon_${rank.tierId}.png`,

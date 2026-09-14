@@ -92,6 +92,23 @@ function extractPostInfo(body: string): { displayText: string; postId: string | 
   return { displayText: body, postId: null };
 }
 
+function isLegitimateSpotifyUrl(url: string | null): boolean {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url);
+    const isSpotifyHost =
+      parsed.hostname === 'spotify.com' ||
+      parsed.hostname === 'open.spotify.com' ||
+      parsed.hostname.endsWith('.spotify.com');
+    return (
+      isSpotifyHost &&
+      /^\/(track|album|playlist|episode|show)\/([a-zA-Z0-9]+)/i.test(parsed.pathname)
+    );
+  } catch {
+    return false;
+  }
+}
+
 export default function MessageBubble({
   message,
   isOwnMessage,
@@ -122,10 +139,7 @@ export default function MessageBubble({
 
   const { displayText, postId: embeddedPostId } = extractPostInfo(message.body || '');
   const firstExternalUrl = !embeddedPostId ? extractFirstUrl(message.body) : null;
-  const isSpotifyUrl = Boolean(
-    firstExternalUrl &&
-    /spotify\.com\/(track|album|playlist|episode|show)\/([a-zA-Z0-9]+)/i.test(firstExternalUrl),
-  );
+  const isSpotifyUrl = isLegitimateSpotifyUrl(firstExternalUrl);
   const hasLinkPreview = Boolean(firstExternalUrl);
 
   const [swipeOffset, setSwipeOffset] = useState(0);

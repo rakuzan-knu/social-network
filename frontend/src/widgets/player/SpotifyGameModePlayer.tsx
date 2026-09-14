@@ -24,6 +24,7 @@ import {
 import { SpotifyBrandIcon, SoundCloudBrandIcon } from '@/shared/ui/BrandIcons';
 import { useSpotifyPlayerStore } from '@/shared/model/useSpotifyPlayerStore';
 import { extractDominantColors, type AmbientPalette } from '@/shared/lib/extractDominantColors';
+import { unescapeHtml, isSoundCloudUrl } from '@/shared/lib/spotifyUrl';
 import { SpotifyQueuePopover } from './SpotifyQueuePopover';
 import { SpotifyLiquidSearchModal } from './SpotifyLiquidSearchModal';
 
@@ -32,16 +33,6 @@ const formatTime = (ms: number): string => {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-};
-
-const unescapeHtml = (str?: string): string => {
-  if (!str) return '';
-  return str
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'");
 };
 
 export const SpotifyGameModePlayer: React.FC = () => {
@@ -75,7 +66,7 @@ export const SpotifyGameModePlayer: React.FC = () => {
     currentTrack?.source === 'soundcloud' ||
     currentTrack?.id?.startsWith('sc-') ||
     currentTrack?.id?.startsWith('soundcloud-') ||
-    currentTrack?.spotifyUrl?.includes('soundcloud.com'),
+    isSoundCloudUrl(currentTrack?.spotifyUrl),
   );
 
   // Dynamic ambient palette state

@@ -41,14 +41,22 @@ export interface SpotifyLiveActivity {
   pausedAt?: number;
 }
 
+const SPOTIFY_HTML_ENTITIES: Record<string, string> = {
+  '&amp;': '&',
+  '&lt;': '<',
+  '&gt;': '>',
+  '&quot;': '"',
+  '&#39;': "'",
+  '&apos;': "'",
+  '&nbsp;': ' ',
+};
+
 export function cleanSpotifyText(text: string): string {
   if (!text) return '';
-  return text
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'");
+  return text.replace(
+    /&(?:amp|lt|gt|quot|#39|apos|nbsp);/gi,
+    (match) => SPOTIFY_HTML_ENTITIES[match.toLowerCase()] || match,
+  );
 }
 
 import { SoundCloudService } from './soundcloud.service';
@@ -418,11 +426,15 @@ export class SpotifyService {
       .replace(/^spotify:playlist:/, '')
       .replace(/^pl-/, '')
       .trim();
-    if (!cleanId) return null;
+    if (!cleanId || !/^[a-zA-Z0-9]{15,40}$/.test(cleanId)) return null;
+    const safeId = encodeURIComponent(cleanId);
 
     try {
       // 1. Fetch public embed HTML to extract full tracklist without user login
-      const res = await fetch(`https://open.spotify.com/embed/playlist/${cleanId}`, {
+      const embedUrl = new URL(`https://open.spotify.com/embed/playlist/${safeId}`);
+      if (embedUrl.origin !== 'https://open.spotify.com') return null;
+
+      const res = await fetch(embedUrl.toString(), {
         headers: {
           'User-Agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -481,7 +493,10 @@ export class SpotifyService {
 
       // 2. Fallback: query Web API metadata
       const token = await this.getAppToken();
-      const metaRes = await fetch(`https://api.spotify.com/v1/playlists/${cleanId}`, {
+      const apiUrl = new URL(`https://api.spotify.com/v1/playlists/${safeId}`);
+      if (apiUrl.origin !== 'https://api.spotify.com') return null;
+
+      const metaRes = await fetch(apiUrl.toString(), {
         headers: { Authorization: `Bearer ${token}` },
       });
 

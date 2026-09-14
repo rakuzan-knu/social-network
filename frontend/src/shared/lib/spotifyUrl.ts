@@ -1,14 +1,26 @@
+import { isSpotifyUrl, parseSpotifyUrl } from './urlSecurity';
+export * from './urlSecurity';
+
+const HTML_ENTITY_MAP: Record<string, string> = {
+  '&amp;': '&',
+  '&lt;': '<',
+  '&gt;': '>',
+  '&quot;': '"',
+  '&#39;': "'",
+  '&apos;': "'",
+  '&nbsp;': ' ',
+};
+
 /**
- * HTML entity decoder to guarantee clean string presentation and comparison
+ * HTML entity decoder to guarantee clean string presentation and comparison.
+ * Uses atomic single-pass substitution to prevent double unescaping.
  */
 export function unescapeHtml(str?: string): string {
   if (!str) return '';
-  return str
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'");
+  return str.replace(
+    /&(?:amp|lt|gt|quot|#39|apos|nbsp);/gi,
+    (match) => HTML_ENTITY_MAP[match.toLowerCase()] || match,
+  );
 }
 
 /**
@@ -33,12 +45,12 @@ export function extractSpotifyTrackId(
     }
   }
 
-  // 2. Extract from spotifyUrl or URI (e.g. https://open.spotify.com/track/48TKaLj9x4L329teHsLngL)
+  // 2. Extract from spotifyUrl or URI using anchored WHATWG parser
   const candidateUrls = [track.spotifyUrl, track.id, track.trackId].filter(Boolean) as string[];
   for (const url of candidateUrls) {
-    const match = url.match(/(?:track\/|track:)([a-zA-Z0-9]{22})/);
-    if (match && match[1]) {
-      return match[1];
+    const parsed = parseSpotifyUrl(url);
+    if (parsed && parsed.type === 'track' && /^[a-zA-Z0-9]{22}$/.test(parsed.id)) {
+      return parsed.id;
     }
   }
 
@@ -62,7 +74,7 @@ export function getSafeSpotifyTrackUrl(
   if (!track) return 'https://open.spotify.com';
 
   const rawUrl = track.spotifyUrl?.trim();
-  if (rawUrl && rawUrl.includes('spotify.com')) {
+  if (rawUrl && isSpotifyUrl(rawUrl)) {
     return rawUrl;
   }
 

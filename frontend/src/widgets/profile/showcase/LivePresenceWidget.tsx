@@ -26,6 +26,14 @@ import { audioCoordinator } from '@/shared/lib/audioCoordinator';
 import { useLiveElapsedTimer } from '@/shared/lib/activityTimer';
 import { useSpotifyPlayerStore } from '@/shared/model/useSpotifyPlayerStore';
 import { useJamSession } from '@/features/music/model/useJamSession';
+import {
+  unescapeHtml,
+  isSoundCloudUrl,
+  isSpotifyUrl,
+  sanitizeExternalUrl,
+  sanitizeImageUrl,
+  sanitizePlatformUrl,
+} from '@/shared/lib/spotifyUrl';
 import { ShowcaseIntegrationCard } from './ShowcaseIntegrationCard';
 
 interface LivePresenceWidgetProps {
@@ -33,16 +41,6 @@ interface LivePresenceWidgetProps {
   isOwner: boolean;
   onEditClick?: () => void;
 }
-
-const unescapeHtml = (str?: string) => {
-  if (!str) return '';
-  return str
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'");
-};
 
 const SpotifyPlayerCard: React.FC<{
   activity: any;
@@ -68,7 +66,7 @@ const SpotifyPlayerCard: React.FC<{
     activity.source === 'soundcloud' ||
     activity.trackId?.startsWith('sc-') ||
     activity.trackId?.startsWith('soundcloud-') ||
-    activity.externalUrl?.includes('soundcloud.com'),
+    isSoundCloudUrl(activity.externalUrl),
   );
 
   useEffect(() => {
@@ -155,7 +153,7 @@ const SpotifyPlayerCard: React.FC<{
         <div className="relative w-13 h-13 rounded-2xl overflow-hidden bg-[#18181b] shrink-0 border border-white/10 shadow-md group/art">
           {activity.imageUrl ? (
             <img
-              src={activity.imageUrl}
+              src={sanitizeImageUrl(activity.imageUrl)}
               alt={activity.title}
               loading="lazy"
               decoding="async"
@@ -229,7 +227,10 @@ const SpotifyPlayerCard: React.FC<{
               </Link>
             ) : isSoundCloud ? (
               <a
-                href={activity.externalUrl || 'https://soundcloud.com'}
+                href={
+                  sanitizePlatformUrl(activity.externalUrl, ['soundcloud.com']) ||
+                  'https://soundcloud.com'
+                }
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-[13px] font-bold text-white truncate hover:text-[#FF5500] hover:underline transition-colors"
@@ -239,7 +240,12 @@ const SpotifyPlayerCard: React.FC<{
               </a>
             ) : (
               <a
-                href={activity.externalUrl || `https://open.spotify.com/track/${activity.trackId}`}
+                href={
+                  sanitizePlatformUrl(activity.externalUrl, ['spotify.com']) ||
+                  (activity.trackId
+                    ? `https://open.spotify.com/track/${encodeURIComponent(activity.trackId)}`
+                    : 'https://open.spotify.com')
+                }
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-[13px] font-bold text-white truncate hover:text-[#1DB954] hover:underline transition-colors"
@@ -370,7 +376,10 @@ const SpotifyPlayerCard: React.FC<{
           </button>
         ) : isSoundCloud ? (
           <a
-            href={activity.externalUrl || 'https://soundcloud.com'}
+            href={
+              sanitizePlatformUrl(activity.externalUrl, ['soundcloud.com']) ||
+              'https://soundcloud.com'
+            }
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#FF5500]/15 hover:bg-[#FF5500]/25 text-[#FF5500] text-[11px] font-bold transition-all border border-[#FF5500]/30"
@@ -381,7 +390,12 @@ const SpotifyPlayerCard: React.FC<{
           </a>
         ) : (
           <a
-            href={activity.externalUrl || `https://open.spotify.com/track/${activity.trackId}`}
+            href={
+              sanitizePlatformUrl(activity.externalUrl, ['spotify.com']) ||
+              (activity.trackId
+                ? `https://open.spotify.com/track/${encodeURIComponent(activity.trackId)}`
+                : 'https://open.spotify.com')
+            }
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#1DB954]/15 hover:bg-[#1DB954]/25 text-[#1DB954] text-[11px] font-bold transition-all border border-[#1DB954]/30"
@@ -520,7 +534,7 @@ export const LivePresenceWidget: React.FC<LivePresenceWidgetProps> = ({
           ? `/music/track/${spotifyActivity.trackId}`
           : isSC
             ? spotifyActivity.externalUrl || 'https://soundcloud.com'
-            : spotifyActivity.externalUrl && spotifyActivity.externalUrl.includes('spotify.com')
+            : spotifyActivity.externalUrl && isSpotifyUrl(spotifyActivity.externalUrl)
               ? spotifyActivity.externalUrl
               : `https://open.spotify.com/track/${spotifyActivity.trackId}`,
         contextName: isPlatform ? 'Platform' : isSC ? 'SoundCloud' : 'Live Spotify Status',
@@ -592,7 +606,10 @@ export const LivePresenceWidget: React.FC<LivePresenceWidgetProps> = ({
           {/* 1. TWITCH STREAMING CARD (If live) */}
           {twitchActivity && (
             <a
-              href={twitchActivity.externalUrl}
+              href={
+                sanitizePlatformUrl(twitchActivity.externalUrl, ['twitch.tv']) ||
+                `https://twitch.tv/${encodeURIComponent(twitchActivity.username || '')}`
+              }
               target="_blank"
               rel="noopener noreferrer"
               className="relative flex items-center gap-3.5 p-3 rounded-2xl bg-gradient-to-r from-purple-950/60 via-[#18181b]/90 to-[#121316]/90 border border-purple-500/30 hover:border-purple-400/60 shadow-md hover:bg-white/[0.06] transition-all duration-200 cursor-pointer group/twitch"
@@ -600,7 +617,7 @@ export const LivePresenceWidget: React.FC<LivePresenceWidgetProps> = ({
               <div className="relative w-14 h-14 rounded-2xl overflow-visible bg-black/60 shrink-0 border border-purple-500/30 flex items-center justify-center shadow-inner">
                 <div className="w-full h-full rounded-2xl overflow-hidden flex items-center justify-center bg-black/40">
                   <img
-                    src={twitchActivity.avatarUrl || '/icons/brands/twitch.png'}
+                    src={sanitizeImageUrl(twitchActivity.avatarUrl, '/icons/brands/twitch.png')}
                     alt={twitchActivity.username}
                     loading="lazy"
                     decoding="async"
@@ -651,8 +668,9 @@ export const LivePresenceWidget: React.FC<LivePresenceWidgetProps> = ({
           {steamActivity && (
             <div
               onClick={() => {
-                if (steamActivity.externalUrl) {
-                  window.open(steamActivity.externalUrl, '_blank', 'noopener,noreferrer');
+                const safeUrl = sanitizeExternalUrl(steamActivity.externalUrl, '');
+                if (safeUrl) {
+                  window.open(safeUrl, '_blank', 'noopener,noreferrer');
                 }
               }}
               className={`relative flex items-center gap-3.5 p-3 rounded-2xl bg-[#121316]/90 border border-white/[0.08] hover:border-white/[0.16] shadow-md transition-all duration-200 ${
@@ -663,7 +681,7 @@ export const LivePresenceWidget: React.FC<LivePresenceWidgetProps> = ({
               <div className="relative w-14 h-14 rounded-2xl overflow-visible bg-black/60 shrink-0 border border-white/10 flex items-center justify-center shadow-inner">
                 <div className="w-full h-full rounded-2xl overflow-hidden flex items-center justify-center bg-black/40">
                   <img
-                    src={steamActivity.imageUrl || '/icons/brands/steam.png'}
+                    src={sanitizeImageUrl(steamActivity.imageUrl, '/icons/brands/steam.png')}
                     alt={steamActivity.title}
                     loading="lazy"
                     decoding="async"

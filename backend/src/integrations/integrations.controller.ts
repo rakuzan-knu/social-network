@@ -25,6 +25,7 @@ import { ShowcaseService } from '../showcase/showcase.service';
 import { SpotifyService } from './spotify.service';
 import { SoundCloudService } from './soundcloud.service';
 import { PrismaService } from '@common/prisma';
+import { isSupportedPlatform, assignPlatformData } from './platform.utils';
 
 @Controller(['integrations', 'api/integrations'])
 export class IntegrationsController {
@@ -995,6 +996,10 @@ export class IntegrationsController {
     @Param('platform') platform: string,
     @Body() body: { handle: string; details?: Record<string, any>; options?: Record<string, any> },
   ) {
+    if (!isSupportedPlatform(platform)) {
+      throw new BadRequestException('Unsupported or invalid platform');
+    }
+
     const data =
       body.details ||
       (await this.integrationsService.getPlatformData(platform, body.handle, body.options));
@@ -1002,10 +1007,7 @@ export class IntegrationsController {
     const showcase = await this.showcaseService.getShowcase(user.username, user.id);
     const existingConnected = (showcase?.connectedAccounts as Record<string, any>) || {};
 
-    const updatedConnected = {
-      ...existingConnected,
-      [platform.toLowerCase()]: data,
-    };
+    const updatedConnected = assignPlatformData(existingConnected, platform, data);
 
     await this.showcaseService.updateShowcase(user.id, {
       connectedAccounts: updatedConnected,
@@ -1017,6 +1019,9 @@ export class IntegrationsController {
   @Delete(':platform/unlink')
   @UseGuards(AuthGuard)
   async unlinkPlatform(@CurrentUser() user: RequestUser, @Param('platform') platform: string) {
+    if (!isSupportedPlatform(platform)) {
+      throw new BadRequestException('Unsupported or invalid platform');
+    }
     await this.integrationsService.unlinkPlatform(user.id, user.username, platform);
     return { success: true };
   }

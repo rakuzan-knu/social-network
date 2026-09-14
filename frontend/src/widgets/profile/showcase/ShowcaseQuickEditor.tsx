@@ -70,6 +70,7 @@ import {
   extractSpotifyTrackId,
   unescapeHtml,
   getSafeSpotifyTrackUrl,
+  sanitizeImageUrl,
 } from '@/shared/lib/spotifyUrl';
 import { useUIStore } from '@/shared/model/useUIStore';
 import { useCurrentUser } from '@/entities/profile/model/useCurrentUser';
@@ -1116,7 +1117,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                   <div className="flex items-center gap-3">
                     <div className="relative w-16 h-16 rounded-xl overflow-hidden shrink-0 border border-white/10 shadow-md group/cover">
                       <img
-                        src={anthemTrack.albumArt}
+                        src={sanitizeImageUrl(anthemTrack.albumArt)}
                         alt={anthemTrack.title}
                         className="w-full h-full object-cover"
                       />
@@ -1321,7 +1322,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                             )}
                             <div className="relative w-10 h-10 rounded-lg overflow-hidden shrink-0 border border-white/10 group/thumb">
                               <img
-                                src={track.albumArt}
+                                src={sanitizeImageUrl(track.albumArt)}
                                 alt={track.title}
                                 crossOrigin="anonymous"
                                 onError={(e) => {
@@ -1460,7 +1461,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2.5 min-w-0 flex-1">
                           <img
-                            src={item.posterUrl}
+                            src={sanitizeImageUrl(item.posterUrl)}
                             alt={item.title}
                             crossOrigin="anonymous"
                             onError={(e) => {
@@ -1579,7 +1580,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                           className="flex items-center gap-2.5 p-2 rounded-xl bg-[#2b2d31]/70 hover:bg-[#2b2d31] border border-white/[0.06] hover:border-indigo-500/40 cursor-pointer transition-colors group"
                         >
                           <img
-                            src={item.posterUrl}
+                            src={sanitizeImageUrl(item.posterUrl)}
                             alt={item.title}
                             crossOrigin="anonymous"
                             onError={(e) => {
@@ -1668,7 +1669,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                           <div className="flex items-center gap-2.5 min-w-0 flex-1">
                             <div className="relative w-9 h-12 rounded-lg overflow-hidden bg-black/40 shrink-0 border border-white/[0.08]">
                               <img
-                                src={item.posterUrl}
+                                src={sanitizeImageUrl(item.posterUrl)}
                                 alt={item.title}
                                 crossOrigin="anonymous"
                                 onError={(e) => {
@@ -1897,7 +1898,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                             {/* Poster container with aspect ratio */}
                             <div className="relative w-full aspect-[2/3] rounded-lg overflow-hidden bg-black/40 mb-2 border border-white/[0.06]">
                               <img
-                                src={item.posterUrl}
+                                src={sanitizeImageUrl(item.posterUrl)}
                                 alt={item.title}
                                 crossOrigin="anonymous"
                                 onError={(e) => {
@@ -2003,7 +2004,9 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
 
                   <div className="flex items-center gap-3">
                     <img
-                      src={spotlightMedia.customBannerUrl || spotlightMedia.posterUrl}
+                      src={sanitizeImageUrl(
+                        spotlightMedia.customBannerUrl || spotlightMedia.posterUrl,
+                      )}
                       alt={spotlightMedia.title}
                       crossOrigin="anonymous"
                       onError={(e) => {
@@ -2118,7 +2121,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                           className="flex items-center gap-2.5 p-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.06] cursor-pointer group"
                         >
                           <img
-                            src={item.posterUrl}
+                            src={sanitizeImageUrl(item.posterUrl)}
                             alt={item.title}
                             className="w-10 h-12 rounded-lg object-cover shrink-0"
                           />
@@ -2522,7 +2525,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                               >
                                 {u.avatarUrl || u.avatar ? (
                                   <img
-                                    src={u.avatarUrl || u.avatar}
+                                    src={sanitizeImageUrl(u.avatarUrl || u.avatar)}
                                     alt={u.username}
                                     className="w-6 h-6 rounded-full object-cover"
                                   />
@@ -2617,7 +2620,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                         <div className="flex items-center gap-2.5 min-w-0">
                           {member.avatarUrl ? (
                             <img
-                              src={member.avatarUrl}
+                              src={sanitizeImageUrl(member.avatarUrl)}
                               alt={member.name || member.customName || 'Relative'}
                               className="w-7 h-7 rounded-full object-cover border border-white/10"
                             />

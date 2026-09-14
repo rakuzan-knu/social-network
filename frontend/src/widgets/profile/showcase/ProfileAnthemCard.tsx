@@ -9,6 +9,10 @@ import {
   getSafeSpotifyTrackUrl,
   extractSpotifyTrackId,
   unescapeHtml,
+  isSoundCloudUrl,
+  sanitizeImageUrl,
+  sanitizeExternalUrl,
+  sanitizePlatformUrl,
 } from '@/shared/lib/spotifyUrl';
 
 interface ProfileAnthemCardProps {
@@ -63,7 +67,7 @@ export const ProfileAnthemCard: React.FC<ProfileAnthemCardProps> = ({
     (anthem as any)?.id?.startsWith('sc-') ||
     (anthem as any)?.trackId?.startsWith('sc-') ||
     (anthem as any)?.trackId?.startsWith('soundcloud-') ||
-    anthem?.spotifyUrl?.includes('soundcloud.com'),
+    isSoundCloudUrl(anthem?.spotifyUrl),
   );
 
   const isPlatformTrack = Boolean(
@@ -137,7 +141,8 @@ export const ProfileAnthemCard: React.FC<ProfileAnthemCardProps> = ({
   };
 
   const trackLink = isSoundCloud
-    ? (anthem as any).spotifyUrl || 'https://soundcloud.com'
+    ? sanitizePlatformUrl((anthem as any).spotifyUrl, ['soundcloud.com']) ||
+      'https://soundcloud.com'
     : getSafeSpotifyTrackUrl({
         spotifyUrl: anthem.spotifyUrl,
         id: (anthem as any).trackId || (anthem as any).id,
@@ -161,7 +166,11 @@ export const ProfileAnthemCard: React.FC<ProfileAnthemCardProps> = ({
       <div className="relative flex items-center justify-between gap-3 z-10">
         {/* Left: Album Art with synchronized Play/Pause Button overlay */}
         <div className="relative w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-white/10 shadow-lg group/cover">
-          <img src={anthem.albumArt} alt={anthem.title} className="w-full h-full object-cover" />
+          <img
+            src={sanitizeImageUrl(anthem.albumArt)}
+            alt={anthem.title}
+            className="w-full h-full object-cover"
+          />
 
           {/* Synchronized Play/Pause overlay button on album cover */}
           <button
@@ -199,7 +208,7 @@ export const ProfileAnthemCard: React.FC<ProfileAnthemCardProps> = ({
               </Link>
             ) : (
               <a
-                href={trackLink}
+                href={sanitizeExternalUrl(trackLink, '#')}
                 target="_blank"
                 rel="noreferrer"
                 className={`text-xs font-bold text-white truncate tracking-wide hover:underline transition-colors ${
@@ -272,9 +281,9 @@ export const ProfileAnthemCard: React.FC<ProfileAnthemCardProps> = ({
             </button>
           ) : isSoundCloud ? (
             <a
-              href={trackLink}
+              href={sanitizePlatformUrl(trackLink, ['soundcloud.com'], 'https://soundcloud.com')}
               target="_blank"
-              rel="noreferrer"
+              rel="noopener noreferrer"
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#FF5500]/15 hover:bg-[#FF5500]/25 text-[#FF5500] text-[10px] font-bold border border-[#FF5500]/30 transition-all cursor-pointer shadow-xs"
               title="Listen on SoundCloud"
             >
@@ -284,9 +293,9 @@ export const ProfileAnthemCard: React.FC<ProfileAnthemCardProps> = ({
             </a>
           ) : (
             <a
-              href={trackLink}
+              href={sanitizePlatformUrl(trackLink, ['spotify.com'], 'https://open.spotify.com')}
               target="_blank"
-              rel="noreferrer"
+              rel="noopener noreferrer"
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#1DB954]/15 hover:bg-[#1DB954]/25 text-[#1DB954] text-[10px] font-bold border border-[#1DB954]/30 transition-all cursor-pointer shadow-xs"
               title="Listen on Spotify"
             >

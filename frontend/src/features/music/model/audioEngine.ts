@@ -178,11 +178,21 @@ export class UnifiedAudioEngine {
   }
 
   async play(track: SpotifyTrack, positionMs: number = 0): Promise<boolean> {
+    const isSoundCloudUrl = (url?: string | null): boolean => {
+      if (!url) return false;
+      try {
+        const parsed = new URL(url);
+        return parsed.hostname === 'soundcloud.com' || parsed.hostname.endsWith('.soundcloud.com');
+      } catch {
+        return false;
+      }
+    };
+
     const isSoundCloud = Boolean(
       track.source === 'soundcloud' ||
       track.id.startsWith('sc-') ||
       track.id.startsWith('soundcloud-') ||
-      track.spotifyUrl?.includes('soundcloud.com'),
+      isSoundCloudUrl(track.spotifyUrl),
     );
 
     if (this.activeDriver && this.activeDriver !== this.soundCloudDriver) {

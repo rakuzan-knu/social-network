@@ -17,9 +17,14 @@ import { SavedPostsView } from '@/features/profile/ui/saved/SavedPostsView';
 import { isReservedUsername } from '@/features/profile/model/profileSchema';
 import { SEOHead } from '@/shared/seo';
 import { RESERVED_USERNAMES } from '@/features/profile/model/profileSchema';
-import { ProfileShowcaseSidebar } from '@/widgets/profile/showcase/ProfileShowcaseSidebar';
 import { storiesApi } from '@/features/stories/api/storiesApi';
 import { useStoryViewerStore } from '@/features/stories/model/useStoryViewerStore';
+
+const ProfileShowcaseSidebar = React.lazy(() =>
+  import('@/widgets/profile/showcase/ProfileShowcaseSidebar').then((m) => ({
+    default: m.ProfileShowcaseSidebar,
+  })),
+);
 
 function SkeletonProfileHeader() {
   return (
@@ -266,12 +271,14 @@ export default function ProfilePage() {
 
           {/* Mobile Showcase View (< 1024px) */}
           <div className="px-6 pt-2 lg:hidden relative z-20">
-            <ProfileShowcaseSidebar
-              username={user.username}
-              userId={user.id}
-              isOwner={isOwnProfile}
-              variant="mobile"
-            />
+            <React.Suspense fallback={null}>
+              <ProfileShowcaseSidebar
+                username={user.username}
+                userId={user.id}
+                isOwner={isOwnProfile}
+                variant="mobile"
+              />
+            </React.Suspense>
           </div>
 
           <ProfileTabs
@@ -312,12 +319,14 @@ export default function ProfilePage() {
       </div>
 
       {/* Desktop Sticky Profile Showcase Sidebar (>= 1024px) */}
-      <ProfileShowcaseSidebar
-        username={user.username}
-        userId={user.id}
-        isOwner={isOwnProfile}
-        variant="desktop"
-      />
+      <React.Suspense fallback={null}>
+        <ProfileShowcaseSidebar
+          username={user.username}
+          userId={user.id}
+          isOwner={isOwnProfile}
+          variant="desktop"
+        />
+      </React.Suspense>
     </div>
   );
 }

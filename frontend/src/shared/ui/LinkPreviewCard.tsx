@@ -6,6 +6,8 @@ import { GitHubEmbedCard } from './embeds/GitHubEmbedCard';
 import { AudioEmbedCard } from './embeds/AudioEmbedCard';
 import { GenericOpenGraphCard } from './embeds/GenericOpenGraphCard';
 
+import { parseSpotifyUrl } from '@/shared/lib/urlSecurity';
+
 interface LinkPreviewCardProps {
   url?: string | null;
   embedData?: LinkEmbedData | null;
@@ -22,9 +24,7 @@ export const LinkPreviewCard: React.FC<LinkPreviewCardProps> = ({
   const { data: fetchedData, isLoading } = useLinkPreview(embedData ? null : url);
   const data = embedData || fetchedData;
 
-  const isSpotifyUrl = Boolean(
-    url && /spotify\.com\/(track|album|playlist|episode|show)\/([a-zA-Z0-9]+)/i.test(url),
-  );
+  const isSpotifyUrl = Boolean(url && parseSpotifyUrl(url));
 
   // If autoExpandAudio is enabled and we have a Spotify URL, we can render immediately without waiting for oEmbed
   if (autoExpandAudio && isSpotifyUrl && url && !data) {

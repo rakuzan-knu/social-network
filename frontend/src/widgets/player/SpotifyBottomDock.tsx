@@ -28,17 +28,7 @@ import { JamAutoplayBanner } from './JamAutoplayBanner';
 import { useJamStore } from '@/features/music/model/useJamStore';
 import { useJamSession } from '@/features/music/model/useJamSession';
 import { usePlatformMusicPresence } from '@/features/music/model/usePlatformMusicPresence';
-import { getSafeSpotifyTrackUrl } from '@/shared/lib/spotifyUrl';
-
-const unescapeHtml = (str?: string) => {
-  if (!str) return '';
-  return str
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'");
-};
+import { getSafeSpotifyTrackUrl, unescapeHtml, isSoundCloudUrl } from '@/shared/lib/spotifyUrl';
 
 export const SpotifyBottomDock: React.FC = () => {
   const currentTrack = useSpotifyPlayerStore((s) => s.currentTrack);
@@ -59,7 +49,7 @@ export const SpotifyBottomDock: React.FC = () => {
     (currentTrack as any)?.source === 'soundcloud' ||
     currentTrack?.id?.startsWith('sc-') ||
     currentTrack?.id?.startsWith('soundcloud-') ||
-    currentTrack?.spotifyUrl?.includes('soundcloud.com'),
+    isSoundCloudUrl(currentTrack?.spotifyUrl),
   );
   const externalTrackLink = isSoundCloud
     ? currentTrack?.spotifyUrl || 'https://soundcloud.com'

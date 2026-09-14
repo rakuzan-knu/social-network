@@ -243,9 +243,18 @@ export class SteamPresenceService implements OnModuleInit, OnModuleDestroy {
             }
           } else {
             // User is currently in a game
-            const hasWorkingImage =
-              prevActivity?.imageUrl &&
-              !prevActivity.imageUrl.includes('cdn.cloudflare.steamstatic.com');
+            let isCloudflareSteam = false;
+            if (prevActivity?.imageUrl) {
+              try {
+                const parsed = new URL(prevActivity.imageUrl);
+                isCloudflareSteam =
+                  parsed.hostname === 'cdn.cloudflare.steamstatic.com' ||
+                  parsed.hostname.endsWith('.steamstatic.com');
+              } catch {
+                isCloudflareSteam = false;
+              }
+            }
+            const hasWorkingImage = Boolean(prevActivity?.imageUrl && !isCloudflareSteam);
 
             const isSameGame =
               prevActivity &&

@@ -23,6 +23,7 @@ import {
 import type { MusicPlaylist } from '../model/types';
 import { useMusicHubStore, CATALOG_PLAYLISTS } from '../model/useMusicHubStore';
 import { useSpotifyPlayerStore } from '@/shared/model/useSpotifyPlayerStore';
+import { isSoundCloudUrl } from '@/shared/lib/urlSecurity';
 import { useUpdateShowcase } from '@/entities/showcase/model/useShowcase';
 import { useCurrentUser } from '@/entities/profile/model/useCurrentUser';
 import { useMessageToastStore } from '@/shared/model/useMessageToastStore';
@@ -303,7 +304,7 @@ export const PlaylistActionMenu: React.FC<PlaylistActionMenuProps> = ({
     const isSoundCloud =
       track.source === 'soundcloud' ||
       track.id.startsWith('sc-') ||
-      track.spotifyUrl?.includes('soundcloud.com');
+      isSoundCloudUrl(track.spotifyUrl);
 
     updateShowcaseMutation.mutate(
       {

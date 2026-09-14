@@ -6,6 +6,7 @@ import { CommentType } from '../model/types';
 import { FormattedText } from '@/shared/ui/FormattedText';
 import { VerifiedCheckmark } from '@/entities/profile/ui/VerifiedCheckmark';
 import { MiniProfileHoverCard } from '@/entities/profile/ui/MiniProfileHoverCard';
+import { sanitizeImageUrl } from '@/shared/lib/urlSecurity';
 
 interface CommentItemProps {
   comment: CommentType;
@@ -254,19 +255,23 @@ export function CommentItem({
         </div>
 
         {/* Media Image Attachment */}
-        {comment.mediaUrl && !comment.isDeleted && (
-          <div className="mt-2 max-w-sm rounded-xl overflow-hidden border border-white/[0.08] bg-black/40">
-            <img
-              src={comment.mediaUrl}
-              alt="attachment"
-              className="w-full max-h-64 object-cover cursor-pointer hover:opacity-95 transition-opacity"
-              onClick={(e) => {
-                e.stopPropagation();
-                window.open(comment.mediaUrl ?? '', '_blank');
-              }}
-            />
-          </div>
-        )}
+        {(() => {
+          const safeMedia = sanitizeImageUrl(comment.mediaUrl);
+          if (!safeMedia || comment.isDeleted) return null;
+          return (
+            <div className="mt-2 max-w-sm rounded-xl overflow-hidden border border-white/[0.08] bg-black/40">
+              <img
+                src={safeMedia}
+                alt="attachment"
+                className="w-full max-h-64 object-cover cursor-pointer hover:opacity-95 transition-opacity"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.open(safeMedia, '_blank', 'noopener,noreferrer');
+                }}
+              />
+            </div>
+          );
+        })()}
 
         {/* Action Row */}
         {!comment.isDeleted && (

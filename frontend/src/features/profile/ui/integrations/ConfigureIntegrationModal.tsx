@@ -52,6 +52,7 @@ import { USER_KEY } from '@/shared/api/queryKeys';
 import { UnlinkConfirmationModal } from './UnlinkConfirmationModal';
 import { ShowcaseIntegrationCard } from '@/widgets/profile/showcase/ShowcaseIntegrationCard';
 import { useSpotifyPlayerStore } from '@/shared/model/useSpotifyPlayerStore';
+import { isSpotifyUrl, isTrustedMessageOrigin, sanitizeImageUrl } from '@/shared/lib/urlSecurity';
 
 export interface PlatformConfig {
   id: string;
@@ -252,7 +253,7 @@ export const ConfigureIntegrationModal: React.FC<ConfigureIntegrationModalProps>
           durationMs: track.durationMs || 180000,
           previewUrl: url || track.previewUrl || null,
           spotifyUrl:
-            track.spotifyUrl && track.spotifyUrl.includes('spotify.com')
+            track.spotifyUrl && isSpotifyUrl(track.spotifyUrl)
               ? track.spotifyUrl
               : track.id
                 ? `https://open.spotify.com/track/${track.id}`
@@ -476,6 +477,7 @@ export const ConfigureIntegrationModal: React.FC<ConfigureIntegrationModalProps>
   // Listen for OAuth completion popup postMessage & real-time cache refresh
   useEffect(() => {
     const handleAuthMessage = async (event: MessageEvent) => {
+      if (!isTrustedMessageOrigin(event.origin)) return;
       if (!platform) return;
       const authPlatform = (event.data?.platform || '').toLowerCase();
       if (authPlatform !== platform.id.toLowerCase()) return;
@@ -1026,10 +1028,10 @@ export const ConfigureIntegrationModal: React.FC<ConfigureIntegrationModalProps>
               <div className="flex items-center justify-between p-2.5 rounded-2xl bg-white/[0.03] border border-white/[0.08]">
                 <div className="flex items-center gap-3">
                   <img
-                    src={
-                      activeData.avatarUrl ||
-                      'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=80'
-                    }
+                    src={sanitizeImageUrl(
+                      activeData.avatarUrl,
+                      'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=80',
+                    )}
                     alt={activeData.username || 'User'}
                     className="w-9 h-9 rounded-full object-cover border border-white/20 shrink-0"
                   />
@@ -1897,7 +1899,10 @@ export const ConfigureIntegrationModal: React.FC<ConfigureIntegrationModalProps>
                                         <div className="flex items-center gap-2.5 min-w-0">
                                           <div className="relative w-9 h-9 rounded-lg overflow-hidden bg-black/40 shrink-0 border border-white/10 group/art">
                                             <img
-                                              src={track.albumArt || '/icons/brands/spotify.png'}
+                                              src={sanitizeImageUrl(
+                                                track.albumArt,
+                                                '/icons/brands/spotify.png',
+                                              )}
                                               alt={track.title}
                                               className="w-full h-full object-cover"
                                             />
@@ -2203,7 +2208,10 @@ export const ConfigureIntegrationModal: React.FC<ConfigureIntegrationModalProps>
                                         <div className="flex items-center gap-2.5 min-w-0">
                                           {pl.coverUrl ? (
                                             <img
-                                              src={pl.coverUrl}
+                                              src={sanitizeImageUrl(
+                                                pl.coverUrl,
+                                                '/icons/brands/spotify.png',
+                                              )}
                                               alt={pl.name}
                                               className="w-9 h-9 rounded-lg object-cover shrink-0 border border-white/10"
                                             />

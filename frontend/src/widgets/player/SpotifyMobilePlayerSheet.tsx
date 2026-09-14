@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useSpotifyPlayerStore } from '@/shared/model/useSpotifyPlayerStore';
 import { SpotifyBrandIcon, SoundCloudBrandIcon } from '@/shared/ui/BrandIcons';
-import { getSafeSpotifyTrackUrl } from '@/shared/lib/spotifyUrl';
+import { getSafeSpotifyTrackUrl, isSoundCloudUrl } from '@/shared/lib/spotifyUrl';
 
 export const SpotifyMobilePlayerSheet: React.FC = () => {
   const isMobileExpanded = useSpotifyPlayerStore((s) => s.isMobileExpanded);
@@ -51,7 +51,7 @@ export const SpotifyMobilePlayerSheet: React.FC = () => {
     (currentTrack as any)?.source === 'soundcloud' ||
     currentTrack?.id?.startsWith('sc-') ||
     currentTrack?.id?.startsWith('soundcloud-') ||
-    currentTrack?.spotifyUrl?.includes('soundcloud.com'),
+    isSoundCloudUrl(currentTrack?.spotifyUrl),
   );
   const externalTrackLink = isSoundCloud
     ? currentTrack?.spotifyUrl || 'https://soundcloud.com'

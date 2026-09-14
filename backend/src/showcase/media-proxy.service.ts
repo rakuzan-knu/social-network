@@ -5,6 +5,7 @@ import {
   ShowcaseMediaType,
   type MediaSearchResultDto,
   type MediaDetailsResponseDto,
+  sanitizePlainText,
 } from '@common/contracts';
 import { SoundCloudService } from '../integrations/soundcloud.service';
 
@@ -3233,33 +3234,38 @@ export class MediaProxyService {
       const trackUrlMatch =
         query.match(/spotify\.com\/track\/([a-zA-Z0-9]{22})/) || query.match(/^([a-zA-Z0-9]{22})$/);
       if (trackUrlMatch) {
-        try {
-          const directRes = await axios.get(
-            `https://api.spotify.com/v1/tracks/${trackUrlMatch[1]}`,
-            {
-              headers: { Authorization: `Bearer ${token}` },
-              timeout: 5000,
-            },
-          );
-          const t = directRes.data;
-          if (t && t.id && t.name) {
-            return [
-              {
-                id: t.id,
-                trackId: t.id,
-                title: t.name,
-                artist: t.artists?.map((a: any) => a.name).join(', ') || 'Unknown Artist',
-                albumArt:
-                  t.album?.images?.[0]?.url ||
-                  'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=80',
-                previewUrl: t.preview_url || null,
-                spotifyUrl: t.external_urls?.spotify || `https://open.spotify.com/track/${t.id}`,
-                durationMs: t.duration_ms || 0,
-              },
-            ];
+        const rawTrackId = trackUrlMatch[1];
+        if (/^[a-zA-Z0-9]{22}$/.test(rawTrackId)) {
+          const safeTrackId = encodeURIComponent(rawTrackId);
+          const trackApiUrl = new URL(`https://api.spotify.com/v1/tracks/${safeTrackId}`);
+          if (trackApiUrl.origin === 'https://api.spotify.com') {
+            try {
+              const directRes = await axios.get(trackApiUrl.toString(), {
+                headers: { Authorization: `Bearer ${token}` },
+                timeout: 5000,
+              });
+              const t = directRes.data;
+              if (t && t.id && t.name) {
+                return [
+                  {
+                    id: t.id,
+                    trackId: t.id,
+                    title: t.name,
+                    artist: t.artists?.map((a: any) => a.name).join(', ') || 'Unknown Artist',
+                    albumArt:
+                      t.album?.images?.[0]?.url ||
+                      'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=80',
+                    previewUrl: t.preview_url || null,
+                    spotifyUrl:
+                      t.external_urls?.spotify || `https://open.spotify.com/track/${t.id}`,
+                    durationMs: t.duration_ms || 0,
+                  },
+                ];
+              }
+            } catch {
+              // Fall through to search query
+            }
           }
-        } catch {
-          // Fall through to search query
         }
       }
 
@@ -3663,9 +3669,22 @@ export class MediaProxyService {
         const idMatch = match.externalUrl.match(/\/app\/(\d+)/);
         if (idMatch) {
           appId = parseInt(idMatch[1], 10);
-        } else if (!match.externalUrl.includes('steampowered.com')) {
-          // Non-Steam official game - do not search Steam Store API to avoid fuzzy spin-off matches
-          return null;
+        } else {
+          let isSteamHost = false;
+          try {
+            const parsed = new URL(match.externalUrl);
+            isSteamHost =
+              parsed.hostname === 'steampowered.com' ||
+              parsed.hostname.endsWith('.steampowered.com') ||
+              parsed.hostname === 'steamcommunity.com' ||
+              parsed.hostname.endsWith('.steamcommunity.com');
+          } catch {
+            isSteamHost = false;
+          }
+          if (!isSteamHost) {
+            // Non-Steam official game - do not search Steam Store API to avoid fuzzy spin-off matches
+            return null;
+          }
         }
       }
 
@@ -3709,7 +3728,7 @@ export class MediaProxyService {
         steamMovieUrl ||
         'https://cdn.cloudflare.steamstatic.com/steam/apps/256692021/movie480.mp4';
 
-      const stripHtml = (html: string) => (html || '').replace(/<[^>]*>?/gm, '').trim();
+      const stripHtml = (html: string) => (sanitizePlainText(html || '') as string).trim();
 
       return {
         title: d.name || cleanTitle,

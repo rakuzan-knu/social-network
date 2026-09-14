@@ -3,7 +3,12 @@ import { persist } from 'zustand/middleware';
 import Hls from 'hls.js';
 import { audioCoordinator } from '@/shared/lib/audioCoordinator';
 import { integrationsApi } from '@/entities/showcase/api/integrationsApi';
-import { extractSpotifyTrackId, unescapeHtml } from '@/shared/lib/spotifyUrl';
+import {
+  extractSpotifyTrackId,
+  unescapeHtml,
+  isTrustedMessageOrigin,
+  isAppleAudioUrl,
+} from '@/shared/lib/spotifyUrl';
 import { useAuthStore } from './useAuthStore';
 import { musicEventBridge } from '@/features/music/model/musicEvents';
 
@@ -817,6 +822,7 @@ export const useSpotifyPlayerStore = create<SpotifyPlayerState>()(
         );
 
         const handleAuthMessage = (event: MessageEvent) => {
+          if (!isTrustedMessageOrigin(event.origin)) return;
           if (
             event.data?.type === 'INTEGRATION_AUTH_SUCCESS' &&
             event.data?.platform?.toLowerCase() === 'spotify'
@@ -1036,11 +1042,7 @@ export const useSpotifyPlayerStore = create<SpotifyPlayerState>()(
                 if (res?.permissionsMissing) {
                   set({ needsSpotifyPermissions: true });
                 }
-                if (
-                  track.previewUrl &&
-                  !track.previewUrl.includes('apple.com') &&
-                  !track.previewUrl.includes('itunes')
-                ) {
+                if (track.previewUrl && !isAppleAudioUrl(track.previewUrl)) {
                   const audio = getOrCreateAudio();
                   audio.src = track.previewUrl;
                   audio.volume = get().isMuted ? 0 : get().volume;
@@ -1053,11 +1055,7 @@ export const useSpotifyPlayerStore = create<SpotifyPlayerState>()(
             })
             .catch((err) => {
               console.warn('[Spotify Play] Exception:', err);
-              if (
-                track.previewUrl &&
-                !track.previewUrl.includes('apple.com') &&
-                !track.previewUrl.includes('itunes')
-              ) {
+              if (track.previewUrl && !isAppleAudioUrl(track.previewUrl)) {
                 const audio = getOrCreateAudio();
                 audio.src = track.previewUrl;
                 audio.volume = get().isMuted ? 0 : get().volume;
@@ -1068,11 +1066,7 @@ export const useSpotifyPlayerStore = create<SpotifyPlayerState>()(
               }
             });
         } else {
-          if (
-            track.previewUrl &&
-            !track.previewUrl.includes('apple.com') &&
-            !track.previewUrl.includes('itunes')
-          ) {
+          if (track.previewUrl && !isAppleAudioUrl(track.previewUrl)) {
             const audio = getOrCreateAudio();
             audio.src = track.previewUrl;
             audio.volume = get().isMuted ? 0 : get().volume;

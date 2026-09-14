@@ -5,6 +5,7 @@ import { EternalFooter } from '../../shared/ui/EternalFooter';
 import { SEOHead } from '../../shared/seo';
 import { OPEN_SOURCE_LIBRARIES, OpenSourceLibrary } from './data/acknowledgementsData';
 import { useLanguageStore } from '../../shared/lib/language/languageStore';
+import { sanitizeExternalUrl } from '../../shared/lib/urlSecurity';
 import {
   ExternalLink,
   Pause,
@@ -219,7 +220,10 @@ export const AcknowledgementsPage: React.FC = () => {
   }, [isPaused, isHovered, speedMultiplier, isFiltered, filteredLibraries]);
 
   const handleLibraryClick = (url: string) => {
-    window.open(url, '_blank', 'noopener,noreferrer');
+    const safeUrl = sanitizeExternalUrl(url);
+    if (safeUrl) {
+      window.open(safeUrl, '_blank', 'noopener,noreferrer');
+    }
   };
 
   return (

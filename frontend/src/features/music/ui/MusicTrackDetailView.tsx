@@ -19,6 +19,7 @@ import { useMusicHubStore, CATALOG_PLAYLISTS } from '../model/useMusicHubStore';
 import { integrationsApi } from '@/entities/showcase/api/integrationsApi';
 import { TrackActionMenu } from './TrackActionMenu';
 import { SoundCloudBrandIcon, SpotifyBrandIcon } from '@/shared/ui/BrandIcons';
+import { isSoundCloudUrl } from '@/shared/lib/urlSecurity';
 
 interface MusicTrackDetailViewProps {
   trackId: string;
@@ -212,7 +213,7 @@ export const MusicTrackDetailView: React.FC<MusicTrackDetailViewProps> = ({ trac
           Boolean(track.streamUrl) ||
           track.id.startsWith('sc-') ||
           track.id.startsWith('soundcloud-') ||
-          track.spotifyUrl?.includes('soundcloud.com');
+          isSoundCloudUrl(track.spotifyUrl);
 
         if (isTrackSoundCloud) {
           // Strict SoundCloud-only recommendations
@@ -528,9 +529,7 @@ export const MusicTrackDetailView: React.FC<MusicTrackDetailViewProps> = ({ trac
   };
 
   const isSoundCloud =
-    track.source === 'soundcloud' ||
-    Boolean(track.streamUrl) ||
-    track.spotifyUrl?.includes('soundcloud.com');
+    track.source === 'soundcloud' || Boolean(track.streamUrl) || isSoundCloudUrl(track.spotifyUrl);
 
   const artistProfileUrl = isSoundCloud
     ? `https://soundcloud.com/search/people?q=${encodeURIComponent(track.artist)}`

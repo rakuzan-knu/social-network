@@ -44,6 +44,7 @@ import { userApi } from '@/entities/profile/api/userApi';
 import { apiClient } from '@/shared/api/httpClient';
 import { useDebounce } from '@/shared/lib/useDebounce';
 import { useMessageToastStore } from '../../../shared/model/useMessageToastStore';
+import { isTrustedMessageOrigin } from '@/shared/lib/urlSecurity';
 import Avatar from '../../../shared/ui/Avatar';
 import { SettingsPanelHost } from '@/shared/ui/SettingsPanelHost';
 import SecurityTab from './security/SecurityTab';
@@ -565,6 +566,7 @@ export default function EditProfileModal() {
   // Real-time OAuth popup completion listener
   useEffect(() => {
     const handleAuthMessage = (event: MessageEvent) => {
+      if (!isTrustedMessageOrigin(event.origin)) return;
       if (event.data?.type === 'INTEGRATION_AUTH_SUCCESS') {
         queryClient.invalidateQueries({ queryKey: [USER_KEY] });
         queryClient.invalidateQueries({ queryKey: ['showcase'] });

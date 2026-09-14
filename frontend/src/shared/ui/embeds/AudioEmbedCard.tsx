@@ -4,6 +4,14 @@ import type { LinkEmbedData } from '@/entities/opengraph/model/types';
 import { useActiveMediaPlaybackStore } from '@/shared/model/useActiveMediaPlaybackStore';
 import { useSpotifyPlayerStore } from '@/shared/model/useSpotifyPlayerStore';
 import { SpotifyBrandIcon } from '@/shared/ui/BrandIcons';
+import {
+  isSpotifyUrl,
+  isSoundCloudUrl,
+  isSpotifyMessageOrigin,
+  parseSpotifyUrl,
+  sanitizeImageUrl,
+  sanitizeExternalUrl,
+} from '@/shared/lib/urlSecurity';
 
 interface AudioEmbedCardProps {
   data: LinkEmbedData;
@@ -24,17 +32,15 @@ export const AudioEmbedCard: React.FC<AudioEmbedCardProps> = ({
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
   const audio = data.audio;
-  const isSpotify = audio?.provider === 'spotify' || data.url.includes('spotify.com');
-  const isSoundCloud = audio?.provider === 'soundcloud' || data.url.includes('soundcloud.com');
+  const spotifyInfo = parseSpotifyUrl(data.url);
+  const isSpotify = audio?.provider === 'spotify' || Boolean(spotifyInfo) || isSpotifyUrl(data.url);
+  const isSoundCloud = audio?.provider === 'soundcloud' || isSoundCloudUrl(data.url);
 
-  const spotifyMatch = data.url.match(
-    /spotify\.com\/(track|album|playlist|episode|show)\/([a-zA-Z0-9]+)/i,
-  );
-  const audioType = audio?.audioType || (spotifyMatch ? spotifyMatch[1] : 'track');
+  const audioType = audio?.audioType || (spotifyInfo ? spotifyInfo.type : 'track');
   const embedUrl =
     audio?.embedUrl ||
-    (spotifyMatch
-      ? `https://open.spotify.com/embed/${spotifyMatch[1]}/${spotifyMatch[2]}?utm_source=generator&theme=0`
+    (spotifyInfo
+      ? `https://open.spotify.com/embed/${spotifyInfo.type}/${spotifyInfo.id}?utm_source=generator&theme=0`
       : null);
 
   // Fetch genuine Spotify metadata via oEmbed when missing or basic
@@ -58,7 +64,7 @@ export const AudioEmbedCard: React.FC<AudioEmbedCardProps> = ({
   const activeTitle = oEmbedMeta.title || data.title || 'Spotify Track';
   const activeArtist =
     oEmbedMeta.artist || audio?.artist || data.siteName || (isSpotify ? 'Spotify' : 'SoundCloud');
-  const activeCover = oEmbedMeta.cover || data.image;
+  const activeCover = sanitizeImageUrl(oEmbedMeta.cover || data.image);
 
   const title = activeTitle;
   const artist = activeArtist;
@@ -68,12 +74,12 @@ export const AudioEmbedCard: React.FC<AudioEmbedCardProps> = ({
   const globalSpotifyPlaying = useSpotifyPlayerStore((s) => s.isPlaying);
 
   const isCurrentSpotifyPlaying = Boolean(
-    isSpotify && spotifyMatch && globalSpotifyTrack?.id === spotifyMatch[2] && globalSpotifyPlaying,
+    isSpotify && spotifyInfo && globalSpotifyTrack?.id === spotifyInfo.id && globalSpotifyPlaying,
   );
 
   const launchInDock = () => {
-    if (!isSpotify || !spotifyMatch) return;
-    const trackId = spotifyMatch[2];
+    if (!isSpotify || !spotifyInfo) return;
+    const trackId = spotifyInfo.id;
     useSpotifyPlayerStore.getState().playTrack({
       id: trackId,
       title: activeTitle,
@@ -88,9 +94,9 @@ export const AudioEmbedCard: React.FC<AudioEmbedCardProps> = ({
 
   // Listen to Spotify embed iframe events & focus clicks to trigger our Liquid Dock
   useEffect(() => {
-    if (!isSpotify || !spotifyMatch) return;
+    if (!isSpotify || !spotifyInfo) return;
 
-    const trackId = spotifyMatch[2];
+    const trackId = spotifyInfo.id;
 
     const triggerDock = () => {
       const state = useSpotifyPlayerStore.getState();
@@ -114,30 +120,36 @@ export const AudioEmbedCard: React.FC<AudioEmbedCardProps> = ({
     };
 
     const handleWindowMessage = (e: MessageEvent) => {
-      if (typeof e.origin === 'string' && e.origin.includes('spotify.com')) {
-        let msg = e.data;
-        if (typeof msg === 'string') {
-          try {
-            msg = JSON.parse(msg);
-          } catch {
-            return;
-          }
+      if (
+        e.origin !== 'https://open.spotify.com' &&
+        e.origin !== 'https://spotify.com' &&
+        !isSpotifyMessageOrigin(e.origin)
+      ) {
+        return;
+      }
+
+      let msg = e.data;
+      if (typeof msg === 'string') {
+        try {
+          msg = JSON.parse(msg);
+        } catch {
+          return;
         }
+      }
 
-        if (!msg || typeof msg !== 'object') return;
+      if (!msg || typeof msg !== 'object') return;
 
-        const isPlaybackStarted =
-          msg.type === 'playback_started' ||
-          msg.type === 'playback_start' ||
-          msg.event === 'playback_started';
-        const isPlaybackActive =
-          (msg.type === 'playback_update' || msg.event === 'playback_update') &&
-          msg.payload &&
-          msg.payload.isPaused === false;
+      const isPlaybackStarted =
+        msg.type === 'playback_started' ||
+        msg.type === 'playback_start' ||
+        msg.event === 'playback_started';
+      const isPlaybackActive =
+        (msg.type === 'playback_update' || msg.event === 'playback_update') &&
+        msg.payload &&
+        msg.payload.isPaused === false;
 
-        if (isPlaybackStarted || isPlaybackActive) {
-          triggerDock();
-        }
+      if (isPlaybackStarted || isPlaybackActive) {
+        triggerDock();
       }
     };
 
@@ -156,7 +168,7 @@ export const AudioEmbedCard: React.FC<AudioEmbedCardProps> = ({
       window.removeEventListener('message', handleWindowMessage);
       window.removeEventListener('blur', handleWindowBlur);
     };
-  }, [isSpotify, spotifyMatch, activeTitle, activeArtist, activeCover, data.url]);
+  }, [isSpotify, spotifyInfo, activeTitle, activeArtist, activeCover, data.url]);
 
   const handleTogglePlay = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -296,7 +308,7 @@ export const AudioEmbedCard: React.FC<AudioEmbedCardProps> = ({
         )}
 
         <a
-          href={data.url}
+          href={sanitizeExternalUrl(data.url, '#')}
           target="_blank"
           rel="noopener noreferrer"
           onClick={handleExternalClick}
