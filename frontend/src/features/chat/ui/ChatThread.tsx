@@ -1,39 +1,39 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { Copy, Forward, Trash2, X, CheckSquare, Archive, ArchiveRestore } from 'lucide-react';
+import { useActiveMediaPlaybackStore } from '@/shared/model/useActiveMediaPlaybackStore';
 import { useAuthStore } from '@/shared/model/useAuthStore';
+import { useSpotifyDockOffset } from '@/shared/model/useSpotifyDockOffset';
+import { useStagedAttachments } from '@/shared/model/useStagedAttachments';
 import { useUIStore } from '@/shared/model/useUIStore';
+import AttachmentDropZone from '@/shared/ui/AttachmentDropZone';
+import { Archive, ArchiveRestore, CheckSquare, Copy, Forward, Trash2, X } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ConversationView, MessageView } from '../../../entities/chat/model/types';
+import { chatApi } from '../api/chatApi';
 import { getConversationDisplay } from '../lib/getConversationDisplay';
+import { formatMessageTime } from '../lib/groupMessagesByDate';
 import { promptEditMessage } from '../lib/promptEditMessage';
-import { useMessages } from '../model/useMessages';
-import { useMessageActions } from '../model/useMessageActions';
+import { getChatBackgroundStyle, parseChatTheme, updateMetaThemeColor } from '../lib/themeUtils';
+import { useCall } from '../model/CallContext';
+import { useChatTheme } from '../model/useChatTheme';
 import { useArchiveConversation } from '../model/useConversationMutations';
 import { useConversationRealtime } from '../model/useConversationRealtime';
+import { useMessageActions } from '../model/useMessageActions';
+import { useMessages } from '../model/useMessages';
 import { useQueryOnlineStatus } from '../model/usePresence';
-import { useStagedAttachments } from '@/shared/model/useStagedAttachments';
-import { chatApi } from '../api/chatApi';
-import ChatThreadHeader from './ChatThreadHeader';
+import BatchDeleteModal from './BatchDeleteModal';
+import BlockedComposerBanner from './BlockedComposerBanner';
 import { CallHandoffBanner } from './Call/CallHandoffBanner';
+import ChatDatePicker from './ChatDatePicker';
+import ChatThreadHeader from './ChatThreadHeader';
+import ConversationDetailsPanel from './ConversationDetailsPanel';
+import ForwardMessageModal from './ForwardMessageModal';
 import GlobalMediaPlaybackBar from './GlobalMediaPlaybackBar';
-import { useActiveMediaPlaybackStore } from '@/shared/model/useActiveMediaPlaybackStore';
+import MessageComposer from './MessageComposer';
+import MessageList from './MessageList';
+import MessageSearchPanel from './MessageSearchPanel';
 import PinnedMessagesBar from './PinnedMessagesBar';
 import PinnedMessagesModal from './PinnedMessagesModal';
-import MessageList from './MessageList';
-import MessageComposer from './MessageComposer';
-import BlockedComposerBanner from './BlockedComposerBanner';
-import ForwardMessageModal from './ForwardMessageModal';
-import BatchDeleteModal from './BatchDeleteModal';
-import AttachmentDropZone from '@/shared/ui/AttachmentDropZone';
-import ConversationDetailsPanel from './ConversationDetailsPanel';
-import MessageSearchPanel from './MessageSearchPanel';
-import { useCall } from '../model/CallContext';
-import ChatDatePicker from './ChatDatePicker';
-import { formatMessageTime } from '../lib/groupMessagesByDate';
-import { useChatTheme } from '../model/useChatTheme';
-import { getChatBackgroundStyle, updateMetaThemeColor, parseChatTheme } from '../lib/themeUtils';
 import ProceduralChatBackground from './ProceduralChatBackground';
-import { useSpotifyDockOffset } from '@/shared/model/useSpotifyDockOffset';
 
 interface ChatThreadProps {
   conversation: ConversationView;
@@ -109,18 +109,6 @@ export default function ChatThread({ conversation }: ChatThreadProps) {
   const isBlocked = conversation.type !== 'GROUP' && conversation.isBlocked;
   const { composerPaddingBottom } = useSpotifyDockOffset(8);
   const isChatListExpanded = useUIStore((s) => s.isChatListExpanded);
-  const isSidebarExpanded = useUIStore((s) => s.isSidebarExpanded);
-
-  const [windowWidth, setWindowWidth] = useState(() =>
-    typeof window !== 'undefined' ? window.innerWidth : 1440,
-  );
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const handleResize = () => setWindowWidth(window.innerWidth);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   const chatPaneRef = useRef<HTMLDivElement | null>(null);
   const [paneWidth, setPaneWidth] = useState<number>(0);
@@ -444,7 +432,7 @@ export default function ChatThread({ conversation }: ChatThreadProps) {
         {conversation.isArchived && (
           <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-amber-500/10 border-b border-amber-500/20 text-amber-200 text-xs backdrop-blur-md transition-all">
             <div className="flex items-center gap-2">
-              <Archive size={15} className="text-amber-400 flex-shrink-0" />
+              <Archive size={15} className="text-amber-400 shrink-0" />
               <span>
                 This conversation is archived. New messages won't trigger push notifications.
               </span>

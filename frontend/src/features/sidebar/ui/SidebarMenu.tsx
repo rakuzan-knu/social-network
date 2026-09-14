@@ -122,7 +122,7 @@ export function ProfileMenu({ isSidebarExpanded, onOpenChange }: ProfileMenuProp
             : 'text-gray-400 hover:bg-white/5 hover:text-white'
         } ${isSidebarExpanded ? 'w-full px-4 gap-4 justify-start' : 'w-12 justify-center mx-auto'}`}
       >
-        <div className="flex-shrink-0 flex items-center justify-center transition-transform duration-200 group-hover:scale-105">
+        <div className="shrink-0 flex items-center justify-center transition-transform duration-200 group-hover:scale-105">
           <Menu size={24} />
         </div>
         <span
@@ -137,7 +137,7 @@ export function ProfileMenu({ isSidebarExpanded, onOpenChange }: ProfileMenuProp
       {isOpen && (
         <div
           role="menu"
-          className="absolute bottom-full left-0 mb-3 w-72 max-h-[calc(100vh-100px)] overflow-y-auto bg-[#16161a]/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] p-2 z-[70] animate-menuIn origin-bottom-left"
+          className="absolute bottom-full left-0 mb-3 w-72 max-h-[calc(100vh-100px)] overflow-y-auto bg-[#16161a]/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] p-2 z-70 animate-menuIn origin-bottom-left"
         >
           <MenuItem
             icon={Settings}

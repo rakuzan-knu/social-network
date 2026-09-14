@@ -1,18 +1,18 @@
+import Avatar from '@/shared/ui/Avatar';
+import TypingIndicatorBubble from '@/shared/ui/TypingIndicatorBubble';
+import { ChevronDown } from 'lucide-react';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
-import { ChevronDown } from 'lucide-react';
 import { MessageView, UserSnapshot } from '../../../entities/chat/model/types';
 import { groupMessagesByDate } from '../lib/groupMessagesByDate';
-import MessageBubble from './MessageBubble';
-import TypingIndicatorBubble from '@/shared/ui/TypingIndicatorBubble';
-import Avatar from '@/shared/ui/Avatar';
-import { OlderMessagesSkeleton, MessageThreadSkeleton } from './MessageListSkeletons';
 import { ChatThemeConfig } from '../model/chatTheme';
+import MessageBubble from './MessageBubble';
+import { MessageThreadSkeleton, OlderMessagesSkeleton } from './MessageListSkeletons';
 
+import { useSpotifyDockOffset } from '@/shared/model/useSpotifyDockOffset';
+import { CallHistoryItem } from './Call/CallHistoryItem';
 import SystemMessageCluster from './SystemMessageCluster';
 import { ThemeProposalMessage } from './ThemeProposalMessage';
-import { CallHistoryItem } from './Call/CallHistoryItem';
-import { useSpotifyDockOffset } from '@/shared/model/useSpotifyDockOffset';
 
 export type ClusterPosition = 'single' | 'first' | 'middle' | 'last';
 
@@ -240,7 +240,6 @@ export default function MessageList({
   onLoadAround,
   onOpenDatePicker,
   contentMaxWidth,
-  horizontalShift = 0,
   highlightDateLabel,
   isAnchoredInHistory = false,
   onResetToLive,
@@ -582,7 +581,7 @@ export default function MessageList({
             <ChevronDown size={20} className="group-hover:translate-y-0.5 transition-transform" />
 
             {unreadBelowCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 text-[10.5px] font-bold text-white flex items-center justify-center border-2 border-[#181926] shadow-[0_0_10px_rgba(168,85,247,0.7)] animate-popIn tabular-nums">
+              <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1 rounded-full bg-linear-to-r from-purple-500 to-indigo-500 text-[10.5px] font-bold text-white flex items-center justify-center border-2 border-[#181926] shadow-[0_0_10px_rgba(168,85,247,0.7)] animate-popIn tabular-nums">
                 {unreadBelowCount > 99 ? '+99' : `+${unreadBelowCount}`}
               </span>
             )}

@@ -70,7 +70,7 @@ export default function ArchivedThreadPane({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex flex-shrink-0 items-center justify-between border-b border-white/10 px-5 py-3">
+      <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-5 py-3">
         <div className="flex min-w-0 items-center gap-3">
           <div className="relative">
             {isGroup ? (
@@ -94,7 +94,7 @@ export default function ArchivedThreadPane({
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-white">{display.title}</p>
             <p className="flex items-center gap-1.5 truncate text-[12px] text-gray-500">
-              <Lock size={11} className="flex-shrink-0" />
+              <Lock size={11} className="shrink-0" />
               Secured archived chat
             </p>
           </div>
@@ -102,7 +102,7 @@ export default function ArchivedThreadPane({
 
         <button
           onClick={handleUnarchive}
-          className="flex flex-shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3.5 py-1.5 text-[13px] font-semibold text-gray-100 transition-colors hover:bg-white/10 hover:text-white active:scale-95"
+          className="flex shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3.5 py-1.5 text-[13px] font-semibold text-gray-100 transition-colors hover:bg-white/10 hover:text-white active:scale-95"
         >
           <ArchiveRestore size={15} />
           Unarchive
@@ -133,7 +133,7 @@ export default function ArchivedThreadPane({
         />
 
         <div
-          className="w-full max-w-[960px] mx-auto px-2 sm:px-4 transition-[padding-bottom] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
+          className="w-full max-w-240 mx-auto px-2 sm:px-4 transition-[padding-bottom] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
           style={{ paddingBottom: `${composerPaddingBottom}px` }}
         >
           <MessageComposer

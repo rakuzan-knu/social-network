@@ -162,7 +162,7 @@ export function AudioMessageBubble({
   return (
     <div
       data-testid="audio-message-bubble"
-      className="flex items-center gap-3 py-1 pl-1 pr-3 sm:pr-4 w-[280px] sm:w-[330px] max-w-full overflow-hidden select-none"
+      className="flex items-center gap-3 py-1 pl-1 pr-3 sm:pr-4 w-70 sm:w-82.5 max-w-full overflow-hidden select-none"
     >
       {/* Play / Pause / Buffering Circular Button */}
       <button

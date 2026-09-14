@@ -208,10 +208,10 @@ export default function StandaloneChatPage() {
         noindex={true}
       />
       {/* PC Style Liquid Glass Titlebar / Header */}
-      <div className="flex items-center justify-between px-4 h-14 bg-[#111622]/90 backdrop-blur-2xl border-b border-white/10 select-none flex-shrink-0 z-30">
+      <div className="flex items-center justify-between px-4 h-14 bg-[#111622]/90 backdrop-blur-2xl border-b border-white/10 select-none shrink-0 z-30">
         {/* User Info */}
         <div className="flex items-center gap-3 min-w-0 flex-1">
-          <div className="relative flex-shrink-0">
+          <div className="relative shrink-0">
             {display.isGroup ? (
               display.avatar ? (
                 <Avatar size="sm" src={display.avatar} />
@@ -252,7 +252,7 @@ export default function StandaloneChatPage() {
         </div>
 
         {/* Window Actions & Controls */}
-        <div className="flex items-center gap-1 flex-shrink-0">
+        <div className="flex items-center gap-1 shrink-0">
           <button
             type="button"
             onClick={() => setRightPanel((p) => (p === 'search' ? null : 'search'))}
@@ -322,12 +322,12 @@ export default function StandaloneChatPage() {
         <div className="flex-1 flex flex-col min-w-0 bg-[#0d111a]/70">
           {/* Pinned Message Banner (matching Image 2) */}
           {pinnedMessage && (
-            <div className="flex items-center justify-between px-4 py-2 bg-[#141926]/90 border-b border-sky-500/20 text-xs backdrop-blur-xl flex-shrink-0">
+            <div className="flex items-center justify-between px-4 py-2 bg-[#141926]/90 border-b border-sky-500/20 text-xs backdrop-blur-xl shrink-0">
               <div
                 onClick={() => setHighlightMessageId(pinnedMessage.id)}
                 className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer group"
               >
-                <div className="w-0.5 h-6 bg-sky-400 rounded-full flex-shrink-0" />
+                <div className="w-0.5 h-6 bg-sky-400 rounded-full shrink-0" />
                 <div className="min-w-0 flex-1">
                   <span className="font-semibold text-sky-400 flex items-center gap-1 leading-none">
                     <Pin size={11} /> Pinned message
@@ -393,7 +393,7 @@ export default function StandaloneChatPage() {
 
           {/* Replying banner */}
           {replyingTo && (
-            <div className="flex items-center justify-between px-4 py-2 bg-[#161a26]/95 border-t border-white/10 text-xs flex-shrink-0">
+            <div className="flex items-center justify-between px-4 py-2 bg-[#161a26]/95 border-t border-white/10 text-xs shrink-0">
               <div className="min-w-0">
                 <span className="text-sky-400 font-semibold">
                   Replying to {replyingTo.sender.displayName || replyingTo.sender.username}
@@ -412,17 +412,17 @@ export default function StandaloneChatPage() {
 
           {/* Bottom Message Composer */}
           {sendError && (
-            <div className="mx-3 mb-2 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-400/30 text-xs text-amber-200 flex-shrink-0">
+            <div className="mx-3 mb-2 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-400/30 text-xs text-amber-200 shrink-0">
               {sendError}
             </div>
           )}
           <div
-            className="p-3 bg-[#111520]/90 backdrop-blur-2xl border-t border-white/10 flex items-center gap-2 flex-shrink-0 transition-[padding-bottom] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
+            className="p-3 bg-[#111520]/90 backdrop-blur-2xl border-t border-white/10 flex items-center gap-2 shrink-0 transition-[padding-bottom] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
             style={{ paddingBottom: `${12 + dockOffset}px` }}
           >
             <button
               type="button"
-              className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-400 hover:bg-white/10 hover:text-white transition-colors flex-shrink-0"
+              className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-400 hover:bg-white/10 hover:text-white transition-colors shrink-0"
               title="Attach file"
             >
               <Paperclip size={18} />
@@ -441,7 +441,7 @@ export default function StandaloneChatPage() {
 
             <button
               type="button"
-              className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-400 hover:bg-white/10 hover:text-white transition-colors flex-shrink-0"
+              className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-400 hover:bg-white/10 hover:text-white transition-colors shrink-0"
               title="Emoji"
             >
               <Smile size={19} />
@@ -451,7 +451,7 @@ export default function StandaloneChatPage() {
               <button
                 type="button"
                 onClick={handleSend}
-                className="w-9 h-9 flex items-center justify-center rounded-xl bg-sky-500 text-white hover:bg-sky-400 transition-colors flex-shrink-0"
+                className="w-9 h-9 flex items-center justify-center rounded-xl bg-sky-500 text-white hover:bg-sky-400 transition-colors shrink-0"
                 title="Send message"
               >
                 <Send size={16} />
@@ -459,7 +459,7 @@ export default function StandaloneChatPage() {
             ) : (
               <button
                 type="button"
-                className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-400 hover:bg-white/10 hover:text-white transition-colors flex-shrink-0"
+                className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-400 hover:bg-white/10 hover:text-white transition-colors shrink-0"
                 title="Record voice message"
               >
                 <Mic size={19} />

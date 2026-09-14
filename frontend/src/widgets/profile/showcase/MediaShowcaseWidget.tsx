@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, Reorder } from 'framer-motion';
+import { Reorder } from 'framer-motion';
 import { Star, Plus, Film, Gamepad2, Tv, ExternalLink, Pencil } from 'lucide-react';
 import {
   ShowcaseMediaType,
@@ -324,7 +324,7 @@ export const MediaShowcaseWidget: React.FC<MediaShowcaseWidgetProps> = ({
                 boxShadow: '0 20px 48px -10px rgba(0, 0, 0, 0.8)',
               }}
               transition={{ duration: 0.15 }}
-              className="aspect-[2/3] flex-1 min-w-0"
+              className="aspect-2/3 flex-1 min-w-0"
             >
               <SpecularPosterSlot item={item} isOwner={isOwner} targetUserId={showcase.userId} />
             </Reorder.Item>
@@ -349,7 +349,7 @@ export const MediaShowcaseWidget: React.FC<MediaShowcaseWidgetProps> = ({
       ) : (
         <div className="flex gap-2 relative z-10 w-full">
           {currentItems.map((item, idx) => (
-            <div key={item.id || idx} className="aspect-[2/3] flex-1 min-w-0">
+            <div key={item.id || idx} className="aspect-2/3 flex-1 min-w-0">
               <SpecularPosterSlot item={item} isOwner={false} targetUserId={showcase.userId} />
             </div>
           ))}

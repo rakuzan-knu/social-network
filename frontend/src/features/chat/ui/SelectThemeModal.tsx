@@ -13,7 +13,6 @@ import {
   Sliders,
   Upload,
   Layers,
-  Eye,
   CheckCheck,
   RefreshCcw,
   Pipette,
@@ -26,8 +25,6 @@ import {
   Volume2,
   Compass,
   Film,
-  ShieldCheck,
-  Radio,
   Pencil,
   Shapes,
   Type,
@@ -41,12 +38,8 @@ import {
   BUBBLE_SHAPE_PRESETS,
   BUILT_IN_BUBBLE_PRESETS,
   BUILT_IN_PRESETS,
-  BubbleShapePreset,
-  BubbleShapeType,
   CHAT_FONTS,
   CHAT_TEXT_EFFECTS,
-  ChatFontMeta,
-  ChatTextEffectOption,
   ChatThemeConfig,
   DEFAULT_DARK_THEME_CONFIG,
   DISCORD_TEXT_COLORS,
@@ -1492,7 +1485,7 @@ export default function SelectThemeModal({
                       {/* Unified Upload Image or GIF Card */}
                       <div
                         onClick={() => fileInputRef.current?.click()}
-                        className="p-6 rounded-3xl border border-dashed border-white/15 hover:border-purple-500/60 bg-[#161722]/80 hover:bg-[#1a1b2a] transition flex flex-col items-center justify-center text-center cursor-pointer group min-h-[140px] shadow-lg relative overflow-hidden"
+                        className="p-6 rounded-3xl border border-dashed border-white/15 hover:border-purple-500/60 bg-[#161722]/80 hover:bg-[#1a1b2a] transition flex flex-col items-center justify-center text-center cursor-pointer group min-h-35 shadow-lg relative overflow-hidden"
                       >
                         <input
                           ref={fileInputRef}
@@ -1789,7 +1782,7 @@ export default function SelectThemeModal({
                                 {preset.id === 'capybara' && (
                                   <div className="relative">
                                     <BubbleDecoration shape="capybara" isOwnMessage={false} />
-                                    <div className="px-3.5 py-1 rounded-[14px] rounded-bl-[4px] border-2 border-[#78350f] bg-gradient-to-b from-[#c58f59] to-[#a8733f] text-[10.5px] font-bold text-white shadow-md">
+                                    <div className="px-3.5 py-1 rounded-[14px] rounded-bl-sm border-2 border-[#78350f] bg-linear-to-b from-[#c58f59] to-[#a8733f] text-[10.5px] font-bold text-white shadow-md">
                                       Capybara
                                     </div>
                                   </div>
@@ -1798,7 +1791,7 @@ export default function SelectThemeModal({
                                 {preset.id === 'frog' && (
                                   <div className="relative">
                                     <BubbleDecoration shape="frog" isOwnMessage={false} />
-                                    <div className="px-3.5 py-1 rounded-[14px] border-2 border-[#065f46] bg-gradient-to-b from-emerald-500 to-emerald-600 text-[10.5px] font-bold text-white shadow-md">
+                                    <div className="px-3.5 py-1 rounded-[14px] border-2 border-[#065f46] bg-linear-to-b from-emerald-500 to-emerald-600 text-[10.5px] font-bold text-white shadow-md">
                                       Frog
                                     </div>
                                   </div>
@@ -1807,7 +1800,7 @@ export default function SelectThemeModal({
                                 {preset.id === 'cat-dog' && (
                                   <div className="relative">
                                     <BubbleDecoration shape="cat-dog" isOwnMessage={false} />
-                                    <div className="px-3.5 py-1 rounded-[14px] border-2 border-[#b45309]/50 bg-gradient-to-b from-[#fffbeb] to-[#fef3c7] text-[10.5px] font-bold text-[#78350f] shadow-md">
+                                    <div className="px-3.5 py-1 rounded-[14px] border-2 border-[#b45309]/50 bg-linear-to-b from-[#fffbeb] to-[#fef3c7] text-[10.5px] font-bold text-[#78350f] shadow-md">
                                       Cat & Dog
                                     </div>
                                   </div>
@@ -1816,7 +1809,7 @@ export default function SelectThemeModal({
                                 {preset.id === 'doge' && (
                                   <div className="relative">
                                     <BubbleDecoration shape="doge" isOwnMessage={false} />
-                                    <div className="px-3.5 py-1 rounded-[14px] border-2 border-[#b45309] bg-gradient-to-b from-amber-300 to-amber-500 text-[10.5px] font-bold text-[#451a03] shadow-md">
+                                    <div className="px-3.5 py-1 rounded-[14px] border-2 border-[#b45309] bg-linear-to-b from-amber-300 to-amber-500 text-[10.5px] font-bold text-[#451a03] shadow-md">
                                       Doge
                                     </div>
                                   </div>
@@ -1825,7 +1818,7 @@ export default function SelectThemeModal({
                                 {preset.id === 'dino' && (
                                   <div className="relative">
                                     <BubbleDecoration shape="dino" isOwnMessage={false} />
-                                    <div className="px-3.5 py-1 rounded-[14px] border-2 border-[#0f766e] bg-gradient-to-b from-teal-400 to-teal-600 text-[10.5px] font-bold text-white shadow-md">
+                                    <div className="px-3.5 py-1 rounded-[14px] border-2 border-[#0f766e] bg-linear-to-b from-teal-400 to-teal-600 text-[10.5px] font-bold text-white shadow-md">
                                       Dino
                                     </div>
                                   </div>
@@ -1834,7 +1827,7 @@ export default function SelectThemeModal({
                                 {preset.id === 'heart-pepe' && (
                                   <div className="relative">
                                     <BubbleDecoration shape="heart-pepe" isOwnMessage={false} />
-                                    <div className="px-3.5 py-1 rounded-[14px] border-2 border-pink-400/60 bg-gradient-to-b from-pink-200 to-pink-300 text-[10.5px] font-bold text-pink-900 shadow-md">
+                                    <div className="px-3.5 py-1 rounded-[14px] border-2 border-pink-400/60 bg-linear-to-b from-pink-200 to-pink-300 text-[10.5px] font-bold text-pink-900 shadow-md">
                                       Pepe
                                     </div>
                                   </div>
@@ -1843,7 +1836,7 @@ export default function SelectThemeModal({
                                 {preset.id === 'gummy' && (
                                   <div className="relative animate-gummy-squish">
                                     <BubbleDecoration shape="gummy" isOwnMessage={false} />
-                                    <div className="px-3.5 py-1 rounded-[16px] border border-white/50 bg-gradient-to-br from-pink-400 via-purple-400 to-sky-400 text-[11px] font-bold text-white shadow-md shadow-pink-500/25 flex items-center gap-1">
+                                    <div className="px-3.5 py-1 rounded-2xl border border-white/50 bg-linear-to-br from-pink-400 via-purple-400 to-sky-400 text-[11px] font-bold text-white shadow-md shadow-pink-500/25 flex items-center gap-1">
                                       <span className="text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)]">
                                         Gummy
                                       </span>
@@ -1883,7 +1876,7 @@ export default function SelectThemeModal({
                                 )}
 
                                 {preset.id === 'liquid-neon' && (
-                                  <div className="relative px-3.5 py-1 rounded-[16px] bg-[#0f0b1e] border border-purple-500/40 shadow-[0_0_12px_rgba(168,85,247,0.4)] flex items-center justify-center">
+                                  <div className="relative px-3.5 py-1 rounded-2xl bg-[#0f0b1e] border border-purple-500/40 shadow-[0_0_12px_rgba(168,85,247,0.4)] flex items-center justify-center">
                                     <BubbleDecoration shape="liquid-neon" isOwnMessage={false} />
                                     <span className="text-[10px] font-bold text-white tracking-wide">
                                       Neon ✨
@@ -1894,7 +1887,7 @@ export default function SelectThemeModal({
                                 {preset.id === 'star-bubble' && (
                                   <div className="relative">
                                     <BubbleDecoration shape="star-bubble" isOwnMessage={false} />
-                                    <div className="px-3.5 py-1 rounded-[14px] rounded-bl-[4px] border border-amber-600/40 bg-gradient-to-b from-[#fbbf24] to-[#f59e0b] text-[10.5px] font-bold text-[#451a03] shadow-md">
+                                    <div className="px-3.5 py-1 rounded-[14px] rounded-bl-sm border border-amber-600/40 bg-linear-to-b from-[#fbbf24] to-[#f59e0b] text-[10.5px] font-bold text-[#451a03] shadow-md">
                                       Star ☀️
                                     </div>
                                   </div>
@@ -1903,7 +1896,7 @@ export default function SelectThemeModal({
                                 {preset.id === 'pink-cream' && (
                                   <div className="relative pb-2">
                                     <BubbleDecoration shape="pink-cream" isOwnMessage={false} />
-                                    <div className="px-3.5 py-1 rounded-t-[14px] rounded-b-[4px] border border-pink-300/40 bg-gradient-to-b from-[#fbcfe8] via-[#f472b6] to-[#fb7185] text-[10.5px] font-bold text-[#831843] shadow-md">
+                                    <div className="px-3.5 py-1 rounded-t-[14px] rounded-b-sm border border-pink-300/40 bg-linear-to-b from-[#fbcfe8] via-[#f472b6] to-[#fb7185] text-[10.5px] font-bold text-[#831843] shadow-md">
                                       Cream 🍧
                                     </div>
                                   </div>
@@ -1913,7 +1906,7 @@ export default function SelectThemeModal({
                                   <div className="relative">
                                     <BubbleDecoration shape="sheetbook-note" isOwnMessage={false} />
                                     <div
-                                      className="px-3.5 py-1 rounded-[12px] border border-slate-300 bg-white text-[10.5px] font-bold text-[#1e293b] shadow-sm"
+                                      className="px-3.5 py-1 rounded-xl border border-slate-300 bg-white text-[10.5px] font-bold text-[#1e293b] shadow-sm"
                                       style={{
                                         backgroundImage:
                                           'linear-gradient(to right, rgba(59, 130, 246, 0.15) 1px, transparent 1px), linear-gradient(to bottom, rgba(59, 130, 246, 0.15) 1px, transparent 1px)',
@@ -1928,7 +1921,7 @@ export default function SelectThemeModal({
                                 {preset.id === 'moon-bubble' && (
                                   <div className="relative">
                                     <BubbleDecoration shape="moon-bubble" isOwnMessage={false} />
-                                    <div className="px-3.5 py-1 rounded-[14px] border border-purple-500/30 bg-gradient-to-br from-[#181135] via-[#29154e] to-[#120c2b] text-[10.5px] font-bold text-white shadow-md">
+                                    <div className="px-3.5 py-1 rounded-[14px] border border-purple-500/30 bg-linear-to-br from-[#181135] via-[#29154e] to-[#120c2b] text-[10.5px] font-bold text-white shadow-md">
                                       Moon 🪐
                                     </div>
                                   </div>
@@ -1937,7 +1930,7 @@ export default function SelectThemeModal({
                                 {preset.id === 'cloudy-bubble' && (
                                   <div className="relative pb-2">
                                     <BubbleDecoration shape="cloudy-bubble" isOwnMessage={false} />
-                                    <div className="px-3.5 py-1 rounded-t-[14px] rounded-b-[4px] border border-blue-400/30 bg-gradient-to-b from-[#60a5fa] to-[#2563eb] text-[10.5px] font-bold text-white shadow-md">
+                                    <div className="px-3.5 py-1 rounded-t-[14px] rounded-b-sm border border-blue-400/30 bg-linear-to-b from-[#60a5fa] to-[#2563eb] text-[10.5px] font-bold text-white shadow-md">
                                       Cloud ☁️
                                     </div>
                                   </div>
@@ -1999,7 +1992,7 @@ export default function SelectThemeModal({
                                     </h4>
                                   )}
                                   {isSelected && (
-                                    <div className="w-4 h-4 rounded-full bg-purple-600 text-white flex items-center justify-center flex-shrink-0 ml-1">
+                                    <div className="w-4 h-4 rounded-full bg-purple-600 text-white flex items-center justify-center shrink-0 ml-1">
                                       <Check size={10} strokeWidth={3} />
                                     </div>
                                   )}
@@ -2541,7 +2534,7 @@ export default function SelectThemeModal({
                     <div className="flex items-center gap-3">
                       {/* Active Color Preview Block */}
                       <div
-                        className="w-14 h-14 rounded-2xl flex-shrink-0 flex items-center justify-center shadow-lg border border-white/10 relative overflow-hidden"
+                        className="w-14 h-14 rounded-2xl shrink-0 flex items-center justify-center shadow-lg border border-white/10 relative overflow-hidden"
                         style={{
                           backgroundColor:
                             draftTheme.textColor && draftTheme.textColor !== 'auto'
@@ -2550,7 +2543,7 @@ export default function SelectThemeModal({
                         }}
                       >
                         {(!draftTheme.textColor || draftTheme.textColor === 'auto') && (
-                          <div className="absolute inset-0 bg-gradient-to-tr from-[#111216] to-white/40 flex items-center justify-center">
+                          <div className="absolute inset-0 bg-linear-to-tr from-[#111216] to-white/40 flex items-center justify-center">
                             <span className="text-[10px] font-bold text-white uppercase tracking-wider drop-shadow">
                               Auto
                             </span>
@@ -2559,7 +2552,7 @@ export default function SelectThemeModal({
                       </div>
 
                       {/* Custom Color Picker Button (Red / custom square with pen icon matching screenshot) */}
-                      <div className="relative flex-shrink-0">
+                      <div className="relative shrink-0">
                         <button
                           type="button"
                           onClick={() => {
@@ -2583,33 +2576,35 @@ export default function SelectThemeModal({
                             triggerHapticFeedback(6);
                             setDraftTheme((p) => ({ ...p, textColor: e.target.value }));
                           }}
-                          className="sr-only"
+                          className="absolute inset-0 opacity-0 pointer-events-none w-0 h-0"
                         />
                       </div>
 
-                      {/* 14 Preset Color Dots (2 rows of 7 dots) */}
-                      <div className="grid grid-rows-2 grid-flow-col gap-2 flex-1 justify-start">
-                        {DISCORD_TEXT_COLORS.map((item) => {
-                          const isSelected = (draftTheme.textColor || 'auto') === item.color;
-                          const isAuto = item.color === 'auto';
+                      {/* Discord Swatches Horizontal Quick Row */}
+                      <div className="flex items-center gap-1.5 overflow-x-auto py-1 custom-scrollbar">
+                        {DISCORD_TEXT_COLORS.map((swatch) => {
+                          const isAuto = swatch.color === 'auto';
+                          const isSelected =
+                            (!draftTheme.textColor && isAuto) ||
+                            draftTheme.textColor === swatch.color;
                           return (
                             <button
-                              key={item.name}
+                              key={swatch.name}
                               type="button"
                               onClick={() => {
                                 triggerHapticFeedback(6);
-                                setDraftTheme((p) => ({ ...p, textColor: item.color }));
+                                setDraftTheme((p) => ({
+                                  ...p,
+                                  textColor: isAuto ? 'auto' : swatch.color,
+                                }));
                               }}
-                              className={`w-6 h-6 rounded-full transition-transform active:scale-90 relative ${
+                              className={`relative w-8 h-8 rounded-xl shrink-0 transition-transform active:scale-90 border ${
                                 isSelected
-                                  ? 'ring-2 ring-white ring-offset-2 ring-offset-[#0b0b0c] scale-110 shadow-md'
-                                  : 'hover:scale-105 opacity-90 hover:opacity-100'
+                                  ? 'border-white ring-2 ring-purple-500/50 scale-105 shadow-md'
+                                  : 'border-white/10 hover:border-white/40 hover:scale-105'
                               }`}
-                              style={{
-                                backgroundColor: isAuto ? '#22232b' : item.color,
-                                border: isAuto ? '1px dashed rgba(255,255,255,0.4)' : 'none',
-                              }}
-                              title={`${item.name} ${isAuto ? '(High-contrast Auto)' : ''}`}
+                              style={{ backgroundColor: isAuto ? '#181926' : swatch.color }}
+                              title={swatch.name}
                             >
                               {isAuto && (
                                 <span className="text-[7px] font-bold text-gray-300 block text-center leading-none">
@@ -2619,7 +2614,7 @@ export default function SelectThemeModal({
                               {isSelected && !isAuto && (
                                 <Check
                                   size={12}
-                                  className="absolute inset-0 m-auto text-white drop-shadow stroke-[3]"
+                                  className="absolute inset-0 m-auto text-white drop-shadow stroke-3"
                                 />
                               )}
                             </button>
@@ -2646,7 +2641,7 @@ export default function SelectThemeModal({
                         triggerHapticFeedback(6);
                         setDraftTheme((p) => ({ ...p, textApplyToAll: !p.textApplyToAll }));
                       }}
-                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
                         draftTheme.textApplyToAll
                           ? 'bg-purple-600 shadow-lg shadow-purple-500/30'
                           : 'bg-white/20'
@@ -2744,7 +2739,7 @@ export default function SelectThemeModal({
                           >
                             <div className="flex items-center gap-3 min-w-0 flex-1">
                               <div
-                                className="w-10 h-10 rounded-xl border border-white/20 shadow-inner flex-shrink-0"
+                                className="w-10 h-10 rounded-xl border border-white/20 shadow-inner shrink-0"
                                 style={{ background: cp.previewBg }}
                               />
                               <div className="min-w-0 flex-1 mr-2">
@@ -2772,7 +2767,7 @@ export default function SelectThemeModal({
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-1 flex-shrink-0">
+                            <div className="flex items-center gap-1 shrink-0">
                               {isEditing ? (
                                 <>
                                   <button
@@ -2853,7 +2848,7 @@ export default function SelectThemeModal({
                         triggerHapticFeedback(6);
                         setPreviewMode('draft');
                       }}
-                      className={`px-3.5 py-1.5 min-h-[34px] rounded-xl text-xs transition-all flex items-center justify-center font-medium ${
+                      className={`px-3.5 py-1.5 min-h-8.5 rounded-xl text-xs transition-all flex items-center justify-center font-medium ${
                         previewMode === 'draft'
                           ? 'bg-purple-600 text-white shadow-md font-bold'
                           : 'text-gray-400 hover:text-white hover:bg-white/5'
@@ -2870,7 +2865,7 @@ export default function SelectThemeModal({
                         triggerHapticFeedback(6);
                         setPreviewMode('initial');
                       }}
-                      className={`flex items-center gap-1.5 px-3.5 py-1.5 min-h-[34px] rounded-xl text-xs transition-all cursor-pointer font-medium ${
+                      className={`flex items-center gap-1.5 px-3.5 py-1.5 min-h-8.5 rounded-xl text-xs transition-all cursor-pointer font-medium ${
                         previewMode === 'initial'
                           ? 'bg-purple-600 text-white shadow-md ring-2 ring-purple-400/30 font-bold'
                           : 'text-gray-400 hover:text-white hover:bg-white/5'
@@ -2887,7 +2882,7 @@ export default function SelectThemeModal({
                         triggerHapticFeedback(6);
                         setPreviewMode('default');
                       }}
-                      className={`px-3.5 py-1.5 min-h-[34px] rounded-xl text-xs transition-all flex items-center justify-center font-medium ${
+                      className={`px-3.5 py-1.5 min-h-8.5 rounded-xl text-xs transition-all flex items-center justify-center font-medium ${
                         previewMode === 'default'
                           ? 'bg-indigo-600 text-white shadow-md font-bold'
                           : 'text-gray-400 hover:text-white hover:bg-white/5'
@@ -2901,7 +2896,7 @@ export default function SelectThemeModal({
               </div>
 
               {/* Chat Frame Mockup */}
-              <div className="relative flex-1 rounded-3xl overflow-hidden border border-white/15 shadow-2xl flex flex-col min-h-[380px]">
+              <div className="relative flex-1 rounded-3xl overflow-hidden border border-white/15 shadow-2xl flex flex-col min-h-95">
                 {/* Background Layer with Filters & Hardware Acceleration */}
                 <div
                   className="absolute inset-0 z-0 overflow-hidden pointer-events-none"
@@ -2932,14 +2927,14 @@ export default function SelectThemeModal({
 
                 {/* Mock Chat Header (Liquid Glass) */}
                 <div
-                  className="relative z-10 px-4 py-3 bg-white/[0.05] backdrop-blur-2xl border-b border-white/10 flex items-center justify-between rounded-t-[23px] shadow-[0_4px_20px_rgba(0,0,0,0.15)]"
+                  className="relative z-10 px-4 py-3 bg-white/5 backdrop-blur-2xl border-b border-white/10 flex items-center justify-between rounded-t-[23px] shadow-[0_4px_20px_rgba(0,0,0,0.15)]"
                   style={{
                     background:
                       'linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%)',
                   }}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-500 to-indigo-500 flex items-center justify-center text-xs font-bold text-white shadow-md shadow-purple-500/20 ring-1 ring-white/20">
+                    <div className="w-8 h-8 rounded-full bg-linear-to-tr from-purple-500 to-indigo-500 flex items-center justify-center text-xs font-bold text-white shadow-md shadow-purple-500/20 ring-1 ring-white/20">
                       EA
                     </div>
                     <div>
@@ -3117,7 +3112,7 @@ export default function SelectThemeModal({
                 {/* Interactive Test Composer Input (Liquid Glass) */}
                 <form
                   onSubmit={handleSendTestMessage}
-                  className="relative z-10 p-2.5 bg-white/[0.04] backdrop-blur-2xl border-t border-white/10 flex items-center gap-2 rounded-b-[23px]"
+                  className="relative z-10 p-2.5 bg-white/4 backdrop-blur-2xl border-t border-white/10 flex items-center gap-2 rounded-b-[23px]"
                   style={{
                     background:
                       'linear-gradient(0deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%)',

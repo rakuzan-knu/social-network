@@ -1,6 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { toPng, toBlob } from 'html-to-image';
 import { X, Copy, Download, Check, Loader2, Share2, Sparkles, Flame, Star } from 'lucide-react';
 import type { ProfileShowcaseDto } from '@backend/common/contracts';
 import { useMessageToastStore } from '@/shared/model/useMessageToastStore';
@@ -127,7 +126,7 @@ export const ExportShowcaseModal: React.FC<ExportShowcaseModalProps> = ({
   if (!isOpen) return null;
 
   const modalContent = (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
+    <div className="fixed inset-0 z-9999 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
       <div
         className="relative w-full max-w-xl max-h-[95vh] bg-[#0d0d10] border border-white/10 rounded-3xl p-6 shadow-2xl flex flex-col gap-4 text-white overflow-hidden"
         style={{

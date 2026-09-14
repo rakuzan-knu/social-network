@@ -249,7 +249,7 @@ export default function Sidebar() {
 
                   {/* Dark Glassmorphism Popup Menu */}
                   {isCreateMenuOpen && (
-                    <div className="absolute z-[70] min-w-52.5 bg-[#16161f]/95 backdrop-blur-2xl border border-white/10 rounded-2xl p-2 shadow-[0_20px_50px_rgba(0,0,0,0.8)] animate-popIn left-full ml-3 top-0 before:absolute before:-left-4 before:top-0 before:bottom-0 before:w-4">
+                    <div className="absolute z-70 min-w-52.5 bg-[#16161f]/95 backdrop-blur-2xl border border-white/10 rounded-2xl p-2 shadow-[0_20px_50px_rgba(0,0,0,0.8)] animate-popIn left-full ml-3 top-0 before:absolute before:-left-4 before:top-0 before:bottom-0 before:w-4">
                       <button
                         type="button"
                         onClick={handleCreatePost}

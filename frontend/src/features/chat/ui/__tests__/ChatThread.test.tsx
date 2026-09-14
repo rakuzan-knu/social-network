@@ -1,11 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import ChatThread from '../ChatThread';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter } from 'react-router-dom';
 import type { ConversationView } from '@/entities/chat/model/types';
-import * as messagesHookModule from '../../model/useMessages';
 import { useSpotifyPlayerStore } from '@/shared/model/useSpotifyPlayerStore';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import * as messagesHookModule from '../../model/useMessages';
+import ChatThread from '../ChatThread';
 
 vi.mock('../../api/chatApi', () => ({
   chatApi: {
@@ -164,7 +164,7 @@ describe('ChatThread', () => {
   });
 
   it('dynamically raises composer padding when SpotifyBottomDock is full or minimized', () => {
-    const { container, rerender } = render(
+    const { rerender } = render(
       <QueryClientProvider client={queryClient}>
         <MemoryRouter>
           <ChatThread conversation={mockConv} />

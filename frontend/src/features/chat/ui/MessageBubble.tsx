@@ -66,34 +66,6 @@ interface MessageBubbleProps {
   e2eePeerUserId?: string | null;
 }
 
-function getBubbleRounding(isOwnMessage: boolean, position: ClusterPosition = 'single'): string {
-  if (isOwnMessage) {
-    switch (position) {
-      case 'first':
-        return 'rounded-[20px] rounded-br-md';
-      case 'middle':
-        return 'rounded-l-[20px] rounded-r-md';
-      case 'last':
-        return 'rounded-l-[20px] rounded-tr-md rounded-br-[4px]';
-      case 'single':
-      default:
-        return 'rounded-[20px] rounded-br-[4px]';
-    }
-  } else {
-    switch (position) {
-      case 'first':
-        return 'rounded-[20px] rounded-bl-md';
-      case 'middle':
-        return 'rounded-r-[20px] rounded-l-md';
-      case 'last':
-        return 'rounded-r-[20px] rounded-tl-md rounded-bl-[4px]';
-      case 'single':
-      default:
-        return 'rounded-[20px] rounded-bl-[4px]';
-    }
-  }
-}
-
 function extractMediaInfo(body: string): {
   displayText: string;
   postId: string | null;
@@ -120,23 +92,6 @@ function extractMediaInfo(body: string): {
   }
 
   return { displayText: body, postId: null, reelId: null };
-}
-
-function isLegitimateSpotifyUrl(url: string | null): boolean {
-  if (!url) return false;
-  try {
-    const parsed = new URL(url);
-    const isSpotifyHost =
-      parsed.hostname === 'spotify.com' ||
-      parsed.hostname === 'open.spotify.com' ||
-      parsed.hostname.endsWith('.spotify.com');
-    return (
-      isSpotifyHost &&
-      /^\/(track|album|playlist|episode|show)\/([a-zA-Z0-9]+)/i.test(parsed.pathname)
-    );
-  } catch {
-    return false;
-  }
 }
 
 export default function MessageBubble({
@@ -192,7 +147,6 @@ export default function MessageBubble({
   const resolvedDisplayText = displayText;
   const firstExternalUrl =
     !embeddedPostId && !embeddedReelId ? extractFirstUrl(displaySource) : null;
-  const isSpotifyUrl = isLegitimateSpotifyUrl(firstExternalUrl);
   const hasLinkPreview = Boolean(firstExternalUrl);
 
   const [swipeOffset, setSwipeOffset] = useState(0);
@@ -674,15 +628,15 @@ export default function MessageBubble({
                 className={`relative px-3.5 py-2 transition-all overflow-hidden ${
                   isOwnMessage
                     ? hasLinkPreview
-                      ? 'w-full max-w-[460px] sm:max-w-[500px] min-w-[260px]'
+                      ? 'w-full max-w-115 sm:max-w-125 min-w-65'
                       : message.replyTo
-                        ? 'w-fit min-w-[210px] sm:min-w-[240px] max-w-[88%] sm:max-w-[520px]'
-                        : 'w-fit min-w-[75px] sm:min-w-[85px] max-w-[88%] sm:max-w-[520px]'
+                        ? 'w-fit min-w-52.5 sm:min-w-60 max-w-[88%] sm:max-w-130'
+                        : 'w-fit min-w-18.75 sm:min-w-21.25 max-w-[88%] sm:max-w-130'
                     : hasLinkPreview
-                      ? 'w-full max-w-[420px] sm:max-w-[460px] min-w-[260px]'
+                      ? 'w-full max-w-105 sm:max-w-115 min-w-65'
                       : message.replyTo
-                        ? 'w-fit min-w-[210px] sm:min-w-[240px] max-w-[82%] sm:max-w-[440px]'
-                        : 'w-fit min-w-[75px] sm:min-w-[85px] max-w-[82%] sm:max-w-[440px]'
+                        ? 'w-fit min-w-52.5 sm:min-w-60 max-w-[82%] sm:max-w-110'
+                        : 'w-fit min-w-18.75 sm:min-w-21.25 max-w-[82%] sm:max-w-110'
                 } ${roundingClass} ${bubbleStyles.className} ${shapeStyles.extraClass}`}
               >
                 {/* Interactive Quoted Message */}
@@ -696,11 +650,11 @@ export default function MessageBubble({
                       backgroundColor: contrast ? contrast.quoteBg : undefined,
                       borderLeftColor: contrast ? contrast.quoteBorder : undefined,
                     }}
-                    className={`group/reply relative flex items-center mb-1.5 px-2.5 py-1.5 rounded-lg text-left cursor-pointer transition-all duration-150 select-none overflow-hidden min-w-[190px] sm:min-w-[220px] max-w-full ${
+                    className={`group/reply relative flex items-center mb-1.5 px-2.5 py-1.5 rounded-lg text-left cursor-pointer transition-all duration-150 select-none overflow-hidden min-w-47.5 sm:min-w-55 max-w-full ${
                       !contrast
                         ? isOwnMessage
                           ? 'bg-black/20 hover:bg-black/35 border border-purple-400/25'
-                          : 'bg-black/25 hover:bg-black/40 border border-white/[0.08]'
+                          : 'bg-black/25 hover:bg-black/40 border border-white/8'
                         : 'border-l-2'
                     }`}
                     title="Jump to original message"
@@ -708,7 +662,7 @@ export default function MessageBubble({
                     {/* Left colored vertical bar */}
                     {!contrast && (
                       <div
-                        className={`w-[3px] self-stretch rounded-full mr-2.5 flex-shrink-0 ${
+                        className={`w-0.75 self-stretch rounded-full mr-2.5 shrink-0 ${
                           isOwnMessage ? 'bg-purple-300' : 'bg-sky-400'
                         }`}
                       />
@@ -719,7 +673,7 @@ export default function MessageBubble({
                       <img
                         src={replyThumbnail}
                         alt="Attachment preview"
-                        className="w-9 h-9 rounded-md object-cover flex-shrink-0 mr-2.5 bg-black/40 border border-white/10"
+                        className="w-9 h-9 rounded-md object-cover shrink-0 mr-2.5 bg-black/40 border border-white/10"
                         onError={(e) => {
                           (e.currentTarget as HTMLElement).style.display = 'none';
                         }}
@@ -804,7 +758,7 @@ export default function MessageBubble({
                   )}
 
                 {message.body && (
-                  <div className="relative text-[14.5px] leading-[1.38] break-words [overflow-wrap:anywhere] w-full">
+                  <div className="relative text-[14.5px] leading-[1.38] wrap-anywhere w-full">
                     {resolvedDisplayText && (
                       <div
                         className={`font-normal ${themeTextStyle.className}`}

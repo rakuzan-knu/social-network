@@ -15,7 +15,7 @@ import { PostCard } from '@/widgets/post/ui/PostCard';
 import { SkeletonFeed } from '../../entities/post/ui/SkeletonPostCard';
 import { SavedPostsView } from '@/features/profile/ui/saved/SavedPostsView';
 import { UserReelsView } from '@/features/reels';
-import { RESERVED_USERNAMES, isReservedUsername } from '@/features/profile/model/profileSchema';
+import { isReservedUsername } from '@/features/profile/model/profileSchema';
 import { SEOHead } from '@/shared/seo';
 import { storiesApi } from '@/features/stories/api/storiesApi';
 import { useStoryViewerStore } from '@/features/stories/model/useStoryViewerStore';

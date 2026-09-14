@@ -260,7 +260,7 @@ export function CommentItem({
           const safeMedia = sanitizeImageUrl(comment.mediaUrl);
           if (!safeMedia || comment.isDeleted) return null;
           return (
-            <div className="mt-2 max-w-sm rounded-xl overflow-hidden border border-white/[0.08] bg-black/40">
+            <div className="mt-2 max-w-sm rounded-xl overflow-hidden border border-white/8 bg-black/40">
               <img
                 src={safeMedia}
                 alt="attachment"

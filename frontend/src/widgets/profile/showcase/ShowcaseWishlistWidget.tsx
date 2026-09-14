@@ -295,7 +295,7 @@ export const ShowcaseWishlistWidget: React.FC<ShowcaseWishlistWidgetProps> = ({
                   <button
                     type="button"
                     onClick={() => handleRecommendationClick(item.title)}
-                    className="w-full text-left p-2 rounded-xl bg-gradient-to-r from-indigo-500/20 via-purple-500/20 to-pink-500/20 border border-indigo-400/40 text-[11px] font-bold text-indigo-200 hover:text-white flex items-center justify-between gap-2 transition-all cursor-pointer shadow-sm hover:scale-[1.01]"
+                    className="w-full text-left p-2 rounded-xl bg-linear-to-r from-indigo-500/20 via-purple-500/20 to-pink-500/20 border border-indigo-400/40 text-[11px] font-bold text-indigo-200 hover:text-white flex items-center justify-between gap-2 transition-all cursor-pointer shadow-sm hover:scale-[1.01]"
                   >
                     <div className="flex items-center gap-1.5 truncate">
                       <CheckCircle2 size={13} className="text-emerald-400 shrink-0" />
@@ -312,7 +312,7 @@ export const ShowcaseWishlistWidget: React.FC<ShowcaseWishlistWidgetProps> = ({
                 {/* Wishlist Card */}
                 <div
                   onClick={(e) => handleCardClick(item, e)}
-                  className="flex items-center gap-3 p-2.5 rounded-2xl bg-white/[0.02] hover:bg-white/[0.06] border border-white/[0.06] transition-all cursor-pointer hover:border-indigo-500/40"
+                  className="flex items-center gap-3 p-2.5 rounded-2xl bg-white/2 hover:bg-white/6 border border-white/6 transition-all cursor-pointer hover:border-indigo-500/40"
                 >
                   <img
                     src={sanitizeImageUrl(item.posterUrl)}
@@ -354,7 +354,7 @@ export const ShowcaseWishlistWidget: React.FC<ShowcaseWishlistWidgetProps> = ({
                         {item.tags.slice(0, 3).map((tag, idx) => (
                           <span
                             key={idx}
-                            className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-[9px] font-semibold text-gray-300"
+                            className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white/4 border border-white/8 text-[9px] font-semibold text-gray-300"
                           >
                             {getTagIcon(tag)}
                             <span>{tag}</span>

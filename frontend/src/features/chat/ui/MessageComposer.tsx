@@ -745,7 +745,7 @@ export default function MessageComposer({
 
       <div className="w-full">
         <div
-          className={`relative w-full flex items-center gap-1.5 sm:gap-2 rounded-2xl sm:rounded-[26px] p-1.5 sm:px-3 sm:py-1.5 min-h-[46px] border border-white/15 focus-within:border-white/30 shadow-[0_16px_40px_rgba(0,0,0,0.6),inset_0_1px_1px_rgba(255,255,255,0.15)] backdrop-blur-3xl transition-all duration-200 ${
+          className={`relative w-full flex items-center gap-1.5 sm:gap-2 rounded-2xl sm:rounded-[26px] p-1.5 sm:px-3 sm:py-1.5 min-h-11.5 border border-white/15 focus-within:border-white/30 shadow-[0_16px_40px_rgba(0,0,0,0.6),inset_0_1px_1px_rgba(255,255,255,0.15)] backdrop-blur-3xl transition-all duration-200 ${
             isShaking ? 'animate-shake' : ''
           }`}
           style={{
@@ -756,9 +756,9 @@ export default function MessageComposer({
           }}
         >
           {/* Specular Liquid Glass Top Reflection Sweep */}
-          <div className="absolute inset-x-8 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/40 to-transparent pointer-events-none rounded-t-full" />
+          <div className="absolute inset-x-8 top-0 h-px bg-linear-to-r from-transparent via-white/40 to-transparent pointer-events-none rounded-t-full" />
 
-          <div className="relative flex-shrink-0 flex items-center">
+          <div className="relative shrink-0 flex items-center">
             <AttachMenu
               isGroup={isGroup}
               disabled={isSending || stagedFiles.length >= MAX_ATTACHMENTS_PER_MESSAGE}
@@ -793,10 +793,10 @@ export default function MessageComposer({
             rows={1}
             maxLength={MAX_MESSAGE_LENGTH}
             style={{ maxHeight: MAX_TEXTAREA_HEIGHT }}
-            className="flex-1 bg-transparent text-sm text-white placeholder:text-gray-400 focus:outline-none resize-none py-1.5 px-1 custom-scrollbar leading-5 self-center min-h-[32px]"
+            className="flex-1 bg-transparent text-sm text-white placeholder:text-gray-400 focus:outline-none resize-none py-1.5 px-1 custom-scrollbar leading-5 self-center min-h-8"
           />
 
-          <div className="flex items-center gap-1 flex-shrink-0">
+          <div className="flex items-center gap-1 shrink-0">
             {/* Twitter-Style Progress Ring Limit Indicator */}
             {text.length >= WARN_THRESHOLD && (
               <div
