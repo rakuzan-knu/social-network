@@ -18,7 +18,7 @@ describe('getMessageToastPreview', () => {
   });
 
   it('never leaks E2EE envelope JSON into notifications', () => {
-    const envelope = JSON.stringify({ e2ee: true, v: 1, iv: 'aGVsbG8', ct: 'd29ybGQ' });
+    const envelope = JSON.stringify({ e2ee: true, v: 1, iv: 'AAAAAAAAAAAAAAAA', ct: 'd29ybGQ' });
     expect(
       getMessageToastPreview({
         isDeleted: false,

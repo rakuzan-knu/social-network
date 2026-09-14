@@ -23,10 +23,10 @@ import {
 import {
   NotificationPosition,
   useNotificationSettingsStore,
-} from '@/shared/model/useNotificationSettingsStore';
-import { playPreviewNotificationSound } from '@/shared/lib/messageNotificationSound';
+  playPreviewNotificationSound,
+  fetchNotificationSettings,
+} from '@/entities/notification';
 import { requestPushNotificationPermission } from '@/shared/lib/browserPushNotifications';
-import { fetchNotificationSettings } from '@/entities/notification/api/notificationApi';
 import Avatar from '@/shared/ui/Avatar';
 import ScreenLocationMonitor from './ScreenLocationMonitor';
 

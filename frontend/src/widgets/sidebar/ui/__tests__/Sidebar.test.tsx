@@ -15,7 +15,7 @@ vi.mock('@/features/chat/model/useUnreadMessagesCount', () => ({
   useUnreadMessagesCount: () => 5,
 }));
 
-vi.mock('@/entities/notification', () => ({
+vi.mock('../../model/useUnreadNotificationsCount', () => ({
   useUnreadNotificationsCount: () => 3,
 }));
 
@@ -99,18 +99,18 @@ describe('Sidebar', () => {
     const createBtn = screen.getByText('Create').closest('a')!;
     fireEvent.click(createBtn);
 
-    expect(screen.getByText('Создать пост')).toBeInTheDocument();
-    expect(screen.getByText('Опубликовать историю')).toBeInTheDocument();
+    expect(screen.getByText('Create Post')).toBeInTheDocument();
+    expect(screen.getByText('Create Story')).toBeInTheDocument();
 
-    // Click Опубликовать историю
-    fireEvent.click(screen.getByText('Опубликовать историю'));
+    // Click Create Story
+    fireEvent.click(screen.getByText('Create Story'));
     expect(useStoryEditorStore.getState().isOpen).toBe(true);
 
     // Reopen and test outside click
     fireEvent.click(createBtn);
-    expect(screen.getByText('Создать пост')).toBeInTheDocument();
+    expect(screen.getByText('Create Post')).toBeInTheDocument();
     fireEvent.mouseDown(document.body);
-    expect(screen.queryByText('Создать пост')).not.toBeInTheDocument();
+    expect(screen.queryByText('Create Post')).not.toBeInTheDocument();
   });
 
   it('marks the current route as active', () => {

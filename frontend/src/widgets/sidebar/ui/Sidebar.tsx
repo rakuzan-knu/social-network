@@ -14,12 +14,12 @@ import {
 import { useUIStore } from '../../../shared/model/useUIStore';
 import { useCurrentUser } from '@/entities/profile/model/useCurrentUser';
 import { useStoryEditorStore } from '@/features/stories/model/useStoryEditorStore';
-import { ProfileMenu } from '@/features/sidebar/ui/SidebarMenu';
+import { ProfileMenu } from './SidebarMenu';
 import Avatar from '../../../shared/ui/Avatar';
 import OnlineStatusIndicator from '../../../shared/ui/OnlineStatusIndicator';
 import { useQueryOnlineStatus } from '@/features/chat/model/usePresence';
 import { useUnreadMessagesCount } from '@/features/chat/model/useUnreadMessagesCount';
-import { useUnreadNotificationsCount } from '@/entities/notification';
+import { useUnreadNotificationsCount } from '../model/useUnreadNotificationsCount';
 
 const menuItems = [
   { to: '/', icon: <Home size={24} />, label: 'Home' },

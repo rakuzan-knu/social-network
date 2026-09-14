@@ -16,7 +16,7 @@ import { MediaShowcaseWidget } from './MediaShowcaseWidget';
 import { ShowcaseWishlistWidget } from './ShowcaseWishlistWidget';
 import { ProfileAnthemCard } from './ProfileAnthemCard';
 import { TasteMatchBanner } from './TasteMatchBanner';
-import { MediaDetailModal } from '@/shared/ui/media';
+import { MediaDetailModal } from '@/widgets/showcase';
 import { ShowcaseWidgetWrapper } from './ShowcaseWidgetWrapper';
 import { UnsavedChangesBar } from './UnsavedChangesBar';
 import { ShowcaseMediaType, type ShowcaseMediaItemDto } from '@backend/common/contracts';

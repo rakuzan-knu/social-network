@@ -5,8 +5,8 @@ import { useUIStore } from '@/shared/model/useUIStore';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import type { PostType } from '@/entities/post/model/types';
-import { followApi } from '@/features/follow/api/followApi';
-import { chatApi } from '@/features/chat/api/chatApi';
+import { followApi } from '@/entities/user';
+import { chatApi } from '@/entities/chat';
 import { postsApi } from '@/features/posts/api/postsApi';
 
 vi.mock('@/entities/profile/model/useCurrentUser', () => ({

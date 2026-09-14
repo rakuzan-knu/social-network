@@ -25,11 +25,12 @@ describe('sentry', () => {
   });
 
   it('initializes Sentry when valid DSN is provided', () => {
-    vi.stubEnv('VITE_SENTRY_DSN', 'https://mock@sentry.io/12345');
+    vi.stubEnv('PROD', true as any);
+    vi.stubEnv('VITE_SENTRY_DSN', 'https://prodkey@sentry.io/12345');
     initSentry();
     expect(Sentry.init).toHaveBeenCalledWith(
       expect.objectContaining({
-        dsn: 'https://mock@sentry.io/12345',
+        dsn: 'https://prodkey@sentry.io/12345',
       }),
     );
     vi.unstubAllEnvs();
@@ -41,7 +42,8 @@ describe('sentry', () => {
       throw new Error('Sentry init failed');
     });
 
-    vi.stubEnv('VITE_SENTRY_DSN', 'https://mock@sentry.io/12345');
+    vi.stubEnv('PROD', true as any);
+    vi.stubEnv('VITE_SENTRY_DSN', 'https://prodkey@sentry.io/12345');
     // Should not throw - the catch block swallows errors
     expect(() => initSentry()).not.toThrow();
     vi.unstubAllEnvs();
@@ -59,7 +61,7 @@ describe('sentry', () => {
   });
 
   it('sets tracesSampleRate to 0.2 in production environment', () => {
-    vi.stubEnv('VITE_SENTRY_DSN', 'https://mock@sentry.io/12345');
+    vi.stubEnv('VITE_SENTRY_DSN', 'https://prodkey@sentry.io/12345');
     vi.stubEnv('PROD', true as any);
     initSentry();
     expect(Sentry.init).toHaveBeenCalledWith(

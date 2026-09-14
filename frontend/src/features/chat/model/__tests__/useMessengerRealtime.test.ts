@@ -4,7 +4,7 @@ import { useMessengerRealtime } from '../useMessengerRealtime';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import { CONVERSATIONS_KEY } from '@/shared/api/queryKeys';
-import { useNotificationSettingsStore } from '@/shared/model/useNotificationSettingsStore';
+import { useNotificationSettingsStore } from '@/entities/notification';
 import { useAuthStore } from '@/shared/model/useAuthStore';
 
 const mockEmit = vi.fn();

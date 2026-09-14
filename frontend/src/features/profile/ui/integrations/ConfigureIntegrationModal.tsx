@@ -40,17 +40,19 @@ import {
   Dota2BrandIcon,
   CS2BrandIcon,
 } from '@/shared/ui/BrandIcons';
-import { DotaRankMedal } from '@/shared/ui/DotaRankMedal';
-import { CS2PremierBadge } from '@/shared/ui/CS2PremierBadge';
+import {
+  DotaRankMedal,
+  CS2PremierBadge,
+  ShowcaseIntegrationCard,
+  calculateDotaRank,
+  calculateCS2Premier,
+  integrationsApi,
+} from '@/entities/showcase';
 import { SteamLevelBadge } from '@/shared/ui/SteamLevelBadge';
-import { calculateDotaRank } from '@/entities/showcase/lib/dotaRanks';
-import { calculateCS2Premier } from '@/entities/showcase/lib/cs2Ranks';
 import { useCurrentUser } from '@/entities/profile/model/useCurrentUser';
-import { integrationsApi } from '@/entities/showcase/api/integrationsApi';
 import { useQueryClient } from '@tanstack/react-query';
 import { USER_KEY } from '@/shared/api/queryKeys';
 import { UnlinkConfirmationModal } from './UnlinkConfirmationModal';
-import { ShowcaseIntegrationCard } from '@/widgets/profile/showcase/ShowcaseIntegrationCard';
 import { useSpotifyPlayerStore } from '@/shared/model/useSpotifyPlayerStore';
 import { isSpotifyUrl, isTrustedMessageOrigin, sanitizeImageUrl } from '@/shared/lib/urlSecurity';
 

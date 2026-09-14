@@ -12,7 +12,6 @@ import {
 import { NotificationFilter, PaginatedNotificationsResponse } from './types';
 import { useNotificationStore } from './useNotificationStore';
 import { useSpotifyPlayerStore } from '@/shared/model/useSpotifyPlayerStore';
-import { followApi } from '@/features/follow/api/followApi';
 import { useEffect } from 'react';
 
 export function useNotifications(filter: NotificationFilter = 'all') {
@@ -150,50 +149,6 @@ export function useMarkAllNotificationsAsRead() {
       queryClient.invalidateQueries({ queryKey: [UNREAD_NOTIFICATIONS_COUNT_KEY] });
     },
   });
-}
-
-export function useFollowBack() {
-  const optimisticFollows = useNotificationStore((state) => state.optimisticFollows);
-  const setOptimisticFollow = useNotificationStore((state) => state.setOptimisticFollow);
-
-  const followMutation = useMutation({
-    mutationFn: async ({
-      userId,
-      isCurrentlyFollowing,
-    }: {
-      userId: string;
-      isCurrentlyFollowing: boolean;
-    }) => {
-      if (isCurrentlyFollowing) {
-        await followApi.unfollow(userId);
-      } else {
-        await followApi.follow(userId);
-      }
-    },
-    onMutate: ({ userId, isCurrentlyFollowing }) => {
-      setOptimisticFollow(userId, !isCurrentlyFollowing, true);
-    },
-    onSuccess: (_, { userId, isCurrentlyFollowing }) => {
-      setOptimisticFollow(userId, !isCurrentlyFollowing, false);
-    },
-    onError: (_, { userId, isCurrentlyFollowing }) => {
-      setOptimisticFollow(userId, isCurrentlyFollowing, false);
-    },
-  });
-
-  const toggleFollow = (userId: string, isCurrentlyFollowing: boolean) => {
-    const current = optimisticFollows[userId];
-    if (current?.isLoading) return;
-    const targetState = current !== undefined ? current.isFollowing : isCurrentlyFollowing;
-    followMutation.mutate({ userId, isCurrentlyFollowing: targetState });
-  };
-
-  return {
-    toggleFollow,
-    isFollowing: (userId: string, defaultFollowing = false) =>
-      optimisticFollows[userId]?.isFollowing ?? defaultFollowing,
-    isLoading: (userId: string) => Boolean(optimisticFollows[userId]?.isLoading),
-  };
 }
 
 export function useDeleteNotification() {

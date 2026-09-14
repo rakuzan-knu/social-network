@@ -44,7 +44,7 @@ describe('StoryReplyEmbed', () => {
     expect(video).toBeInTheDocument();
 
     fireEvent.error(video);
-    expect(screen.getByText('История недоступна или срок её действия истек')).toBeInTheDocument();
+    expect(screen.getByText('Story is unavailable or has expired')).toBeInTheDocument();
   });
 
   it('renders fallback glassmorphism banner when image encounters an error (404/expired)', () => {

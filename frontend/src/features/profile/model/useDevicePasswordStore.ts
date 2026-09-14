@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { registerSessionResetHandler } from '@/shared/model/resetSession';
 import {
   derivePasswordVerifier,
   verifyPasswordVerifier,
@@ -239,3 +240,7 @@ export const useDevicePasswordStore = create<DevicePasswordState>((set, get) => 
     set({ stored: loadStored() });
   },
 }));
+
+registerSessionResetHandler(() => {
+  useDevicePasswordStore.setState({ unlocked: false });
+});

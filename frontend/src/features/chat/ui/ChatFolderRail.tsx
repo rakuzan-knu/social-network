@@ -55,6 +55,16 @@ export default function ChatFolderRail({
   } | null>(null);
 
   useEffect(() => {
+    if (!draggingFolderId) return;
+    document.body.style.cursor = 'grabbing';
+    document.body.style.userSelect = 'none';
+    return () => {
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [draggingFolderId]);
+
+  useEffect(() => {
     const rail = railRef.current;
     if (!rail) return;
 
@@ -109,8 +119,6 @@ export default function ChatFolderRail({
         offsetY: state.offsetY,
         width: state.width,
       });
-      document.body.style.cursor = 'grabbing';
-      document.body.style.userSelect = 'none';
     },
     [],
   );
@@ -133,8 +141,6 @@ export default function ChatFolderRail({
     }
 
     if (draggingId) suppressNextClickRef.current = true;
-    document.body.style.cursor = '';
-    document.body.style.userSelect = '';
     setDraggingFolderId(null);
     setDragOverFolderId(null);
     setDragPreview(null);

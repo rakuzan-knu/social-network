@@ -32,6 +32,22 @@ export class ReactionParticleEngine {
     startXRatio?: number,
   ) => void;
 
+  public setOnSpawn(
+    callback?: (
+      emoji: string,
+      canvasWidth: number,
+      canvasHeight: number,
+      startXRatio?: number,
+    ) => void,
+  ): () => void {
+    this.onSpawn = callback;
+    return () => {
+      if (this.onSpawn === callback) {
+        this.onSpawn = undefined;
+      }
+    };
+  }
+
   /**
    * Spawns a burst of reaction particles
    * @param emoji The emoji character (e.g. '❤️', '🔥', '👏')

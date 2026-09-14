@@ -132,8 +132,8 @@ describe.runIf(hasSubtle)('E2EE v2 dialog binding (manager + raw peer)', () => {
         JSON.stringify({
           e2ee: true,
           v: 2,
-          iv: 'a',
-          ct: 'b',
+          iv: 'AAAAAAAAAAAAAAAA',
+          ct: 'BBBB',
           from: 'd',
           aad: { conversationId: 'c', senderId: 's', senderDevice: 'd', seq: 1.5 },
         }),

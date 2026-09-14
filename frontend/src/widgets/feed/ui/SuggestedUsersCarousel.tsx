@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, X, MapPin, Sparkles, Compass } from 'lucide-
 import Avatar from '@/shared/ui/Avatar';
 import { VerifiedCheckmark } from '@/entities/profile/ui/VerifiedCheckmark';
 import { FollowButton } from '@/features/follow/ui/FollowButton';
-import { MiniProfileHoverCard } from '@/entities/profile/ui/MiniProfileHoverCard';
+import { MiniProfileHoverCard } from '@/widgets/profile';
 import {
   useSuggestedUsers,
   useDismissSuggestedUser,

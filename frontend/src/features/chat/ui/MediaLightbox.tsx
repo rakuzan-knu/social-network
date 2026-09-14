@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { X, ChevronLeft, ChevronRight, Download, MessageSquare, ImageOff } from 'lucide-react';
 import { MediaItem } from '../model/chatMediaTypes';
 
@@ -27,11 +27,11 @@ export default function MediaLightbox({
     setHasError(false);
   }, [current?.attachment?.id]);
 
-  const requestClose = () => {
+  const requestClose = useCallback(() => {
     if (isClosing) return;
     setIsClosing(true);
     setTimeout(onClose, EXIT_DURATION_MS);
-  };
+  }, [isClosing, onClose]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -41,8 +41,7 @@ export default function MediaLightbox({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [index, items.length]);
+  }, [index, items.length, onIndexChange, requestClose]);
 
   if (!current) return null;
 

@@ -25,7 +25,7 @@ import ChatPollCard from './ChatPollCard';
 import { parseChatPoll } from '../lib/chatPoll';
 import { PostEmbedCard } from './PostEmbedCard';
 import { ReelEmbedCard } from './ReelEmbedCard';
-import { LinkPreviewCard } from '../../../shared/ui/LinkPreviewCard';
+import { LinkPreviewCard } from '@/entities/opengraph';
 import MarkdownContent from '../../../shared/ui/MarkdownContent';
 import { extractFirstUrl } from '../../../shared/lib/urlUtils';
 import { ClusterPosition } from './MessageList';

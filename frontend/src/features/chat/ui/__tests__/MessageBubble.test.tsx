@@ -510,7 +510,7 @@ describe('MessageBubble', () => {
     expect(outerWrapper?.className).toContain('ml-auto');
 
     // Verify inner bubble has link width
-    const innerBubble = container.querySelector('.max-w-\\[460px\\]');
+    const innerBubble = container.querySelector('.max-w-115, .max-w-\\[460px\\]');
     expect(innerBubble).toBeInTheDocument();
 
     // Verify the expanded Spotify iframe embed is rendered directly without scrollbars

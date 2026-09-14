@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import ExceptionPicker from '../ExceptionPicker';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { privacyApi } from '../../../api/privacyApi';
-import { userSearchApi } from '@/features/chat/api/userSearchApi';
+import { userSearchApi } from '@/entities/user/api/userSearchApi';
 import React from 'react';
 
 vi.mock('../../../api/privacyApi', () => ({
@@ -22,7 +22,7 @@ vi.mock('@/features/profile/api/privacyApi', () => ({
   },
 }));
 
-vi.mock('@/features/chat/api/userSearchApi', () => ({
+vi.mock('@/entities/user/api/userSearchApi', () => ({
   userSearchApi: {
     search: vi.fn().mockResolvedValue([]),
   },

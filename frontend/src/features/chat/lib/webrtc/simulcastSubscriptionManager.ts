@@ -145,8 +145,13 @@ export const globalSimulcastSubscriptionManager = new SimulcastSubscriptionManag
 /**
  * React hook connecting video tile DOM element to dynamic simulcast subscription
  */
-export function useIntersectionSimulcastSubscription(userId?: string, isLocal = false) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
+export function useIntersectionSimulcastSubscription(
+  userId?: string,
+  isLocal = false,
+  targetRef?: React.RefObject<HTMLDivElement | null>,
+) {
+  const internalRef = useRef<HTMLDivElement | null>(null);
+  const containerRef = targetRef || internalRef;
   const [currentLayer, setCurrentLayer] = useState<SimulcastLayer>('high');
 
   useEffect(() => {
@@ -165,7 +170,7 @@ export function useIntersectionSimulcastSubscription(userId?: string, isLocal = 
       unsubscribe();
       globalSimulcastSubscriptionManager.unobserve(element);
     };
-  }, [userId, isLocal]);
+  }, [userId, isLocal, containerRef]);
 
   return {
     containerRef,

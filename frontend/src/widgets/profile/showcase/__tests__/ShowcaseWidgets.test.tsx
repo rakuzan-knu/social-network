@@ -13,7 +13,7 @@ import { ShowcaseIntegrationCard } from '../ShowcaseIntegrationCard';
 import { ProfileShowcaseSettingsSection } from '@/features/profile/ui/ProfileShowcaseSettingsSection';
 import { SpotifyBrandIcon, SteamBrandIcon, DiscordBrandIcon } from '@/shared/ui/BrandIcons';
 import { BrowserRouter } from 'react-router-dom';
-import { MediaDetailModal } from '@/shared/ui/media';
+import { MediaDetailModal } from '@/widgets/showcase';
 import { useMediaDetailModalStore } from '@/entities/showcase/model/useMediaDetailModalStore';
 import {
   ShowcaseMediaType,

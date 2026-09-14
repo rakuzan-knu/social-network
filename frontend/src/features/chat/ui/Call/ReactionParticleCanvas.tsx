@@ -38,9 +38,9 @@ export function ReactionParticleCanvas({ engine }: ReactionParticleCanvasProps) 
 
     // If running in Offscreen Web Worker, the worker manages 100% of rendering loop
     if (bridge.isOffscreen) {
-      engine.onSpawn = (emoji, w, h, ratio) => {
+      const unsubscribeSpawn = engine.setOnSpawn((emoji, w, h, ratio) => {
         bridge.spawn(emoji, w, h, ratio !== undefined ? ratio * w : undefined);
-      };
+      });
 
       const handleResize = () => {
         const r = container.getBoundingClientRect();
@@ -51,7 +51,7 @@ export function ReactionParticleCanvas({ engine }: ReactionParticleCanvasProps) 
       window.addEventListener('resize', handleResize);
 
       return () => {
-        engine.onSpawn = undefined;
+        unsubscribeSpawn();
         window.removeEventListener('resize', handleResize);
         bridge.destroy();
         canvas.remove();

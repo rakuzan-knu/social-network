@@ -1,5 +1,5 @@
 import Avatar from '@/shared/ui/Avatar';
-import TypingIndicatorBubble from '@/shared/ui/TypingIndicatorBubble';
+import TypingIndicatorBubble from './TypingIndicatorBubble';
 import { ChevronDown } from 'lucide-react';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';

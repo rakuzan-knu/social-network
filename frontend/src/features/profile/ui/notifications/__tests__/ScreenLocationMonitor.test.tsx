@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import ScreenLocationMonitor from '../ScreenLocationMonitor';
-import { useNotificationSettingsStore } from '@/shared/model/useNotificationSettingsStore';
+import { useNotificationSettingsStore } from '@/entities/notification';
 
 describe('ScreenLocationMonitor', () => {
   beforeEach(() => {

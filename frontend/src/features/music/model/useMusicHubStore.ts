@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { registerSessionResetHandler } from '@/shared/model/resetSession';
 import type { SpotifyTrack } from '@/shared/model/useSpotifyPlayerStore';
 import { musicEventBridge } from './musicEvents';
 import { integrationsApi } from '@/entities/showcase/api/integrationsApi';
@@ -2481,3 +2482,7 @@ if (typeof window !== 'undefined') {
     }, 100);
   }
 }
+
+registerSessionResetHandler(() => {
+  useMusicHubStore.getState().resetForLogout();
+});

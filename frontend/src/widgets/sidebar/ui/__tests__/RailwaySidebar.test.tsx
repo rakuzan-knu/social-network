@@ -10,7 +10,7 @@ import * as usePresenceModule from '@/features/chat/model/usePresence';
 
 import { renderWithProviders } from '../../../../test/renderWithProviders';
 
-vi.mock('@/features/sidebar/ui/SidebarMenu', () => ({
+vi.mock('../SidebarMenu', () => ({
   ProfileMenu: () => <div data-testid="profile-menu">ProfileMenu</div>,
 }));
 

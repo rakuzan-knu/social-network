@@ -3,8 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Play, Pause } from 'lucide-react';
 import { apiClient } from '@/shared/api/httpClient';
-import type { ReelItem } from '@/features/reels/api/reelsApi';
-import { DEFAULT_SEED_REELS } from '@/features/reels/api/reelsApi';
+import { type ReelItem, DEFAULT_SEED_REELS } from '@/entities/reel';
 
 interface ReelEmbedCardProps {
   reelId: string;

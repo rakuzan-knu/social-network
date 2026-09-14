@@ -1,6 +1,10 @@
 import { create } from 'zustand';
-import { PostType } from '../../entities/post/model/types';
-import { CommentType } from '../../entities/comment/model/types';
+
+export interface ActivePostItem {
+  id: string | number;
+  authorId?: string;
+  [key: string]: unknown;
+}
 
 interface UIState {
   isSidebarExpanded: boolean;
@@ -20,13 +24,13 @@ interface UIState {
   closeEditProfile: () => void;
 
   isCommentModalOpen: boolean;
-  activePostForComments: PostType | null;
-  openCommentModal: (post: PostType) => void;
+  activePostForComments: ActivePostItem | any | null;
+  openCommentModal: (post: any) => void;
   closeCommentModal: () => void;
 
   isShareModalOpen: boolean;
-  activePostForShare: PostType | null;
-  openShareModal: (post: PostType) => void;
+  activePostForShare: ActivePostItem | any | null;
+  openShareModal: (post: any) => void;
   closeShareModal: () => void;
 }
 
@@ -62,4 +66,4 @@ export const useUIStore = create<UIState>((set, get) => ({
   closeShareModal: () => set({ isShareModalOpen: false, activePostForShare: null }),
 }));
 
-export type { PostType, CommentType };
+export type PostType = ActivePostItem;

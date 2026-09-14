@@ -32,12 +32,12 @@ import {
 } from '@/entities/notification/model/types';
 import {
   useDeleteNotification,
-  useFollowBack,
   useMarkAllNotificationsAsRead,
   useMarkNotificationAsRead,
   useMuteNotificationAuthor,
   useNotifications,
 } from '@/entities/notification/model/useNotifications';
+import { useFollowBack } from '@/features/follow';
 import { useNotificationStore } from '@/entities/notification/model/useNotificationStore';
 import { useNotificationRealtime } from '@/entities/notification/model/useNotificationRealtime';
 import { useCurrentUser } from '@/entities/profile/model/useCurrentUser';

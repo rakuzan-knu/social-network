@@ -2,7 +2,6 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import Hls from 'hls.js';
 import { audioCoordinator } from '@/shared/lib/audioCoordinator';
-import { integrationsApi } from '@/entities/showcase/api/integrationsApi';
 import {
   extractSpotifyTrackId,
   unescapeHtml,
@@ -10,7 +9,8 @@ import {
   isAppleAudioUrl,
 } from '@/shared/lib/spotifyUrl';
 import { useAuthStore } from './useAuthStore';
-import { musicEventBridge } from '@/features/music/model/musicEvents';
+import { musicEventBridge } from '@/shared/lib/musicEvents';
+import { integrationsApi } from '../api/integrationsApi';
 
 declare global {
   interface Window {

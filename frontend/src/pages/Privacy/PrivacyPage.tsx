@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { PrivacyNavbar } from './ui/PrivacyNavbar';
 import { TableOfContents } from './ui/TableOfContents';
 import { TLDRCallout } from './ui/TLDRCallout';
-import { EternalFooter } from '../../shared/ui/EternalFooter';
+import { EternalFooter } from '@/widgets/footer';
 import { SEOHead } from '../../shared/seo';
 import { ShieldCheck, Database, Cpu, Eye, KeyRound, Mail } from 'lucide-react';
 import { useLanguageStore } from '../../shared/lib/language/languageStore';

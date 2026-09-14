@@ -27,7 +27,9 @@ vi.mock('../../model/useMessageActions', () => ({
   }),
 }));
 
-const mockArchiveMutate = vi.fn();
+const mockArchiveMutate = vi.fn((_vars?: any, opts?: any) => {
+  opts?.onSuccess?.();
+});
 vi.mock('../../model/useConversationMutations', () => ({
   useArchiveConversation: () => ({
     mutate: mockArchiveMutate,
@@ -78,7 +80,10 @@ describe('ArchivedThreadPane', () => {
     const unarchiveBtn = screen.getByRole('button', { name: /unarchive/i });
     fireEvent.click(unarchiveBtn);
 
-    expect(mockArchiveMutate).toHaveBeenCalledWith({ conversationId: 'c1', archived: false });
+    expect(mockArchiveMutate).toHaveBeenCalledWith(
+      { conversationId: 'c1', archived: false },
+      expect.any(Object),
+    );
     expect(onUnarchive).toHaveBeenCalled();
   });
 

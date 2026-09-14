@@ -6,11 +6,12 @@ import Avatar from '@/shared/ui/Avatar';
 import { AddEmojiButton } from '@/shared/ui/AddEmojiButton';
 import { PostMedia } from '@/entities/post/ui/PostMedia';
 import MarkdownContent from '@/shared/ui/MarkdownContent';
-import SmartCodePasteBanner from '@/features/chat/ui/SmartCodePasteBanner';
-import FloatingSelectionToolbar, {
-  SelectionFormatType,
-} from '@/features/chat/ui/FloatingSelectionToolbar';
-import { detectCodeSnippet, DetectedCodeSnippet } from '@/features/chat/lib/smartCodeDetection';
+import {
+  SmartCodePasteBanner,
+  FloatingSelectionToolbar,
+  type SelectionFormatType,
+} from '@/shared/ui/editor';
+import { detectCodeSnippet, type DetectedCodeSnippet } from '@/shared/lib/editor';
 
 interface EditPostModalProps {
   post: PostType;

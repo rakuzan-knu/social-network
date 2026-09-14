@@ -2,12 +2,16 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import NotificationsTab from '../NotificationsTab';
-import { useNotificationSettingsStore } from '@/shared/model/useNotificationSettingsStore';
+import { useNotificationSettingsStore } from '@/entities/notification';
 import * as pushService from '@/shared/lib/browserPushNotifications';
 
-vi.mock('@/shared/lib/messageNotificationSound', () => ({
-  playPreviewNotificationSound: vi.fn(),
-}));
+vi.mock('@/entities/notification', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/entities/notification')>();
+  return {
+    ...actual,
+    playPreviewNotificationSound: vi.fn(),
+  };
+});
 
 describe('NotificationsTab', () => {
   beforeEach(() => {

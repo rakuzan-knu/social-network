@@ -3,10 +3,9 @@ import axios from 'axios';
 import { apiClient } from '../httpClient';
 import { useAuthStore } from '@/shared/model/useAuthStore';
 import { useAccountsStore } from '@/shared/model/useAccountsStore';
-import { resetSessionStores } from '@/shared/model/resetSession';
+import { resetSessionStores, registerSessionResetHandler } from '@/shared/model/resetSession';
 import { usePresenceStore } from '@/shared/model/usePresenceStore';
 import { useMessageToastStore } from '@/shared/model/useMessageToastStore';
-import { useTypingStore } from '@/features/chat/model/useTypingStore';
 
 vi.mock('axios', async (importOriginal) => {
   const actual = await importOriginal<typeof import('axios')>();
@@ -36,7 +35,7 @@ describe('httpClient and session management', () => {
     ).handlers[0]?.fulfilled;
 
     const config = { headers: {} };
-    const result = reqInterceptor(config);
+    const result = await reqInterceptor(config);
     expect(result.headers.Authorization).toBe('Bearer my-token');
   });
 
@@ -134,11 +133,8 @@ describe('httpClient and session management', () => {
 
   it('resetSessionStores clears ephemeral in-memory state cleanly', () => {
     usePresenceStore.setState({ onlineUserIds: new Set(['user-1', 'user-2']) });
-    useTypingStore.setState({
-      typingByConversation: {
-        conv1: [{ userId: 'user-2', timestamp: Date.now() }],
-      },
-    });
+    const customReset = vi.fn();
+    registerSessionResetHandler(customReset);
     useMessageToastStore.getState().addToast({
       id: 't-1',
       conversationId: 'conv1',
@@ -152,13 +148,12 @@ describe('httpClient and session management', () => {
 
     expect(usePresenceStore.getState().onlineUserIds.size).toBe(2);
     expect(useMessageToastStore.getState().toasts.length).toBe(1);
-    expect(Object.keys(useTypingStore.getState().typingByConversation).length).toBe(1);
 
     resetSessionStores();
 
     expect(usePresenceStore.getState().onlineUserIds.size).toBe(0);
     expect(useMessageToastStore.getState().toasts.length).toBe(0);
-    expect(Object.keys(useTypingStore.getState().typingByConversation).length).toBe(0);
+    expect(customReset).toHaveBeenCalled();
   });
 
   it('switchAccount atomically switches tokens, updates authStore and resets session stores', () => {

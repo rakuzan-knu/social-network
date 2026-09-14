@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { isReservedUsername, HARDENED_USERNAME_REGEX } from '../../profile/model/profileSchema';
+import { isReservedUsername, HARDENED_USERNAME_REGEX } from '@/entities/user';
 
 export const registerSchema = z.object({
   firstName: z

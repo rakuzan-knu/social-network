@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Search, X, Plus, Loader2 } from 'lucide-react';
 import Avatar from '@/shared/ui/Avatar';
-import { useUserSearch } from '@/features/chat/model/useUserSearch';
-import type { UserSearchResult } from '@/features/chat/api/userSearchApi';
+import { useUserSearch } from '@/entities/user';
+import type { UserSearchResult } from '@/entities/user';
 import {
   usePrivacyExceptions,
   useAddException,

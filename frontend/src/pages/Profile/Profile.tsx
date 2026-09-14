@@ -13,7 +13,7 @@ import ProfileTabs, { ProfileTabType } from '../../shared/ui/ProfileTabs';
 import CreatePost from '../../features/posts/ui/CreatePost';
 import { PostCard } from '@/widgets/post/ui/PostCard';
 import { SkeletonFeed } from '../../entities/post/ui/SkeletonPostCard';
-import { SavedPostsView } from '@/features/profile/ui/saved/SavedPostsView';
+import { SavedPostsView } from '@/widgets/profile';
 import { UserReelsView } from '@/features/reels';
 import { isReservedUsername } from '@/features/profile/model/profileSchema';
 import { SEOHead } from '@/shared/seo';

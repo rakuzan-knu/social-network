@@ -9,7 +9,7 @@ import { CONVERSATIONS_KEY } from '@/shared/api/queryKeys';
 import { ConversationView } from '../../../entities/chat/model/types';
 import { chatApi } from '../api/chatApi';
 
-import { useNotificationSettingsStore } from '@/shared/model/useNotificationSettingsStore';
+import { useNotificationSettingsStore } from '@/entities/notification';
 
 export default function MessageToastViewport() {
   const navigate = useNavigate();
@@ -42,16 +42,17 @@ export default function MessageToastViewport() {
 
   if (visibleToasts.length === 0) return null;
 
-  const positionClasses = {
+  const positionClasses: Record<string, string> = {
     'top-left': 'top-5 left-5 flex-col',
     'top-right': 'top-5 right-5 flex-col',
     'bottom-left': 'bottom-5 left-5 flex-col-reverse',
     'bottom-right': 'bottom-5 right-5 flex-col-reverse',
-  }[toastPosition || 'bottom-right'];
+  };
+  const activePositionClass = positionClasses[toastPosition] || positionClasses['bottom-right'];
 
   return (
     <div
-      className={`fixed z-[350] flex w-[min(380px,calc(100vw-2.5rem))] gap-2 pointer-events-none transition-all duration-300 ${positionClasses}`}
+      className={`fixed z-[350] flex w-[min(380px,calc(100vw-2.5rem))] gap-2 pointer-events-none transition-all duration-300 ${activePositionClass}`}
     >
       {toasts.length >= 3 && (
         <button

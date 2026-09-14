@@ -11,8 +11,7 @@ import {
   useShowcasePresenceSync,
 } from '../model/useShowcase';
 import { apiClient } from '@/shared/api/httpClient';
-import * as chatSocketModule from '@/features/chat/model/useChatSocket';
-import * as currentUserModule from '@/entities/profile/model/useCurrentUser';
+import * as socketModule from '@/shared/api/socket';
 
 vi.mock('@/shared/api/httpClient', () => ({
   apiClient: {
@@ -96,10 +95,6 @@ describe('showcaseApi & useShowcase', () => {
     });
 
     it('useUpdateShowcase mutates all fields and rolls back on error', async () => {
-      vi.spyOn(currentUserModule, 'useCurrentUser').mockReturnValue({
-        data: { username: 'alice' },
-      } as any);
-
       const { queryClient, wrapper } = createWrapper();
       const initialData = {
         accentColor: '#000000',
@@ -113,7 +108,7 @@ describe('showcaseApi & useShowcase', () => {
 
       // 1. Success with all fields
       vi.mocked(apiClient.patch).mockResolvedValueOnce({ data: { accentColor: '#123456' } });
-      const { result } = renderHook(() => useUpdateShowcase(), { wrapper });
+      const { result } = renderHook(() => useUpdateShowcase('alice'), { wrapper });
 
       await act(async () => {
         await result.current.mutateAsync({
@@ -182,7 +177,7 @@ describe('showcaseApi & useShowcase', () => {
         on: vi.fn(),
         off: vi.fn(),
       };
-      vi.spyOn(chatSocketModule, 'useChatSocket').mockReturnValue(mockSocket as any);
+      vi.spyOn(socketModule, 'getSocket').mockReturnValue(mockSocket as any);
 
       const { wrapper, queryClient } = createWrapper();
       queryClient.setQueryData(['showcase', 'bob'], { id: 's1' });
@@ -209,13 +204,12 @@ describe('showcaseApi & useShowcase', () => {
     });
 
     it('useShowcasePresenceSync handles empty socket or user params gracefully', () => {
-      vi.spyOn(chatSocketModule, 'useChatSocket').mockReturnValue(null as any);
+      vi.spyOn(socketModule, 'getSocket').mockReturnValue(null as any);
       const { wrapper } = createWrapper();
       renderHook(() => useShowcasePresenceSync(undefined, undefined), { wrapper });
     });
 
     it('useUpdateShowcase handles unauthenticated user and empty previous cache safely', async () => {
-      vi.spyOn(currentUserModule, 'useCurrentUser').mockReturnValue({ data: null } as any);
       vi.mocked(apiClient.patch).mockResolvedValueOnce({ data: {} });
 
       const { wrapper } = createWrapper();
@@ -236,7 +230,7 @@ describe('showcaseApi & useShowcase', () => {
         on: vi.fn(),
         off: vi.fn(),
       };
-      vi.spyOn(chatSocketModule, 'useChatSocket').mockReturnValue(mockSocket as any);
+      vi.spyOn(socketModule, 'getSocket').mockReturnValue(mockSocket as any);
 
       const { wrapper, queryClient } = createWrapper();
       // No query data in cache for ['showcase', 'alice']

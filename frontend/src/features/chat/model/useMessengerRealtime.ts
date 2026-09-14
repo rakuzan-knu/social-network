@@ -15,9 +15,9 @@ import { useAuthStore } from '@/shared/model/useAuthStore';
 import {
   initializeMessageNotificationSound,
   playMessageNotificationSound,
-} from '@/shared/lib/messageNotificationSound';
+  useNotificationSettingsStore,
+} from '@/entities/notification';
 import { useMessageToastStore } from '@/shared/model/useMessageToastStore';
-import { useNotificationSettingsStore } from '@/shared/model/useNotificationSettingsStore';
 import { useTypingStore } from './useTypingStore';
 import { getConversationDisplay } from '../lib/getConversationDisplay';
 import { getMessageToastPreview } from '../lib/getMessageToastPreview';

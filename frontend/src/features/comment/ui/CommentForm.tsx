@@ -1,12 +1,13 @@
 import React, { useState, useRef } from 'react';
 import { Send, Image, X } from 'lucide-react';
 import { AddEmojiButton } from '../../../shared/ui/AddEmojiButton';
-import { MentionAutocomplete } from '../../posts/ui/MentionAutocomplete';
-import SmartCodePasteBanner from '@/features/chat/ui/SmartCodePasteBanner';
-import FloatingSelectionToolbar, {
-  SelectionFormatType,
-} from '@/features/chat/ui/FloatingSelectionToolbar';
-import { detectCodeSnippet, DetectedCodeSnippet } from '@/features/chat/lib/smartCodeDetection';
+import {
+  MentionAutocomplete,
+  SmartCodePasteBanner,
+  FloatingSelectionToolbar,
+  type SelectionFormatType,
+} from '@/shared/ui/editor';
+import { detectCodeSnippet, type DetectedCodeSnippet } from '@/shared/lib/editor';
 
 interface CommentFormProps {
   currentUserHandle: string;

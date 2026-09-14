@@ -4,8 +4,6 @@ import { Heart, MoreHorizontal, Pin, Trash2, Copy, Check, Flag } from 'lucide-re
 import Avatar from '../../../shared/ui/Avatar';
 import { CommentType } from '../model/types';
 import { FormattedText } from '@/shared/ui/FormattedText';
-import { VerifiedCheckmark } from '@/entities/profile/ui/VerifiedCheckmark';
-import { MiniProfileHoverCard } from '@/entities/profile/ui/MiniProfileHoverCard';
 import { sanitizeImageUrl } from '@/shared/lib/urlSecurity';
 
 interface CommentItemProps {
@@ -18,6 +16,8 @@ interface CommentItemProps {
   onLike?: (commentId: string) => void;
   onReport?: (comment: CommentType) => void;
   isReply?: boolean;
+  renderHoverCard?: (username: string, children: React.ReactNode) => React.ReactNode;
+  renderBadge?: (props: { isVerified?: boolean; primaryBadge?: string | null }) => React.ReactNode;
 }
 
 export function CommentItem({
@@ -30,6 +30,8 @@ export function CommentItem({
   onLike,
   onReport,
   isReply = false,
+  renderHoverCard,
+  renderBadge,
 }: CommentItemProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
@@ -123,11 +125,18 @@ export function CommentItem({
 
       {/* Avatar */}
       <div className="shrink-0 pt-0.5">
-        <MiniProfileHoverCard username={comment.handle}>
+        {renderHoverCard ? (
+          renderHoverCard(
+            comment.handle,
+            <Link to={`/profile/${comment.handle}`} onClick={(e) => e.stopPropagation()}>
+              <Avatar size={isReply ? 'xs' : 'sm'} src={comment.avatar} />
+            </Link>,
+          )
+        ) : (
           <Link to={`/profile/${comment.handle}`} onClick={(e) => e.stopPropagation()}>
             <Avatar size={isReply ? 'xs' : 'sm'} src={comment.avatar} />
           </Link>
-        </MiniProfileHoverCard>
+        )}
       </div>
 
       {/* Comment Body */}
@@ -135,7 +144,18 @@ export function CommentItem({
         {/* Author Header */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <MiniProfileHoverCard username={comment.handle}>
+            {renderHoverCard ? (
+              renderHoverCard(
+                comment.handle,
+                <Link
+                  to={`/profile/${comment.handle}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="hover:underline inline-flex items-center text-xs font-semibold text-white truncate"
+                >
+                  {comment.author || comment.handle}
+                </Link>,
+              )
+            ) : (
               <Link
                 to={`/profile/${comment.handle}`}
                 onClick={(e) => e.stopPropagation()}
@@ -143,12 +163,18 @@ export function CommentItem({
               >
                 {comment.author || comment.handle}
               </Link>
-            </MiniProfileHoverCard>
-            <VerifiedCheckmark
-              isVerified={comment.isVerified}
-              primaryBadge={comment.primaryBadge}
-              size="sm"
-            />
+            )}
+            {renderBadge ? (
+              renderBadge({ isVerified: comment.isVerified, primaryBadge: comment.primaryBadge })
+            ) : comment.isVerified ? (
+              <svg
+                viewBox="0 0 24 24"
+                className="w-3.5 h-3.5 fill-[#0095F6] shrink-0"
+                aria-label="Verified"
+              >
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+              </svg>
+            ) : null}
 
             {/* Author Pill Badge */}
             {isAuthor && (

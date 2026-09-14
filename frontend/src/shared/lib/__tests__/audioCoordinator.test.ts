@@ -30,7 +30,7 @@ describe('audioCoordinator', () => {
     // Play second audio
     audioCoordinator.play(audio2, 'track-2');
     expect(audio1.pause).toHaveBeenCalled();
-    expect(audio1.currentTime).toBe(0);
+    expect(audio1.currentTime).toBe(10);
     expect(audioCoordinator.getActiveId()).toBe('track-2');
   });
 
@@ -65,7 +65,7 @@ describe('audioCoordinator', () => {
     expect(audioCoordinator.getActiveId()).toBe('track-1');
 
     // Stop matching id
-    audioCoordinator.stop('track-1');
+    audioCoordinator.stop('track-1', true);
     expect(audio1.pause).toHaveBeenCalled();
     expect(audio1.currentTime).toBe(0);
     expect(audioCoordinator.getActiveId()).toBeNull();

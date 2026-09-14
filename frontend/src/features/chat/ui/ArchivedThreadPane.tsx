@@ -6,7 +6,7 @@ import OnlineStatusIndicator from '@/shared/ui/OnlineStatusIndicator';
 import AttachmentDropZone from '@/shared/ui/AttachmentDropZone';
 import { useAuthStore } from '@/shared/model/useAuthStore';
 import { useStagedAttachments } from '@/shared/model/useStagedAttachments';
-import { ConversationView, MessageView } from '../../../entities/chat/model/types';
+import { ConversationView, MessageView } from '@/entities/chat';
 import { useArchiveConversation } from '../model/useConversationMutations';
 import { useMessages } from '../model/useMessages';
 import { useMessageActions } from '../model/useMessageActions';

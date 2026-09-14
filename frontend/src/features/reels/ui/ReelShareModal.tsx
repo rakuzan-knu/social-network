@@ -207,7 +207,9 @@ export const ReelShareModal: React.FC<ReelShareModalProps> = ({ reel, isOpen, on
       icon: <Phone className="w-6 h-6 text-white stroke-[2.5]" />,
       bg: 'bg-[#7360F2] hover:bg-[#6754e0]',
       onClick: () => {
-        window.location.href = `viber://forward?text=${encodeURIComponent(`${shareTitle} ${reelUrl}`)}`;
+        window.location.assign(
+          `viber://forward?text=${encodeURIComponent(`${shareTitle} ${reelUrl}`)}`,
+        );
         recordShareMutation.mutate(reel.id);
       },
     },

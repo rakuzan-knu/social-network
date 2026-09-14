@@ -27,7 +27,7 @@ import {
   useRecordReelView,
   useNotInterestedReel,
 } from '../api/reelsApi';
-import { followApi } from '@/features/follow/api/followApi';
+import { followApi } from '@/entities/user';
 import { useAuthStore } from '@/shared/model/useAuthStore';
 import { BlurHashImage } from '@/shared/ui/BlurHashImage';
 import { ReelCommentsDrawer } from './ReelCommentsDrawer';
@@ -316,8 +316,7 @@ export const ReelCardComponent: React.FC<ReelCardProps> = ({
       video.currentTime = 0;
       setIsPlaying(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isActive, reel.id]);
+  }, [isActive, reel.id, recordViewMutation]);
 
   // Sync mute and volume state with localStorage persistence
   useEffect(() => {
@@ -948,7 +947,14 @@ export const ReelCardComponent: React.FC<ReelCardProps> = ({
         </div>
 
         {/* Scrubber / Progress Bar (Decoupled – zero parent re-renders during playback) */}
-        <ReelProgressBar videoRef={videoRef} />
+        <ReelProgressBar
+          videoRef={videoRef}
+          onSeek={(time) => {
+            if (videoRef.current) {
+              videoRef.current.currentTime = time;
+            }
+          }}
+        />
       </div>
 
       {/* Desktop Action Rail (Positioned to the right of the video, matching screenshot) */}

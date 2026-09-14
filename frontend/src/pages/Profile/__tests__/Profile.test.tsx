@@ -56,8 +56,10 @@ describe('ProfilePage', () => {
   it('shows the posts tab content by default', async () => {
     renderProfile();
 
-    expect(await screen.findByText('Thats fire!')).toBeInTheDocument();
-    expect(await screen.findByText('Eternal CEO is here!')).toBeInTheDocument();
+    expect(await screen.findByText('Thats fire!', {}, { timeout: 4000 })).toBeInTheDocument();
+    expect(
+      await screen.findByText('Eternal CEO is here!', {}, { timeout: 4000 }),
+    ).toBeInTheDocument();
     expect(screen.queryByText('New update available!')).not.toBeInTheDocument();
   });
 

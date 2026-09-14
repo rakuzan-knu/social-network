@@ -9,5 +9,6 @@
     "noEmit": true
   },
   "include": ["*.js", "*.cjs", "*.mjs", "*.ts", "scripts/**/*"],
+  "exclude": ["node_modules", "dist", "coverage"],
   "references": [{ "path": "./backend" }, { "path": "./frontend" }]
 }

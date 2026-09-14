@@ -110,9 +110,10 @@ export async function configureSenderSVC(
 
     // Update primary encoding with SVC parameters
     const existingEncoding = params.encodings[0];
+    const resolvedRid = config.rid ?? existingEncoding.rid;
     params.encodings[0] = {
       ...existingEncoding,
-      ...(existingEncoding.rid ? { rid: existingEncoding.rid } : {}),
+      ...(resolvedRid ? { rid: resolvedRid } : {}),
 
       scalabilityMode: config.scalabilityMode as any,
       maxBitrate: config.maxBitrate,

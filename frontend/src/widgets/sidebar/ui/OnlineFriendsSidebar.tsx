@@ -21,10 +21,10 @@ import {
 import { usePresenceStore } from '@/shared/model/usePresenceStore';
 import { useConversations } from '@/features/chat/model/useConversations';
 import { useAuthStore } from '@/shared/model/useAuthStore';
-import { MiniProfileHoverCard } from '@/entities/profile/ui/MiniProfileHoverCard';
+import { MiniProfileHoverCard } from '@/widgets/profile';
 import { FollowButton } from '@/features/follow/ui/FollowButton';
 import Avatar from '@/shared/ui/Avatar';
-import StoryAvatar from '@/shared/ui/StoryAvatar';
+import { StoryAvatar } from '@/entities/story';
 import { VerifiedCheckmark } from '@/entities/profile/ui/VerifiedCheckmark';
 import { chatApi } from '@/features/chat/api/chatApi';
 import { getSocket } from '@/shared/api/socket';

@@ -5,7 +5,6 @@ import {
   useUnreadCountsQuery,
   useMarkNotificationAsRead,
   useMarkAllNotificationsAsRead,
-  useFollowBack,
   useDeleteNotification,
   useMuteNotificationAuthor,
 } from '../useNotifications';
@@ -13,7 +12,6 @@ import { useNotificationStore } from '../useNotificationStore';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import * as notificationApi from '../../api/notificationApi';
-import { followApi } from '@/features/follow/api/followApi';
 import { NOTIFICATIONS_KEY } from '@/shared/api/queryKeys';
 
 vi.mock('../../api/notificationApi', () => ({
@@ -23,13 +21,6 @@ vi.mock('../../api/notificationApi', () => ({
   markAllNotificationsAsRead: vi.fn(),
   deleteNotification: vi.fn(),
   muteNotificationAuthor: vi.fn(),
-}));
-
-vi.mock('@/features/follow/api/followApi', () => ({
-  followApi: {
-    follow: vi.fn().mockResolvedValue({ success: true }),
-    unfollow: vi.fn().mockResolvedValue({ success: true }),
-  },
 }));
 
 describe('useNotifications hooks', () => {
@@ -222,49 +213,6 @@ describe('useNotifications hooks', () => {
     expect(cache.pages[0].items[0].id).toBe('notif-2');
   });
 
-  it('useFollowBack toggles follow and unfollow with optimistic state', async () => {
-    const { result } = renderHook(() => useFollowBack(), { wrapper: createWrapper() });
-
-    expect(result.current.isFollowing('user-x', false)).toBe(false);
-
-    await act(async () => {
-      result.current.toggleFollow('user-x', false);
-    });
-
-    expect(followApi.follow).toHaveBeenCalledWith('user-x');
-
-    await act(async () => {
-      result.current.toggleFollow('user-x', true);
-    });
-
-    expect(followApi.unfollow).toHaveBeenCalledWith('user-x');
-  });
-
-  it('useFollowBack handles mutation error rollback and rapid click guard', async () => {
-    vi.mocked(followApi.follow).mockRejectedValueOnce(new Error('Network error'));
-    const { result } = renderHook(() => useFollowBack(), { wrapper: createWrapper() });
-
-    await act(async () => {
-      result.current.toggleFollow('user-err', false);
-    });
-
-    expect(result.current.isFollowing('user-err', false)).toBe(false);
-  });
-
-  it('useFollowBack guards against rapid clicks when already loading', () => {
-    useNotificationStore.getState().setOptimisticFollow('user-loading', true, true);
-    const { result } = renderHook(() => useFollowBack(), { wrapper: createWrapper() });
-
-    expect(result.current.isLoading('user-loading')).toBe(true);
-
-    act(() => {
-      result.current.toggleFollow('user-loading', false);
-    });
-
-    expect(followApi.follow).not.toHaveBeenCalled();
-    expect(followApi.unfollow).not.toHaveBeenCalled();
-  });
-
   it('handles empty query cache safely in optimistic mutators', async () => {
     vi.mocked(notificationApi.markNotificationAsRead).mockResolvedValueOnce({
       id: 'n1',
@@ -332,31 +280,6 @@ describe('useNotifications hooks', () => {
     const cache: any = queryClient.getQueryData([NOTIFICATIONS_KEY]);
     expect(cache?.pages[0].items[1].isRead).toBe(false);
     expect(cache?.pages[0].items[0].isRead).toBe(true);
-  });
-
-  it('covers line 182 - toggleFollow guards rapid clicks when loading, and line 183 targetState from current', async () => {
-    const { result } = renderHook(() => useFollowBack(), { wrapper: createWrapper() });
-
-    // 1. Line 182: guard when loading
-    act(() => {
-      useNotificationStore.getState().setOptimisticFollow('user-z', false, true);
-    });
-    expect(result.current.isLoading('user-z')).toBe(true);
-
-    act(() => {
-      result.current.toggleFollow('user-z', false);
-    });
-    expect(followApi.follow).not.toHaveBeenCalled();
-
-    // 2. Line 183: targetState taken from current when current is defined
-    act(() => {
-      useNotificationStore.getState().setOptimisticFollow('user-z', true, false);
-    });
-    await act(async () => {
-      result.current.toggleFollow('user-z', false);
-    });
-    // Target was true, so unfollow should be called
-    expect(followApi.unfollow).toHaveBeenCalledWith('user-z');
   });
 
   it('covers useDeleteNotification onSuccess when data has no unreadCounts (line 218 false branch)', async () => {

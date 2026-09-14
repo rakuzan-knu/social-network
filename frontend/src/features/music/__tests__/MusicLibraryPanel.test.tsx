@@ -9,6 +9,14 @@ const renderWithRouter = (ui: React.ReactElement) => {
   return render(<MemoryRouter>{ui}</MemoryRouter>);
 };
 
+vi.mock('framer-motion', async () => {
+  const actual = await vi.importActual<Record<string, any>>('framer-motion');
+  return {
+    ...actual,
+    AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  };
+});
+
 vi.mock('@/shared/model/useSpotifyPlayerStore', () => ({
   useSpotifyPlayerStore: (selector: any) =>
     selector({

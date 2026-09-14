@@ -15,7 +15,7 @@ import {
   Users,
 } from 'lucide-react';
 import type { ProfileShowcaseDto } from '@backend/common/contracts';
-import { MiniProfileHoverCard } from '@/entities/profile/ui/MiniProfileHoverCard';
+import { MiniProfileHoverCard } from '@/widgets/profile';
 import { MarqueeText } from '@/shared/ui/MarqueeText';
 import { sanitizeImageUrl } from '@/shared/lib/urlSecurity';
 import {

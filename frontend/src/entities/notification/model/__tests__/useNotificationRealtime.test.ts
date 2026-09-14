@@ -4,9 +4,9 @@ import { useNotificationRealtime } from '../useNotificationRealtime';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import { getSocket } from '@/shared/api/socket';
-import { useNotificationSettingsStore } from '@/shared/model/useNotificationSettingsStore';
+import { useNotificationSettingsStore } from '../useNotificationSettingsStore';
 import { useNotificationStore } from '../useNotificationStore';
-import { playMessageNotificationSound } from '@/shared/lib/messageNotificationSound';
+import { playMessageNotificationSound } from '../../lib/messageNotificationSound';
 import { showBrowserPushNotification } from '@/shared/lib/browserPushNotifications';
 import { NOTIFICATIONS_KEY } from '@/shared/api/queryKeys';
 import type { NotificationItem } from '../types';
@@ -15,7 +15,7 @@ vi.mock('@/shared/api/socket', () => ({
   getSocket: vi.fn(),
 }));
 
-vi.mock('@/shared/lib/messageNotificationSound', () => ({
+vi.mock('../../lib/messageNotificationSound', () => ({
   playMessageNotificationSound: vi.fn(),
 }));
 

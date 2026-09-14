@@ -10,8 +10,8 @@ import {
   PaginatedNotificationsResponse,
 } from './types';
 import { useNotificationStore } from './useNotificationStore';
-import { useNotificationSettingsStore } from '@/shared/model/useNotificationSettingsStore';
-import { playMessageNotificationSound } from '@/shared/lib/messageNotificationSound';
+import { useNotificationSettingsStore } from './useNotificationSettingsStore';
+import { playMessageNotificationSound } from '../lib/messageNotificationSound';
 import { showBrowserPushNotification } from '@/shared/lib/browserPushNotifications';
 
 function mapTypeToCategory(type: NotificationType): NotificationFilter {

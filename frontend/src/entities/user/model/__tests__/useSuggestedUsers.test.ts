@@ -5,7 +5,7 @@ import React from 'react';
 import { useSuggestedUsers, useDismissSuggestedUser } from '../useSuggestedUsers';
 import { useAuthStore } from '@/shared/model/useAuthStore';
 import { apiClient as api } from '@/shared/api/httpClient';
-import { followApi } from '@/features/follow/api/followApi';
+import { followApi } from '../../api/followApi';
 
 vi.mock('@/shared/api/httpClient', () => ({
   apiClient: {
@@ -13,7 +13,7 @@ vi.mock('@/shared/api/httpClient', () => ({
   },
 }));
 
-vi.mock('@/features/follow/api/followApi', () => ({
+vi.mock('../../api/followApi', () => ({
   followApi: {
     dismissSuggestedUser: vi.fn(),
   },

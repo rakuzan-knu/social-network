@@ -1,7 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import React, { useEffect } from 'react';
 import { ShareModal } from './ShareModal';
-import { useUIStore, PostType } from '@/shared/model/useUIStore';
+import { useUIStore } from '@/shared/model/useUIStore';
+import type { PostType } from '@/entities/post/model/types';
 
 const samplePost: PostType = {
   id: 'post-share-1',

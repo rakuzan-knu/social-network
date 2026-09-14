@@ -4,8 +4,8 @@ import ChatFolderIcon from '../ChatFolderIcon';
 
 describe('ChatFolderIcon', () => {
   it('renders emoji directly when emoji is provided', () => {
-    render(<ChatFolderIcon iconKey={null} emoji="🔥" color="#ff0000" />);
-    expect(screen.getByText('🔥')).toBeInTheDocument();
+    render(<ChatFolderIcon iconKey={null} emoji="🚀" color="#ff0000" />);
+    expect(screen.getByText('🚀')).toBeInTheDocument();
   });
 
   it('renders icon component when iconKey is provided', () => {

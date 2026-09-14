@@ -355,10 +355,41 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
   );
   const [isAddingFamily, setIsAddingFamily] = useState(false);
   const [familySearchQuery, setFamilySearchQuery] = useState('');
+  const debouncedFamilySearch = useDebounce(familySearchQuery, 300);
   const [familyRole, setFamilyRole] = useState<string>('Brother');
   const [familyCustomName, setFamilyCustomName] = useState('');
   const [familyUserSuggestions, setFamilyUserSuggestions] = useState<any[]>([]);
   const [isFamilySearching, setIsFamilySearching] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const clean = debouncedFamilySearch.trim().replace(/^@+/, '');
+    if (!clean) {
+      setFamilyUserSuggestions([]);
+      setIsFamilySearching(false);
+      return;
+    }
+
+    setIsFamilySearching(true);
+    api
+      .get('/users/mention-suggestions', { params: { q: clean } })
+      .then((res) => {
+        if (!cancelled) {
+          const list = Array.isArray(res.data) ? res.data : [];
+          setFamilyUserSuggestions(list.slice(0, 6));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setFamilyUserSuggestions([]);
+      })
+      .finally(() => {
+        if (!cancelled) setIsFamilySearching(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [debouncedFamilySearch]);
 
   const { openEditProfile } = useUIStore();
   const { data: currentUser } = useCurrentUser();
@@ -758,38 +789,6 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
     }
     setCustomTagInput('');
   };
-
-  const debouncedFamilySearch = useDebounce(familySearchQuery, 300);
-
-  useEffect(() => {
-    let cancelled = false;
-    const clean = debouncedFamilySearch.trim().replace(/^@+/, '');
-    if (!clean) {
-      setFamilyUserSuggestions([]);
-      setIsFamilySearching(false);
-      return;
-    }
-
-    setIsFamilySearching(true);
-    api
-      .get('/users/mention-suggestions', { params: { q: clean } })
-      .then((res) => {
-        if (!cancelled) {
-          const list = Array.isArray(res.data) ? res.data : [];
-          setFamilyUserSuggestions(list.slice(0, 6));
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setFamilyUserSuggestions([]);
-      })
-      .finally(() => {
-        if (!cancelled) setIsFamilySearching(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [debouncedFamilySearch]);
 
   const handleAddLanguage = (lang: string) => {
     const clean = lang.trim();

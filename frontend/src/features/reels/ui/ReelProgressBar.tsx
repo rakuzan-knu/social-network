@@ -43,7 +43,6 @@ export const ReelProgressBar: React.FC<ReelProgressBarProps> = React.memo(
       const ratio = Math.max(0, Math.min(1, clickX / rect.width));
       const targetTime = ratio * video.duration;
 
-      video.currentTime = targetTime;
       if (barRef.current) {
         barRef.current.style.width = `${ratio * 100}%`;
       }

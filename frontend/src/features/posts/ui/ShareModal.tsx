@@ -13,10 +13,10 @@ import {
 } from 'lucide-react';
 import { useUIStore } from '@/shared/model/useUIStore';
 import { useCurrentUser } from '@/entities/profile/model/useCurrentUser';
-import { followApi, FollowUserSummary } from '@/features/follow/api/followApi';
+import { followApi, FollowUserSummary } from '@/entities/user';
 import { useQuery, useQueryClient, InfiniteData } from '@tanstack/react-query';
 import { useMessageToastStore } from '@/shared/model/useMessageToastStore';
-import { chatApi } from '@/features/chat/api/chatApi';
+import { chatApi } from '@/entities/chat';
 import { postsApi } from '@/features/posts/api/postsApi';
 import { FeedPage } from '@/entities/post/api/postsApi';
 import {

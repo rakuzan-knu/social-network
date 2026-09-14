@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import React, { useState } from 'react';
 import ScreenLocationMonitor from './ScreenLocationMonitor';
-import { NotificationPosition } from '@/shared/model/useNotificationSettingsStore';
+import { NotificationPosition } from '@/entities/notification';
 
 function ScreenLocationMonitorStoryWrapper() {
   const [hovered, setHovered] = useState<NotificationPosition | null>(null);

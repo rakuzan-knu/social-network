@@ -125,18 +125,18 @@ describe('ShowcaseQuickEditor', () => {
     renderComponent();
 
     expect(screen.getByText('Customize Profile Showcase')).toBeInTheDocument();
-    expect(screen.getByText('Spotlight Hero')).toBeInTheDocument();
-    expect(screen.getByText('Personal Meta')).toBeInTheDocument();
+    expect(screen.getByText('Favorite')).toBeInTheDocument();
+    expect(screen.getByText('Personal Information')).toBeInTheDocument();
     expect(screen.getByText('Profile Anthem')).toBeInTheDocument();
     expect(screen.getByText('Wishlist Backlog')).toBeInTheDocument();
-    expect(screen.getByText('Privacy & Theme')).toBeInTheDocument();
+    expect(screen.getByText('Privacy')).toBeInTheDocument();
 
     // Switch to Spotlight
-    fireEvent.click(screen.getByText('Spotlight Hero'));
+    fireEvent.click(screen.getByText('Favorite'));
     expect(screen.getByText('Dota 2')).toBeInTheDocument();
 
     // Switch to Personal Meta
-    fireEvent.click(screen.getByText('Personal Meta'));
+    fireEvent.click(screen.getByText('Personal Information'));
     expect(screen.getByText('Show Age')).toBeInTheDocument();
 
     // Switch to Anthem
@@ -148,7 +148,7 @@ describe('ShowcaseQuickEditor', () => {
     expect(screen.getByText('Hollow Knight: Silksong')).toBeInTheDocument();
 
     // Switch to Privacy & Theme
-    fireEvent.click(screen.getByText('Privacy & Theme'));
+    fireEvent.click(screen.getByText('Privacy'));
     expect(screen.getByText('Accent Glow Theme Color:')).toBeInTheDocument();
   });
 

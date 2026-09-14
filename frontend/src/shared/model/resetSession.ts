@@ -2,11 +2,21 @@ import { queryClient } from '@/shared/api/queryClient';
 import { disconnectSocket } from '@/shared/api/socket';
 import { usePresenceStore } from '@/shared/model/usePresenceStore';
 import { useMessageToastStore } from '@/shared/model/useMessageToastStore';
-import { useTypingStore } from '@/features/chat/model/useTypingStore';
 import { useHiddenPostsStore } from '@/shared/model/useHiddenPostsStore';
 import { useUIStore } from '@/shared/model/useUIStore';
-import { useDevicePasswordStore } from '@/features/profile/model/useDevicePasswordStore';
-import { useMusicHubStore } from '@/features/music/model/useMusicHubStore';
+
+type ResetHandler = () => void;
+const resetHandlers = new Set<ResetHandler>();
+
+/**
+ * Register a slice-specific store reset callback without violating FSD layer boundaries.
+ */
+export function registerSessionResetHandler(handler: ResetHandler): () => void {
+  resetHandlers.add(handler);
+  return () => {
+    resetHandlers.delete(handler);
+  };
+}
 
 /**
  * Resets all in-memory client stores and caches upon logout,
@@ -31,11 +41,10 @@ export function resetSessionStores() {
     // Ignore in tests
   }
 
-  // 3. Clear ephemeral in-memory stores
+  // 3. Clear core ephemeral in-memory shared stores
   try {
     usePresenceStore.setState({ onlineUserIds: new Set() });
     useMessageToastStore.getState().dismissAll();
-    useTypingStore.setState({ typingByConversation: {} });
     useHiddenPostsStore.setState({ hiddenIds: new Set() });
     useUIStore.setState({
       isEditProfileOpen: false,
@@ -45,9 +54,16 @@ export function resetSessionStores() {
       activePostForComments: null,
       activePostForShare: null,
     });
-    useDevicePasswordStore.setState({ unlocked: false });
-    useMusicHubStore.getState().resetForLogout();
   } catch {
     // Ignore in tests
   }
+
+  // 4. Run feature-registered reset handlers
+  resetHandlers.forEach((handler) => {
+    try {
+      handler();
+    } catch {
+      // Ignore handler errors
+    }
+  });
 }

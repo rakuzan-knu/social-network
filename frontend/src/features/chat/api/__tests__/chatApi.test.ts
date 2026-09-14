@@ -137,7 +137,7 @@ describe('chatApi', () => {
     expect(postSpy).toHaveBeenCalledWith('/conversations/conv-1/archive');
 
     await chatApi.unarchive('conv-1');
-    expect(deleteSpy).toHaveBeenCalledWith('/conversations/conv-1/archive');
+    expect(postSpy).toHaveBeenCalledWith('/conversations/conv-1/unarchive');
 
     await chatApi.blockUser('u-bad');
     expect(postSpy).toHaveBeenCalledWith('/conversations/users/u-bad/block');

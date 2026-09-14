@@ -7,7 +7,6 @@ import rehypeKatex from 'rehype-katex';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import { Link } from 'react-router-dom';
 import CodeBlock from './CodeBlock';
-import { MiniProfileHoverCard } from '@/entities/profile/ui/MiniProfileHoverCard';
 import { CpuCircuitBreaker } from '@/shared/lib/v8/cpuCircuitBreaker';
 import 'katex/dist/katex.min.css';
 
@@ -187,15 +186,13 @@ function renderTextWithMentionsAndSpoilers(
 
       return (
         <React.Fragment key={index}>
-          <MiniProfileHoverCard username={cleanHandle}>
-            <Link
-              to={`/profile/${cleanHandle}`}
-              onClick={(e) => e.stopPropagation()}
-              className="text-sky-400 font-semibold hover:underline hover:text-sky-300 transition-colors"
-            >
-              @{cleanHandle}
-            </Link>
-          </MiniProfileHoverCard>
+          <Link
+            to={`/profile/${cleanHandle}`}
+            onClick={(e) => e.stopPropagation()}
+            className="text-sky-400 font-semibold hover:underline hover:text-sky-300 transition-colors"
+          >
+            @{cleanHandle}
+          </Link>
           {trailingPunct}
         </React.Fragment>
       );
@@ -278,13 +275,9 @@ export function MarkdownContent({
   }
 
   // CPU Circuit Breaker: Protect main thread against complex string/math execution spikes
-  let isTripped = false;
-  const processedContent = markdownCircuitBreaker.execute(
-    () => preprocessDiscordMarkdown(content),
-    () => {
-      isTripped = true;
-      return content;
-    },
+  const { processedContent, isTripped } = markdownCircuitBreaker.execute(
+    () => ({ isTripped: false, processedContent: preprocessDiscordMarkdown(content) }),
+    () => ({ isTripped: true, processedContent: content }),
   );
 
   if (isTripped) {

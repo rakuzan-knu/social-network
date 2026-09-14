@@ -3,10 +3,10 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { CommentThread } from '../CommentThread';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
-import { commentsApi } from '@/features/comment/api/commentsApi';
+import { commentsApi } from '../../api/commentsApi';
 import type { CommentType } from '../../model/types';
 
-vi.mock('@/features/comment/api/commentsApi', () => ({
+vi.mock('../../api/commentsApi', () => ({
   commentsApi: {
     getReplies: vi.fn(),
   },

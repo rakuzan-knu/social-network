@@ -12,11 +12,12 @@ import { PollOptionDraft, MediaDraft } from '../model/types';
 import { compressMediaFiles } from '@/shared/lib/compressImage';
 import { PostType, PostMedia } from '@/entities/post/model/types';
 import MarkdownContent from '@/shared/ui/MarkdownContent';
-import SmartCodePasteBanner from '@/features/chat/ui/SmartCodePasteBanner';
-import FloatingSelectionToolbar, {
-  SelectionFormatType,
-} from '@/features/chat/ui/FloatingSelectionToolbar';
-import { detectCodeSnippet, DetectedCodeSnippet } from '@/features/chat/lib/smartCodeDetection';
+import {
+  SmartCodePasteBanner,
+  FloatingSelectionToolbar,
+  type SelectionFormatType,
+} from '@/shared/ui/editor';
+import { detectCodeSnippet, type DetectedCodeSnippet } from '@/shared/lib/editor';
 
 const MAX_MEDIA = 5;
 

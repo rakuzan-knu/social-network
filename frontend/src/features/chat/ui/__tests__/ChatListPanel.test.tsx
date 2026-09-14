@@ -18,7 +18,7 @@ describe('ChatListPanel', () => {
       </QueryClientProvider>,
     );
 
-    expect(screen.getByPlaceholderText('Search in Messenger')).toBeInTheDocument();
+    expect(screen.getByText('Search in Messenger')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'New group chat' })).toBeInTheDocument();
   });
 

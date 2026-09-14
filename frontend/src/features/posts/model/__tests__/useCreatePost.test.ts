@@ -53,7 +53,10 @@ describe('useCreatePost', () => {
   });
 
   it('accepts direct FormData instance as payload with custom optimistic data and rolls back on error', async () => {
-    vi.mocked(postsApi.createPost).mockRejectedValue(new Error('Network failure'));
+    const errorWithStatus = Object.assign(new Error('Network failure'), {
+      response: { status: 422 },
+    });
+    vi.mocked(postsApi.createPost).mockRejectedValue(errorWithStatus);
 
     const initialFeed = {
       pages: [{ posts: [{ id: 'existing-1', text: 'Old post' }], nextCursor: null }],

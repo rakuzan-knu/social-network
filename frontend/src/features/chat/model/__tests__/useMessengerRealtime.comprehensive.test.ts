@@ -6,7 +6,7 @@ import { useMessengerRealtime } from '../useMessengerRealtime';
 import { CONVERSATIONS_KEY } from '@/shared/api/queryKeys';
 import { useAuthStore } from '@/shared/model/useAuthStore';
 import { useMessageToastStore } from '@/shared/model/useMessageToastStore';
-import { useNotificationSettingsStore } from '@/shared/model/useNotificationSettingsStore';
+import { useNotificationSettingsStore } from '@/entities/notification';
 import * as socketHookModule from '../useChatSocket';
 
 describe('useMessengerRealtime (Comprehensive Suite)', () => {

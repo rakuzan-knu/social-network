@@ -40,7 +40,7 @@ import {
 import { useCurrentUser } from '@/entities/profile/model/useCurrentUser';
 import { useBodyScrollLock } from '@/shared/lib/useBodyScrollLock';
 import Avatar from '@/shared/ui/Avatar';
-import { reactionBurstEngine } from '@/features/chat/lib/reactionBurstEngine';
+import { reactionBurstEngine } from '@/shared/lib/animations/reactionBurstEngine';
 import { formatRelativeTime } from '@/shared/lib/formatRelativeTime';
 import { getSocket } from '@/shared/api/socket';
 import type {

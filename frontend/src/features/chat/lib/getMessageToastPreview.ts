@@ -1,5 +1,5 @@
-import { MessageView } from '../../../entities/chat/model/types';
-import { e2eeManager } from '../../../shared/lib/crypto/e2ee';
+import { MessageView } from '@/entities/chat';
+import { e2eeManager } from '@/shared/lib/crypto/e2ee';
 
 export function getMessageToastPreview(message: MessageView) {
   if (message.isDeleted) return 'This message was deleted';

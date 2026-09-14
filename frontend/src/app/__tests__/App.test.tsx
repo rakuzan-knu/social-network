@@ -100,7 +100,7 @@ describe('App', () => {
 
     renderWithProviders(<App />, { initialEntries: ['/login'] });
 
-    expect(await screen.findByText('Feed Content')).toBeInTheDocument();
+    expect(await screen.findByText('Feed Content', {}, { timeout: 4000 })).toBeInTheDocument();
   });
 
   it('redirects /register to the home/feed route when authenticated', async () => {

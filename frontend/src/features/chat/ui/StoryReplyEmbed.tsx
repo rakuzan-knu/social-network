@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, Play, Sparkles } from 'lucide-react';
 import type { AttachmentView } from '../../../entities/chat/model/types';
-import { storiesApi } from '@/features/stories/api/storiesApi';
-import { useStoryViewerStore } from '@/features/stories/model/useStoryViewerStore';
+import { storiesApi, useStoryViewerStore } from '@/entities/story';
 
 interface StoryReplyEmbedProps {
   attachment?:

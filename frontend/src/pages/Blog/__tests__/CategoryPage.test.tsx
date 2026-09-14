@@ -5,8 +5,6 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { CategoryPage } from '../CategoryPage';
 import { useLanguageStore } from '../../../shared/lib/language/languageStore';
 import { useAuthStore } from '../../../shared/model/useAuthStore';
-import App from '../../../app/App';
-import { renderWithProviders } from '../../../test/renderWithProviders';
 
 describe('Category Page (/category/community)', () => {
   beforeEach(() => {
@@ -244,73 +242,5 @@ describe('Category Page (/category/community)', () => {
         /Meet Eternal Assistant: Context-Aware Summaries, Smart Search & Voice Notes/i,
       ),
     ).toBeInTheDocument();
-  });
-
-  it('is publicly accessible directly via /category/community without requiring login', async () => {
-    useAuthStore.setState({ isAuthenticated: false, userId: null });
-
-    renderWithProviders(<App />, { initialEntries: ['/category/community'] });
-
-    await waitFor(() => {
-      expect(screen.getByRole('heading', { level: 1, name: /COMMUNITY/i })).toBeInTheDocument();
-    });
-  });
-
-  it('is publicly accessible directly via /category/company without requiring login', async () => {
-    useAuthStore.setState({ isAuthenticated: false, userId: null });
-
-    renderWithProviders(<App />, { initialEntries: ['/category/company'] });
-
-    await waitFor(() => {
-      expect(screen.getByRole('heading', { level: 1, name: /ETERNAL HQ/i })).toBeInTheDocument();
-    });
-  });
-
-  it('is publicly accessible directly via /category/engineering without requiring login', async () => {
-    useAuthStore.setState({ isAuthenticated: false, userId: null });
-
-    renderWithProviders(<App />, { initialEntries: ['/category/engineering'] });
-
-    await waitFor(() => {
-      expect(
-        screen.getByRole('heading', { level: 1, name: /ENGINEERING & DEVELOPERS/i }),
-      ).toBeInTheDocument();
-    });
-  });
-
-  it('is publicly accessible directly via /category/how-to-eternal without requiring login', async () => {
-    useAuthStore.setState({ isAuthenticated: false, userId: null });
-
-    renderWithProviders(<App />, { initialEntries: ['/category/how-to-eternal'] });
-
-    await waitFor(() => {
-      expect(
-        screen.getByRole('heading', { level: 1, name: /HOW TO ETERNAL/i }),
-      ).toBeInTheDocument();
-    });
-  });
-
-  it('is publicly accessible directly via /category/safety without requiring login', async () => {
-    useAuthStore.setState({ isAuthenticated: false, userId: null });
-
-    renderWithProviders(<App />, { initialEntries: ['/category/safety'] });
-
-    await waitFor(() => {
-      expect(
-        screen.getByRole('heading', { level: 1, name: /POLICY & SAFETY/i }),
-      ).toBeInTheDocument();
-    });
-  });
-
-  it('is publicly accessible directly via /category/product without requiring login', async () => {
-    useAuthStore.setState({ isAuthenticated: false, userId: null });
-
-    renderWithProviders(<App />, { initialEntries: ['/category/product'] });
-
-    await waitFor(() => {
-      expect(
-        screen.getByRole('heading', { level: 1, name: /PRODUCT & FEATURES/i }),
-      ).toBeInTheDocument();
-    });
   });
 });

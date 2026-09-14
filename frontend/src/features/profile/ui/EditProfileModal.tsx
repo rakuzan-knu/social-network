@@ -61,10 +61,7 @@ import {
 } from './integrations/ConfigureIntegrationModal';
 import { UnlinkConfirmationModal } from './integrations/UnlinkConfirmationModal';
 import { integrationsApi } from '@/entities/showcase/api/integrationsApi';
-import { MarqueeText } from '@/shared/ui/MarqueeText';
-import FloatingSelectionToolbar, {
-  SelectionFormatType,
-} from '@/features/chat/ui/FloatingSelectionToolbar';
+import { FloatingSelectionToolbar, SelectionFormatType } from '@/shared/ui/editor';
 
 function addProfileToast(title: string, body: string) {
   useMessageToastStore.getState().addToast({

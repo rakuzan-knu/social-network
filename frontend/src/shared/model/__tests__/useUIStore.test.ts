@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useUIStore } from '../useUIStore';
-import { PostType } from '@/entities/post/model/types';
 
 describe('useUIStore', () => {
   beforeEach(() => {
@@ -43,7 +42,7 @@ describe('useUIStore', () => {
       isLiked: false,
       isReposted: false,
       isSaved: false,
-    } as unknown as PostType;
+    };
 
     useUIStore.getState().openCommentModal(mockPost);
     expect(useUIStore.getState().isCommentModalOpen).toBe(true);

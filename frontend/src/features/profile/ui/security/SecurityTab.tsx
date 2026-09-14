@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { KeyRound, ShieldBan, MonitorSmartphone, Trash2 } from 'lucide-react';
+import { KeyRound, ShieldBan, MonitorSmartphone, Trash2, ArrowLeft } from 'lucide-react';
 import SettingsRow from '@/shared/ui/SettingsRow';
-import RestrictedAccountsPanel from '@/features/chat/ui/RestrictedAccountsPanel';
 import ChangePasswordModal from './ChangePasswordModal';
 import AutoDeleteTimerRow from './AutoDeleteTimerRow';
 import LocalDevicePasswordGate from './LocalDevicePasswordGate';
@@ -9,7 +8,11 @@ import SessionsPanel from './SessionsPanel';
 import DeleteAccountModal from './DeleteAccountModal';
 import { useSessions } from '../../model/useSessions';
 
-export default function SecurityTab() {
+interface SecurityTabProps {
+  renderBlockedAccountsPanel?: (props: { onClose: () => void }) => React.ReactNode;
+}
+
+export default function SecurityTab({ renderBlockedAccountsPanel }: SecurityTabProps = {}) {
   const [changePwOpen, setChangePwOpen] = useState(false);
   const [sessionsOpen, setSessionsOpen] = useState(false);
   const [blockedOpen, setBlockedOpen] = useState(false);
@@ -67,7 +70,29 @@ export default function SecurityTab() {
 
       {changePwOpen && <ChangePasswordModal onClose={() => setChangePwOpen(false)} />}
       {sessionsOpen && <SessionsPanel onClose={() => setSessionsOpen(false)} />}
-      {blockedOpen && <RestrictedAccountsPanel onClose={() => setBlockedOpen(false)} />}
+      {blockedOpen &&
+        (renderBlockedAccountsPanel ? (
+          renderBlockedAccountsPanel({ onClose: () => setBlockedOpen(false) })
+        ) : (
+          <div className="absolute inset-0 z-30 flex flex-col bg-[#16161a]/95 backdrop-blur-2xl animate-slideInLeft">
+            <div className="flex items-center gap-2 px-4 h-16 flex-shrink-0 border-b border-white/5">
+              <button
+                onClick={() => setBlockedOpen(false)}
+                aria-label="Back"
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-white/10 hover:text-white transition-colors active:scale-90"
+              >
+                <ArrowLeft size={18} />
+              </button>
+              <h2 className="text-base font-bold text-white">Restricted accounts</h2>
+            </div>
+            <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
+              <p className="text-sm font-medium text-gray-300">No blocked accounts</p>
+              <p className="mt-1 text-xs text-gray-500">
+                People you block won&apos;t be able to message you or see your activity.
+              </p>
+            </div>
+          </div>
+        ))}
       {deleteAccountOpen && <DeleteAccountModal onClose={() => setDeleteAccountOpen(false)} />}
     </div>
   );

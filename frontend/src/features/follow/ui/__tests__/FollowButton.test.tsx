@@ -5,7 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { FollowButton } from '../FollowButton';
 import * as useFollowMutationModule from '../../model/useFollowMutation';
 import { useAuthStore } from '@/shared/model/useAuthStore';
-import { chatApi } from '@/features/chat/api/chatApi';
+import { chatApi } from '@/entities/chat';
 
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {

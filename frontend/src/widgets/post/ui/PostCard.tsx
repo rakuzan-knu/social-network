@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { MessageSquare, Repeat, Heart, Share, Bookmark, ChevronDown, Pin } from 'lucide-react';
 
-import StoryAvatar from '@/shared/ui/StoryAvatar';
+import { StoryAvatar } from '@/entities/story';
 import { ExpandableText } from '@/shared/ui/ExpandableText';
 import { PostMenu } from '@/features/posts/ui/PostMenu';
 import { FollowButton } from '@/features/follow/ui/FollowButton';
@@ -10,11 +10,11 @@ import { PollDisplay } from '@/features/posts/ui/PollDisplay';
 import { PostMedia } from '@/entities/post/ui/PostMedia';
 import { PollVotersModal } from '@/entities/post/ui/PollVotersModal';
 import { SaveToCollectionPopover } from '@/features/posts/ui/SaveToCollectionPopover';
-import { LinkPreviewCard } from '@/shared/ui/LinkPreviewCard';
+import { LinkPreviewCard } from '@/entities/opengraph';
 import { extractFirstUrl } from '@/shared/lib/urlUtils';
 
-import type { PostMedia as PostMediaType } from '@/entities/post/model/types';
-import { useUIStore, PostType } from '@/shared/model/useUIStore';
+import type { PostType, PostMedia as PostMediaType } from '@/entities/post/model/types';
+import { useUIStore } from '@/shared/model/useUIStore';
 import { useLikeMutation } from '@/features/posts/model/useLikeMutation';
 import { useRepostMutation } from '@/features/posts/model/useRepostMutation';
 import { useSavePostMutation } from '@/features/posts/model/useSavePostMutation';
@@ -29,7 +29,7 @@ import { DeletePostConfirmModal } from '@/features/posts/ui/DeletePostConfirmMod
 import { EditPostModal } from '@/features/posts/ui/EditPostModal';
 import { formatRelativeTime } from '@/shared/lib/formatRelativeTime';
 import { VerifiedCheckmark } from '@/entities/profile/ui/VerifiedCheckmark';
-import { MiniProfileHoverCard } from '@/entities/profile/ui/MiniProfileHoverCard';
+import { MiniProfileHoverCard } from '@/widgets/profile';
 import { useAuthStore } from '@/shared/model/useAuthStore';
 import { useCurrentUser } from '@/entities/profile/model/useCurrentUser';
 import { useMessageToastStore } from '@/shared/model/useMessageToastStore';

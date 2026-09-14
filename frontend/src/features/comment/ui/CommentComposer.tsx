@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Image as ImageIcon, X, Loader2 } from 'lucide-react';
 import { AddEmojiButton } from '../../../shared/ui/AddEmojiButton';
-import { MentionAutocomplete } from '../../posts/ui/MentionAutocomplete';
-import SmartCodePasteBanner from '@/features/chat/ui/SmartCodePasteBanner';
-import FloatingSelectionToolbar, {
-  SelectionFormatType,
-} from '@/features/chat/ui/FloatingSelectionToolbar';
-import { detectCodeSnippet, DetectedCodeSnippet } from '@/features/chat/lib/smartCodeDetection';
+import {
+  MentionAutocomplete,
+  SmartCodePasteBanner,
+  FloatingSelectionToolbar,
+  type SelectionFormatType,
+} from '@/shared/ui/editor';
+import { detectCodeSnippet, type DetectedCodeSnippet } from '@/shared/lib/editor';
 
 const MAX_COMMENT_LENGTH = 1000;
 const MAX_TEXTAREA_HEIGHT = 115; // Allows ~4 to 4.5 lines of text comfortably

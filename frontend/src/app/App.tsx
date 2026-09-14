@@ -31,7 +31,7 @@ const ShareModal = lazy(() =>
   import('../features/posts/ui/ShareModal').then((m) => ({ default: m.ShareModal })),
 );
 const CommentModal = lazy(() =>
-  import('../features/comment/ui/CommentModal').then((m) => ({ default: m.CommentModal })),
+  import('@/widgets/comment').then((m) => ({ default: m.CommentModal })),
 );
 const StoryViewerModal = lazy(() =>
   import('../features/stories/ui/StoryViewerModal').then((m) => ({ default: m.StoryViewerModal })),
@@ -149,9 +149,8 @@ const OnlineFriendsSidebar = lazy(() =>
   })),
 );
 import { usePresenceSync } from '../features/chat/model/usePresence';
-import { useDynamicTabBadge } from '../shared/lib/useDynamicTabBadge';
+import { useDynamicTabBadge, useNotificationRealtime } from '@/entities/notification';
 import { ScrollToTop } from '../shared/lib/ScrollToTop';
-import { useNotificationRealtime } from '@/entities/notification';
 import { useStoriesRealtime } from '../features/stories/model/useStoriesRealtime';
 const OAuthCallbackHandler = lazy(() => import('../pages/OAuth/OAuthCallbackHandler'));
 

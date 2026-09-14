@@ -3,7 +3,7 @@ import { ChevronDown, CornerDownRight } from 'lucide-react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { CommentItem } from './CommentItem';
 import { CommentType } from '../model/types';
-import { commentsApi, CommentListPage } from '@/features/comment/api/commentsApi';
+import { commentsApi, CommentListPage } from '../api/commentsApi';
 import { COMMENT_REPLIES_KEY } from '@/shared/api/queryKeys';
 
 interface CommentThreadProps {

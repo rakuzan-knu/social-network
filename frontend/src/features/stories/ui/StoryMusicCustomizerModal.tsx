@@ -37,9 +37,7 @@ export const StoryMusicCustomizerModal: React.FC<StoryMusicCustomizerModalProps>
   onClose,
   onConfirm,
 }) => {
-  if (!isOpen || !track) return null;
-
-  const totalDurationMs = Math.max(30000, track.durationMs || 180000);
+  const totalDurationMs = Math.max(30000, track?.durationMs || 180000);
 
   // States
   const [selectedStyle, setSelectedStyle] = useState<'none' | 'cover' | 'card' | 'vinyl'>('card');
@@ -73,8 +71,8 @@ export const StoryMusicCustomizerModal: React.FC<StoryMusicCustomizerModalProps>
 
   // Deterministic 60-bar waveform
   const waveform = useMemo(() => {
-    return generateSeededWaveform(track.id || track.title, 60);
-  }, [track.id, track.title]);
+    return generateSeededWaveform(track ? track.id || track.title : '', 60);
+  }, [track?.id, track?.title]);
 
   // Audio & HLS refs
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -102,6 +100,7 @@ export const StoryMusicCustomizerModal: React.FC<StoryMusicCustomizerModalProps>
 
   // Initialize and stream audio
   useEffect(() => {
+    if (!isOpen || !track) return;
     const playUrl = track.streamUrl || track.audioUrl;
     if (!playUrl) return;
 
@@ -146,7 +145,7 @@ export const StoryMusicCustomizerModal: React.FC<StoryMusicCustomizerModalProps>
     return () => {
       stopAudio();
     };
-  }, [track.id, track.streamUrl, track.audioUrl]);
+  }, [isOpen, track?.id, track?.streamUrl, track?.audioUrl]);
 
   // Real-time smooth playhead animation loop (60fps)
   useEffect(() => {
@@ -327,9 +326,9 @@ export const StoryMusicCustomizerModal: React.FC<StoryMusicCustomizerModalProps>
   const previewOverlay: AudioOverlay = {
     id: 'preview-music-sticker',
     type: 'audio',
-    title: track.title,
-    artist: track.artist,
-    albumArt: track.albumArt,
+    title: track?.title || '',
+    artist: track?.artist || '',
+    albumArt: track?.albumArt || '',
     musicStyle: selectedStyle,
     stickerColor: activeColor,
     startTimeMs,
@@ -340,6 +339,7 @@ export const StoryMusicCustomizerModal: React.FC<StoryMusicCustomizerModalProps>
 
   // Handle Done
   const handleDone = () => {
+    if (!track) return;
     stopAudio();
     onConfirm({
       musicStyle: selectedStyle,
@@ -355,6 +355,8 @@ export const StoryMusicCustomizerModal: React.FC<StoryMusicCustomizerModalProps>
       durationMs: totalDurationMs,
     });
   };
+
+  if (!isOpen || !track) return null;
 
   return (
     <div

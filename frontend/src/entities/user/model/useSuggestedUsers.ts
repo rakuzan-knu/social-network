@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient as api } from '@/shared/api/httpClient';
 import { useAuthStore } from '@/shared/model/useAuthStore';
-import { followApi, type FollowUserSummary } from '@/features/follow/api/followApi';
+import { followApi, type FollowUserSummary } from '../api/followApi';
 
 export function useSuggestedUsers(limit = 5) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);

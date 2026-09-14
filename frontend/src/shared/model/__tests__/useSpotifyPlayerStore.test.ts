@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useSpotifyPlayerStore, SpotifyTrack } from '../useSpotifyPlayerStore';
 
-vi.mock('@/entities/showcase/api/integrationsApi', () => ({
+vi.mock('@/shared/api/integrationsApi', () => ({
   integrationsApi: {
     likeSpotifyTrack: vi.fn().mockResolvedValue({ success: true, isLiked: true }),
     checkSpotifyTrackLiked: vi.fn().mockResolvedValue({ isLiked: false }),

@@ -58,8 +58,7 @@ export function ParticipantTile({
   const [isMixerOpen, setIsMixerOpen] = useState(false);
 
   const synestheticStyle = useSynestheticVisualizer(stream, isSynestheticVisualizerEnabled);
-  const { containerRef: simulcastContainerRef, currentLayer } =
-    useIntersectionSimulcastSubscription(user?.id, isLocal);
+  const { currentLayer } = useIntersectionSimulcastSubscription(user?.id, isLocal, containerRef);
   const visualizerRef = useRef<HTMLDivElement | null>(null);
   useDirectAudioVisualizer(visualizerRef, stream ?? null, isMuted);
 
@@ -145,10 +144,7 @@ export function ParticipantTile({
 
   return (
     <div
-      ref={(node) => {
-        containerRef.current = node;
-        simulcastContainerRef.current = node;
-      }}
+      ref={containerRef}
       data-simulcast-layer={currentLayer}
       style={
         isSynestheticVisualizerEnabled && synestheticStyle.isSpeaking

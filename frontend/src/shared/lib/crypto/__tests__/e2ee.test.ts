@@ -54,17 +54,19 @@ describe('E2EE envelope detection (M3: parse-then-validate)', () => {
   it('accepts well-formed v2/v3 envelopes, rejects malformed bound ones', () => {
     const aad = { conversationId: 'c1', senderId: 'u1', senderDevice: 'd1', seq: 2 };
     expect(
-      manager.isEncrypted(JSON.stringify({ e2ee: true, v: 2, iv: 'a', ct: 'b', from: 'd1', aad })),
+      manager.isEncrypted(
+        JSON.stringify({ e2ee: true, v: 2, iv: 'AAAAAAAAAAAAAAAA', ct: 'BBBB', from: 'd1', aad }),
+      ),
     ).toBe(true);
     expect(
       manager.isEncrypted(
         JSON.stringify({
           e2ee: true,
           v: 3,
-          iv: 'a',
-          ct: 'b',
+          iv: 'AAAAAAAAAAAAAAAA',
+          ct: 'BBBB',
           from: 'd1',
-          keys: { d2: { iv: 'c', k: 'd' } },
+          keys: { d2: { iv: 'AAAAAAAAAAAAAAAA', k: 'BBBB' } },
           aad,
         }),
       ),
