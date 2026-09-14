@@ -132,8 +132,8 @@ export const ProfileShowcaseSettingsSection: React.FC = () => {
           Profile Showcase & Widgets
         </h3>
         <p className="text-xs text-gray-400 mt-1 leading-relaxed">
-          Configure what dynamic widgets, personal meta, and media items appear on your profile
-          sidebar.
+          Configure what dynamic widgets, personal information, and media items appear on your
+          profile sidebar.
         </p>
       </div>
 
@@ -184,7 +184,7 @@ export const ProfileShowcaseSettingsSection: React.FC = () => {
             style={{ backgroundColor: accentColor }}
           />
 
-          {/* Personal Meta Preview */}
+          {/* Personal Information Preview */}
           {isMetaVisibleInPreview ? (
             <div className="flex flex-wrap gap-1.5">
               {showBirthdate && (
@@ -208,7 +208,7 @@ export const ProfileShowcaseSettingsSection: React.FC = () => {
             </div>
           ) : (
             <div className="text-[10px] text-gray-500 italic p-1">
-              Personal meta is hidden for guests (Private).
+              Personal information is hidden for guests (Private).
             </div>
           )}
 
@@ -275,7 +275,7 @@ export const ProfileShowcaseSettingsSection: React.FC = () => {
       {/* Meta Widget Controls */}
       <div className="flex flex-col gap-3 pt-4 border-t border-white/6">
         <span className="text-xs font-bold text-gray-300 uppercase tracking-wider">
-          Personal Meta Options:
+          Personal Information Options:
         </span>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -370,7 +370,9 @@ export const ProfileShowcaseSettingsSection: React.FC = () => {
 
         <div className="flex items-center justify-between p-3 rounded-2xl bg-white/2 border border-white/8">
           <div>
-            <span className="text-xs font-bold text-white block">Personal Meta Visibility</span>
+            <span className="text-xs font-bold text-white block">
+              Personal Information Visibility
+            </span>
             <span className="text-[10px] text-gray-500">Birthday, age, pronouns & clock</span>
           </div>
           <select

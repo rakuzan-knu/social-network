@@ -372,7 +372,9 @@ export interface UserSnapshot {
   username: string;
   displayName: string | null;
   avatar: string | null;
-  defaultChatTheme?: string | null | undefined;
+  isVerified?: boolean;
+  primaryBadge?: string | null;
+  defaultChatTheme?: string | null;
   flags?: number | undefined;
 }
 

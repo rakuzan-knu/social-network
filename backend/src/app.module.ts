@@ -32,6 +32,7 @@ import { PollModule } from './poll/poll.module';
 import { GithubModule } from './github/github.module';
 import { OpenGraphModule } from './opengraph/opengraph.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { SitemapModule } from './sitemap/sitemap.module';
 import { ShowcaseModule } from './showcase/showcase.module';
 import { StoriesModule } from './stories/stories.module';
 import { ReelsModule } from './reels/reels.module';
@@ -54,6 +55,7 @@ import { SerializationModule } from './common/serialization';
 import { CrdtModule } from './common/crdt/crdt.module';
 import { BloomModule } from './common/bloom/bloom.module';
 import { TextPipelineModule } from './common/text-pipeline/text-pipeline.module';
+import { IntegrationsModule } from './integrations/integrations.module';
 
 import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware';
 
@@ -238,6 +240,7 @@ import type { MiddlewareConsumer, NestModule } from '@nestjs/common';
     GithubModule,
     OpenGraphModule,
     NotificationsModule,
+    SitemapModule,
     ShowcaseModule,
     StoriesModule,
     ReelsModule,
@@ -254,6 +257,7 @@ import type { MiddlewareConsumer, NestModule } from '@nestjs/common';
     SerializationModule,
     CrdtModule,
     BloomModule,
+    IntegrationsModule,
   ],
 
   controllers: [],

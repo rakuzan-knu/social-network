@@ -55,10 +55,10 @@ describe('ThemeProposalMessage', () => {
       />,
     );
 
-    expect(screen.getByText(/Alice предлагает парную тему/i)).toBeInTheDocument();
-    expect(screen.getByText('Принять тему')).toBeInTheDocument();
-    expect(screen.getByText('Отклонить')).toBeInTheDocument();
-    expect(screen.getByText('Ожидание')).toBeInTheDocument();
+    expect(screen.getByText(/Alice proposed a paired theme/i)).toBeInTheDocument();
+    expect(screen.getByText('Accept Theme')).toBeInTheDocument();
+    expect(screen.getByText('Decline')).toBeInTheDocument();
+    expect(screen.getByText('Pending')).toBeInTheDocument();
   });
 
   it('renders pending theme proposal for sender with cancel button and handles API error', async () => {
@@ -72,8 +72,11 @@ describe('ThemeProposalMessage', () => {
       />,
     );
 
-    expect(screen.getByText(/Вы предложили парную тему/i)).toBeInTheDocument();
-    const cancelBtn = screen.getByText('Отменить предложение');
+    expect(screen.getByText(/You proposed a paired theme/i)).toBeInTheDocument();
+    expect(screen.getByText('Cancel Proposal')).toBeInTheDocument();
+    expect(screen.queryByText('Accept Theme')).not.toBeInTheDocument();
+
+    const cancelBtn = screen.getByText('Cancel Proposal');
     fireEvent.click(cancelBtn);
 
     await waitFor(() => {
@@ -103,7 +106,7 @@ describe('ThemeProposalMessage', () => {
       />,
     );
 
-    const acceptBtn = screen.getByText('Принять тему');
+    const acceptBtn = screen.getByText('Accept Theme');
     fireEvent.click(acceptBtn);
 
     await waitFor(() => {
@@ -128,7 +131,7 @@ describe('ThemeProposalMessage', () => {
         conversationId="conv-123"
       />,
     );
-    expect(screen.getByText('Отклонена')).toBeInTheDocument();
+    expect(screen.getByText('Declined')).toBeInTheDocument();
 
     // Cancelled
     rerender(
@@ -145,7 +148,7 @@ describe('ThemeProposalMessage', () => {
         conversationId="conv-123"
       />,
     );
-    expect(screen.getByText('Отменена')).toBeInTheDocument();
+    expect(screen.getByText('Cancelled')).toBeInTheDocument();
 
     // Invalid JSON
     rerender(
@@ -155,7 +158,7 @@ describe('ThemeProposalMessage', () => {
         conversationId="conv-123"
       />,
     );
-    expect(screen.getByText('Не удалось загрузить данные темы')).toBeInTheDocument();
+    expect(screen.getByText('Failed to load theme data')).toBeInTheDocument();
   });
 
   it('handles declining the proposal', async () => {
@@ -176,7 +179,7 @@ describe('ThemeProposalMessage', () => {
       />,
     );
 
-    const declineBtn = screen.getByText('Отклонить');
+    const declineBtn = screen.getByText('Decline');
     fireEvent.click(declineBtn);
 
     await waitFor(() => {
@@ -199,11 +202,11 @@ describe('ThemeProposalMessage', () => {
       />,
     );
 
-    const cancelBtn = screen.getByText('Отменить предложение');
+    const cancelBtn = screen.getByText('Cancel Proposal');
     fireEvent.click(cancelBtn);
 
     await waitFor(() => {
-      expect(screen.getByText('Не удалось обновить тему')).toBeInTheDocument();
+      expect(screen.getByText('Failed to update theme')).toBeInTheDocument();
     });
   });
 });

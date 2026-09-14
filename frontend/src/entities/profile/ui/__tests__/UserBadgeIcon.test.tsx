@@ -57,4 +57,19 @@ describe('UserBadgeIcon', () => {
     renderBadge(<UserBadgeIcon badgeId="PREMIUM" subscriptionMonths={0} />);
     expect(screen.getByText('No active subscription')).toBeInTheDocument();
   });
+
+  it('renders Platinum tier for Contributor with 11 merged PRs', () => {
+    const { getByText } = renderBadge(
+      <UserBadgeIcon badgeId="CONTRIBUTOR" prCount={11} showTooltip={true} />,
+    );
+    expect(getByText(/Platinum Contributor/i)).toBeInTheDocument();
+    expect(getByText(/11 Merged PRs & Reports/i)).toBeInTheDocument();
+  });
+
+  it('renders tiered CONTRIBUTOR_PLATINUM badge correctly', () => {
+    const { getByText } = renderBadge(
+      <UserBadgeIcon badgeId="CONTRIBUTOR_PLATINUM" showTooltip={true} />,
+    );
+    expect(getByText(/Platinum Contributor/i)).toBeInTheDocument();
+  });
 });

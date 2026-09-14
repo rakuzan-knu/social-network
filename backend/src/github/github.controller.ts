@@ -41,7 +41,7 @@ export class GithubController {
     this.githubService.getAuthorizationUrl(req, res);
   }
 
-  @Get('auth/github/callback')
+  @Get(['auth/github/callback', 'integrations/github/callback'])
   @ApiOperation({ summary: 'GitHub OAuth authorization callback' })
   async handleCallback(
     @Query(new ZodValidationPipe(githubCallbackQuerySchema)) query: GithubCallbackQueryDto,
@@ -49,6 +49,17 @@ export class GithubController {
     @Res() res: Response,
   ): Promise<void> {
     await this.githubService.handleOAuthCallback(query.code, query.state, req, res);
+  }
+
+  @Get('api/auth/github/callback')
+  @ApiOperation({ summary: 'GitHub OAuth authorization callback (api prefix)' })
+  async handleApiCallback(
+    @Query('code') code: string,
+    @Query('state') state: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    await this.githubService.handleOAuthCallback(code, state, req, res);
   }
 
   @Delete('auth/github')

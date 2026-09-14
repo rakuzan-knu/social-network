@@ -51,6 +51,7 @@ import { PrekeysController } from './crypto/prekeys.controller';
 import { PrekeysService } from './crypto/prekeys.service';
 import { PrekeysRepository } from './repositories/prekeys.repository';
 import { PREKEYS_REPOSITORY } from './interfaces/prekeys-repository.interface';
+import { JamService } from '../integrations/jam.service';
 
 @Module({
   imports: [
@@ -112,6 +113,7 @@ import { PREKEYS_REPOSITORY } from './interfaces/prekeys-repository.interface';
     K8sPodMigrationService,
     OffHeapBufferPoolService,
     MessengerGateway,
+    JamService,
     AutoDeleteService,
     autoDeleteS3Provider,
   ],
@@ -137,6 +139,7 @@ import { PREKEYS_REPOSITORY } from './interfaces/prekeys-repository.interface';
     WsBackpressureService,
     K8sPodMigrationService,
     OffHeapBufferPoolService,
+    JamService,
   ],
 })
 export class MessengerModule {}

@@ -146,11 +146,40 @@ export class MessagesService implements OnModuleDestroy {
       this.configService.get<string>('S3_PUBLIC_URL') ??
       'http://localhost:9000';
 
+    let finalContentType = file.mimetype || '';
+    if (
+      !finalContentType ||
+      finalContentType === 'text/plain' ||
+      finalContentType === 'application/octet-stream'
+    ) {
+      if (originalExt === 'webm') {
+        finalContentType = attachmentType === AttachmentType.AUDIO ? 'audio/webm' : 'video/webm';
+      } else if (originalExt === 'mp4') {
+        finalContentType = 'video/mp4';
+      } else if (originalExt === 'mp3') {
+        finalContentType = 'audio/mpeg';
+      } else if (originalExt === 'png') {
+        finalContentType = 'image/png';
+      } else if (originalExt === 'jpg' || originalExt === 'jpeg') {
+        finalContentType = 'image/jpeg';
+      } else if (originalExt === 'gif') {
+        finalContentType = 'image/gif';
+      } else if (originalExt === 'webp') {
+        finalContentType = 'image/webp';
+      } else {
+        finalContentType = 'application/octet-stream';
+      }
+    }
+    // Clean any parameters (e.g. video/webm;codecs=vp8,opus -> video/webm) for HTTP storage headers
+    if (finalContentType.includes(';')) {
+      finalContentType = finalContentType.split(';')[0].trim();
+    }
+
     const url = await uploadToStorageWithFallback(this.s3, {
       bucket,
       key,
       buffer: file.buffer,
-      contentType: file.mimetype || 'application/octet-stream',
+      contentType: finalContentType,
       publicUrl,
     });
 
@@ -158,7 +187,7 @@ export class MessagesService implements OnModuleDestroy {
       type: attachmentType,
       url,
       fileName: file.originalname,
-      mimeType: file.mimetype || 'application/octet-stream',
+      mimeType: finalContentType,
       size: file.buffer.length,
     };
   }

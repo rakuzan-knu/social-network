@@ -198,11 +198,24 @@ export class FollowersRepository implements IFollowersRepository {
         followerId: { in: viewerFollowingIds },
         status: FollowStatus.ACCEPTED,
       },
-      include: { follower: { select: publicUserSelect } },
+      include: {
+        follower: {
+          select: {
+            ...publicUserSelect,
+            showcase: {
+              select: {
+                activityStatus: true,
+                connectedAccounts: true,
+                privacyActivity: true,
+              },
+            },
+          },
+        },
+      },
       take: limit,
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     });
-    return mutualFollows.map((f) => ({ id: f.id, user: f.follower }));
+    return mutualFollows.map((f) => ({ id: f.id, user: f.follower as any }));
   }
 
   async findUserBasic(userId: string) {

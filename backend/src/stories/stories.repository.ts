@@ -467,6 +467,14 @@ export class StoriesRepository {
     return following.map((f) => f.followingId);
   }
 
+  async findUsersByUsernames(usernames: string[]): Promise<{ id: string; username: string }[]> {
+    if (usernames.length === 0) return [];
+    return this.prisma.user.findMany({
+      where: { username: { in: usernames, mode: 'insensitive' } },
+      select: { id: true, username: true },
+    });
+  }
+
   async findUserBasic(userId: string) {
     return this.prisma.user.findUnique({
       where: { id: userId },

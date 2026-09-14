@@ -233,9 +233,45 @@ export class UsersService {
 
   async updatePrimaryBadge(userId: string, badgeId?: string | null): Promise<UserProfileDto> {
     return this.redis.withLock(`lock:user:badge:${userId}`, async () => {
-      const targetBadgeId = badgeId && badgeId.trim() !== '' ? badgeId.trim() : null;
+      let targetBadgeId = badgeId && badgeId.trim() !== '' ? badgeId.trim() : null;
 
       if (targetBadgeId !== null) {
+        if (targetBadgeId.toUpperCase() === 'CONTRIBUTOR') {
+          const badgeIds = (await this.usersRepository.getUserBadges(userId)).map((b) =>
+            b.toUpperCase(),
+          );
+          const contributorTiers = [
+            'CONTRIBUTOR_OPAL',
+            'CONTRIBUTOR_RUBY',
+            'CONTRIBUTOR_DIAMOND',
+            'CONTRIBUTOR_PLATINUM',
+            'CONTRIBUTOR_GOLD',
+            'CONTRIBUTOR_SILVER',
+            'CONTRIBUTOR_BRONZE',
+          ];
+          const highestTier = contributorTiers.find((tier) => badgeIds.includes(tier));
+          if (highestTier) {
+            targetBadgeId = highestTier;
+          }
+        } else if (targetBadgeId.toUpperCase() === 'PREMIUM') {
+          const badgeIds = (await this.usersRepository.getUserBadges(userId)).map((b) =>
+            b.toUpperCase(),
+          );
+          const premiumTiers = [
+            'PREMIUM_OPAL',
+            'PREMIUM_RUBY',
+            'PREMIUM_DIAMOND',
+            'PREMIUM_PLATINUM',
+            'PREMIUM_GOLD',
+            'PREMIUM_SILVER',
+            'PREMIUM_BRONZE',
+          ];
+          const highestTier = premiumTiers.find((tier) => badgeIds.includes(tier));
+          if (highestTier) {
+            targetBadgeId = highestTier;
+          }
+        }
+
         const hasBadge = await this.usersRepository.hasBadge(userId, targetBadgeId);
         if (!hasBadge) {
           throw new ForbiddenException(`You do not own the badge '${targetBadgeId}'`);

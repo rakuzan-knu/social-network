@@ -4,6 +4,7 @@ import { PostsModule } from '../posts/posts.module';
 import { USERS_REPOSITORY } from './interfaces/users-repository.interface';
 import { UsersRepository } from './repositories/users.repository';
 import { UsersController } from './users.controller';
+import { SearchController } from './search.controller';
 import { UsersService } from './users.service';
 import { PrivacyController } from './privacy/privacy.controller';
 import { PrivacyService } from './privacy/privacy.service';
@@ -15,7 +16,7 @@ import { LastSeenCoalescerService } from './coalescing/last-seen-coalescer.servi
 
 @Module({
   imports: [PrismaModule, forwardRef(() => PostsModule)],
-  controllers: [UsersController, PrivacyController],
+  controllers: [UsersController, SearchController, PrivacyController],
   providers: [
     UsersService,
     LastSeenCoalescerService,

@@ -78,6 +78,46 @@ export class ShowcaseRepository implements IShowcaseRepository {
 
   async updateShowcase(userId: string, dto: UpdateShowcaseDto): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
+      const existingShowcase = await tx.profileShowcase.findUnique({ where: { userId } });
+      const existingConnected =
+        (existingShowcase?.connectedAccounts as Record<string, any> | null) || {};
+      const newConnectedAccounts =
+        dto.connectedAccounts !== undefined
+          ? {
+              ...(dto.connectedAccounts as any),
+              ...(dto.personalInfo !== undefined
+                ? { _personalInfo: dto.personalInfo }
+                : existingConnected._personalInfo
+                  ? { _personalInfo: existingConnected._personalInfo }
+                  : {}),
+            }
+          : dto.personalInfo !== undefined || dto.showZodiac !== undefined
+            ? {
+                ...existingConnected,
+                ...(dto.personalInfo !== undefined
+                  ? { _personalInfo: dto.personalInfo }
+                  : existingConnected._personalInfo
+                    ? { _personalInfo: existingConnected._personalInfo }
+                    : {}),
+              }
+            : undefined;
+
+      if (dto.showZodiac !== undefined && newConnectedAccounts) {
+        const pInfo = (newConnectedAccounts._personalInfo as Record<string, any>) || {};
+        pInfo.toggles = {
+          ...(pInfo.toggles || {}),
+          showZodiac: dto.showZodiac,
+        };
+        newConnectedAccounts._personalInfo = pInfo;
+      }
+
+      if (dto.personalInfo?.gender !== undefined && dto.personalInfo.gender !== null) {
+        await tx.user.update({
+          where: { id: userId },
+          data: { gender: dto.personalInfo.gender },
+        });
+      }
+
       const showcase = await tx.profileShowcase.upsert({
         where: { userId },
         create: {
@@ -93,9 +133,11 @@ export class ShowcaseRepository implements IShowcaseRepository {
           pronouns: dto.pronouns !== undefined ? dto.pronouns : null,
           timezone: dto.timezone || 'UTC',
           accentColor: dto.accentColor || '#6366f1',
-          ...(dto.connectedAccounts !== undefined
-            ? { connectedAccounts: dto.connectedAccounts as unknown as Prisma.InputJsonValue }
-            : {}),
+          ...(newConnectedAccounts !== undefined
+            ? { connectedAccounts: newConnectedAccounts }
+            : dto.connectedAccounts !== undefined
+              ? { connectedAccounts: dto.connectedAccounts }
+              : {}),
           ...(dto.activityStatus !== undefined
             ? { activityStatus: dto.activityStatus as unknown as Prisma.InputJsonValue }
             : {}),
@@ -104,6 +146,9 @@ export class ShowcaseRepository implements IShowcaseRepository {
             : {}),
           ...(dto.anthemTrack !== undefined
             ? { anthemTrack: dto.anthemTrack as unknown as Prisma.InputJsonValue }
+            : {}),
+          ...(dto.widgetOrder !== undefined
+            ? { widgetOrder: dto.widgetOrder as unknown as Prisma.InputJsonValue }
             : {}),
         },
         update: {
@@ -118,8 +163,8 @@ export class ShowcaseRepository implements IShowcaseRepository {
           ...(dto.pronouns !== undefined && { pronouns: dto.pronouns }),
           ...(dto.timezone !== undefined && { timezone: dto.timezone }),
           ...(dto.accentColor !== undefined && { accentColor: dto.accentColor }),
-          ...(dto.connectedAccounts !== undefined && {
-            connectedAccounts: dto.connectedAccounts as unknown as Prisma.InputJsonValue,
+          ...(newConnectedAccounts !== undefined && {
+            connectedAccounts: newConnectedAccounts,
           }),
           ...(dto.activityStatus !== undefined && {
             activityStatus: dto.activityStatus as unknown as Prisma.InputJsonValue,
@@ -129,6 +174,9 @@ export class ShowcaseRepository implements IShowcaseRepository {
           }),
           ...(dto.anthemTrack !== undefined && {
             anthemTrack: dto.anthemTrack as unknown as Prisma.InputJsonValue,
+          }),
+          ...(dto.widgetOrder !== undefined && {
+            widgetOrder: dto.widgetOrder as unknown as Prisma.InputJsonValue,
           }),
         },
       });
@@ -163,6 +211,29 @@ export class ShowcaseRepository implements IShowcaseRepository {
           });
         }
       }
+    });
+  }
+
+  async findUsersByIds(
+    userIds: string[],
+  ): Promise<
+    { id: string; username: string; displayName: string | null; avatar: string | null }[]
+  > {
+    return this.prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: {
+        id: true,
+        username: true,
+        displayName: true,
+        avatar: true,
+      },
+    });
+  }
+
+  async updateConnectedAccounts(userId: string, connectedAccounts: unknown): Promise<void> {
+    await this.prisma.profileShowcase.update({
+      where: { userId },
+      data: { connectedAccounts: connectedAccounts as Prisma.InputJsonValue },
     });
   }
 }

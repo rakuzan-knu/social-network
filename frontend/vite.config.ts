@@ -38,8 +38,25 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
+          const normalizedId = id.replace(/\\/g, '/');
+
+          if (normalizedId.includes('curatedMediaCatalogPart1')) {
+            return 'showcase-catalog-1';
+          }
+          if (normalizedId.includes('curatedMediaCatalogPart2')) {
+            return 'showcase-catalog-2';
+          }
+          if (
+            normalizedId.includes('/entities/profile/ui/') &&
+            (normalizedId.includes('Badge') || normalizedId.includes('Tier'))
+          ) {
+            return 'profile-badges';
+          }
+          if (normalizedId.includes('/features/music/model/useMusicHubStore')) {
+            return 'music-store';
+          }
+
           if (id.includes('node_modules')) {
-            const normalizedId = id.replace(/\\/g, '/');
             if (normalizedId.includes('/emoji-picker-react/')) {
               return 'vendor-emoji';
             }
@@ -91,19 +108,20 @@ export default defineConfig({
               normalizedId.includes('/vfile') ||
               normalizedId.includes('/mdast-') ||
               normalizedId.includes('/hast-') ||
-              normalizedId.includes('/property-information/') ||
-              normalizedId.includes('/comma-separated-tokens/') ||
-              normalizedId.includes('/space-separated-tokens/') ||
-              normalizedId.includes('/decode-named-character-reference/') ||
+              normalizedId.includes('/property-information') ||
+              normalizedId.includes('/comma-separated-tokens') ||
+              normalizedId.includes('/space-separated-tokens') ||
+              normalizedId.includes('/decode-named-character-reference') ||
               normalizedId.includes('/character-entities') ||
-              normalizedId.includes('/trough/') ||
-              normalizedId.includes('/zwitch/') ||
-              normalizedId.includes('/ccount/') ||
-              normalizedId.includes('/devlop/') ||
-              normalizedId.includes('/trim-lines/') ||
-              normalizedId.includes('/bail/') ||
-              normalizedId.includes('/is-plain-obj/') ||
-              normalizedId.includes('/markdown-table/')
+              normalizedId.includes('/trough') ||
+              normalizedId.includes('/zwitch') ||
+              normalizedId.includes('/ccount') ||
+              normalizedId.includes('/devlop') ||
+              normalizedId.includes('/trim-lines') ||
+              normalizedId.includes('/bail') ||
+              normalizedId.includes('/longest-streak') ||
+              normalizedId.includes('/is-plain-obj') ||
+              normalizedId.includes('/markdown-table')
             ) {
               return 'vendor-markdown';
             }
@@ -117,10 +135,13 @@ export default defineConfig({
               return 'vendor-prism';
             }
             if (normalizedId.includes('/axios/')) {
-              return 'vendor-axios';
+              return 'vendor-http';
             }
             if (normalizedId.includes('/wavesurfer.js/')) {
               return 'vendor-wavesurfer';
+            }
+            if (normalizedId.includes('/hls.js/')) {
+              return 'vendor-hls';
             }
             if (normalizedId.includes('/@radix-ui/')) {
               return 'vendor-radix';
@@ -128,6 +149,7 @@ export default defineConfig({
             if (normalizedId.includes('/framer-motion/') || normalizedId.includes('/motion/')) {
               return 'vendor-motion';
             }
+            return 'vendor-libs';
           }
         },
       },

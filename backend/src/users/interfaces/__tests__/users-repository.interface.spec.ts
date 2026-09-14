@@ -54,6 +54,7 @@ describe('users-repository.interface', () => {
       setUserAlias: jest.fn().mockResolvedValue(undefined),
       deleteUserAlias: jest.fn().mockResolvedValue(undefined),
       hasBadge: jest.fn().mockResolvedValue(false),
+      getUserBadges: jest.fn().mockResolvedValue([]),
       searchCandidates: jest.fn().mockResolvedValue([]),
       getFollowingIds: jest.fn().mockResolvedValue([]),
       getFollowerIds: jest.fn().mockResolvedValue([]),

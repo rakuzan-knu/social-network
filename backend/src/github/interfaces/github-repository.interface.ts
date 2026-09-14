@@ -12,8 +12,10 @@ export interface IGithubRepository {
       githubId?: string | null;
       githubUsername?: string | null;
       mergedPrsCount?: number;
+      primaryBadge?: string | null;
     },
   ): Promise<void>;
   unlinkGithubAndBadges(userId: string, contributorBadgeIds: string[]): Promise<void>;
   grantBadges(userId: string, badgeIds: string[]): Promise<void>;
+  updateShowcaseGithubAccount(userId: string, ghAccountData: unknown): Promise<void>;
 }

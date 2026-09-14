@@ -63,27 +63,21 @@ describe('StoriesBar', () => {
     } as any);
   });
 
-  it('renders current user active story, toggles own story menu and opens viewer/editor', () => {
+  it('renders current user active story and followed users', () => {
     render(<StoriesBar />, { wrapper: createWrapper() });
 
-    expect(screen.getByText('Ваша история')).toBeInTheDocument();
+    expect(screen.getByText('Your story')).toBeInTheDocument();
     expect(screen.getByText('Bob')).toBeInTheDocument();
     expect(screen.getByTitle('Close Friends Story')).toBeInTheDocument();
 
-    // Click own avatar -> opens context menu
-    const ownAvatarBtn = screen.getByText('Ваша история').parentElement!.querySelector('button')!;
+    // Click own avatar -> opens viewer
+    const ownAvatarBtn = screen.getByText('Your story').parentElement!.querySelector('button')!;
     fireEvent.click(ownAvatarBtn);
-
-    expect(screen.getByText('Посмотреть')).toBeInTheDocument();
-    expect(screen.getByText('Новая история')).toBeInTheDocument();
-
-    // Click Посмотреть
-    fireEvent.click(screen.getByText('Посмотреть'));
     expect(useStoryViewerStore.getState().isOpen).toBe(true);
 
-    // Reopen and click Новая история
-    fireEvent.click(ownAvatarBtn);
-    fireEvent.click(screen.getByText('Новая история'));
+    // Click plus button -> opens editor
+    const plusBtn = screen.getByTitle('Create story');
+    fireEvent.click(plusBtn);
     expect(useStoryEditorStore.getState().isOpen).toBe(true);
   });
 

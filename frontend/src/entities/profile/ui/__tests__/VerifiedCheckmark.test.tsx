@@ -10,8 +10,8 @@ function renderWithClient(ui: React.ReactElement) {
 }
 
 describe('VerifiedCheckmark', () => {
-  it('renders verified svg badge with proper title', () => {
-    const { container } = renderWithClient(<VerifiedCheckmark size="md" />);
+  it('renders verified svg badge with proper title when isVerified is true', () => {
+    const { container } = renderWithClient(<VerifiedCheckmark isVerified size="md" />);
     const badge = screen.getByTitle('Verified Profile');
     expect(badge).toBeInTheDocument();
     expect(container.querySelector('svg')).toBeInTheDocument();

@@ -14,6 +14,8 @@ describe('ShowcaseService', () => {
     getFollowStatus: jest.Mock;
     upsertDefaultShowcase: jest.Mock;
     updateShowcase: jest.Mock;
+    findUsersByIds: jest.Mock;
+    updateConnectedAccounts: jest.Mock;
   };
   let redis: {
     del: jest.Mock;
@@ -39,6 +41,7 @@ describe('ShowcaseService', () => {
       showBirthdate: true,
       showGender: true,
       showTimezone: true,
+      showZodiac: true,
       pronouns: 'he/him',
       timezone: 'UTC',
       accentColor: '#6366f1',
@@ -84,6 +87,8 @@ describe('ShowcaseService', () => {
       getFollowStatus: jest.fn().mockResolvedValue(null),
       upsertDefaultShowcase: jest.fn().mockResolvedValue({ id: 'showcase-1', userId: 'user-1' }),
       updateShowcase: jest.fn().mockResolvedValue(undefined),
+      findUsersByIds: jest.fn().mockResolvedValue([]),
+      updateConnectedAccounts: jest.fn().mockResolvedValue(undefined),
     };
 
     redis = {

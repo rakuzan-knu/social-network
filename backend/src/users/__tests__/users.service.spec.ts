@@ -37,6 +37,7 @@ describe('UsersService', () => {
     setUserAlias: jest.Mock;
     deleteUserAlias: jest.Mock;
     hasBadge: jest.Mock;
+    getUserBadges: jest.Mock;
     searchCandidates: jest.Mock;
     getFollowingIds: jest.Mock;
     getFollowerIds: jest.Mock;
@@ -125,6 +126,7 @@ describe('UsersService', () => {
       setUserAlias: jest.fn().mockResolvedValue(undefined),
       deleteUserAlias: jest.fn().mockResolvedValue(undefined),
       hasBadge: jest.fn().mockResolvedValue(true),
+      getUserBadges: jest.fn().mockResolvedValue([]),
       searchCandidates: jest.fn().mockResolvedValue([]),
       getFollowingIds: jest.fn().mockResolvedValue([]),
       getFollowerIds: jest.fn().mockResolvedValue([]),

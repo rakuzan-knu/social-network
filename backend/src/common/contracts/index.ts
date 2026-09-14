@@ -14,3 +14,4 @@ export * from './sessions';
 export * from './showcase';
 export * from './stories';
 export * from './users';
+export * from './sanitize';

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { MessageSquare, Repeat, Heart, Share, Bookmark, ChevronDown, Pin } from 'lucide-react';
 
@@ -28,7 +28,7 @@ import { ReportPostModal } from '@/features/posts/ui/ReportPostModal';
 import { DeletePostConfirmModal } from '@/features/posts/ui/DeletePostConfirmModal';
 import { EditPostModal } from '@/features/posts/ui/EditPostModal';
 import { formatRelativeTime } from '@/shared/lib/formatRelativeTime';
-import { UserNameWithBadges } from '@/entities/profile/ui/UserNameWithBadges';
+import { VerifiedCheckmark } from '@/entities/profile/ui/VerifiedCheckmark';
 import { MiniProfileHoverCard } from '@/entities/profile/ui/MiniProfileHoverCard';
 import { useAuthStore } from '@/shared/model/useAuthStore';
 import { useCurrentUser } from '@/entities/profile/model/useCurrentUser';
@@ -70,7 +70,7 @@ export function PostCard({ post, queryKey }: PostCardProps) {
   const repostTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     return () => {
       if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
       if (likeTimerRef.current) clearTimeout(likeTimerRef.current);
@@ -148,7 +148,7 @@ export function PostCard({ post, queryKey }: PostCardProps) {
         isCollapsing
           ? 'max-h-0 opacity-0 py-0 -my-2 border-0 pointer-events-none scale-95 overflow-hidden'
           : 'max-h-[3000px] opacity-100 p-5 hover:bg-white/[0.03]'
-      } ${isMenuOpen ? 'z-30' : 'z-10'}`}
+      } ${isMenuOpen ? 'z-30' : 'z-0'}`}
     >
       {post.isPinned && (
         <div className="flex items-center gap-1.5 text-xs text-purple-400 font-semibold mb-0.5 animate-fadeIn">
@@ -180,17 +180,21 @@ export function PostCard({ post, queryKey }: PostCardProps) {
         <div className="flex flex-col flex-1 gap-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
-              <MiniProfileHoverCard username={post.handle}>
-                <Link to={`/profile/${post.handle}`} className="hover:underline inline-block">
-                  <UserNameWithBadges
-                    displayName={post.author}
-                    username={post.handle}
-                    isVerified={post.isVerified}
-                    primaryBadge={post.primaryBadge}
-                    size="sm"
-                  />
-                </Link>
-              </MiniProfileHoverCard>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <MiniProfileHoverCard username={post.handle}>
+                  <Link
+                    to={`/profile/${post.handle}`}
+                    className="hover:underline font-semibold text-sm text-white truncate inline-block"
+                  >
+                    {post.author || post.handle}
+                  </Link>
+                </MiniProfileHoverCard>
+                <VerifiedCheckmark
+                  isVerified={post.isVerified}
+                  primaryBadge={post.primaryBadge}
+                  size="sm"
+                />
+              </div>
               <span className="text-xs text-gray-500 shrink-0 inline-flex items-center gap-1">
                 <span>
                   @{post.handle} • {formatRelativeTime(post.createdAt)}

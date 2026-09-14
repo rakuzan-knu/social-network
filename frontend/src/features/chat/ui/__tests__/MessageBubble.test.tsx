@@ -476,4 +476,98 @@ describe('MessageBubble', () => {
       </QueryClientProvider>,
     );
   });
+
+  it('renders interactive Spotify preview embed with dedicated width and 80px height without widening normal messages', () => {
+    const spotifyMessage: MessageView = {
+      ...mockMessage,
+      id: 'msg-spotify',
+      body: 'https://open.spotify.com/track/4rNCvZBSq4ER38uEpJOr3o',
+    };
+
+    const { container } = render(
+      <QueryClientProvider client={queryClient}>
+        <MessageBubble
+          message={spotifyMessage}
+          isOwnMessage={true}
+          showAvatar={false}
+          isReadByOther={true}
+          currentUserId="usr-1"
+          onReply={vi.fn()}
+          onEdit={vi.fn()}
+          onDelete={vi.fn()}
+          onForward={vi.fn()}
+          onTogglePin={vi.fn()}
+          onReport={vi.fn()}
+          onReact={vi.fn()}
+          onUnreact={vi.fn()}
+        />
+      </QueryClientProvider>,
+    );
+
+    // Verify outer bubble wrapper has w-fit and ml-auto for leftward expansion
+    const outerWrapper = container.querySelector('.w-fit');
+    expect(outerWrapper).toBeInTheDocument();
+    expect(outerWrapper?.className).toContain('ml-auto');
+
+    // Verify inner bubble has link width
+    const innerBubble = container.querySelector('.max-w-\\[460px\\]');
+    expect(innerBubble).toBeInTheDocument();
+
+    // Verify the expanded Spotify iframe embed is rendered directly without scrollbars
+    const expandedCard = screen.getByTestId('audio-embed-card-expanded');
+    expect(expandedCard).toBeInTheDocument();
+    expect(expandedCard).toHaveStyle({ height: '80px' });
+
+    const iframe = expandedCard.querySelector('iframe');
+    expect(iframe).toBeInTheDocument();
+    expect(iframe?.getAttribute('src')).toContain(
+      'open.spotify.com/embed/track/4rNCvZBSq4ER38uEpJOr3o',
+    );
+    expect(iframe?.getAttribute('scrolling')).toBe('no');
+    expect(iframe?.getAttribute('height')).toBe('80');
+  });
+
+  it('keeps hover bar at exact 8px distance from bubble on small messages without overlapping', () => {
+    const smallMessage: MessageView = {
+      ...mockMessage,
+      id: 'msg-small',
+      body: 'Hello!',
+    };
+
+    const { container } = render(
+      <QueryClientProvider client={queryClient}>
+        <MessageBubble
+          message={smallMessage}
+          isOwnMessage={true}
+          showAvatar={false}
+          isReadByOther={true}
+          currentUserId="usr-1"
+          onReply={vi.fn()}
+          onEdit={vi.fn()}
+          onDelete={vi.fn()}
+          onForward={vi.fn()}
+          onTogglePin={vi.fn()}
+          onReport={vi.fn()}
+          onReact={vi.fn()}
+          onUnreact={vi.fn()}
+        />
+      </QueryClientProvider>,
+    );
+
+    // Verify outer bubble has w-fit wrapping the content snugly
+    const outerWrapper = container.querySelector('.w-fit');
+    expect(outerWrapper).toBeInTheDocument();
+    expect(outerWrapper?.className).toContain('ml-auto');
+
+    // Hover to reveal action bar
+    const bubbleRow = container.firstElementChild as HTMLElement;
+    fireEvent.mouseEnter(bubbleRow);
+
+    // Find the hover bar and assert it is positioned outside with right-full mr-2
+    const reactButton = screen.getByTitle('React');
+    const hoverBar = reactButton.closest('.absolute');
+    expect(hoverBar).toBeInTheDocument();
+    expect(hoverBar?.className).toContain('right-full');
+    expect(hoverBar?.className).toContain('mr-2');
+  });
 });

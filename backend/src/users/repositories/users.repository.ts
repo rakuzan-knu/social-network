@@ -175,6 +175,14 @@ export class UsersRepository implements IUsersRepository {
     return badge !== null;
   }
 
+  async getUserBadges(userId: string): Promise<string[]> {
+    const badges = await this.prisma.userBadge.findMany({
+      where: { userId },
+      select: { badgeId: true },
+    });
+    return badges.map((b) => b.badgeId);
+  }
+
   async searchCandidates(blockedIds: string[], reservedUsernames: string[], takeLimit: number) {
     return this.prisma.user.findMany({
       where: {

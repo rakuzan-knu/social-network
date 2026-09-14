@@ -53,38 +53,29 @@ export const apiClient = axios.create({
   withCredentials: true,
 });
 
-apiClient.interceptors.request.use((config) => {
-  const token = getStoredItem('accessToken');
-  if (token && config.headers) config.headers.Authorization = `Bearer ${token}`;
-
-  // Since baseURL already ends with /v1, strip any redundant /v1 prefix from config.url
-  if (config.url && !config.url.startsWith('http://') && !config.url.startsWith('https://')) {
-    if (config.url.startsWith('/v1/')) {
-      config.url = config.url.slice(3);
-    } else if (config.url.startsWith('v1/')) {
-      config.url = config.url.slice(2);
-    } else if (config.url === '/v1' || config.url === 'v1') {
-      config.url = '/';
-    }
+export function isTokenExpired(token: string | null): boolean {
+  if (!token) return true;
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return false;
+    const base64Url = parts[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join(''),
+    );
+    const payload = JSON.parse(jsonPayload);
+    return typeof payload.exp === 'number' && payload.exp * 1000 < Date.now() + 15000;
+  } catch {
+    return false;
   }
-
-  const method = (config.method || '').toUpperCase();
-  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) && config.headers) {
-    if (!config.headers['X-Idempotency-Key'] && !config.headers['x-idempotency-key']) {
-      const idempotencyKey =
-        typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-          ? crypto.randomUUID()
-          : `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
-      config.headers['X-Idempotency-Key'] = idempotencyKey;
-    }
-  }
-
-  return config;
-});
+}
 
 let refreshPromise: Promise<string> | null = null;
 
-async function requestTokenRefresh(): Promise<string> {
+export async function requestTokenRefresh(): Promise<string> {
   const refreshToken = getStoredItem('refreshToken');
   if (!refreshToken) throw new Error('No refresh token available');
 
@@ -112,6 +103,65 @@ async function requestTokenRefresh(): Promise<string> {
 
   return accessToken;
 }
+
+export async function getValidAccessToken(): Promise<string | null> {
+  const token = getStoredItem('accessToken');
+  if (token && !isTokenExpired(token)) {
+    return token;
+  }
+  const refreshToken = getStoredItem('refreshToken');
+  if (!refreshToken) return null;
+
+  try {
+    if (!refreshPromise) {
+      refreshPromise = requestTokenRefresh().finally(() => {
+        refreshPromise = null;
+      });
+    }
+    return await refreshPromise;
+  } catch {
+    return null;
+  }
+}
+
+apiClient.interceptors.request.use(async (config) => {
+  // Since baseURL already ends with /v1, strip any redundant /v1 prefix from config.url
+  if (config.url && !config.url.startsWith('http://') && !config.url.startsWith('https://')) {
+    if (config.url.startsWith('/v1/')) {
+      config.url = config.url.slice(3);
+    } else if (config.url.startsWith('v1/')) {
+      config.url = config.url.slice(2);
+    } else if (config.url === '/v1' || config.url === 'v1') {
+      config.url = '/';
+    }
+  }
+
+  const method = (config.method || '').toUpperCase();
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) && config.headers) {
+    if (!config.headers['X-Idempotency-Key'] && !config.headers['x-idempotency-key']) {
+      const idempotencyKey =
+        typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+      config.headers['X-Idempotency-Key'] = idempotencyKey;
+    }
+  }
+
+  if (config.url?.includes('/auth/refresh')) {
+    return config;
+  }
+
+  let token = getStoredItem('accessToken');
+  if (token && isTokenExpired(token) && getStoredItem('refreshToken')) {
+    const freshToken = await getValidAccessToken();
+    if (freshToken) {
+      token = freshToken;
+    }
+  }
+
+  if (token && config.headers) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
 
 apiClient.interceptors.response.use(
   (response) => response,

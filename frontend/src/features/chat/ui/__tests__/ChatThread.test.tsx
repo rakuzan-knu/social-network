@@ -1,10 +1,11 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import ChatThread from '../ChatThread';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import type { ConversationView } from '@/entities/chat/model/types';
 import * as messagesHookModule from '../../model/useMessages';
+import { useSpotifyPlayerStore } from '@/shared/model/useSpotifyPlayerStore';
 
 vi.mock('../../api/chatApi', () => ({
   chatApi: {
@@ -49,6 +50,18 @@ describe('ChatThread', () => {
     ],
   } as unknown as ConversationView;
 
+  beforeEach(() => {
+    act(() => {
+      useSpotifyPlayerStore.setState({
+        currentTrack: null,
+        isDockVisible: false,
+        isDockMinimized: false,
+        isGameModeOpen: false,
+      });
+    });
+    window.innerWidth = 1024;
+  });
+
   it('renders chat thread header, controls and handles date jumping and right panel', async () => {
     const today = new Date();
     const mockMessages = [
@@ -73,7 +86,6 @@ describe('ChatThread', () => {
       isFetchingNextPage: false,
       fetchNextPage: vi.fn(),
     } as any);
-
     render(
       <QueryClientProvider client={queryClient}>
         <MemoryRouter>
@@ -149,5 +161,77 @@ describe('ChatThread', () => {
     fireEvent.click(viewAllBtn);
 
     expect(screen.getByRole('heading', { name: /Pinned messages/i })).toBeInTheDocument();
+  });
+
+  it('dynamically raises composer padding when SpotifyBottomDock is full or minimized', () => {
+    const { container, rerender } = render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ChatThread conversation={mockConv} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    // Initial state: dock closed -> paddingBottom is 8px
+    const composerWrapper = screen.getByTestId('composer-outer-wrapper');
+    expect(composerWrapper).toHaveStyle({ paddingBottom: '8px' });
+
+    // State 1: Dock full -> paddingBottom is 108px
+    act(() => {
+      useSpotifyPlayerStore.setState({
+        currentTrack: {
+          id: 'test-sc-track',
+          title: 'Sunny Afternoon',
+          artist: 'JNK',
+          albumArt: '',
+          durationMs: 180000,
+          previewUrl: null,
+          spotifyUrl: '',
+        },
+        isDockVisible: true,
+        isDockMinimized: false,
+      });
+    });
+
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ChatThread conversation={mockConv} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    expect(screen.getByTestId('composer-outer-wrapper')).toHaveStyle({ paddingBottom: '108px' });
+
+    // State 2: Dock minimized -> paddingBottom is 50px
+    act(() => {
+      useSpotifyPlayerStore.setState({
+        isDockMinimized: true,
+      });
+    });
+
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ChatThread conversation={mockConv} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    expect(screen.getByTestId('composer-outer-wrapper')).toHaveStyle({ paddingBottom: '50px' });
+
+    // State 3: Dock closed -> smoothly returns to 8px
+    act(() => {
+      useSpotifyPlayerStore.setState({
+        isDockVisible: false,
+      });
+    });
+
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ChatThread conversation={mockConv} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    expect(screen.getByTestId('composer-outer-wrapper')).toHaveStyle({ paddingBottom: '8px' });
   });
 });

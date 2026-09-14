@@ -3,7 +3,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   Home,
   Search,
-  Compass,
+  Music2,
   MessageSquare,
   Bell,
   PlusSquare,
@@ -24,7 +24,7 @@ import { useUnreadNotificationsCount } from '@/entities/notification';
 const menuItems = [
   { to: '/', icon: <Home size={24} />, label: 'Home' },
   { to: '/search', icon: <Search size={24} />, label: 'Search' },
-  { to: '/reels', icon: <Compass size={24} />, label: 'Reels' },
+  { to: '/music', icon: <Music2 size={24} />, label: 'Music Hub' },
   { to: '/messages', icon: <MessageSquare size={24} />, label: 'Message' },
   { to: '/notifications', icon: <Bell size={24} />, label: 'Notifications' },
   { to: '/create', icon: <PlusSquare size={24} />, label: 'Create', isAction: true },
@@ -37,6 +37,7 @@ export default function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const createMenuRef = useRef<HTMLDivElement>(null);
 
   const enterTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -116,6 +117,7 @@ export default function Sidebar() {
       enterTimerRef.current = null;
     }
     lastMousePosRef.current = null;
+    if (isCreateMenuOpen || isMoreMenuOpen) return;
     if (!isSidebarExpanded) return;
 
     const isTest =
@@ -215,6 +217,8 @@ export default function Sidebar() {
                 <div key={item.label} className="relative" ref={createMenuRef}>
                   <NavLink
                     to="/create"
+                    aria-label={item.label}
+                    title={item.label}
                     onClick={(e) => {
                       e.preventDefault();
                       setIsCreateMenuOpen((v) => !v);
@@ -245,14 +249,14 @@ export default function Sidebar() {
 
                   {/* Dark Glassmorphism Popup Menu */}
                   {isCreateMenuOpen && (
-                    <div className="absolute z-50 min-w-50 bg-[#16161f]/95 backdrop-blur-2xl border border-white/10 rounded-2xl p-2 shadow-[0_15px_35px_rgba(0,0,0,0.6)] animate-popIn left-full ml-3 top-0">
+                    <div className="absolute z-[70] min-w-52.5 bg-[#16161f]/95 backdrop-blur-2xl border border-white/10 rounded-2xl p-2 shadow-[0_20px_50px_rgba(0,0,0,0.8)] animate-popIn left-full ml-3 top-0 before:absolute before:-left-4 before:top-0 before:bottom-0 before:w-4">
                       <button
                         type="button"
                         onClick={handleCreatePost}
                         className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold text-gray-200 hover:text-white hover:bg-white/10 transition-colors text-left cursor-pointer"
                       >
                         <FileText size={16} className="text-purple-400" />
-                        <span>Создать пост</span>
+                        <span>Create Post</span>
                       </button>
                       <button
                         type="button"
@@ -260,7 +264,7 @@ export default function Sidebar() {
                         className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold text-gray-200 hover:text-white hover:bg-white/10 transition-colors text-left cursor-pointer mt-1"
                       >
                         <Zap size={16} className="text-pink-400" />
-                        <span>Опубликовать историю</span>
+                        <span>Create Story</span>
                       </button>
                     </div>
                   )}
@@ -273,6 +277,8 @@ export default function Sidebar() {
                 key={item.to}
                 to={item.to}
                 end={item.to === '/'}
+                aria-label={item.label}
+                title={item.label}
                 className={({ isActive }) =>
                   `flex items-center rounded-2xl transition-all duration-300 ease-out group relative h-12 ${
                     isActive
@@ -333,7 +339,7 @@ export default function Sidebar() {
         </div>
 
         <div className="w-full px-2 mt-2">
-          <ProfileMenu isSidebarExpanded={isSidebarExpanded} />
+          <ProfileMenu isSidebarExpanded={isSidebarExpanded} onOpenChange={setIsMoreMenuOpen} />
         </div>
 
         <div className="w-full px-2 mt-2">

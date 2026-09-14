@@ -21,4 +21,8 @@ export interface IShowcaseRepository {
   getFollowStatus(followerId: string, followingId: string): Promise<FollowStatus | null>;
   upsertDefaultShowcase(userId: string): Promise<ProfileShowcaseWithMedia>;
   updateShowcase(userId: string, dto: UpdateShowcaseDto): Promise<void>;
+  findUsersByIds(
+    userIds: string[],
+  ): Promise<{ id: string; username: string; displayName: string | null; avatar: string | null }[]>;
+  updateConnectedAccounts(userId: string, connectedAccounts: unknown): Promise<void>;
 }

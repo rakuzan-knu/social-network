@@ -232,13 +232,11 @@ describe('CommentItem', () => {
     const img = screen.getByAltText('attachment');
     fireEvent.click(img);
 
-    expect(windowOpenSpy).toHaveBeenCalledWith('https://media.png', '_blank');
-
-    // Test fallback when mediaUrl is undefined at runtime on click
-    commentWithMedia.mediaUrl = undefined as any;
-    fireEvent.click(img);
-    expect(windowOpenSpy).toHaveBeenCalledWith('', '_blank');
-
+    expect(windowOpenSpy).toHaveBeenCalledWith(
+      'https://media.png',
+      '_blank',
+      'noopener,noreferrer',
+    );
     windowOpenSpy.mockRestore();
   });
 

@@ -1,6 +1,7 @@
 import { Logger } from '@nestjs/common';
 import { MediaProxyService } from '../media-proxy.service';
 import type { RedisService } from '../../redis/redis.service';
+import type { SoundCloudService } from '../../integrations/soundcloud.service';
 import { ShowcaseMediaType } from '@common/contracts';
 import axios from 'axios';
 
@@ -22,7 +23,10 @@ describe('MediaProxyService', () => {
         .fn()
         .mockImplementation((_key: string, _ttl: number, fn: () => Promise<unknown>) => fn()),
     };
-    service = new MediaProxyService(redis as unknown as RedisService);
+    service = new MediaProxyService(
+      redis as unknown as RedisService,
+      { searchTracks: jest.fn() } as unknown as SoundCloudService,
+    );
   });
 
   afterEach(() => {

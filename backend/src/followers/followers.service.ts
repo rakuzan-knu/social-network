@@ -131,7 +131,18 @@ export class FollowersService {
         followingIds,
         100,
       );
-      return mutualRows.map((r) => toUserProfileDto(r.user, true, true));
+      return mutualRows.map((r) => {
+        const showcase = (r.user as any).showcase;
+        let activityStatus = null;
+        if (showcase) {
+          const isPrivate = showcase.privacyActivity === 'PRIVATE';
+          const steamDisplayOff = showcase.connectedAccounts?.steam?.displayOnProfile === false;
+          if (!isPrivate && !steamDisplayOff) {
+            activityStatus = showcase.activityStatus ?? null;
+          }
+        }
+        return toUserProfileDto(r.user, true, true, activityStatus);
+      });
     });
   }
 

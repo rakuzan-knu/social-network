@@ -3,7 +3,8 @@ import { render, screen } from '@testing-library/react';
 import ConversationDetailsPanel from '../ConversationDetailsPanel';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
-import type { ConversationView } from '@/entities/chat/model/types';
+import type { ConversationView, MessageView } from '@/entities/chat/model/types';
+import { usePresenceStore } from '@/shared/model/usePresenceStore';
 
 describe('ConversationDetailsPanel', () => {
   const queryClient = new QueryClient({
@@ -98,6 +99,34 @@ describe('ConversationDetailsPanel', () => {
     expect(screen.getByText('Leave group')).toBeInTheDocument();
   });
 
+  it('renders "Playing [game]" with DiscordGamepadIcon when user is playing a game', () => {
+    usePresenceStore.setState({
+      onlineUserIds: new Set(['usr-2']),
+      userActivities: {
+        'usr-2': { type: 'gaming', title: 'Dota 2', isSteam: true },
+      },
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ConversationDetailsPanel
+            conversation={mockConv}
+            display={{ title: 'Alice Smith', avatar: null, isGroup: false, otherUserId: 'usr-2' }}
+            otherUserId="usr-2"
+            messages={[]}
+            onClose={vi.fn()}
+            onOpenSearch={vi.fn()}
+            onJumpToMessage={vi.fn()}
+          />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByText(/Playing/i)).toBeInTheDocument();
+    expect(screen.getByText('Dota 2')).toBeInTheDocument();
+  });
+
   it('handles shared theme unlinking and archive toggle', async () => {
     const { chatApi } = await import('../../api/chatApi');
     const unlinkSpy = vi.spyOn(chatApi, 'unlinkSharedTheme').mockResolvedValue({} as any);
@@ -124,13 +153,47 @@ describe('ConversationDetailsPanel', () => {
       </QueryClientProvider>,
     );
 
-    expect(screen.getByText('Парная тема активна')).toBeInTheDocument();
-    const unlinkBtn = screen.getByTitle('Отвязать парную тему');
+    expect(screen.getByText('Paired theme active')).toBeInTheDocument();
+    const unlinkBtn = screen.getByTitle('Unlink paired theme');
     unlinkBtn.click();
 
     expect(unlinkSpy).toHaveBeenCalledWith('conv-1');
 
     unlinkSpy.mockRestore();
     confirmSpy.mockRestore();
+  });
+
+  it('accurately counts external links in message bodies', () => {
+    const mockMessages = [
+      {
+        id: 'm-1',
+        conversationId: 'conv-1',
+        senderId: 'usr-2',
+        sender: { id: 'usr-2', username: 'alice', displayName: 'Alice' },
+        body: 'Check this track out: https://open.spotify.com/track/4rNCvZBSq4ER38uEpJOr3o',
+        attachments: [],
+        reactions: [],
+        readBy: [],
+        createdAt: new Date().toISOString(),
+      },
+    ] as unknown as MessageView[];
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ConversationDetailsPanel
+            conversation={mockConv}
+            display={{ title: 'Alice Smith', avatar: null, isGroup: false, otherUserId: 'usr-2' }}
+            otherUserId="usr-2"
+            messages={mockMessages}
+            onClose={vi.fn()}
+            onOpenSearch={vi.fn()}
+            onJumpToMessage={vi.fn()}
+          />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByText('1 loaded')).toBeInTheDocument();
   });
 });

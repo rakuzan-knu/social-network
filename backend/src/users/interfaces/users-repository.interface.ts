@@ -29,6 +29,7 @@ export interface IUsersRepository {
   setUserAlias(ownerId: string, targetId: string, alias: string): Promise<void>;
   deleteUserAlias(ownerId: string, targetId: string): Promise<void>;
   hasBadge(userId: string, badgeId: string): Promise<boolean>;
+  getUserBadges(userId: string): Promise<string[]>;
   searchCandidates(
     blockedIds: string[],
     reservedUsernames: string[],

@@ -15,6 +15,7 @@ describe('GithubService', () => {
     updateUserGithub: jest.Mock;
     unlinkGithubAndBadges: jest.Mock;
     grantBadges: jest.Mock;
+    updateShowcaseGithubAccount: jest.Mock;
   };
   let mockRedis: {
     del: jest.Mock;
@@ -49,6 +50,7 @@ describe('GithubService', () => {
       updateUserGithub: jest.fn().mockResolvedValue(undefined),
       unlinkGithubAndBadges: jest.fn().mockResolvedValue(undefined),
       grantBadges: jest.fn().mockResolvedValue(undefined),
+      updateShowcaseGithubAccount: jest.fn().mockResolvedValue(undefined),
     };
 
     mockRedis = {

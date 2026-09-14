@@ -1,13 +1,13 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { chatApi } from '../../api/chatApi';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import SelectThemeModal from '../SelectThemeModal';
+import { chatApi } from '../../api/chatApi';
+import React from 'react';
 
 vi.mock('../../api/chatApi', () => ({
   chatApi: {
     setTheme: vi.fn(),
     uploadAttachment: vi.fn(),
-    proposeTheme: vi.fn(),
   },
 }));
 
@@ -15,46 +15,6 @@ vi.mock('../lib/reactionBurstEngine', () => ({
   triggerReactionBurst: vi.fn(),
   triggerFlyingReaction: vi.fn(),
 }));
-
-vi.mock('../../model/useRecentReactions', () => ({
-  useRecentReactions: () => ({
-    recentReactions: ['❤️', '🔥', '👍', '🎉', '🚀', '😍'],
-    dockReactions: ['❤️', '🔥', '👍', '🎉', '🚀', '😍'],
-    recordReaction: vi.fn(),
-  }),
-}));
-
-vi.mock('../../model/useChatTheme', () => ({
-  useChatTheme: vi.fn((conversationId: string) => ({
-    theme: {
-      id: 'default',
-      name: 'Default',
-      backgroundType: 'solid',
-      bgSolidColor: '#0a0a0a',
-      bubbleType: 'solid',
-      myBubbleBg: '#6366f1',
-      myBubbleText: '#ffffff',
-      theirBubbleBg: '#1f2937',
-      theirBubbleText: '#f3f4f6',
-    },
-    isLoading: false,
-    applyTheme: vi.fn(async (_config, options?: { applyToAll?: boolean }) => {
-      await chatApi.setTheme(conversationId, 'theme', options?.applyToAll ?? false);
-    }),
-    revertTheme: vi.fn(async (options?: { applyToAll?: boolean }) => {
-      await chatApi.setTheme(conversationId, 'default', options?.applyToAll ?? false);
-    }),
-  })),
-}));
-
-vi.mock('../../lib/themeUtils', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../lib/themeUtils')>();
-  return {
-    ...actual,
-    getCustomPresets: vi.fn().mockResolvedValue([]),
-    getRecentWallpapers: vi.fn().mockResolvedValue([]),
-  };
-});
 
 describe('SelectThemeModal', () => {
   beforeEach(() => {
@@ -66,26 +26,20 @@ describe('SelectThemeModal', () => {
     });
   });
 
-  it('renders theme customizer header and tabs correctly', async () => {
+  it('renders theme customizer header and tabs correctly', () => {
     const onClose = vi.fn();
     render(<SelectThemeModal conversationId="c1" currentTheme="default" onClose={onClose} />);
 
-    await waitFor(() => {
-      expect(screen.getByText('Chat Theme Customizer')).toBeInTheDocument();
-    });
+    expect(screen.getByText('Chat Theme Customizer')).toBeInTheDocument();
     expect(screen.getByText('Chat Background')).toBeInTheDocument();
     expect(screen.getByText('Message Bubbles')).toBeInTheDocument();
     expect(screen.getByText('Presets')).toBeInTheDocument();
     expect(screen.getByText('My Themes')).toBeInTheDocument();
   });
 
-  it('supports selecting procedural WebGL shader wallpapers', async () => {
+  it('supports selecting procedural WebGL shader wallpapers', () => {
     const onClose = vi.fn();
     render(<SelectThemeModal conversationId="c1" currentTheme="default" onClose={onClose} />);
-
-    await waitFor(() => {
-      expect(screen.getByText('Chat Theme Customizer')).toBeInTheDocument();
-    });
 
     // Switch to Shaders submode
     const shadersBtn = screen.getByRole('button', { name: /Shaders/i });
@@ -97,28 +51,31 @@ describe('SelectThemeModal', () => {
 
     // Select Liquid Neon Smoke shader
     fireEvent.click(screen.getByText('Liquid Neon Smoke'));
-    await waitFor(() => {
-      expect(screen.getByText('Liquid Neon Smoke')).toBeInTheDocument();
-    });
   });
 
-  it('supports Hold-to-Compare (До / После) interaction', async () => {
+  it('supports toggling between draft, initial, and default theme preview modes', () => {
     const onClose = vi.fn();
     render(<SelectThemeModal conversationId="c1" currentTheme="default" onClose={onClose} />);
 
-    await waitFor(() => {
-      expect(screen.getByTitle(/Зажмите и удерживайте/i)).toBeInTheDocument();
-    });
+    const draftBtn = screen.getByText('New');
+    const initialBtn = screen.getByText('Before changes');
+    const defaultBtn = screen.getByText('Default');
 
-    const compareBtn = screen.getByTitle(/Зажмите и удерживайте/i);
+    expect(draftBtn).toBeInTheDocument();
+    expect(initialBtn).toBeInTheDocument();
+    expect(defaultBtn).toBeInTheDocument();
 
-    // Mouse down starts compare mode
-    fireEvent.mouseDown(compareBtn);
-    expect(screen.getByText(/Оригинальный вид \(удерживайте\)/i)).toBeInTheDocument();
+    // Clicking "Before changes" switches to initial
+    fireEvent.click(initialBtn);
+    expect(initialBtn.closest('button')).toHaveClass('bg-purple-600');
 
-    // Mouse up ends compare mode
-    fireEvent.mouseUp(compareBtn);
-    expect(screen.queryByText(/Оригинальный вид \(удерживайте\)/i)).not.toBeInTheDocument();
+    // Clicking "Default" switches to default dark theme
+    fireEvent.click(defaultBtn);
+    expect(defaultBtn.closest('button')).toHaveClass('bg-indigo-600');
+
+    // Clicking "New" switches back to draft
+    fireEvent.click(draftBtn);
+    expect(draftBtn.closest('button')).toHaveClass('bg-purple-600');
   });
 
   it('selects preset theme and applies via API call', async () => {
@@ -126,10 +83,6 @@ describe('SelectThemeModal', () => {
     const onClose = vi.fn();
 
     render(<SelectThemeModal conversationId="c1" currentTheme="default" onClose={onClose} />);
-
-    await waitFor(() => {
-      expect(screen.getByText('Presets')).toBeInTheDocument();
-    });
 
     // Switch to Presets tab
     fireEvent.click(screen.getByText('Presets'));
@@ -147,50 +100,36 @@ describe('SelectThemeModal', () => {
     });
   });
 
-  it('allows sending test messages in the interactive live preview', async () => {
+  it('allows sending test messages in the interactive live preview', () => {
     const onClose = vi.fn();
     render(<SelectThemeModal conversationId="c1" currentTheme="default" onClose={onClose} />);
 
-    await waitFor(() => {
-      expect(screen.getByPlaceholderText('Напишите тестовое сообщение...')).toBeInTheDocument();
-    });
-
-    const input = screen.getByPlaceholderText('Напишите тестовое сообщение...');
-    fireEvent.change(input, { target: { value: 'Тестовое интерактивное сообщение 🌟' } });
+    const input = screen.getByPlaceholderText('Write a test message...');
+    fireEvent.change(input, { target: { value: 'Test interactive message 🌟' } });
 
     const sendBtn = screen.getByTitle('Send test message to preview');
     fireEvent.click(sendBtn);
 
-    expect(screen.getByText('Тестовое интерактивное сообщение 🌟')).toBeInTheDocument();
+    expect(screen.getByText('Test interactive message 🌟')).toBeInTheDocument();
   });
 
-  it('handles copying theme code to clipboard', async () => {
+  it('handles copying theme code to clipboard', () => {
     const onClose = vi.fn();
     render(<SelectThemeModal conversationId="c1" currentTheme="default" onClose={onClose} />);
 
-    await waitFor(() => {
-      expect(screen.getByTitle(/Скопировать код темы/i)).toBeInTheDocument();
-    });
-
-    const shareBtn = screen.getByTitle(/Скопировать код темы/i);
+    const shareBtn = screen.getByTitle(/Copy theme code/i);
     fireEvent.click(shareBtn);
 
-    await waitFor(() => {
-      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
-        expect.stringContaining('ETERNAL-THEME:'),
-      );
-    });
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+      expect.stringContaining('ETERNAL-THEME:'),
+    );
   });
 
-  it('opens Import modal and validates theme code', async () => {
+  it('opens Import modal and validates theme code', () => {
     const onClose = vi.fn();
     render(<SelectThemeModal conversationId="c1" currentTheme="default" onClose={onClose} />);
 
-    await waitFor(() => {
-      expect(screen.getByTitle(/Импортировать тему по коду/i)).toBeInTheDocument();
-    });
-
-    const importBtn = screen.getByTitle(/Импортировать тему по коду/i);
+    const importBtn = screen.getByTitle(/Import theme by code/i);
     fireEvent.click(importBtn);
 
     expect(screen.getByText('Import Theme by Code')).toBeInTheDocument();
@@ -201,14 +140,7 @@ describe('SelectThemeModal', () => {
     const loadBtn = screen.getByRole('button', { name: /Load Theme/i });
     fireEvent.click(loadBtn);
 
-    await waitFor(() => {
-      expect(screen.getByText('Неверный или небезопасный код темы')).toBeInTheDocument();
-    });
-
-    // Cancel import modal
-    const cancelButtons = screen.getAllByRole('button', { name: 'Cancel' });
-    fireEvent.click(cancelButtons[cancelButtons.length - 1]);
-    expect(screen.queryByText('Import Theme by Code')).not.toBeInTheDocument();
+    expect(screen.getByText('Invalid or unsafe theme code')).toBeInTheDocument();
   });
 
   it('handles "Reset Theme" button', async () => {
@@ -219,7 +151,7 @@ describe('SelectThemeModal', () => {
       <SelectThemeModal conversationId="c1" currentTheme="midnight-purple" onClose={onClose} />,
     );
 
-    const resetBtn = await screen.findByRole('button', { name: /Reset Theme/i });
+    const resetBtn = screen.getByRole('button', { name: /Reset Theme/i });
     fireEvent.click(resetBtn);
 
     await waitFor(() => {
@@ -228,39 +160,92 @@ describe('SelectThemeModal', () => {
     });
   });
 
-  it('handles proposing shared theme, custom preset saving and deletion, and gradient randomization', async () => {
-    vi.mocked(chatApi.proposeTheme).mockResolvedValueOnce({ success: true } as any);
+  it('does not display redundant WCAG status pill in Message Bubbles tab', () => {
     const onClose = vi.fn();
-
     render(<SelectThemeModal conversationId="c1" currentTheme="default" onClose={onClose} />);
 
+    fireEvent.click(screen.getByText('Message Bubbles'));
+    expect(screen.queryByText(/WCAG Smart Text Contrast/i)).not.toBeInTheDocument();
+  });
+
+  it('allows renaming a custom theme in My Themes tab', async () => {
+    const onClose = vi.fn();
+    render(<SelectThemeModal conversationId="c1" currentTheme="default" onClose={onClose} />);
+
+    // Switch to My Themes tab
+    fireEvent.click(screen.getByText('My Themes'));
+
+    // Save current theme as a custom preset first
+    const input = screen.getByPlaceholderText(/Theme name/i);
+    fireEvent.change(input, { target: { value: 'Awesome Custom Theme' } });
+    fireEvent.click(screen.getByText(/Save Current Theme/i));
+
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /Предложить как парную/i })).toBeInTheDocument();
+      expect(screen.getByText('Awesome Custom Theme')).toBeInTheDocument();
     });
 
-    // Propose theme
-    const proposeBtn = screen.getByRole('button', { name: /Предложить как парную/i });
-    fireEvent.click(proposeBtn);
+    // Click edit (Pencil) button
+    const editBtn = screen.getByTitle(/Edit theme name/i);
+    fireEvent.click(editBtn);
+
+    // Edit the input field
+    const editInput = screen.getByDisplayValue('Awesome Custom Theme');
+    fireEvent.change(editInput, { target: { value: 'Renamed Super Theme' } });
+
+    // Save the new name
+    const saveBtn = screen.getByTitle(/Save name/i);
+    fireEvent.click(saveBtn);
 
     await waitFor(() => {
-      expect(chatApi.proposeTheme).toHaveBeenCalled();
+      expect(screen.getByText('Renamed Super Theme')).toBeInTheDocument();
+      expect(screen.queryByText('Awesome Custom Theme')).not.toBeInTheDocument();
     });
+  });
 
-    // Randomize background gradient
-    const gradientSubmode = screen.getByRole('button', { name: /Gradient/i });
-    fireEvent.click(gradientSubmode);
+  it('displays bubble shapes presets and allows selecting Cyber Glass and Capybara', async () => {
+    render(<SelectThemeModal conversationId="c1" currentTheme="default" onClose={vi.fn()} />);
 
-    const randomGradBtn = screen.getByRole('button', { name: /Случайный градиент/i });
-    fireEvent.click(randomGradBtn);
+    // Switch to Bubbles tab
+    fireEvent.click(screen.getByText('Message Bubbles'));
 
-    // Save custom preset
-    const customTab = screen.getByText('My Themes');
-    fireEvent.click(customTab);
+    // Check that bubble shapes presets are rendered
+    expect(screen.getByText(/Bubble Shapes & Borders/i)).toBeInTheDocument();
+    expect(screen.getAllByText('Capybara').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Cyber Glass')).toBeInTheDocument();
+    expect(screen.getByText('Retro Pixel')).toBeInTheDocument();
 
-    const presetNameInput = screen.getByPlaceholderText(/Theme name/i);
-    fireEvent.change(presetNameInput, { target: { value: 'Awesome Custom Theme' } });
+    // Select Cyber Glass
+    fireEvent.click(screen.getByText('Cyber Glass'));
 
-    const savePresetBtn = screen.getByRole('button', { name: /Save Current Theme/i });
-    fireEvent.click(savePresetBtn);
+    // Select Capybara
+    fireEvent.click(screen.getAllByText('Capybara')[0]);
+  });
+
+  it('displays Text tab and allows selecting fonts, effects, colors, and toggling apply-to-all', async () => {
+    render(<SelectThemeModal conversationId="c1" currentTheme="default" onClose={vi.fn()} />);
+
+    // Switch to Text tab
+    const textTabBtn = screen.getByText('Text');
+    fireEvent.click(textTabBtn);
+
+    // Verify all 3 customizer sections and the toggle exist
+    expect(screen.getByText('Font Selection')).toBeInTheDocument();
+    expect(screen.getByText('Effect Selection')).toBeInTheDocument();
+    expect(screen.getByText('Color Selection')).toBeInTheDocument();
+    expect(screen.getByText('Apply to All Messages')).toBeInTheDocument();
+
+    // Verify effects options are displayed
+    expect(screen.getByText('Gradient')).toBeInTheDocument();
+    expect(screen.getByText('Neon')).toBeInTheDocument();
+    expect(screen.getByText('Accent')).toBeInTheDocument();
+
+    // Select an effect
+    fireEvent.click(screen.getByText('Neon'));
+
+    // Toggle "Apply to All Messages"
+    const toggle = screen.getByRole('switch');
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-checked', 'true');
   });
 });

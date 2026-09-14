@@ -1,6 +1,7 @@
 import { io, Socket } from 'socket.io-client';
 import msgpackParser from 'socket.io-msgpack-parser';
 import { connectionManager } from './connectionManager';
+import { getValidAccessToken, isTokenExpired } from './httpClient';
 
 let socket: Socket | null = null;
 let isManagerSubscribed = false;
@@ -26,7 +27,28 @@ export function getSocket(): Socket {
     reconnectionDelay: 1000,
     reconnectionDelayMax: 10000,
     randomizationFactor: 0.5,
-    auth: (cb) => cb({ token: localStorage.getItem('accessToken') }),
+    auth: (cb) => {
+      const token = localStorage.getItem('accessToken');
+      if (token && isTokenExpired(token) && localStorage.getItem('refreshToken')) {
+        void getValidAccessToken();
+      }
+      cb({ token });
+    },
+  });
+
+  socket.on('connect_error', (err) => {
+    if (
+      err?.message?.includes('token') ||
+      err?.message?.includes('jwt') ||
+      err?.message?.includes('auth') ||
+      err?.message?.includes('unauthorized')
+    ) {
+      void getValidAccessToken().then((newToken) => {
+        if (newToken && socket) {
+          socket.connect();
+        }
+      });
+    }
   });
 
   if (!isManagerSubscribed) {

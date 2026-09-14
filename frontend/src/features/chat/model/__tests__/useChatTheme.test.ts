@@ -184,4 +184,44 @@ describe('useChatTheme 5-tier resolution and mutations', () => {
 
     window.BroadcastChannel = origBroadcastChannel;
   });
+
+  it('applies theme and preserves local storage even when syncDevices is true', async () => {
+    const { result } = renderHook(() => useChatTheme('conv-1', 'default'));
+    await act(async () => {});
+
+    await act(async () => {
+      await result.current.applyTheme(
+        {
+          backgroundType: 'shader',
+          shaderPresetId: 'synthwave-grid',
+          backgroundColor: '#0b0b0c',
+          gradientColors: [],
+          gradientAngle: 135,
+          bgBrightness: 0.8,
+          bgBlur: 0,
+          audioReactive: true,
+          parallax3d: true,
+          bubbleType: 'gradient',
+          bubbleColor: '#9333ea',
+          bubbleGradientColors: ['#9333ea', '#6366f1'],
+          bubbleGradientAngle: 135,
+          bubbleContinuousGradient: false,
+          bubbleTextColor: '#ffffff',
+          bubbleOpacity: 0.95,
+          bubbleBlur: 16,
+          incomingBubbleTextColor: '#ffffff',
+          incomingBubbleOpacity: 0.85,
+          incomingBubbleBlur: 16,
+        },
+        { syncDevices: true, applyToAll: false },
+      );
+    });
+
+    expect(result.current.theme.backgroundType).toBe('shader');
+    expect(result.current.theme.shaderPresetId).toBe('synthwave-grid');
+    // Verify it was preserved in localStorage and not deleted
+    const stored = localStorage.getItem('eternal_chat_theme_conv-1');
+    expect(stored).not.toBeNull();
+    expect(JSON.parse(stored!).shaderPresetId).toBe('synthwave-grid');
+  });
 });
