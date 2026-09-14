@@ -71,6 +71,7 @@ import {
   unescapeHtml,
   getSafeSpotifyTrackUrl,
   sanitizeImageUrl,
+  isTrustedMessageOrigin,
 } from '@/shared/lib/spotifyUrl';
 import { useUIStore } from '@/shared/model/useUIStore';
 import { useCurrentUser } from '@/entities/profile/model/useCurrentUser';
@@ -412,6 +413,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
   // Real-time OAuth popup listener
   useEffect(() => {
     const handleAuthMessage = (event: MessageEvent) => {
+      if (!isTrustedMessageOrigin(event.origin)) return;
       if (event.data?.type === 'INTEGRATION_AUTH_SUCCESS') {
         queryClient.invalidateQueries({ queryKey: [USER_KEY] });
         queryClient.invalidateQueries({ queryKey: ['showcase'] });
@@ -2004,9 +2006,11 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
 
                   <div className="flex items-center gap-3">
                     <img
-                      src={sanitizeImageUrl(
-                        spotlightMedia.customBannerUrl || spotlightMedia.posterUrl,
-                      )}
+                      src={
+                        sanitizeImageUrl(spotlightMedia.customBannerUrl) ||
+                        sanitizeImageUrl(spotlightMedia.posterUrl) ||
+                        'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=500&auto=format&fit=crop&q=80'
+                      }
                       alt={spotlightMedia.title}
                       crossOrigin="anonymous"
                       onError={(e) => {
@@ -2035,12 +2039,13 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                       <input
                         type="url"
                         value={spotlightMedia.customBannerUrl || ''}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          const val = e.target.value.trim();
                           setSpotlightMedia({
                             ...spotlightMedia,
-                            customBannerUrl: e.target.value.trim() || null,
-                          })
-                        }
+                            customBannerUrl: val || null,
+                          });
+                        }}
                         placeholder="Custom cover art / GIF (URL)..."
                         className="bg-white/[0.04] border border-white/[0.08] rounded-lg px-2.5 py-1 text-[11px] text-gray-200 outline-none placeholder-gray-500"
                       />

@@ -132,64 +132,59 @@ export class IntegrationsService {
       await this.redis.del(`showcase:user:${userId}`);
     }
 
-    const safeDisplayUsername = escapeHtml(steamData?.username || steamId);
-    const safeSteamIdJson = JSON.stringify(steamId);
-
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.send(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Steam Account Connected</title>
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        </head>
-        <body style="background:#0e0e11;color:#fff;font-family:system-ui,-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;user-select:none;">
-          <div style="text-align:center;padding:32px 40px;border:1px solid rgba(255,255,255,0.12);border-radius:24px;background:#141417;box-shadow:0 25px 60px rgba(0,0,0,0.8);max-width:380px;width:90%;">
-            <div style="width:56px;height:56px;margin:0 auto 16px;background:#1b2838;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #5865F2;box-shadow:0 0 24px rgba(88,101,242,0.4);">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="#5865F2"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
-            </div>
-            <h2 style="color:#ffffff;margin:0 0 8px;font-size:20px;font-weight:800;letter-spacing:-0.3px;">Steam Connected!</h2>
-            <p style="color:#a1a1aa;font-size:13px;margin:0 0 16px;line-height:1.5;">Authenticated as <b style="color:#fff;">${safeDisplayUsername}</b>.</p>
-            <div style="padding:8px 14px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;display:inline-block;margin-bottom:18px;">
-              <p style="color:#94a3b8;font-size:12px;margin:0;">Closing in <b id="countdown" style="color:#5865F2;">5</b> seconds...</p>
-            </div>
-            <div>
-              <button onclick="window.close()" style="background:#5865F2;color:#fff;border:none;border-radius:12px;padding:10px 24px;font-size:12px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(88,101,242,0.4);transition:all 0.2s;">
-                Close Window Now
-              </button>
-            </div>
-          </div>
-          <script>
-            function broadcast() {
-              if (window.opener) {
-                try {
-                  window.opener.postMessage({ type: 'INTEGRATION_AUTH_SUCCESS', platform: 'steam', steamId: ${safeSteamIdJson} }, '*');
-                } catch(e) {}
-              }
-            }
-            broadcast();
-            var interval = setInterval(broadcast, 400);
+    res.send(`<!DOCTYPE html>
+<html>
+  <head>
+    <title>Steam Account Connected</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  </head>
+  <body style="background:#0e0e11;color:#fff;font-family:system-ui,-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;user-select:none;">
+    <div style="text-align:center;padding:32px 40px;border:1px solid rgba(255,255,255,0.12);border-radius:24px;background:#141417;box-shadow:0 25px 60px rgba(0,0,0,0.8);max-width:380px;width:90%;">
+      <div style="width:56px;height:56px;margin:0 auto 16px;background:#1b2838;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #5865F2;box-shadow:0 0 24px rgba(88,101,242,0.4);">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="#5865F2"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+      </div>
+      <h2 style="color:#ffffff;margin:0 0 8px;font-size:20px;font-weight:800;letter-spacing:-0.3px;">Steam Connected!</h2>
+      <p style="color:#a1a1aa;font-size:13px;margin:0 0 16px;line-height:1.5;">Your Steam account has been authenticated and linked.</p>
+      <div style="padding:8px 14px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;display:inline-block;margin-bottom:18px;">
+        <p style="color:#94a3b8;font-size:12px;margin:0;">Closing in <b id="countdown" style="color:#5865F2;">5</b> seconds...</p>
+      </div>
+      <div>
+        <button onclick="window.close()" style="background:#5865F2;color:#fff;border:none;border-radius:12px;padding:10px 24px;font-size:12px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(88,101,242,0.4);transition:all 0.2s;">
+          Close Window Now
+        </button>
+      </div>
+    </div>
+    <script>
+      function broadcast() {
+        if (window.opener) {
+          try {
+            window.opener.postMessage({ type: 'INTEGRATION_AUTH_SUCCESS', platform: 'steam' }, '*');
+          } catch(e) {}
+        }
+      }
+      broadcast();
+      var interval = setInterval(broadcast, 400);
 
-            var count = 5;
-            var el = document.getElementById('countdown');
-            var timer = setInterval(function() {
-              count--;
-              if (el) el.textContent = count;
-              if (count <= 0) {
-                clearInterval(timer);
-                clearInterval(interval);
-                broadcast();
-                if (window.opener) {
-                  window.close();
-                } else {
-                  window.location.href = '/settings';
-                }
-              }
-            }, 1000);
-          </script>
-        </body>
-      </html>
-    `);
+      var count = 5;
+      var el = document.getElementById('countdown');
+      var timer = setInterval(function() {
+        count--;
+        if (el) el.textContent = count;
+        if (count <= 0) {
+          clearInterval(timer);
+          clearInterval(interval);
+          broadcast();
+          if (window.opener) {
+            window.close();
+          } else {
+            window.location.href = '/settings';
+          }
+        }
+      }, 1000);
+    </script>
+  </body>
+</html>`);
   }
 
   handlePlatformOAuthStart(platform: string, userId: string, req: Request, res: Response): void {
@@ -748,40 +743,35 @@ export class IntegrationsService {
 
     const error = query['error'] || query['error_description'];
     if (error) {
-      const safeError = escapeHtml(typeof error === 'string' ? error : 'Authentication failed');
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.status(400).send(`
-        <!DOCTYPE html>
-        <html>
-          <head><title>${safePlatformUpper} Auth Failed</title></head>
-          <body style="background:#0e0e11;color:#fff;font-family:system-ui,-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
-            <div style="text-align:center;padding:32px 40px;background:#141417;border:1px solid rgba(239,68,68,0.3);border-radius:24px;max-width:380px;">
-              <h2 style="color:#ef4444;font-size:18px;margin-bottom:8px;">Authentication Error</h2>
-              <p style="color:#a1a1aa;font-size:13px;line-height:1.5;">${safeError}</p>
-              <button onclick="window.close()" style="background:#27272a;color:#fff;border:none;border-radius:12px;padding:10px 20px;font-size:13px;cursor:pointer;margin-top:16px;">Close Window</button>
-            </div>
-          </body>
-        </html>
-      `);
+      res.status(400).send(`<!DOCTYPE html>
+<html>
+  <head><title>Authentication Failed</title></head>
+  <body style="background:#0e0e11;color:#fff;font-family:system-ui,-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
+    <div style="text-align:center;padding:32px 40px;background:#141417;border:1px solid rgba(239,68,68,0.3);border-radius:24px;max-width:380px;">
+      <h2 style="color:#ef4444;font-size:18px;margin-bottom:8px;">Authentication Error</h2>
+      <p style="color:#a1a1aa;font-size:13px;line-height:1.5;">Authentication was cancelled or failed with the provider.</p>
+      <button onclick="window.close()" style="background:#27272a;color:#fff;border:none;border-radius:12px;padding:10px 20px;font-size:13px;cursor:pointer;margin-top:16px;">Close Window</button>
+    </div>
+  </body>
+</html>`);
       return;
     }
 
     const code = query['code'];
     if (!code || typeof code !== 'string') {
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.status(400).send(`
-        <!DOCTYPE html>
-        <html>
-          <head><title>${safePlatformUpper} Auth Failed</title></head>
-          <body style="background:#0e0e11;color:#fff;font-family:system-ui,-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
-            <div style="text-align:center;padding:32px 40px;background:#141417;border:1px solid rgba(239,68,68,0.3);border-radius:24px;max-width:380px;">
-              <h2 style="color:#ef4444;font-size:18px;margin-bottom:8px;">Authentication Failed</h2>
-              <p style="color:#a1a1aa;font-size:13px;line-height:1.5;">Missing authorization code.</p>
-              <button onclick="window.close()" style="background:#27272a;color:#fff;border:none;border-radius:12px;padding:10px 20px;font-size:13px;cursor:pointer;margin-top:16px;">Close Window</button>
-            </div>
-          </body>
-        </html>
-      `);
+      res.status(400).send(`<!DOCTYPE html>
+<html>
+  <head><title>Authentication Failed</title></head>
+  <body style="background:#0e0e11;color:#fff;font-family:system-ui,-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
+    <div style="text-align:center;padding:32px 40px;background:#141417;border:1px solid rgba(239,68,68,0.3);border-radius:24px;max-width:380px;">
+      <h2 style="color:#ef4444;font-size:18px;margin-bottom:8px;">Authentication Failed</h2>
+      <p style="color:#a1a1aa;font-size:13px;line-height:1.5;">Missing authorization code from provider.</p>
+      <button onclick="window.close()" style="background:#27272a;color:#fff;border:none;border-radius:12px;padding:10px 20px;font-size:13px;cursor:pointer;margin-top:16px;">Close Window</button>
+    </div>
+  </body>
+</html>`);
       return;
     }
 
@@ -791,88 +781,78 @@ export class IntegrationsService {
         : typeof query['state'] === 'string'
           ? query['state']
           : '';
-    let linkedData: any = null;
 
     try {
-      const exchangeResult = await this.exchangeOAuthCode(p, code, undefined, userId);
-      linkedData = exchangeResult?.data || null;
-    } catch (err: any) {
-      const safeErrorMessage = escapeHtml(err?.message || 'Failed to complete OAuth verification.');
+      await this.exchangeOAuthCode(p, code, undefined, userId);
+    } catch {
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.status(400).send(`
-        <!DOCTYPE html>
-        <html>
-          <head><title>${safePlatformUpper} Auth Failed</title></head>
-          <body style="background:#0e0e11;color:#fff;font-family:system-ui,-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
-            <div style="text-align:center;padding:32px 40px;background:#141417;border:1px solid rgba(239,68,68,0.3);border-radius:24px;max-width:380px;">
-              <h2 style="color:#ef4444;font-size:18px;margin-bottom:8px;">Authentication Failed</h2>
-              <p style="color:#a1a1aa;font-size:13px;line-height:1.5;">${safeErrorMessage}</p>
-              <button onclick="window.close()" style="background:#27272a;color:#fff;border:none;border-radius:12px;padding:10px 20px;font-size:13px;cursor:pointer;margin-top:16px;">Close Window</button>
-            </div>
-          </body>
-        </html>
-      `);
+      res.status(400).send(`<!DOCTYPE html>
+<html>
+  <head><title>Authentication Failed</title></head>
+  <body style="background:#0e0e11;color:#fff;font-family:system-ui,-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
+    <div style="text-align:center;padding:32px 40px;background:#141417;border:1px solid rgba(239,68,68,0.3);border-radius:24px;max-width:380px;">
+      <h2 style="color:#ef4444;font-size:18px;margin-bottom:8px;">Authentication Failed</h2>
+      <p style="color:#a1a1aa;font-size:13px;line-height:1.5;">Failed to complete OAuth verification. Please try again.</p>
+      <button onclick="window.close()" style="background:#27272a;color:#fff;border:none;border-radius:12px;padding:10px 20px;font-size:13px;cursor:pointer;margin-top:16px;">Close Window</button>
+    </div>
+  </body>
+</html>`);
       return;
     }
 
-    const safeLinkedDataJson = JSON.stringify(linkedData || null).replace(/</g, '\\u003c');
-    const safePlatformSlugJson = JSON.stringify(p);
-
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.send(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>${safePlatformUpper} Connected</title>
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        </head>
-        <body style="background:#0e0e11;color:#fff;font-family:system-ui,-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;user-select:none;">
-          <div style="text-align:center;padding:32px 40px;border:1px solid rgba(255,255,255,0.12);border-radius:24px;background:#141417;box-shadow:0 25px 60px rgba(0,0,0,0.8);max-width:380px;width:90%;">
-            <div style="width:56px;height:56px;margin:0 auto 16px;background:#27272a;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #5865F2;box-shadow:0 0 24px rgba(88,101,242,0.4);">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="#5865F2"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
-            </div>
-            <h2 style="color:#ffffff;margin:0 0 8px;font-size:20px;font-weight:800;letter-spacing:-0.3px;">${safePlatformUpper} Connected!</h2>
-            <p style="color:#a1a1aa;font-size:13px;margin:0 0 16px;line-height:1.5;">Account verified and linked via OAuth.</p>
-            <div style="padding:8px 14px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;display:inline-block;margin-bottom:18px;">
-              <p style="color:#94a3b8;font-size:12px;margin:0;">Closing in <b id="countdown" style="color:#5865F2;">5</b> seconds...</p>
-            </div>
-            <div>
-              <button onclick="window.close()" style="background:#5865F2;color:#fff;border:none;border-radius:12px;padding:10px 24px;font-size:12px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(88,101,242,0.4);transition:all 0.2s;">
-                Close Window Now
-              </button>
-            </div>
-          </div>
-          <script>
-            function broadcast() {
-              if (window.opener) {
-                try {
-                  window.opener.postMessage({ type: 'INTEGRATION_AUTH_SUCCESS', platform: ${safePlatformSlugJson}, data: ${safeLinkedDataJson} }, '*');
-                } catch(e) {}
-              }
-            }
-            broadcast();
-            var interval = setInterval(broadcast, 400);
+    res.send(`<!DOCTYPE html>
+<html>
+  <head>
+    <title>Account Connected</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  </head>
+  <body style="background:#0e0e11;color:#fff;font-family:system-ui,-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;user-select:none;">
+    <div style="text-align:center;padding:32px 40px;border:1px solid rgba(255,255,255,0.12);border-radius:24px;background:#141417;box-shadow:0 25px 60px rgba(0,0,0,0.8);max-width:380px;width:90%;">
+      <div style="width:56px;height:56px;margin:0 auto 16px;background:#27272a;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #5865F2;box-shadow:0 0 24px rgba(88,101,242,0.4);">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="#5865F2"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+      </div>
+      <h2 style="color:#ffffff;margin:0 0 8px;font-size:20px;font-weight:800;letter-spacing:-0.3px;">Account Connected!</h2>
+      <p style="color:#a1a1aa;font-size:13px;margin:0 0 16px;line-height:1.5;">Account verified and linked via OAuth.</p>
+      <div style="padding:8px 14px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;display:inline-block;margin-bottom:18px;">
+        <p style="color:#94a3b8;font-size:12px;margin:0;">Closing in <b id="countdown" style="color:#5865F2;">5</b> seconds...</p>
+      </div>
+      <div>
+        <button onclick="window.close()" style="background:#5865F2;color:#fff;border:none;border-radius:12px;padding:10px 24px;font-size:12px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(88,101,242,0.4);transition:all 0.2s;">
+          Close Window Now
+        </button>
+      </div>
+    </div>
+    <script>
+      function broadcast() {
+        if (window.opener) {
+          try {
+            window.opener.postMessage({ type: 'INTEGRATION_AUTH_SUCCESS' }, '*');
+          } catch(e) {}
+        }
+      }
+      broadcast();
+      var interval = setInterval(broadcast, 400);
 
-            var count = 5;
-            var el = document.getElementById('countdown');
-            var timer = setInterval(function() {
-              count--;
-              if (el) el.textContent = count;
-              if (count <= 0) {
-                clearInterval(timer);
-                clearInterval(interval);
-                broadcast();
-                if (window.opener) {
-                  window.close();
-                } else {
-                  window.location.href = '/settings';
-                }
-              }
-            }, 1000);
-          </script>
-        </body>
-      </html>
-    `);
+      var count = 5;
+      var el = document.getElementById('countdown');
+      var timer = setInterval(function() {
+        count--;
+        if (el) el.textContent = count;
+        if (count <= 0) {
+          clearInterval(timer);
+          clearInterval(interval);
+          broadcast();
+          if (window.opener) {
+            window.close();
+          } else {
+            window.location.href = '/settings';
+          }
+        }
+      }, 1000);
+    </script>
+  </body>
+</html>`);
   }
 
   /**

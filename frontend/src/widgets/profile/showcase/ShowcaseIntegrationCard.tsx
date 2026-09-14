@@ -336,7 +336,11 @@ export const ShowcaseIntegrationCard: React.FC<ShowcaseIntegrationCardProps> = (
 
             {data.username && (
               <a
-                href={`https://github.com/${encodeURIComponent(data.username)}`}
+                href={sanitizePlatformUrl(
+                  `https://github.com/${encodeURIComponent(data.username)}`,
+                  ['github.com'],
+                  'https://github.com',
+                )}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="ml-auto flex items-center gap-1 text-[10px] font-semibold text-[#5865F2] hover:text-[#7983f5] hover:underline transition-colors cursor-pointer py-1"
@@ -352,9 +356,13 @@ export const ShowcaseIntegrationCard: React.FC<ShowcaseIntegrationCardProps> = (
             <a
               href={
                 sanitizePlatformUrl(data.pinnedRepo.url, ['github.com']) ||
-                `https://github.com/${encodeURIComponent(data.username || '')}/${encodeURIComponent(
-                  data.pinnedRepo.name || '',
-                )}`
+                sanitizePlatformUrl(
+                  `https://github.com/${encodeURIComponent(data.username || '')}/${encodeURIComponent(
+                    data.pinnedRepo.name || '',
+                  )}`,
+                  ['github.com'],
+                  'https://github.com',
+                )
               }
               target="_blank"
               rel="noopener noreferrer"
@@ -419,9 +427,13 @@ export const ShowcaseIntegrationCard: React.FC<ShowcaseIntegrationCardProps> = (
               <a
                 href={
                   sanitizePlatformUrl(data.url, ['youtube.com', 'youtu.be']) ||
-                  (data.username
-                    ? `https://www.youtube.com/@${encodeURIComponent(data.username)}`
-                    : 'https://youtube.com')
+                  sanitizePlatformUrl(
+                    data.username
+                      ? `https://www.youtube.com/@${encodeURIComponent(data.username)}`
+                      : 'https://youtube.com',
+                    ['youtube.com', 'youtu.be'],
+                    'https://youtube.com',
+                  )
                 }
                 target="_blank"
                 rel="noopener noreferrer"
@@ -445,9 +457,13 @@ export const ShowcaseIntegrationCard: React.FC<ShowcaseIntegrationCardProps> = (
                     key={v.id || idx}
                     href={
                       sanitizePlatformUrl(v.url, ['youtube.com', 'youtu.be']) ||
-                      (v.id
-                        ? `https://www.youtube.com/watch?v=${encodeURIComponent(v.id)}`
-                        : 'https://youtube.com')
+                      sanitizePlatformUrl(
+                        v.id
+                          ? `https://www.youtube.com/watch?v=${encodeURIComponent(v.id)}`
+                          : 'https://youtube.com',
+                        ['youtube.com', 'youtu.be'],
+                        'https://youtube.com',
+                      )
                     }
                     target="_blank"
                     rel="noopener noreferrer"
@@ -542,9 +558,13 @@ export const ShowcaseIntegrationCard: React.FC<ShowcaseIntegrationCardProps> = (
               <a
                 href={
                   sanitizePlatformUrl(data.url, ['roblox.com']) ||
-                  (data.userId
-                    ? `https://www.roblox.com/users/${encodeURIComponent(data.userId)}/profile`
-                    : 'https://www.roblox.com')
+                  sanitizePlatformUrl(
+                    data.userId
+                      ? `https://www.roblox.com/users/${encodeURIComponent(data.userId)}/profile`
+                      : 'https://www.roblox.com',
+                    ['roblox.com'],
+                    'https://www.roblox.com',
+                  )
                 }
                 target="_blank"
                 rel="noopener noreferrer"
@@ -592,9 +612,15 @@ export const ShowcaseIntegrationCard: React.FC<ShowcaseIntegrationCardProps> = (
                       const itemUrl =
                         sanitizePlatformUrl(item.url, ['roblox.com']) ||
                         (item.placeId
-                          ? `https://www.roblox.com/games/${encodeURIComponent(item.placeId)}`
+                          ? sanitizePlatformUrl(
+                              `https://www.roblox.com/games/${encodeURIComponent(item.placeId)}`,
+                              ['roblox.com'],
+                            )
                           : item.assetId
-                            ? `https://www.roblox.com/catalog/${encodeURIComponent(item.assetId)}`
+                            ? sanitizePlatformUrl(
+                                `https://www.roblox.com/catalog/${encodeURIComponent(item.assetId)}`,
+                                ['roblox.com'],
+                              )
                             : null);
 
                       const content = (
@@ -717,9 +743,13 @@ export const ShowcaseIntegrationCard: React.FC<ShowcaseIntegrationCardProps> = (
               <a
                 href={
                   sanitizePlatformUrl(data.url, ['twitch.tv']) ||
-                  (data.username
-                    ? `https://twitch.tv/${encodeURIComponent(data.username)}`
-                    : 'https://twitch.tv')
+                  sanitizePlatformUrl(
+                    data.username
+                      ? `https://twitch.tv/${encodeURIComponent(data.username)}`
+                      : 'https://twitch.tv',
+                    ['twitch.tv'],
+                    'https://twitch.tv',
+                  )
                 }
                 target="_blank"
                 rel="noopener noreferrer"
@@ -766,9 +796,13 @@ export const ShowcaseIntegrationCard: React.FC<ShowcaseIntegrationCardProps> = (
               <a
                 href={
                   sanitizePlatformUrl(data.url, ['twitch.tv']) ||
-                  (data.username
-                    ? `https://twitch.tv/${encodeURIComponent(data.username)}`
-                    : 'https://twitch.tv')
+                  sanitizePlatformUrl(
+                    data.username
+                      ? `https://twitch.tv/${encodeURIComponent(data.username)}`
+                      : 'https://twitch.tv',
+                    ['twitch.tv'],
+                    'https://twitch.tv',
+                  )
                 }
                 target="_blank"
                 rel="noopener noreferrer"
@@ -890,9 +924,13 @@ export const ShowcaseIntegrationCard: React.FC<ShowcaseIntegrationCardProps> = (
                         key={pl.id}
                         href={
                           sanitizePlatformUrl(pl.externalUrl, ['spotify.com']) ||
-                          (pl.id
-                            ? `https://open.spotify.com/playlist/${encodeURIComponent(pl.id)}`
-                            : 'https://open.spotify.com')
+                          sanitizePlatformUrl(
+                            pl.id
+                              ? `https://open.spotify.com/playlist/${encodeURIComponent(pl.id)}`
+                              : 'https://open.spotify.com',
+                            ['spotify.com'],
+                            'https://open.spotify.com',
+                          )
                         }
                         target="_blank"
                         rel="noopener noreferrer"
@@ -939,10 +977,11 @@ export const ShowcaseIntegrationCard: React.FC<ShowcaseIntegrationCardProps> = (
                 </span>
                 {data.spotifyUrl && (
                   <a
-                    href={
-                      sanitizePlatformUrl(data.spotifyUrl, ['spotify.com']) ||
-                      'https://open.spotify.com'
-                    }
+                    href={sanitizePlatformUrl(
+                      data.spotifyUrl,
+                      ['spotify.com'],
+                      'https://open.spotify.com',
+                    )}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-1 font-semibold text-[#1DB954] hover:underline"

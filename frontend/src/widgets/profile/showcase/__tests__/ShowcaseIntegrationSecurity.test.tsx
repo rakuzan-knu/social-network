@@ -186,7 +186,7 @@ describe('ShowcaseIntegrationCard Security (CWE-79 & CWE-601 Hardening)', () => 
         const href = link.getAttribute('href') || '';
         expect(href).not.toContain('attacker.com');
         expect(href).not.toContain('phishing-spotify.com');
-        expect(href).toMatch(/^https:\/\/(?:open\.)?spotify\.com/);
+        expect(href).toMatch(/^https:\/\/(?:open\.)?spotify\.com(?:\/|$)/);
       });
     });
   });

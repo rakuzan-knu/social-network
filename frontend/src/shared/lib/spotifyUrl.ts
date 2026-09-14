@@ -75,7 +75,11 @@ export function getSafeSpotifyTrackUrl(
 
   const rawUrl = track.spotifyUrl?.trim();
   if (rawUrl && isSpotifyUrl(rawUrl)) {
-    return rawUrl;
+    try {
+      return new URL(rawUrl).href;
+    } catch {
+      return 'https://open.spotify.com';
+    }
   }
 
   // If there's an authentic Spotify track ID

@@ -136,6 +136,13 @@ export function isSpotifyMessageOrigin(origin?: string | null): boolean {
   }
 }
 
+function formatParsedUrl(parsed: URL, trimmed: string): string {
+  if (!trimmed.endsWith('/') && parsed.href.endsWith('/') && parsed.pathname === '/') {
+    return parsed.href.slice(0, -1);
+  }
+  return parsed.href;
+}
+
 /**
  * Sanitizes image URLs to prevent DOM XSS and open redirects via dangerous schemes
  * like javascript:, vbscript:, or data:text/html.
@@ -144,18 +151,21 @@ export function isSpotifyMessageOrigin(origin?: string | null): boolean {
 export function sanitizeImageUrl(url?: string | null, fallback: string = ''): string {
   if (!url || typeof url !== 'string') return fallback;
   const trimmed = url.trim();
+  if (/^(?:javascript|data|vbscript):/i.test(trimmed)) {
+    return fallback;
+  }
   if (/^https?:\/\//i.test(trimmed)) {
     try {
       const parsed = new URL(trimmed);
       if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
-        return trimmed;
+        return formatParsedUrl(parsed, trimmed);
       }
     } catch {
       return fallback;
     }
   }
   if (trimmed.startsWith('/') && !trimmed.startsWith('//')) {
-    return trimmed;
+    return encodeURI(trimmed);
   }
   return fallback;
 }
@@ -175,14 +185,14 @@ export function sanitizeExternalUrl(url?: string | null, fallback: string = '#')
     try {
       const parsed = new URL(trimmed);
       if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
-        return trimmed;
+        return formatParsedUrl(parsed, trimmed);
       }
     } catch {
       return fallback;
     }
   }
   if (trimmed.startsWith('/') && !trimmed.startsWith('//')) {
-    return trimmed;
+    return encodeURI(trimmed);
   }
   return fallback;
 }
@@ -217,7 +227,7 @@ export function sanitizePlatformUrl(
         hostname === domain.toLowerCase() || hostname.endsWith(`.${domain.toLowerCase()}`),
     );
     if (isDomainAllowed) {
-      return trimmed;
+      return formatParsedUrl(parsed, trimmed);
     }
     return fallback;
   } catch {
