@@ -182,8 +182,10 @@ function setupApiVersioning(app: NestFastifyApplication): void {
         !pathOnly.startsWith('/v1') &&
         !pathOnly.startsWith('/v2') &&
         !pathOnly.startsWith('/health') &&
+        !pathOnly.startsWith('/api/health') &&
         !pathOnly.startsWith('/metrics') &&
         !pathOnly.startsWith('/ping') &&
+        !pathOnly.startsWith('/api/ping') &&
         !pathOnly.startsWith('/api/docs') &&
         !pathOnly.startsWith('/socket.io') &&
         !pathOnly.startsWith('/favicon.ico')

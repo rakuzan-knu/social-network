@@ -5,7 +5,11 @@ import { PrismaService } from '@common/prisma';
 import type { IConversationsRepository } from '../interfaces/conversations-repository.interface';
 import type { ConversationWithDetails, ParticipantWithUser } from '../interfaces/types';
 import type { UserSnapshot } from '@common/contracts';
-import { DEFAULT_MEMBER_PERMISSIONS, DEFAULT_OWNER_PERMISSIONS, Permission } from '@common/contracts';
+import {
+  DEFAULT_MEMBER_PERMISSIONS,
+  DEFAULT_OWNER_PERMISSIONS,
+  Permission,
+} from '@common/contracts';
 import { conversationInclude, participantInclude, userSnapshot } from '../interfaces/types';
 
 @Injectable()

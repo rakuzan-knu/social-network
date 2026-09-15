@@ -31,10 +31,10 @@ async function verifyContract() {
   console.log(`🔍 Verifying API Contract against: ${API_BASE_URL}...`);
 
   const requiredEndpointGroups = [
-    ['/api/health', '/health'],
-    ['/api/auth/login', '/auth/login'],
-    ['/api/auth/register', '/auth/register'],
-    ['/api/posts', '/posts'],
+    ['/api/health', '/health', '/v1/health'],
+    ['/v1/auth/login', '/api/auth/login', '/auth/login', '/api/v1/auth/login'],
+    ['/v1/auth/register', '/api/auth/register', '/auth/register', '/api/v1/auth/register'],
+    ['/v1/posts', '/api/posts', '/posts', '/api/v1/posts'],
   ];
 
   try {
