@@ -177,14 +177,12 @@ async function main(): Promise<void> {
       customProviderHeaders: [`Authorization: Bearer ${accessToken}`],
     }).verifyProvider();
   } finally {
-    await prisma.$disconnect();
-    await pool.end();
+    await prisma.$disconnect().catch(() => {});
+    await pool.end().catch(() => {});
   }
 }
 
-main().catch(async (error: unknown) => {
-  await prisma.$disconnect();
-  await pool.end();
+main().catch((error: unknown) => {
   process.stderr.write(`Pact verification failed: ${String(error)}\n`);
   process.exitCode = 1;
 });
