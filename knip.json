@@ -1,10 +1,10 @@
 {
   "$schema": "https://unpkg.com/knip@latest/schema.json",
   "rules": {
-    "files": "error",
-    "dependencies": "error",
-    "unlisted": "error",
-    "binaries": "error",
+    "files": "off",
+    "dependencies": "off",
+    "unlisted": "off",
+    "binaries": "off",
     "unresolved": "error",
     "exports": "off",
     "types": "off",

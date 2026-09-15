@@ -1,8 +1,10 @@
 import { Verifier } from '@pact-foundation/pact';
+import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
 import Redis from 'ioredis';
 import * as argon2 from 'argon2';
 import path from 'path';
+import { Pool } from 'pg';
 
 /**
  * Verifies the committed consumer pact (backend/pacts/frontend-backend.json)
@@ -15,7 +17,13 @@ import path from 'path';
  * verifier injects it as an Authorization header for every replayed request.
  */
 
-const prisma = new PrismaClient();
+const connectionString =
+  process.env.DIRECT_URL ||
+  process.env.DATABASE_URL ||
+  'postgresql://user:password@localhost:5432/social_test';
+const pool = new Pool({ connectionString });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
 const PACT_PASSWORD = 'correct-horse-battery';
 
 interface UserSpec {
@@ -170,11 +178,13 @@ async function main(): Promise<void> {
     }).verifyProvider();
   } finally {
     await prisma.$disconnect();
+    await pool.end();
   }
 }
 
 main().catch(async (error: unknown) => {
   await prisma.$disconnect();
+  await pool.end();
   process.stderr.write(`Pact verification failed: ${String(error)}\n`);
   process.exitCode = 1;
 });
