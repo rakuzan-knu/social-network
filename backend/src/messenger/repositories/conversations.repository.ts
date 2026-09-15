@@ -5,7 +5,7 @@ import { PrismaService } from '@common/prisma';
 import type { IConversationsRepository } from '../interfaces/conversations-repository.interface';
 import type { ConversationWithDetails, ParticipantWithUser } from '../interfaces/types';
 import type { UserSnapshot } from '@common/contracts';
-import { DEFAULT_MEMBER_PERMISSIONS, DEFAULT_OWNER_PERMISSIONS } from '@common/contracts';
+import { DEFAULT_MEMBER_PERMISSIONS, DEFAULT_OWNER_PERMISSIONS, Permission } from '@common/contracts';
 import { conversationInclude, participantInclude, userSnapshot } from '../interfaces/types';
 
 @Injectable()
@@ -30,8 +30,14 @@ export class ConversationsRepository implements IConversationsRepository {
         type: 'DIRECT',
         participants: {
           create: [
-            { userId: userAId, permissions: DEFAULT_MEMBER_PERMISSIONS },
-            { userId: userBId, permissions: DEFAULT_MEMBER_PERMISSIONS },
+            {
+              userId: userAId,
+              permissions: DEFAULT_MEMBER_PERMISSIONS | Permission.CAN_PIN_MESSAGES,
+            },
+            {
+              userId: userBId,
+              permissions: DEFAULT_MEMBER_PERMISSIONS | Permission.CAN_PIN_MESSAGES,
+            },
           ],
         },
       },

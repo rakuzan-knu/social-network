@@ -726,9 +726,16 @@ export class MessagesService implements OnModuleDestroy {
     if (!belongs) throw new NotFoundException('Message not found in this conversation');
 
     const p = await this.convsRepo.findParticipant(conversationId, userId);
-    if (p && (p as unknown as { permissions?: number }).permissions !== undefined) {
-      const pFlags = (p as unknown as { permissions: number }).permissions;
-      if (p.role !== 'OWNER' && (pFlags & Permission.CAN_PIN_MESSAGES) === 0) {
+    if (p) {
+      const pFlags = (p as unknown as { permissions?: number }).permissions;
+      if (
+        pFlags !== undefined &&
+        pFlags !== null &&
+        pFlags !== 0 &&
+        p.role !== 'OWNER' &&
+        p.role !== 'ADMIN' &&
+        (pFlags & Permission.CAN_PIN_MESSAGES) === 0
+      ) {
         throw new ForbiddenException('You do not have permission to pin messages');
       }
     }
@@ -740,9 +747,16 @@ export class MessagesService implements OnModuleDestroy {
     await this.assertMember(conversationId, userId);
 
     const p = await this.convsRepo.findParticipant(conversationId, userId);
-    if (p && (p as unknown as { permissions?: number }).permissions !== undefined) {
-      const pFlags = (p as unknown as { permissions: number }).permissions;
-      if (p.role !== 'OWNER' && (pFlags & Permission.CAN_PIN_MESSAGES) === 0) {
+    if (p) {
+      const pFlags = (p as unknown as { permissions?: number }).permissions;
+      if (
+        pFlags !== undefined &&
+        pFlags !== null &&
+        pFlags !== 0 &&
+        p.role !== 'OWNER' &&
+        p.role !== 'ADMIN' &&
+        (pFlags & Permission.CAN_PIN_MESSAGES) === 0
+      ) {
         throw new ForbiddenException('You do not have permission to unpin messages');
       }
     }

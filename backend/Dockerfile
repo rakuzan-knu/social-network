@@ -69,7 +69,7 @@ ENV CI=true
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile --prod --ignore-scripts
 
-COPY --from=build-deps /app/node_modules/.prisma ./node_modules/.prisma
+RUN npx --yes prisma@7.10.0 generate --schema=./backend/prisma/schema.prisma
 
 # Stage 4: Production Runtime
 FROM node:24-alpine AS production
