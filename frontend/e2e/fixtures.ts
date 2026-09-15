@@ -10,6 +10,7 @@ import { test as base, expect, type Page, type Route } from '@playwright/test';
  */
 const API_BASE = (process.env.VITE_API_URL ?? 'http://localhost:3000')
   .replace(/\/api\/?$/, '')
+  .replace(/\/v1\/?$/, '')
   .replace(/\/+$/, '');
 
 /**
@@ -48,7 +49,7 @@ async function fulfillApi(route: Route, response: MockResponse = {}): Promise<vo
 
 /**
  * Mocks `{API_BASE}${pathPattern}`. Routes registered later win over earlier ones.
- * Automatically handles query parameters and path variations.
+ * Automatically handles query parameters, /v1 prefixes, and host variations.
  */
 async function mockApi(
   page: Page,
@@ -56,16 +57,23 @@ async function mockApi(
   response: MockResponse = {},
 ): Promise<void> {
   const handler = (route: Route) => fulfillApi(route, response);
-  const basePattern = pathPattern.replace(/\?\*\*$/, '').replace(/\?.*$/, '');
-  const patterns = Array.from(new Set([pathPattern, basePattern, `${basePattern}?**`]));
+  const cleanPattern = pathPattern.replace(/^\/v1(?=\/|$)/, '');
+  const basePattern = cleanPattern.replace(/\?\*\*$/, '').replace(/\?.*$/, '');
+  const rawPatterns = Array.from(new Set([cleanPattern, basePattern, `${basePattern}?**`]));
 
-  for (const p of patterns) {
-    await page.route(`${API_BASE}${p}`, handler);
-    if (!API_BASE.includes('localhost')) {
-      await page.route(`http://localhost:3000${p}`, handler);
-    }
-    if (!API_BASE.includes('127.0.0.1')) {
-      await page.route(`http://127.0.0.1:3000${p}`, handler);
+  const allPatterns = new Set<string>();
+  for (const p of rawPatterns) {
+    const withoutV1 = p.startsWith('/') ? p : `/${p}`;
+    const withV1 = `/v1${withoutV1}`;
+    allPatterns.add(withoutV1);
+    allPatterns.add(withV1);
+  }
+
+  const hosts = Array.from(new Set([API_BASE, 'http://localhost:3000', 'http://127.0.0.1:3000']));
+
+  for (const host of hosts) {
+    for (const p of allPatterns) {
+      await page.route(`${host}${p}`, handler);
     }
   }
 }
@@ -121,6 +129,7 @@ export const test = base.extend<{
       json: { accessToken: 'mock-access-token', refreshToken: 'mock-refresh-token' },
     });
     await mockApi(page, '/users/me', { json: DEFAULT_AUTH_USER });
+    await mockApi(page, '/users/usr-me', { json: DEFAULT_AUTH_USER });
     await mockApi(page, '/notifications/unread-count', { json: { count: 0 } });
 
     await fixtureUse(page);

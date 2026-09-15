@@ -15,6 +15,13 @@ const MOCK_USER = {
 test.describe('Profile (authenticated, mocked API)', () => {
   test.beforeEach(async ({ authenticatedPage }) => {
     await mockApi(authenticatedPage, '/users/by-username/alice', { json: MOCK_USER });
+    await mockApi(authenticatedPage, '/users/alice/showcase', { json: null });
+    await mockApi(authenticatedPage, '/users/usr-alice/posts?**', {
+      json: { posts: [], nextCursor: null },
+    });
+    await mockApi(authenticatedPage, '/users/usr-alice/reposts?**', {
+      json: { posts: [], nextCursor: null },
+    });
   });
 
   test('renders the profile header for /profile/:username', async ({ authenticatedPage: page }) => {

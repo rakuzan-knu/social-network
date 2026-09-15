@@ -81,51 +81,67 @@ test.describe('WebRTC E2E Video & Audio Calls (Playwright Fake Media)', () => {
       await page.addInitScript(
         ([currentUser]) => {
           window.localStorage.setItem(
-            'auth-storage',
+            'auth-session',
             JSON.stringify({
               state: { userId: currentUser.id, isAuthenticated: true },
               version: 0,
             }),
           );
           window.localStorage.setItem('accessToken', `token-${currentUser.id}`);
+          window.localStorage.setItem('refreshToken', `refresh-${currentUser.id}`);
         },
         [user],
       );
 
-      await page.route('**/users/me', async (route) => {
+      const fulfillWithCors = async (route: any, body: any, status = 200) => {
+        const reqOrigin = route.request().headers()['origin'] || 'http://127.0.0.1:5173';
+        const headers = {
+          'Access-Control-Allow-Origin': reqOrigin,
+          'Access-Control-Allow-Credentials': 'true',
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+          'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+        };
+        if (route.request().method() === 'OPTIONS') {
+          await route.fulfill({ status: 204, headers });
+          return;
+        }
         await route.fulfill({
-          status: 200,
+          status,
           contentType: 'application/json',
-          body: JSON.stringify(user),
+          headers,
+          body: JSON.stringify(body),
         });
-      });
+      };
 
-      await page.route('**/conversations**', async (route) => {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify([MOCK_CONVERSATION]),
-        });
-      });
-
-      await page.route('**/calls/ice-servers', async (route) => {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            iceServers: [{ urls: ['stun:stun.l.google.com:19302'] }],
-            ttlSec: 86400,
-          }),
-        });
-      });
-
-      await page.route('**/calls/telemetry**', async (route) => {
-        await route.fulfill({
-          status: 201,
-          contentType: 'application/json',
-          body: JSON.stringify({ success: true }),
-        });
-      });
+      await page.route('**/users/me', (route) => fulfillWithCors(route, user));
+      await page.route(`**/users/${user.id}`, (route) => fulfillWithCors(route, user));
+      await page.route('**/auth/refresh', (route) =>
+        fulfillWithCors(route, {
+          accessToken: `token-${user.id}`,
+          refreshToken: `refresh-${user.id}`,
+        }),
+      );
+      await page.route('**/notifications/unread-count**', (route) =>
+        fulfillWithCors(route, { count: 0 }),
+      );
+      await page.route('**/conversations/conv-e2e-1', (route) =>
+        fulfillWithCors(route, MOCK_CONVERSATION),
+      );
+      await page.route('**/conversations/conv-e2e-1/messages**', (route) =>
+        fulfillWithCors(route, { data: [], hasMore: false, nextCursor: null }),
+      );
+      await page.route('**/conversations**', (route) =>
+        fulfillWithCors(route, [MOCK_CONVERSATION]),
+      );
+      await page.route('**/calls/ice-servers', (route) =>
+        fulfillWithCors(route, {
+          iceServers: [{ urls: ['stun:stun.l.google.com:19302'] }],
+          ttlSec: 86400,
+        }),
+      );
+      await page.route('**/calls/telemetry**', (route) =>
+        fulfillWithCors(route, { success: true }, 201),
+      );
     };
 
     await setupMocks(pageA, USER_ALICE);
