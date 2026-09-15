@@ -677,32 +677,34 @@ export class UsersService {
       },
     );
     const usersById = new Map(candidateUsers.map((user) => [user.id, user] as const));
-    const topCandidates = ranked.slice(0, limit).map((c) => {
-      const user = usersById.get(c.id);
-      // Invariant: ranked ids always come from candidateUsers above.
-      if (!user) throw new Error(`feed-score returned unknown candidate ${c.id}`);
-      // Copy into the mutable DTO shape (core reasons are readonly).
-      const reason = c.reason;
-      return {
-        user,
-        finalScore: c.score,
-        recommendationReason: {
-          type: reason.type,
-          text: reason.text,
-          ...(reason.mutualFriends !== undefined
-            ? { mutualFriends: reason.mutualFriends.map((m) => ({ ...m })) }
-            : {}),
-          ...(reason.totalMutualCount !== undefined
-            ? { totalMutualCount: reason.totalMutualCount }
-            : {}),
-        },
-      };
-    });
+    const topCandidates = ranked
+      .slice(0, limit)
+      .map((c: { id: string; score: number; reason: any }) => {
+        const user = usersById.get(c.id);
+        // Invariant: ranked ids always come from candidateUsers above.
+        if (!user) throw new Error(`feed-score returned unknown candidate ${c.id}`);
+        // Copy into the mutable DTO shape (core reasons are readonly).
+        const reason = c.reason;
+        return {
+          user,
+          finalScore: c.score,
+          recommendationReason: {
+            type: reason.type,
+            text: reason.text,
+            ...(reason.mutualFriends !== undefined
+              ? { mutualFriends: reason.mutualFriends.map((m: any) => ({ ...m })) }
+              : {}),
+            ...(reason.totalMutualCount !== undefined
+              ? { totalMutualCount: reason.totalMutualCount }
+              : {}),
+          },
+        };
+      });
 
-    const ids = topCandidates.map((c) => c.user.id);
+    const ids = topCandidates.map((c: { user: { id: string } }) => c.user.id);
     const ctx = await this.visibility.loadContext(ids, viewerId ?? null);
 
-    return topCandidates.map((c) => {
+    return topCandidates.map((c: any) => {
       const ownedBadges = Array.isArray(c.user.badges)
         ? c.user.badges.map((b: { badgeId: string }) => b.badgeId)
         : [];
