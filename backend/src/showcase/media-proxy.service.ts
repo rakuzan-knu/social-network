@@ -3487,21 +3487,70 @@ export class MediaProxyService {
     const cacheKey = `showcase:search:tracks:v3:${encodeURIComponent(cleanQuery.toLowerCase() || '__top10__')}`;
 
     return this.redis.getOrSet(cacheKey, this.CACHE_TTL_SECONDS, async () => {
+      if (cleanQuery) {
+        try {
+          const itunesRes = await axios.get<{
+            resultCount: number;
+            results: Array<{
+              trackName?: string;
+              artistName?: string;
+              artworkUrl100?: string;
+              previewUrl?: string;
+              trackViewUrl?: string;
+              trackTimeMillis?: number;
+            }>;
+          }>(
+            `https://itunes.apple.com/search?term=${encodeURIComponent(cleanQuery)}&media=music&entity=song&limit=15`,
+            { timeout: 5000 },
+          );
+
+          if (itunesRes.data?.results && itunesRes.data.results.length > 0) {
+            return itunesRes.data.results
+              .filter((t) => Boolean(t.trackName && t.artistName))
+              .map((t) => ({
+                title: t.trackName!,
+                artist: t.artistName!,
+                albumArt: (t.artworkUrl100 || '').replace('100x100bb', '600x600bb'),
+                previewUrl: t.previewUrl || null,
+                spotifyUrl: t.trackViewUrl || null,
+                durationMs: t.trackTimeMillis || null,
+              }));
+          }
+        } catch {
+          // Fall through to Spotify & SoundCloud & curated fallback
+        }
+      }
+
       const [spotifyResults, scResults] = await Promise.all([
         cleanQuery ? this.searchSpotifyCatalog(cleanQuery) : Promise.resolve([]),
-        this.soundCloudService.searchTracks(cleanQuery, 10).catch(() => []),
+        this.soundCloudService?.searchTracks?.(cleanQuery, 10)?.catch(() => []) ??
+          Promise.resolve([]),
       ]);
+
+      const filteredPopular = TOP_10_SPOTIFY_TRACKS.filter(
+        (t) =>
+          t.title.toLowerCase().includes(cleanQuery.toLowerCase()) ||
+          t.artist.toLowerCase().includes(cleanQuery.toLowerCase()),
+      );
 
       const baseSpotify =
         spotifyResults.length > 0
           ? spotifyResults
           : !cleanQuery
             ? TOP_10_SPOTIFY_TRACKS
-            : TOP_10_SPOTIFY_TRACKS.filter(
-                (t) =>
-                  t.title.toLowerCase().includes(cleanQuery.toLowerCase()) ||
-                  t.artist.toLowerCase().includes(cleanQuery.toLowerCase()),
-              );
+            : filteredPopular.length > 0
+              ? filteredPopular
+              : [
+                  {
+                    title: cleanQuery.charAt(0).toUpperCase() + cleanQuery.slice(1),
+                    artist: 'Unknown Artist',
+                    albumArt:
+                      'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=80',
+                    previewUrl: null,
+                    spotifyUrl: `https://open.spotify.com/search/${encodeURIComponent(cleanQuery)}`,
+                    durationMs: null,
+                  },
+                ];
 
       const mappedSpotify = baseSpotify.map((t: any) => ({
         ...t,

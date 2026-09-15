@@ -134,7 +134,7 @@ export class AuthService {
     const redisKey = this.buildRefreshKey(payload.sub, payload.jti);
     const exists = await this.redisService.exists(redisKey);
     if (!exists) {
-      if (this.redisService.isDegraded()) {
+      if (this.redisService.isDegraded?.()) {
         const isRevoked = await this.tokenRevocationService.isTokenRevoked(
           payload.jti,
           payload.sub,

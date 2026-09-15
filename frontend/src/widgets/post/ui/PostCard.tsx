@@ -114,7 +114,11 @@ export function PostCard({ post, queryKey }: PostCardProps) {
     startLikeTransition(async () => {
       setOptimisticLikes('toggle');
       try {
-        await likeMutation.mutateAsync();
+        if (likeMutation.mutateAsync) {
+          await likeMutation.mutateAsync();
+        } else {
+          likeMutation.mutate();
+        }
       } catch {
         // useOptimistic automatically rolls back when transition settles
       }

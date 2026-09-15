@@ -127,6 +127,8 @@ describe('GithubService', () => {
       const res = {
         clearCookie: jest.fn(),
         redirect: jest.fn(),
+        setHeader: jest.fn(),
+        send: jest.fn(),
       } as unknown as Response;
 
       // 1. token response

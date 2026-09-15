@@ -107,8 +107,8 @@ export function CommentModal() {
   const { data, isLoading, isError, refetch, isFetchingNextPage, hasNextPage, fetchNextPage } =
     useInfiniteQuery<CommentListPage>({
       queryKey: [COMMENTS_KEY, postId],
-      queryFn: ({ pageParam }) =>
-        commentsApi.getComments(postId, pageParam as string | undefined, 20),
+      queryFn: async ({ pageParam, signal }) =>
+        commentsApi.getComments(postId, pageParam as string | undefined, 20, signal),
       getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
       initialPageParam: undefined,
       enabled: isCommentModalOpen && !!postId,

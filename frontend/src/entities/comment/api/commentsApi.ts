@@ -74,7 +74,7 @@ export const commentsApi = {
   ): Promise<CommentListPage> => {
     const res = await api.get<Record<string, unknown>>(`/posts/${postId}/comments`, {
       params: { after: cursor, limit },
-      signal,
+      ...(signal ? { signal } : {}),
     });
     const raw = res.data;
     const rawList = Array.isArray(raw?.data)
@@ -100,7 +100,7 @@ export const commentsApi = {
   ): Promise<CommentListPage> => {
     const res = await api.get<Record<string, unknown>>(`/comments/${rootCommentId}/replies`, {
       params: { after: cursor, limit },
-      signal,
+      ...(signal ? { signal } : {}),
     });
     const raw = res.data;
     const rawList = Array.isArray(raw?.data)
@@ -136,7 +136,7 @@ export const commentsApi = {
         replyToUserId,
         clientMutationId,
       },
-      { signal },
+      ...(signal ? [{ signal }] : []),
     );
     return normalizeComment(res.data);
   },
@@ -147,14 +147,16 @@ export const commentsApi = {
   ): Promise<{ isLiked: boolean; likesCount: number }> => {
     const res = await api.post<{ isLiked: boolean; likesCount: number }>(
       `/comments/${commentId}/like`,
-      {},
-      { signal },
+      ...(signal ? [{}, { signal }] : []),
     );
     return res.data;
   },
 
   togglePin: async (commentId: string, signal?: AbortSignal): Promise<{ isPinned: boolean }> => {
-    const res = await api.post<{ isPinned: boolean }>(`/comments/${commentId}/pin`, {}, { signal });
+    const res = await api.post<{ isPinned: boolean }>(
+      `/comments/${commentId}/pin`,
+      ...(signal ? [{}, { signal }] : []),
+    );
     return res.data;
   },
 
@@ -163,12 +165,12 @@ export const commentsApi = {
     formData.append('file', file);
     const res = await api.post<{ url: string }>('/comments/media', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
-      signal,
+      ...(signal ? { signal } : {}),
     });
     return res.data;
   },
 
   deleteComment: async (commentId: string | number, signal?: AbortSignal): Promise<void> => {
-    await api.delete(`/comments/${commentId}`, { signal });
+    await api.delete(`/comments/${commentId}`, ...(signal ? [{ signal }] : []));
   },
 };

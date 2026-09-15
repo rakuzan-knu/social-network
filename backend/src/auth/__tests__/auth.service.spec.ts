@@ -33,6 +33,7 @@ describe('AuthService', () => {
     get: jest.Mock;
     del: jest.Mock;
     exists: jest.Mock;
+    isDegraded?: jest.Mock;
   };
   let mockSessionsService: {
     create: jest.Mock;
@@ -76,6 +77,7 @@ describe('AuthService', () => {
       get: jest.fn(),
       del: jest.fn().mockResolvedValue(1),
       exists: jest.fn().mockResolvedValue(1),
+      isDegraded: jest.fn().mockReturnValue(false),
     };
 
     mockSessionsService = {

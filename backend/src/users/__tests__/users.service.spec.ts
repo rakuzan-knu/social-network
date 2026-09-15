@@ -261,6 +261,7 @@ describe('UsersService', () => {
       await expect(service.getProfileByUsername('admin', null)).rejects.toThrow(NotFoundException);
 
       mockUsersRepository.findByUsername.mockResolvedValueOnce(null);
+      mockUsersRepository.findById.mockResolvedValueOnce(null);
       await expect(service.getProfileByUsername('missing_user', null)).rejects.toThrow(
         NotFoundException,
       );

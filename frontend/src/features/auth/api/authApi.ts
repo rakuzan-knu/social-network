@@ -39,25 +39,31 @@ export interface AuthResponse {
 
 export const authApi = {
   login: (data: LoginPayload, signal?: AbortSignal) =>
-    api.post<AuthResponse>('/auth/login', data, { signal }).then((res) => res.data),
+    api
+      .post<AuthResponse>('/auth/login', data, ...(signal ? [{ signal }] : []))
+      .then((res) => res.data),
 
   register: (data: RegisterPayload, signal?: AbortSignal) =>
-    api.post<AuthResponse>('/auth/register', data, { signal }).then((res) => res.data),
+    api
+      .post<AuthResponse>('/auth/register', data, ...(signal ? [{ signal }] : []))
+      .then((res) => res.data),
 
   logout: (refreshToken?: string, signal?: AbortSignal) => {
     const token = refreshToken || localStorage.getItem('refreshToken') || '';
-    return api.post('/auth/logout', { refreshToken: token }, { signal });
+    return api.post('/auth/logout', { refreshToken: token }, ...(signal ? [{ signal }] : []));
   },
 
   findAccount: (identifier: string, signal?: AbortSignal) =>
     api
-      .post<FoundUserResponse>('/auth/find-account', { identifier } satisfies FindAccountPayload, {
-        signal,
-      })
+      .post<FoundUserResponse>(
+        '/auth/find-account',
+        { identifier } satisfies FindAccountPayload,
+        ...(signal ? [{ signal }] : []),
+      )
       .then((res) => res.data),
 
   resetPassword: (data: ResetPasswordPayload, signal?: AbortSignal) =>
     api
-      .post<{ success: boolean }>('/auth/reset-password', data, { signal })
+      .post<{ success: boolean }>('/auth/reset-password', data, ...(signal ? [{ signal }] : []))
       .then((res) => res.data),
 };

@@ -77,7 +77,7 @@ FROM node:24-alpine AS production
 RUN --mount=type=cache,target=/var/cache/apk \
     apk add --no-cache tini openssl libc6-compat
 
-RUN addgroup --system --gid 1000 appgroup && adduser --system --uid 1000 --ingroup appgroup appuser
+RUN addgroup -g 1000 -S appgroup && adduser -u 1000 -S -G appgroup appuser
 WORKDIR /app
 
 COPY package.json pnpm-workspace.yaml ./

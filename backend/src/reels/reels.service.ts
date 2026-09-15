@@ -215,20 +215,7 @@ export class ReelsService {
         }
       }
 
-      const paginated = paginate(rows, limit, (item) => this.mapToDto(item, viewerId));
-      if (!after) {
-        const seedItems = this.getSeedFeed().data;
-        const existingIds = new Set(paginated.data.map((r) => r.id));
-        const seedsToAdd = seedItems.filter((s) => !existingIds.has(s.id));
-        if (seedsToAdd.length > 0) {
-          return {
-            data: [...seedsToAdd, ...paginated.data],
-            meta: paginated.meta,
-          };
-        }
-      }
-
-      return paginated;
+      return paginate(rows, limit, (item) => this.mapToDto(item, viewerId));
     } catch (err) {
       this.logger.warn(
         `Could not load reels from repository: ${String(err)}. Returning seed feed.`,

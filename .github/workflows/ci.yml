@@ -198,7 +198,7 @@ jobs:
 
       - name: Run Nx Affected Tasks (Lint, Typecheck, Build)
         run: |
-          npx nx run-many -t lint typecheck build --affected --base=${{ needs.plan.outputs.base-sha }} --parallel=3
+          npx nx affected -t lint typecheck build --base=${{ needs.plan.outputs.base-sha }} --parallel=3
 
       - name: Run Knip (Unused Code & Dependency Analysis)
         run: pnpm knip

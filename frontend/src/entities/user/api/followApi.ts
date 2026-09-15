@@ -66,25 +66,28 @@ export function normalizeFollowListPage(
 
 export const followApi = {
   follow: (userId: string, signal?: AbortSignal) =>
-    api.post(`/users/${userId}/follow`, {}, { signal }).then((r) => r.data),
+    api.post(`/users/${userId}/follow`, ...(signal ? [{}, { signal }] : [])).then((r) => r.data),
   unfollow: (userId: string, signal?: AbortSignal) =>
-    api.delete(`/users/${userId}/follow`, { signal }).then((r) => r.data),
+    api.delete(`/users/${userId}/follow`, ...(signal ? [{ signal }] : [])).then((r) => r.data),
   getFollowers: (userId: string, cursor?: string, signal?: AbortSignal): Promise<FollowListPage> =>
     api
       .get<Record<string, unknown>>(`/users/${userId}/followers`, {
         params: { after: cursor, limit: 20 },
-        signal,
+        ...(signal ? { signal } : {}),
       })
       .then((r) => normalizeFollowListPage(r.data)),
   getFollowing: (userId: string, cursor?: string, signal?: AbortSignal): Promise<FollowListPage> =>
     api
       .get<Record<string, unknown>>(`/users/${userId}/following`, {
         params: { after: cursor, limit: 20 },
-        signal,
+        ...(signal ? { signal } : {}),
       })
       .then((r) => normalizeFollowListPage(r.data)),
   getFriends: async (signal?: AbortSignal): Promise<FollowUserSummary[]> => {
-    const res = await api.get<Record<string, unknown>[]>('/users/me/friends', { signal });
+    const res = await api.get<Record<string, unknown>[]>(
+      '/users/me/friends',
+      ...(signal ? [{ signal }] : []),
+    );
     const list = Array.isArray(res.data) ? res.data : [];
     return list.map((u) => ({
       id: (u.id as string) ?? '',
@@ -103,9 +106,14 @@ export const followApi = {
     }));
   },
   removeFollower: (followerId: string, signal?: AbortSignal) =>
-    api.delete(`/users/me/followers/${followerId}`, { signal }).then((r) => r.data),
+    api
+      .delete(`/users/me/followers/${followerId}`, ...(signal ? [{ signal }] : []))
+      .then((r) => r.data),
   dismissSuggestedUser: (targetId: string, signal?: AbortSignal) =>
     api
-      .post<{ success: boolean }>(`/users/suggested/${targetId}/dismiss`, {}, { signal })
+      .post<{ success: boolean }>(
+        `/users/suggested/${targetId}/dismiss`,
+        ...(signal ? [{}, { signal }] : []),
+      )
       .then((r) => r.data),
 };

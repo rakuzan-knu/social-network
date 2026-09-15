@@ -10,12 +10,18 @@ import type {
 
 export const storiesApi = {
   async getFeed(signal?: AbortSignal): Promise<UserStoriesGroup[]> {
-    const res = await apiClient.get<UserStoriesGroup[]>('/stories/feed', { signal });
+    const res = await apiClient.get<UserStoriesGroup[]>(
+      '/stories/feed',
+      ...(signal ? [{ signal }] : []),
+    );
     return res.data;
   },
 
   async getUserStories(userId: string, signal?: AbortSignal): Promise<UserStoriesGroup | null> {
-    const res = await apiClient.get<UserStoriesGroup | null>(`/stories/user/${userId}`, { signal });
+    const res = await apiClient.get<UserStoriesGroup | null>(
+      `/stories/user/${userId}`,
+      ...(signal ? [{ signal }] : []),
+    );
     return res.data;
   },
 
@@ -47,13 +53,13 @@ export const storiesApi = {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
-      signal,
+      ...(signal ? { signal } : {}),
     });
     return res.data;
   },
 
   async viewStory(storyId: string, signal?: AbortSignal): Promise<void> {
-    await apiClient.post(`/stories/${storyId}/view`, {}, { signal });
+    await apiClient.post(`/stories/${storyId}/view`, ...(signal ? [{}, { signal }] : []));
   },
 
   async reactToStory(
@@ -64,7 +70,7 @@ export const storiesApi = {
     const res = await apiClient.post<{ emoji: string }>(
       `/stories/${storyId}/react`,
       { emoji },
-      { signal },
+      ...(signal ? [{ signal }] : []),
     );
     return res.data;
   },
@@ -79,7 +85,7 @@ export const storiesApi = {
       {
         optionIndex,
       },
-      { signal },
+      ...(signal ? [{ signal }] : []),
     );
     return res.data;
   },
@@ -89,23 +95,31 @@ export const storiesApi = {
     text: string,
     signal?: AbortSignal,
   ): Promise<{ conversationId: string; message: any }> {
-    const res = await apiClient.post(`/stories/${storyId}/reply`, { text }, { signal });
+    const res = await apiClient.post(
+      `/stories/${storyId}/reply`,
+      { text },
+      ...(signal ? [{ signal }] : []),
+    );
     return res.data;
   },
 
   async getStoryViewers(storyId: string, signal?: AbortSignal): Promise<StoryViewersListResponse> {
-    const res = await apiClient.get<StoryViewersListResponse>(`/stories/${storyId}/viewers`, {
-      signal,
-    });
+    const res = await apiClient.get<StoryViewersListResponse>(
+      `/stories/${storyId}/viewers`,
+      ...(signal ? [{ signal }] : []),
+    );
     return res.data;
   },
 
   async deleteStory(storyId: string, signal?: AbortSignal): Promise<void> {
-    await apiClient.delete(`/stories/${storyId}`, { signal });
+    await apiClient.delete(`/stories/${storyId}`, ...(signal ? [{ signal }] : []));
   },
 
   async getCloseFriends(signal?: AbortSignal): Promise<StoryViewerUser[]> {
-    const res = await apiClient.get<StoryViewerUser[]>('/stories/close-friends/list', { signal });
+    const res = await apiClient.get<StoryViewerUser[]>(
+      '/stories/close-friends/list',
+      ...(signal ? [{ signal }] : []),
+    );
     return res.data;
   },
 
@@ -115,8 +129,7 @@ export const storiesApi = {
   ): Promise<{ isCloseFriend: boolean }> {
     const res = await apiClient.post<{ isCloseFriend: boolean }>(
       `/stories/close-friends/${friendId}`,
-      {},
-      { signal },
+      ...(signal ? [{}, { signal }] : []),
     );
     return res.data;
   },

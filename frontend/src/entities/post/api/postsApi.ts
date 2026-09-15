@@ -123,35 +123,52 @@ export function normalizeFeedPage(resData: Record<string, unknown> | null | unde
 export const postsApi = {
   getFeed: (after?: string, limit = 10, signal?: AbortSignal): Promise<FeedPage> =>
     api
-      .get<Record<string, unknown>>('/posts', { params: { after, limit }, signal })
+      .get<Record<string, unknown>>('/posts', {
+        params: { after, limit },
+        ...(signal ? { signal } : {}),
+      })
       .then((r) => normalizeFeedPage(r.data)),
 
   getUserPosts: (userId: string, after?: string, signal?: AbortSignal): Promise<FeedPage> =>
     api
-      .get<Record<string, unknown>>(`/users/${userId}/posts`, { params: { after }, signal })
+      .get<Record<string, unknown>>(`/users/${userId}/posts`, {
+        params: { after },
+        ...(signal ? { signal } : {}),
+      })
       .then((r) => normalizeFeedPage(r.data)),
 
   getUserReposts: (userId: string, after?: string, signal?: AbortSignal): Promise<FeedPage> =>
     api
-      .get<Record<string, unknown>>(`/users/${userId}/reposts`, { params: { after }, signal })
+      .get<Record<string, unknown>>(`/users/${userId}/reposts`, {
+        params: { after },
+        ...(signal ? { signal } : {}),
+      })
       .then((r) => normalizeFeedPage(r.data)),
 
   getPollVoters: (postId: string | number, signal?: AbortSignal): Promise<PollVoterGroup[]> =>
-    api.get<PollVoterGroup[]>(`/posts/${postId}/poll/voters`, { signal }).then((r) => r.data),
+    api
+      .get<PollVoterGroup[]>(`/posts/${postId}/poll/voters`, ...(signal ? [{ signal }] : []))
+      .then((r) => r.data),
 
   getSavedPosts: (after?: string, limit = 10, signal?: AbortSignal): Promise<FeedPage> =>
     api
-      .get<Record<string, unknown>>('/users/me/saved-posts', { params: { after, limit }, signal })
+      .get<Record<string, unknown>>('/users/me/saved-posts', {
+        params: { after, limit },
+        ...(signal ? { signal } : {}),
+      })
       .then((r) => normalizeFeedPage(r.data)),
 
   getPostById: (postId: string, signal?: AbortSignal): Promise<PostType> =>
     api
-      .get<Record<string, unknown>>(`/posts/${postId}`, { signal })
+      .get<Record<string, unknown>>(`/posts/${postId}`, ...(signal ? [{ signal }] : []))
       .then((r) => normalizePost(r.data)),
 
   getExplorePosts: (after?: string, limit = 9, signal?: AbortSignal): Promise<FeedPage> =>
     api
-      .get<Record<string, unknown>>('/posts/explore', { params: { after, limit }, signal })
+      .get<Record<string, unknown>>('/posts/explore', {
+        params: { after, limit },
+        ...(signal ? { signal } : {}),
+      })
       .then((r) => normalizeFeedPage(r.data)),
 
   getPostsByHashtag: (
@@ -165,7 +182,7 @@ export const postsApi = {
         `/posts/hashtag/${encodeURIComponent(tag.replace(/^#+/, ''))}`,
         {
           params: { after, limit },
-          signal,
+          ...(signal ? { signal } : {}),
         },
       )
       .then((r) => {
@@ -186,7 +203,7 @@ export const postsApi = {
     api
       .get<Record<string, unknown>>('/posts/search', {
         params: { q: query, after, limit, mediaOnly: mediaOnly ? 'true' : undefined },
-        signal,
+        ...(signal ? { signal } : {}),
       })
       .then((r) => normalizeFeedPage(r.data)),
 
@@ -196,22 +213,24 @@ export const postsApi = {
     signal?: AbortSignal,
   ): Promise<PostType> =>
     api
-      .patch<Record<string, unknown>>(`/posts/${postId}`, dto, { signal })
+      .patch<Record<string, unknown>>(`/posts/${postId}`, dto, ...(signal ? [{ signal }] : []))
       .then((r) => normalizePost(r.data)),
 
   deletePost: (postId: string | number, signal?: AbortSignal): Promise<unknown> =>
-    api.delete(`/posts/${postId}`, { signal }).then((r) => r.data),
+    api.delete(`/posts/${postId}`, ...(signal ? [{ signal }] : [])).then((r) => r.data),
 
   reportPost: (postId: string | number, reason: string, signal?: AbortSignal): Promise<unknown> =>
-    api.post(`/posts/${postId}/report`, { reason }, { signal }).then((r) => r.data),
+    api
+      .post(`/posts/${postId}/report`, { reason }, ...(signal ? [{ signal }] : []))
+      .then((r) => r.data),
 
   pinPost: (postId: string | number, signal?: AbortSignal): Promise<PostType> =>
     api
-      .post<Record<string, unknown>>(`/posts/${postId}/pin`, {}, { signal })
+      .post<Record<string, unknown>>(`/posts/${postId}/pin`, ...(signal ? [{}, { signal }] : []))
       .then((r) => normalizePost(r.data)),
 
   unpinPost: (postId: string | number, signal?: AbortSignal): Promise<PostType> =>
     api
-      .delete<Record<string, unknown>>(`/posts/${postId}/pin`, { signal })
+      .delete<Record<string, unknown>>(`/posts/${postId}/pin`, ...(signal ? [{ signal }] : []))
       .then((r) => normalizePost(r.data)),
 };

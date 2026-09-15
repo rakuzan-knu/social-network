@@ -25,7 +25,7 @@ describe('MediaProxyService', () => {
     };
     service = new MediaProxyService(
       redis as unknown as RedisService,
-      { searchTracks: jest.fn() } as unknown as SoundCloudService,
+      { searchTracks: jest.fn().mockResolvedValue([]) } as unknown as SoundCloudService,
     );
   });
 
