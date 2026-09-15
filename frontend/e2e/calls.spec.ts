@@ -124,15 +124,19 @@ test.describe('WebRTC E2E Video & Audio Calls (Playwright Fake Media)', () => {
       await page.route('**/notifications/unread-count**', (route) =>
         fulfillWithCors(route, { count: 0 }),
       );
-      await page.route('**/conversations/conv-e2e-1', (route) =>
-        fulfillWithCors(route, MOCK_CONVERSATION),
-      );
-      await page.route('**/conversations/conv-e2e-1/messages**', (route) =>
-        fulfillWithCors(route, { data: [], hasMore: false, nextCursor: null }),
-      );
-      await page.route('**/conversations**', (route) =>
-        fulfillWithCors(route, [MOCK_CONVERSATION]),
-      );
+      await page.route('**/conversations**', (route) => {
+        const url = new URL(route.request().url());
+        if (url.pathname.includes('/messages')) {
+          return fulfillWithCors(route, { data: [], hasMore: false, nextCursor: null });
+        }
+        if (url.pathname.endsWith('/conv-e2e-1')) {
+          return fulfillWithCors(route, MOCK_CONVERSATION);
+        }
+        if (url.pathname.endsWith('/conversations') || url.pathname.endsWith('/conversations/')) {
+          return fulfillWithCors(route, [MOCK_CONVERSATION]);
+        }
+        return fulfillWithCors(route, MOCK_CONVERSATION);
+      });
       await page.route('**/calls/ice-servers', (route) =>
         fulfillWithCors(route, {
           iceServers: [{ urls: ['stun:stun.l.google.com:19302'] }],

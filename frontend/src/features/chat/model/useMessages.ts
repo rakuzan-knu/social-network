@@ -17,7 +17,7 @@ export function useMessages(conversationId: string | null) {
       chatApi.getMessages(conversationId!, pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) =>
-      lastPage.hasMore ? (lastPage.nextCursor ?? undefined) : undefined,
+      lastPage?.hasMore ? (lastPage.nextCursor ?? undefined) : undefined,
     enabled: !!conversationId,
     staleTime: queryStaleTimes.chat,
     gcTime: queryGcTimes.chat,
@@ -27,7 +27,9 @@ export function useMessages(conversationId: string | null) {
 
   const messages = useMemo(() => {
     if (!query.data) return [];
-    const raw = [...query.data.pages].reverse().flatMap((page) => [...page.data].reverse());
+    const raw = [...query.data.pages]
+      .reverse()
+      .flatMap((page) => [...(Array.isArray(page?.data) ? page.data : [])].reverse());
     const seen = new Set<string>();
     const result: MessageView[] = new Array<MessageView>(raw.length);
     let count = 0;
