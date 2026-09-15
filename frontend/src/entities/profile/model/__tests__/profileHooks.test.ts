@@ -42,7 +42,7 @@ describe('Profile Hooks', () => {
     expect(userApi.getProfile).toHaveBeenCalledWith('user-123');
   });
 
-  it('useUserByUsername fetches user by username', async () => {
+  it('useUserByUsername fetches user by username and handles empty username refetch', async () => {
     const mockUser = { id: 'user-456', username: 'sarah', displayName: 'Sarah' };
     vi.mocked(userApi.getByUsername).mockResolvedValueOnce(mockUser as any);
 
@@ -51,6 +51,12 @@ describe('Profile Hooks', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toEqual(mockUser);
     expect(userApi.getByUsername).toHaveBeenCalledWith('sarah');
+
+    const { result: emptyResult } = renderHook(() => useUserByUsername(undefined), { wrapper });
+    expect(emptyResult.current.fetchStatus).toBe('idle');
+    const refetchRes = await emptyResult.current.refetch();
+    expect(refetchRes.isError).toBe(true);
+    expect(refetchRes.error?.message).toBe('Username not specified');
   });
 
   it('useCheckUsername checks username availability', async () => {
@@ -63,7 +69,7 @@ describe('Profile Hooks', () => {
     expect(userApi.checkUsername).toHaveBeenCalledWith('@newuser');
   });
 
-  it('useGitHubPRCount fetches merged PR count for a github username', async () => {
+  it('useGitHubPRCount handles success, error response, non-array response, and network exceptions', async () => {
     const mockPRs = [
       { merged_at: '2026-01-01', user: { login: 'octocat' } },
       { merged_at: '2026-01-02', user: { login: 'octocat' } },
@@ -71,14 +77,53 @@ describe('Profile Hooks', () => {
       { merged_at: '2026-01-03', user: { login: 'other' } },
     ];
 
-    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+    // 1. Success with username
+    fetchSpy.mockResolvedValueOnce({
       ok: true,
       json: async () => mockPRs,
     } as any);
 
     const { result } = renderHook(() => useGitHubPRCount('octocat'), { wrapper });
-
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toBe(2);
+
+    // 2. !res.ok
+    fetchSpy.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+    } as any);
+    const { result: errResult } = renderHook(() => useGitHubPRCount('octocat-err'), { wrapper });
+    await waitFor(() => expect(errResult.current.isSuccess).toBe(true));
+    expect(errResult.current.data).toBe(0);
+
+    // 3. Non-array response
+    fetchSpy.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ message: 'API rate limit exceeded' }),
+    } as any);
+    const { result: nonArrayResult } = renderHook(() => useGitHubPRCount('octocat-nonarray'), {
+      wrapper,
+    });
+    await waitFor(() => expect(nonArrayResult.current.isSuccess).toBe(true));
+    expect(nonArrayResult.current.data).toBe(0);
+
+    // 4. Empty username provided
+    fetchSpy.mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockPRs,
+    } as any);
+    const { result: noUserResult } = renderHook(() => useGitHubPRCount(''), { wrapper });
+    await waitFor(() => expect(noUserResult.current.isSuccess).toBe(true));
+    expect(noUserResult.current.data).toBe(0);
+
+    // 5. Network throws
+    fetchSpy.mockRejectedValueOnce(new Error('Network failure'));
+    const { result: throwResult } = renderHook(() => useGitHubPRCount('octocat-throw'), {
+      wrapper,
+    });
+    await waitFor(() => expect(throwResult.current.isSuccess).toBe(true));
+    expect(throwResult.current.data).toBe(0);
   });
 });

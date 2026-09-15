@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": ["*.js", "*.cjs", "*.mjs", "*.ts", "scripts/**/*"],
+  "exclude": ["node_modules", "dist", "coverage"],
+  "references": [{ "path": "./backend" }, { "path": "./frontend" }]
+}

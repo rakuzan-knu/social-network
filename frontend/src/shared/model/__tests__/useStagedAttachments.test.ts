@@ -48,7 +48,7 @@ describe('useStagedAttachments', () => {
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:photo1.jpg');
   });
 
-  it('replaces file at index', () => {
+  it('replaces file at index and handles invalid index', () => {
     const { result } = renderHook(() => useStagedAttachments());
     const file1 = new File(['a'], 'photo1.jpg', { type: 'image/jpeg' });
     const replacement = new File(['c'], 'replaced.jpg', { type: 'image/jpeg' });
@@ -58,11 +58,52 @@ describe('useStagedAttachments', () => {
     });
 
     act(() => {
-      result.current.replaceFile(0, replacement);
+      result.current.replaceFile(0, replacement, true);
     });
 
     expect(result.current.files[0].file.name).toBe('replaced.jpg');
+    expect(result.current.files[0].isSpoiler).toBe(true);
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:photo1.jpg');
+
+    // Replace with omitted isSpoiler to inherit existing spoiler state
+    const secondReplacement = new File(['d'], 'second-replaced.jpg', { type: 'image/jpeg' });
+    act(() => {
+      result.current.replaceFile(0, secondReplacement);
+    });
+    expect(result.current.files[0].file.name).toBe('second-replaced.jpg');
+    expect(result.current.files[0].isSpoiler).toBe(true);
+
+    // Replace invalid index
+    act(() => {
+      result.current.replaceFile(99, replacement);
+    });
+    expect(result.current.files).toHaveLength(1);
+  });
+
+  it('toggles spoiler state on attachment', () => {
+    const { result } = renderHook(() => useStagedAttachments());
+    const file1 = new File(['a'], 'photo1.jpg', { type: 'image/jpeg' });
+
+    act(() => {
+      result.current.addFiles([file1]);
+    });
+    expect(result.current.files[0].isSpoiler).toBe(false);
+
+    act(() => {
+      result.current.toggleSpoiler(0);
+    });
+    expect(result.current.files[0].isSpoiler).toBe(true);
+
+    act(() => {
+      result.current.toggleSpoiler(0);
+    });
+    expect(result.current.files[0].isSpoiler).toBe(false);
+
+    // Toggle invalid index
+    act(() => {
+      result.current.toggleSpoiler(99);
+    });
+    expect(result.current.files).toHaveLength(1);
   });
 
   it('clears all files and revokes URLs', () => {

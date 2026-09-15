@@ -30,4 +30,8 @@ describe('Users (e2e)', () => {
   it('GET /users/:id returns 404 for non-existent user id', async () => {
     await request(app.getHttpServer()).get('/users/nonexistent-id-9999').expect(404);
   });
+
+  it('GET /users/me without auth returns 401', async () => {
+    await request(app.getHttpServer()).get('/users/me').expect(401);
+  });
 });

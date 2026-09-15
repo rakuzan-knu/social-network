@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { registerSessionResetHandler } from '@/shared/model/resetSession';
 import type { SpotifyTrack } from '@/shared/model/useSpotifyPlayerStore';
 
 export type JamQueuePolicy = 'dj_only' | 'open_queue';
@@ -128,3 +129,8 @@ export const useJamStore = create<JamState>((set, get) => ({
       latency: 0,
     }),
 }));
+
+/** RESET_STORES: leave jam room state on logout/switch (socket rejoins). */
+registerSessionResetHandler(() => {
+  useJamStore.getState().resetJam();
+});

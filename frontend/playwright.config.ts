@@ -15,13 +15,24 @@ export default defineConfig({
   reporter: [['list'], ['html', { outputFolder: 'playwright-report', open: 'never' }]],
   use: {
     baseURL: 'http://127.0.0.1:5173',
-    trace: 'retain-on-failure',
+    trace: 'on',
     screenshot: 'only-on-failure',
   },
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        launchOptions: {
+          args: [
+            '--use-fake-device-for-media-stream',
+            '--use-fake-ui-for-media-stream',
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+          ],
+        },
+        permissions: ['camera', 'microphone'],
+      },
     },
   ],
   webServer: {

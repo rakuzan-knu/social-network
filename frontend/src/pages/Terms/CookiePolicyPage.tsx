@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { PrivacyNavbar } from '../Privacy/ui/PrivacyNavbar';
 import { TLDRCallout } from '../Privacy/ui/TLDRCallout';
-import { EternalFooter } from '../../shared/ui/EternalFooter';
+import { EternalFooter } from '@/widgets/footer';
 import { SEOHead } from '../../shared/seo';
 import { Cookie, Settings, Mail, Printer, ArrowUp, FileText } from 'lucide-react';
 import { useLanguageStore } from '../../shared/lib/language/languageStore';

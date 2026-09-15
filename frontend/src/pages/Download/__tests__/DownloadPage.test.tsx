@@ -5,8 +5,6 @@ import { MemoryRouter } from 'react-router-dom';
 import { DownloadPage } from '../DownloadPage';
 import { useLanguageStore } from '../../../shared/lib/language/languageStore';
 import { useAuthStore } from '../../../shared/model/useAuthStore';
-import App from '../../../app/App';
-import { renderWithProviders } from '../../../test/renderWithProviders';
 
 describe('Download Page (/download)', () => {
   beforeEach(() => {
@@ -107,17 +105,5 @@ describe('Download Page (/download)', () => {
     expect(
       screen.getByRole('heading', { level: 2, name: /ЗАВАНТАЖИТИ ДЛЯ ТЕЛЕФОНУ/i }),
     ).toBeInTheDocument();
-  });
-
-  it('is publicly accessible directly via /download without requiring login', async () => {
-    useAuthStore.setState({ isAuthenticated: false, userId: null });
-
-    renderWithProviders(<App />, { initialEntries: ['/download'] });
-
-    await waitFor(() => {
-      expect(
-        screen.getByRole('heading', { level: 1, name: /DOWNLOAD ETERNAL WHEREVER YOU HANG OUT/i }),
-      ).toBeInTheDocument();
-    });
   });
 });

@@ -64,6 +64,41 @@ describe('ConversationDetailsPanel', () => {
     expect(screen.queryByText('Read receipts')).not.toBeInTheDocument();
   });
 
+  it('renders group chat details with leave group and edit group buttons', () => {
+    const groupConv = {
+      ...mockConv,
+      type: 'GROUP' as const,
+      name: 'Alpha Team',
+      participants: [
+        {
+          userId: 'usr-1',
+          role: 'OWNER',
+          user: { id: 'usr-1', username: 'owner', displayName: 'Owner' },
+        },
+      ],
+    } as any;
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ConversationDetailsPanel
+            conversation={groupConv}
+            display={{ title: 'Alpha Team', avatar: null, isGroup: true, otherUserId: null }}
+            otherUserId={null}
+            messages={[]}
+            onClose={vi.fn()}
+            onOpenSearch={vi.fn()}
+            onJumpToMessage={vi.fn()}
+          />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByText('Alpha Team')).toBeInTheDocument();
+    expect(screen.getByText('Edit group')).toBeInTheDocument();
+    expect(screen.getByText('Leave group')).toBeInTheDocument();
+  });
+
   it('renders "Playing [game]" with DiscordGamepadIcon when user is playing a game', () => {
     usePresenceStore.setState({
       onlineUserIds: new Set(['usr-2']),
@@ -90,6 +125,42 @@ describe('ConversationDetailsPanel', () => {
 
     expect(screen.getByText(/Playing/i)).toBeInTheDocument();
     expect(screen.getByText('Dota 2')).toBeInTheDocument();
+  });
+
+  it('handles shared theme unlinking and archive toggle', async () => {
+    const { chatApi } = await import('../../api/chatApi');
+    const unlinkSpy = vi.spyOn(chatApi, 'unlinkSharedTheme').mockResolvedValue({} as any);
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    const convWithTheme: any = {
+      ...mockConv,
+      sharedTheme: { themeId: 'midnight-purple' },
+    };
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ConversationDetailsPanel
+            conversation={convWithTheme}
+            display={{ title: 'Alice Smith', avatar: null, isGroup: false, otherUserId: 'usr-2' }}
+            otherUserId="usr-2"
+            messages={[]}
+            onClose={vi.fn()}
+            onOpenSearch={vi.fn()}
+            onJumpToMessage={vi.fn()}
+          />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByText('Paired theme active')).toBeInTheDocument();
+    const unlinkBtn = screen.getByTitle('Unlink paired theme');
+    unlinkBtn.click();
+
+    expect(unlinkSpy).toHaveBeenCalledWith('conv-1');
+
+    unlinkSpy.mockRestore();
+    confirmSpy.mockRestore();
   });
 
   it('accurately counts external links in message bodies', () => {

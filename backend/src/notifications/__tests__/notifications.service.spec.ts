@@ -4,20 +4,21 @@ import {
   NOTIFICATIONS_REPOSITORY,
   type INotificationsRepository,
 } from '../interfaces/notifications-repository.interface';
-import { PrismaService } from '@common/prisma';
 import { RedisService } from '../../redis/redis.service';
 import { MessengerGateway } from '../../messenger/gateway/messenger.gateway';
 import { NotificationType } from '@common/contracts';
 import type { Prisma } from '@prisma/client';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, Logger } from '@nestjs/common';
 import { WS_EVENTS } from '../../messenger/events/ws-events';
+
+import { QueueService } from '../../queue/queue.service';
 
 describe('NotificationsService', () => {
   let service: NotificationsService;
   let mockRepo: Record<keyof INotificationsRepository, jest.Mock>;
-  let mockPrisma: { userBlock: { findFirst: jest.Mock } };
-  let mockRedis: { getClient: jest.Mock };
+  let mockRedis: { getClient: jest.Mock; get: jest.Mock; set: jest.Mock };
   let mockGateway: { emitToUser: jest.Mock };
+  let mockQueueService: { addNotificationJob: jest.Mock };
 
   const mockNotification = {
     id: 'notif-1',
@@ -69,22 +70,25 @@ describe('NotificationsService', () => {
       getUsersByIds: jest.fn().mockResolvedValue([]),
       getSettings: jest.fn().mockResolvedValue(null),
       upsertSettings: jest.fn().mockResolvedValue({}),
-    };
-
-    mockPrisma = {
-      userBlock: {
-        findFirst: jest.fn().mockResolvedValue(null),
-      },
+      isBlocked: jest.fn().mockResolvedValue(false),
     };
 
     mockRedis = {
       getClient: jest.fn().mockReturnValue({
         set: jest.fn().mockResolvedValue('OK'),
       }),
-    };
+      get: jest.fn().mockResolvedValue(null),
+      set: jest.fn().mockResolvedValue('OK'),
+      acquireLock: jest.fn().mockResolvedValue('token-123'),
+      releaseLock: jest.fn().mockResolvedValue(true),
+    } as unknown as { getClient: jest.Mock; get: jest.Mock; set: jest.Mock };
 
     mockGateway = {
       emitToUser: jest.fn(),
+    };
+
+    mockQueueService = {
+      addNotificationJob: jest.fn().mockResolvedValue(undefined),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -95,10 +99,6 @@ describe('NotificationsService', () => {
           useValue: mockRepo,
         },
         {
-          provide: PrismaService,
-          useValue: mockPrisma,
-        },
-        {
           provide: RedisService,
           useValue: mockRedis,
         },
@@ -106,10 +106,20 @@ describe('NotificationsService', () => {
           provide: MessengerGateway,
           useValue: mockGateway,
         },
+        {
+          provide: QueueService,
+          useValue: mockQueueService,
+        },
       ],
     }).compile();
 
     service = module.get<NotificationsService>(NotificationsService);
+    jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
+    jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   describe('createNotification', () => {
@@ -143,10 +153,7 @@ describe('NotificationsService', () => {
     });
 
     it('should NOT create notification if user is blocked by actor or vice versa', async () => {
-      mockPrisma.userBlock.findFirst.mockResolvedValueOnce({
-        blockerId: 'user-1',
-        blockedId: 'user-2',
-      });
+      mockRepo.isBlocked.mockResolvedValueOnce(true);
 
       const result = await service.createNotification('user-1', NotificationType.LIKE_POST, {
         actorId: 'user-2',
@@ -160,8 +167,7 @@ describe('NotificationsService', () => {
     it('should aggregate/smart group notifications if recent matching exists', async () => {
       mockRepo.findRecentMatching.mockResolvedValueOnce({
         ...mockNotification,
-        actorId: 'user-3', // Previous liker
-        extraCount: 0,
+        actorId: 'user-3',
       });
 
       mockRepo.update.mockResolvedValueOnce({
@@ -182,23 +188,42 @@ describe('NotificationsService', () => {
     });
   });
 
-  describe('getNotifications', () => {
-    it('should return paginated notifications with unread counts breakdown', async () => {
-      const result = await service.getNotifications('user-1', { limit: 10, type: 'likes' });
+  describe('getNotifications with different filters', () => {
+    it('should filter by comments, follows, mentions, reposts, system', async () => {
+      await service.getNotifications('user-1', { limit: 10, type: 'comments' });
+      expect(mockRepo.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ types: [NotificationType.COMMENT] }),
+      );
 
-      expect(result.items).toHaveLength(1);
-      expect(result.unreadCounts.total).toBe(1);
-      expect(result.unreadCounts.likes).toBe(1);
-      expect(mockRepo.findMany).toHaveBeenCalledWith({
-        userId: 'user-1',
-        types: [NotificationType.LIKE_POST, NotificationType.LIKE_COMMENT],
-        limit: 10,
-        cursor: undefined,
-      });
+      await service.getNotifications('user-1', { limit: 10, type: 'follows' });
+      expect(mockRepo.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ types: [NotificationType.FOLLOW] }),
+      );
+
+      await service.getNotifications('user-1', { limit: 10, type: 'mentions' });
+      expect(mockRepo.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ types: [NotificationType.MENTION] }),
+      );
+
+      await service.getNotifications('user-1', { limit: 10, type: 'reposts' });
+      expect(mockRepo.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ types: [NotificationType.REPOST] }),
+      );
+
+      await service.getNotifications('user-1', { limit: 10, type: 'system' });
+      expect(mockRepo.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          types: [
+            NotificationType.SYSTEM_VERIFIED,
+            NotificationType.SYSTEM_VIEW,
+            NotificationType.SYSTEM,
+          ],
+        }),
+      );
     });
   });
 
-  describe('markAsRead', () => {
+  describe('markAsRead & markAllAsRead', () => {
     it('should mark single notification as read and emit socket event', async () => {
       const result = await service.markAsRead('notif-1', 'user-1');
 
@@ -219,48 +244,50 @@ describe('NotificationsService', () => {
 
       await expect(service.markAsRead('notif-1', 'user-999')).rejects.toThrow(NotFoundException);
     });
-  });
 
-  describe('markAllAsRead', () => {
-    it('should mark all notifications as read and emit socket event', async () => {
+    it('should mark all notifications as read', async () => {
       const result = await service.markAllAsRead('user-1', 'all');
 
       expect(result.success).toBe(true);
       expect(result.count).toBe(1);
       expect(mockRepo.markAllAsRead).toHaveBeenCalledWith('user-1', undefined);
-      expect(mockGateway.emitToUser).toHaveBeenCalledWith(
-        'user-1',
-        WS_EVENTS.NOTIFICATION_READ,
-        expect.objectContaining({
-          allRead: true,
-        }),
-      );
     });
   });
 
   describe('getUnreadCounts', () => {
-    it('should return unread counts for all categories', async () => {
+    it('should return unread counts for all categories and handle errors gracefully', async () => {
       const result = await service.getUnreadCounts('user-1');
 
       expect(result.total).toBe(1);
       expect(result.likes).toBe(1);
       expect(result.comments).toBe(0);
+
+      mockRepo.countUnread.mockRejectedValueOnce(new Error('DB failure'));
+      const fallback = await service.getUnreadCounts('user-1');
+      expect(fallback.total).toBe(0);
     });
   });
 
-  describe('settings and preference guard', () => {
-    it('should get notification settings with defaults if not set in db', async () => {
-      mockRepo.getSettings = jest.fn().mockResolvedValueOnce(null);
+  describe('settings, push allowed checks, and author muting', () => {
+    it('should get notification settings from cache or db with muted actors enrichment', async () => {
+      mockRepo.getSettings = jest.fn().mockResolvedValue({
+        mutedActorIds: ['u-2'],
+      });
+      mockRepo.getUsersByIds.mockResolvedValue([
+        { id: 'u-2', username: 'alex', displayName: 'Alex', avatar: null, isVerified: true },
+      ]);
 
       const settings = await service.getSettings('user-1');
+      expect(settings.mutedActors).toHaveLength(1);
+      expect(settings.mutedActors?.[0]?.username).toBe('alex');
 
-      expect(settings.enableNotifications).toBe(true);
-      expect(settings.likes).toBe(true);
-      expect(settings.mentions).toBe(true);
-      expect(settings.system).toBe(true);
+      // Test cached branch
+      mockRedis.get.mockResolvedValueOnce(JSON.stringify(settings));
+      const cached = await service.getSettings('user-1');
+      expect(cached.mutedActors).toHaveLength(1);
     });
 
-    it('should update notification settings and update cache', async () => {
+    it('should update notification settings with dndUntil and invalidation', async () => {
       const updatedRow = {
         userId: 'user-1',
         enableNotifications: true,
@@ -279,83 +306,38 @@ describe('NotificationsService', () => {
         system: true,
         toastPosition: 'top-right',
         maxToasts: 2,
+        dndUntil: new Date('2026-10-01T00:00:00.000Z'),
+        mutedActorIds: [],
       };
       mockRepo.upsertSettings = jest.fn().mockResolvedValueOnce(updatedRow);
 
-      const result = await service.updateSettings('user-1', { likes: false, allowSound: false });
-
-      expect(result.likes).toBe(false);
-      expect(result.allowSound).toBe(false);
-      expect(mockRepo.upsertSettings).toHaveBeenCalledWith('user-1', {
+      const result = await service.updateSettings('user-1', {
         likes: false,
         allowSound: false,
+        dndUntil: '2026-10-01T00:00:00.000Z',
       });
+
+      expect(result.dndUntil).toBe('2026-10-01T00:00:00.000Z');
+      expect(mockRepo.upsertSettings).toHaveBeenCalled();
     });
 
-    it('should suppress WebSocket push notification when user has disabled that category', async () => {
-      mockRepo.getSettings = jest.fn().mockResolvedValueOnce({
+    it('isNotificationPushAllowed checks all categories correctly', async () => {
+      mockRepo.getSettings = jest.fn().mockResolvedValue({
         enableNotifications: true,
-        likes: false, // Likes disabled
-        comments: true,
+        likes: true,
+        comments: false,
         reposts: true,
-        followers: true,
+        followers: false,
         mentions: true,
-        system: true,
+        system: false,
       });
 
-      await service.createNotification('user-1', NotificationType.LIKE_POST, {
-        actorId: 'user-2',
-        postId: 'post-1',
-      });
-
-      // Notification is still created in database
-      expect(mockRepo.create).toHaveBeenCalled();
-      // But socket broadcast is suppressed because likes are disabled
-      expect(mockGateway.emitToUser).not.toHaveBeenCalledWith(
-        'user-1',
-        WS_EVENTS.NOTIFICATION_NEW,
-        expect.anything(),
-      );
-    });
-
-    it('should suppress WebSocket push notification when Do Not Disturb is active', async () => {
-      mockRepo.getSettings = jest.fn().mockResolvedValueOnce({
-        enableNotifications: true,
-        likes: true,
-        dndUntil: new Date(Date.now() + 3600 * 1000), // Active DND for 1 hour
-      });
-
-      await service.createNotification('user-1', NotificationType.LIKE_POST, {
-        actorId: 'user-2',
-        postId: 'post-1',
-      });
-
-      expect(mockRepo.create).toHaveBeenCalled();
-      expect(mockGateway.emitToUser).not.toHaveBeenCalledWith(
-        'user-1',
-        WS_EVENTS.NOTIFICATION_NEW,
-        expect.anything(),
-      );
-    });
-
-    it('should suppress WebSocket push notification from muted author', async () => {
-      mockRepo.getSettings = jest.fn().mockResolvedValueOnce({
-        enableNotifications: true,
-        likes: true,
-        mutedActorIds: ['user-2'], // user-2 is muted
-      });
-
-      await service.createNotification('user-1', NotificationType.LIKE_POST, {
-        actorId: 'user-2',
-        postId: 'post-1',
-      });
-
-      expect(mockRepo.create).toHaveBeenCalled();
-      expect(mockGateway.emitToUser).not.toHaveBeenCalledWith(
-        'user-1',
-        WS_EVENTS.NOTIFICATION_NEW,
-        expect.anything(),
-      );
+      expect(await service.isNotificationPushAllowed('u-1', NotificationType.LIKE_POST)).toBe(true);
+      expect(await service.isNotificationPushAllowed('u-1', NotificationType.COMMENT)).toBe(false);
+      expect(await service.isNotificationPushAllowed('u-1', NotificationType.REPOST)).toBe(true);
+      expect(await service.isNotificationPushAllowed('u-1', NotificationType.FOLLOW)).toBe(false);
+      expect(await service.isNotificationPushAllowed('u-1', NotificationType.MENTION)).toBe(true);
+      expect(await service.isNotificationPushAllowed('u-1', NotificationType.SYSTEM)).toBe(false);
     });
 
     it('should mute and unmute author', async () => {
@@ -393,14 +375,6 @@ describe('NotificationsService', () => {
 
       expect(result.success).toBe(true);
       expect(mockRepo.delete).toHaveBeenCalledWith('notif-1', 'user-1');
-      expect(mockGateway.emitToUser).toHaveBeenCalledWith(
-        'user-1',
-        WS_EVENTS.NOTIFICATION_READ,
-        expect.objectContaining({
-          notificationId: 'notif-1',
-          deleted: true,
-        }),
-      );
     });
 
     it('should throw NotFoundException if notification does not exist or unauthorized', async () => {

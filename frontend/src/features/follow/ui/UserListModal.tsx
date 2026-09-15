@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, X, Users, UserPlus } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -38,21 +38,19 @@ function UserListSkeleton() {
 
 export function UserListModal({ userId, mode, isOwnProfile, onClose }: UserListModalProps) {
   const [search, setSearch] = useState('');
-  const { userId: myUserId } = useAuthStore();
+  const myUserId = useAuthStore((s) => s.userId);
   const removeFollowerMutation = useRemoveFollowerMutation(userId);
 
   const query = useFollowList(userId, mode);
 
-  const allUsers = useMemo(() => query.data?.pages.flatMap((p) => p.items) ?? [], [query.data]);
-  const filteredUsers = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    if (!term) return allUsers;
-    return allUsers.filter(
-      (u) =>
-        u.username.toLowerCase().includes(term) ||
-        (u.displayName ?? '').toLowerCase().includes(term),
-    );
-  }, [allUsers, search]);
+  const allUsers = query.data?.pages.flatMap((p) => p.items) ?? [];
+  const filteredUsers = search.trim()
+    ? allUsers.filter(
+        (u) =>
+          u.username.toLowerCase().includes(search.trim().toLowerCase()) ||
+          (u.displayName ?? '').toLowerCase().includes(search.trim().toLowerCase()),
+      )
+    : allUsers;
 
   const title = mode === 'followers' ? 'Followers' : 'Following';
 

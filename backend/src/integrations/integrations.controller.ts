@@ -408,11 +408,11 @@ export class IntegrationsController {
         title: t.title,
         artist: t.artist || 'Unknown Artist',
         album: t.album || t.title,
-        albumArt: t.albumArt,
+        albumArt: t.albumArt ?? null,
         durationMs: t.durationMs || 180000,
-        previewUrl: t.previewUrl,
-        streamUrl: t.streamUrl,
-        spotifyUrl: t.spotifyUrl,
+        previewUrl: t.previewUrl ?? null,
+        streamUrl: t.streamUrl ?? null,
+        spotifyUrl: t.spotifyUrl ?? null,
         source: t.source || 'soundcloud',
         addedAt: addedAtDate,
       },
@@ -422,11 +422,11 @@ export class IntegrationsController {
         title: t.title,
         artist: t.artist || 'Unknown Artist',
         album: t.album || t.title,
-        albumArt: t.albumArt,
+        albumArt: t.albumArt ?? null,
         durationMs: t.durationMs || 180000,
-        previewUrl: t.previewUrl,
-        streamUrl: t.streamUrl,
-        spotifyUrl: t.spotifyUrl,
+        previewUrl: t.previewUrl ?? null,
+        streamUrl: t.streamUrl ?? null,
+        spotifyUrl: t.spotifyUrl ?? null,
         source: t.source || 'soundcloud',
         addedAt: addedAtDate,
       },
@@ -554,7 +554,9 @@ export class IntegrationsController {
 
     const folder = await this.prisma.userMusicFolder.create({
       data: {
-        id: body?.id && typeof body.id === 'string' && body.id.trim() ? body.id.trim() : undefined,
+        ...(body?.id && typeof body.id === 'string' && body.id.trim()
+          ? { id: body.id.trim() }
+          : {}),
         userId: user.id,
         name,
       },
@@ -725,7 +727,9 @@ export class IntegrationsController {
 
     const playlist = await this.prisma.userPlaylist.create({
       data: {
-        id: body?.id && typeof body.id === 'string' && body.id.trim() ? body.id.trim() : undefined,
+        ...(body?.id && typeof body.id === 'string' && body.id.trim()
+          ? { id: body.id.trim() }
+          : {}),
         userId: user.id,
         title,
         description: body?.description?.trim() || null,
@@ -783,11 +787,11 @@ export class IntegrationsController {
     const updated = await this.prisma.userPlaylist.update({
       where: { id },
       data: {
-        title: body.title !== undefined ? body.title.trim() : undefined,
-        description: body.description !== undefined ? body.description.trim() : undefined,
-        coverUrl: body.coverUrl !== undefined ? body.coverUrl.trim() : undefined,
-        folderId: targetFolderId !== undefined ? targetFolderId : undefined,
-        isPublic: body.isPublic !== undefined ? body.isPublic : undefined,
+        ...(body.title !== undefined ? { title: body.title.trim() } : {}),
+        ...(body.description !== undefined ? { description: body.description.trim() } : {}),
+        ...(body.coverUrl !== undefined ? { coverUrl: body.coverUrl.trim() } : {}),
+        ...(targetFolderId !== undefined ? { folderId: targetFolderId } : {}),
+        ...(body.isPublic !== undefined ? { isPublic: body.isPublic } : {}),
       },
       include: {
         user: {

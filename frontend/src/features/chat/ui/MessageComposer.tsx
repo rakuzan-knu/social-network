@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState, useTransition } from 'react';
 import { X, Mic, Video, Send, FileImage as FileIcon, EyeOff } from 'lucide-react';
 import { MessageView } from '../../../entities/chat/model/types';
 import { useMessageActions } from '../model/useMessageActions';
@@ -6,6 +6,7 @@ import { OutgoingAttachment } from '../../../entities/chat/model/types';
 import { StagedFile } from '@/shared/model/useStagedAttachments';
 import { MAX_ATTACHMENTS_PER_MESSAGE } from '@/shared/lib/attachmentLimits';
 import ReplyPreview from './ReplyPreview';
+import { E2eePinChangedError } from '../lib/e2ee/messageE2ee';
 import { AddEmojiButton } from '@/shared/ui/AddEmojiButton';
 import { AddGifButton } from '@/shared/ui/AddGifButton';
 import PollComposer from './PollComposer';
@@ -21,6 +22,7 @@ import { detectCodeSnippet, DetectedCodeSnippet } from '../lib/smartCodeDetectio
 import { extractFirstUrl } from '@/shared/lib/urlUtils';
 import { useLinkPreview } from '@/entities/opengraph/model/useLinkPreview';
 import { LinkPreviewBanner } from './LinkPreviewBanner';
+import { Permission } from '@/shared/lib/permissions';
 
 export interface ChatPermissions {
   canSendMedia?: boolean;
@@ -43,7 +45,10 @@ interface MessageComposerProps {
   onDismissFilesError: () => void;
   isGroup: boolean;
   permissions?: ChatPermissions;
+  permissionsMask?: number;
   slowModeSeconds?: number;
+  /** 1:1 peer for E2EE reply-quote decrypt; null/undefined = groups or unknown. */
+  e2eePeerUserId?: string | null;
 }
 
 type OpenPopover = 'emoji' | 'gif' | 'poll' | null;
@@ -70,7 +75,9 @@ export default function MessageComposer({
   onDismissFilesError,
   isGroup,
   permissions = { canSendMedia: true, canSendVoice: true, canSendPolls: true },
+  permissionsMask,
   slowModeSeconds = 0,
+  e2eePeerUserId = null,
 }: MessageComposerProps) {
   const [text, setText] = useState(() => {
     const draft = useChatDraftsStore.getState().getDraft(conversationId);
@@ -78,8 +85,11 @@ export default function MessageComposer({
   });
   const [openPopover, setOpenPopover] = useState<OpenPopover>(null);
   const [isSending, setIsSending] = useState(false);
+  const [isSendingTransition, startSendTransition] = useTransition();
+  const isSendingEffective = isSending || isSendingTransition;
   const [isShaking, setIsShaking] = useState(false);
   const [recordingError, setRecordingError] = useState<string | null>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [slowModeSecondsRemaining, setSlowModeSecondsRemaining] = useState<number>(0);
   const [debouncedUrl, setDebouncedUrl] = useState<string | null>(null);
@@ -119,60 +129,72 @@ export default function MessageComposer({
     return () => clearInterval(interval);
   }, [slowModeSecondsRemaining]);
 
-  const canSendMedia = permissions.canSendMedia ?? true;
-  const canSendVoice = permissions.canSendVoice ?? true;
-  const canSendPolls = permissions.canSendPolls ?? true;
+  const canSendMedia =
+    permissionsMask !== undefined
+      ? (permissionsMask & Permission.CAN_SEND_MEDIA) !== 0
+      : (permissions.canSendMedia ?? true);
+  const canSendVoice =
+    permissionsMask !== undefined
+      ? (permissionsMask & Permission.CAN_SEND_VOICE) !== 0
+      : (permissions.canSendVoice ?? true);
+  const canSendPolls =
+    permissionsMask !== undefined
+      ? (permissionsMask & Permission.CAN_SEND_POLLS) !== 0
+      : (permissions.canSendPolls ?? true);
 
   const hasContent = text.trim().length > 0 || stagedFiles.length > 0;
 
-  const handleSendRecordedMedia = async (payload: RecordedPayload) => {
-    try {
-      setIsSending(true);
-      let uploaded: Partial<OutgoingAttachment> = {};
-
+  const handleSendRecordedMedia = (payload: RecordedPayload) => {
+    startSendTransition(async () => {
       try {
-        uploaded = await actions.uploadAttachment(payload.file);
-      } catch (uploadErr) {
-        // Resilient fallback: convert recorded Blob to Data URL if server upload endpoint fails
+        setIsSending(true);
+        let uploaded: Partial<OutgoingAttachment> = {};
+
         try {
-          const reader = new FileReader();
-          const dataUrlPromise = new Promise<string>((resolve) => {
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = () => resolve(payload.previewUrl);
-          });
-          reader.readAsDataURL(payload.file);
-          const dataUrl = await dataUrlPromise;
-          uploaded = {
-            url: dataUrl,
-            type: payload.mode === 'voice' ? 'AUDIO' : 'VIDEO',
-            fileName: payload.file.name,
-            mimeType: payload.file.type || (payload.mode === 'voice' ? 'audio/webm' : 'video/webm'),
-            size: payload.file.size,
-          };
-        } catch {
-          throw uploadErr;
+          uploaded = await actions.uploadAttachment(payload.file);
+        } catch (uploadErr) {
+          // Resilient fallback: convert recorded Blob to Data URL if server upload endpoint fails
+          try {
+            const reader = new FileReader();
+            const dataUrlPromise = new Promise<string>((resolve) => {
+              reader.onload = () => resolve(reader.result as string);
+              reader.onerror = () => resolve(payload.previewUrl);
+            });
+            reader.readAsDataURL(payload.file);
+            const dataUrl = await dataUrlPromise;
+            uploaded = {
+              url: dataUrl,
+              type: payload.mode === 'voice' ? 'AUDIO' : 'VIDEO',
+              fileName: payload.file.name,
+              mimeType:
+                payload.file.type || (payload.mode === 'voice' ? 'audio/webm' : 'video/webm'),
+              size: payload.file.size,
+            };
+          } catch {
+            throw uploadErr;
+          }
         }
+
+        const outgoing: OutgoingAttachment = {
+          type: payload.mode === 'voice' ? 'AUDIO' : 'VIDEO',
+          url: uploaded.url || payload.previewUrl,
+          size: payload.file.size,
+          duration: payload.duration ? Math.round(payload.duration) : 0,
+          waveform: payload.waveform,
+          fileName: payload.file.name,
+          mimeType: payload.file.type || (payload.mode === 'voice' ? 'audio/webm' : 'video/webm'),
+        };
+
+        await actions.sendMessage('', replyingTo?.id, [outgoing]);
+        onCancelReply();
+        useChatDraftsStore.getState().clearDraft(conversationId);
+      } catch {
+        setRecordingError('Failed to send recording. Please try again.');
+        setTimeout(() => setRecordingError(null), 4000);
+      } finally {
+        setIsSending(false);
       }
-
-      const outgoing: OutgoingAttachment = {
-        type: payload.mode === 'voice' ? 'AUDIO' : 'VIDEO',
-        url: uploaded.url || payload.previewUrl,
-        size: payload.file.size,
-        duration: payload.duration ? Math.round(payload.duration) : 0,
-        waveform: payload.waveform,
-        fileName: payload.file.name,
-        mimeType: payload.file.type || (payload.mode === 'voice' ? 'audio/webm' : 'video/webm'),
-      };
-
-      await actions.sendMessage('', replyingTo?.id, [outgoing]);
-      onCancelReply();
-      useChatDraftsStore.getState().clearDraft(conversationId);
-    } catch {
-      setRecordingError('Failed to send recording. Please try again.');
-      setTimeout(() => setRecordingError(null), 4000);
-    } finally {
-      setIsSending(false);
-    }
+    });
   };
 
   const recorder = useMediaRecorderGesture({
@@ -287,7 +309,7 @@ export default function MessageComposer({
     onCancelReply();
   };
 
-  const handleSend = async () => {
+  const handleSend = () => {
     if (!hasContent) return;
 
     const textToSend = text;
@@ -306,53 +328,64 @@ export default function MessageComposer({
       textareaRef.current.focus();
     }
 
-    try {
-      setIsSending(true);
-      let attachments: OutgoingAttachment[] | undefined;
+    startSendTransition(async () => {
+      try {
+        setIsSending(true);
+        let attachments: OutgoingAttachment[] | undefined;
 
-      if (filesToSend.length > 0) {
-        attachments = await Promise.all(
-          filesToSend.map(async (staged) => {
-            try {
-              const uploaded = await actions.uploadAttachment(staged.file);
-              return {
-                ...uploaded,
-                isSpoiler: staged.isSpoiler,
-              };
-            } catch {
-              // Resilient data URL fallback if server upload endpoint encounters an issue
-              const reader = new FileReader();
-              const dataUrlPromise = new Promise<string>((resolve) => {
-                reader.onload = () => resolve(reader.result as string);
-                reader.onerror = () => resolve(staged.previewUrl);
-              });
-              reader.readAsDataURL(staged.file);
-              const dataUrl = await dataUrlPromise;
-              return {
-                url: dataUrl,
-                type: staged.file.type.startsWith('image/')
-                  ? ('IMAGE' as const)
-                  : staged.file.type.startsWith('video/')
-                    ? ('VIDEO' as const)
-                    : staged.file.type.startsWith('audio/')
-                      ? ('AUDIO' as const)
-                      : ('FILE' as const),
-                fileName: staged.file.name,
-                mimeType: staged.file.type,
-                size: staged.file.size,
-                isSpoiler: staged.isSpoiler,
-              };
-            }
-          }),
-        );
+        if (filesToSend.length > 0) {
+          attachments = await Promise.all(
+            filesToSend.map(async (staged) => {
+              try {
+                const uploaded = await actions.uploadAttachment(staged.file);
+                return {
+                  ...uploaded,
+                  isSpoiler: staged.isSpoiler,
+                };
+              } catch {
+                // Resilient data URL fallback if server upload endpoint encounters an issue
+                const reader = new FileReader();
+                const dataUrlPromise = new Promise<string>((resolve) => {
+                  reader.onload = () => resolve(reader.result as string);
+                  reader.onerror = () => resolve(staged.previewUrl);
+                });
+                reader.readAsDataURL(staged.file);
+                const dataUrl = await dataUrlPromise;
+                return {
+                  url: dataUrl,
+                  type: staged.file.type.startsWith('image/')
+                    ? ('IMAGE' as const)
+                    : staged.file.type.startsWith('video/')
+                      ? ('VIDEO' as const)
+                      : staged.file.type.startsWith('audio/')
+                        ? ('AUDIO' as const)
+                        : ('FILE' as const),
+                  fileName: staged.file.name,
+                  mimeType: staged.file.type,
+                  size: staged.file.size,
+                  isSpoiler: staged.isSpoiler,
+                };
+              }
+            }),
+          );
+        }
+
+        await actions.sendMessage(textToSend, replyToSend?.id, attachments);
+      } catch (err) {
+        if (err instanceof E2eePinChangedError) {
+          // Suspected key substitution: the message was NOT sent (fail closed).
+          // The optimistic bubble sits in ERROR; retry stays blocked until the
+          // new key is accepted. Explain instead of failing silently.
+          setSendError(
+            'This contact\u2019s security key changed. Sending is blocked to protect your messages.',
+          );
+          setTimeout(() => setSendError(null), 6000);
+        }
+        console.error('Failed to send message:', err);
+      } finally {
+        setIsSending(false);
       }
-
-      await actions.sendMessage(textToSend, replyToSend?.id, attachments);
-    } catch (err) {
-      console.error('Failed to send message:', err);
-    } finally {
-      setIsSending(false);
-    }
+    });
   };
 
   const [detectedSnippet, setDetectedSnippet] = useState<DetectedCodeSnippet | null>(null);
@@ -573,11 +606,23 @@ export default function MessageComposer({
 
   return (
     <div className="pt-2">
-      {replyingTo && <ReplyPreview message={replyingTo} onCancel={onCancelReply} />}
+      {replyingTo && (
+        <ReplyPreview
+          message={replyingTo}
+          onCancel={onCancelReply}
+          e2eePeerUserId={e2eePeerUserId}
+        />
+      )}
 
       {recordingError && (
         <div className="mx-4 mb-2 px-3 py-1.5 rounded-xl bg-red-500/10 border border-red-400/30 text-xs text-red-300 backdrop-blur-xl animate-fadeIn">
           {recordingError}
+        </div>
+      )}
+
+      {sendError && (
+        <div className="mx-4 mb-2 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-400/30 text-xs text-amber-200 backdrop-blur-xl animate-fadeIn">
+          {sendError}
         </div>
       )}
 
@@ -661,7 +706,7 @@ export default function MessageComposer({
                   setEditingIndex(index);
                 }
               }}
-              className={`group relative flex-shrink-0 w-14 h-14 rounded-xl overflow-hidden border border-white/10 bg-white/5 backdrop-blur-md shadow-md ${
+              className={`group relative shrink-0 w-14 h-14 rounded-xl overflow-hidden border border-white/10 bg-white/5 backdrop-blur-md shadow-md ${
                 staged.file.type.startsWith('image/')
                   ? 'cursor-pointer hover:border-purple-400/50 hover:shadow-lg transition-all'
                   : ''
@@ -707,7 +752,7 @@ export default function MessageComposer({
 
       <div className="w-full">
         <div
-          className={`relative w-full flex items-center gap-1.5 sm:gap-2 rounded-2xl sm:rounded-[26px] p-1.5 sm:px-3 sm:py-1.5 min-h-[46px] border border-white/15 focus-within:border-white/30 shadow-[0_16px_40px_rgba(0,0,0,0.6),inset_0_1px_1px_rgba(255,255,255,0.15)] backdrop-blur-3xl transition-all duration-200 ${
+          className={`relative w-full flex items-center gap-1.5 sm:gap-2 rounded-2xl sm:rounded-[26px] p-1.5 sm:px-3 sm:py-1.5 min-h-11.5 border border-white/15 focus-within:border-white/30 shadow-[0_16px_40px_rgba(0,0,0,0.6),inset_0_1px_1px_rgba(255,255,255,0.15)] backdrop-blur-3xl transition-all duration-200 ${
             isShaking ? 'animate-shake' : ''
           }`}
           style={{
@@ -718,12 +763,12 @@ export default function MessageComposer({
           }}
         >
           {/* Specular Liquid Glass Top Reflection Sweep */}
-          <div className="absolute inset-x-8 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/40 to-transparent pointer-events-none rounded-t-full" />
+          <div className="absolute inset-x-8 top-0 h-px bg-linear-to-r from-transparent via-white/40 to-transparent pointer-events-none rounded-t-full" />
 
-          <div className="relative flex-shrink-0 flex items-center">
+          <div className="relative shrink-0 flex items-center">
             <AttachMenu
               isGroup={isGroup}
-              disabled={isSending || stagedFiles.length >= MAX_ATTACHMENTS_PER_MESSAGE}
+              disabled={isSendingEffective || stagedFiles.length >= MAX_ATTACHMENTS_PER_MESSAGE}
               canSendMedia={canSendMedia}
               canSendPolls={canSendPolls}
               onPickMedia={onAddFiles}
@@ -755,10 +800,10 @@ export default function MessageComposer({
             rows={1}
             maxLength={MAX_MESSAGE_LENGTH}
             style={{ maxHeight: MAX_TEXTAREA_HEIGHT }}
-            className="flex-1 bg-transparent text-sm text-white placeholder:text-gray-400 focus:outline-none resize-none py-1.5 px-1 custom-scrollbar leading-5 self-center min-h-[32px]"
+            className="flex-1 bg-transparent text-sm text-white placeholder:text-gray-400 focus:outline-none resize-none py-1.5 px-1 custom-scrollbar leading-5 self-center min-h-8"
           />
 
-          <div className="flex items-center gap-1 flex-shrink-0">
+          <div className="flex items-center gap-1 shrink-0">
             {/* Twitter-Style Progress Ring Limit Indicator */}
             {text.length >= WARN_THRESHOLD && (
               <div
@@ -826,7 +871,7 @@ export default function MessageComposer({
 
             {slowModeSecondsRemaining > 0 ? (
               <div
-                className="w-8 h-8 flex-shrink-0 relative flex items-center justify-center rounded-full bg-purple-950/80 border border-purple-500/40 text-purple-200 font-mono text-[11px] font-bold shadow-[0_0_10px_rgba(168,85,247,0.3)] select-none"
+                className="w-8 h-8 shrink-0 relative flex items-center justify-center rounded-full bg-purple-950/80 border border-purple-500/40 text-purple-200 font-mono text-[11px] font-bold shadow-[0_0_10px_rgba(168,85,247,0.3)] select-none"
                 title={`Slow mode active: wait ${slowModeSecondsRemaining}s`}
               >
                 <svg
@@ -862,11 +907,14 @@ export default function MessageComposer({
               <button
                 type="button"
                 onClick={handleSend}
-                disabled={isSending}
-                className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-400 hover:to-indigo-400 text-white shadow-[0_0_14px_rgba(168,85,247,0.6)] transition-all active:scale-95 disabled:opacity-50"
+                disabled={isSendingEffective}
+                className="w-8 h-8 shrink-0 flex items-center justify-center rounded-full bg-linear-to-r from-purple-500 to-indigo-500 hover:from-purple-400 hover:to-indigo-400 text-white shadow-[0_0_14px_rgba(168,85,247,0.6)] transition-all active:scale-95 disabled:opacity-50"
                 title="Send message"
               >
-                <Send size={14} className={isSending ? 'animate-pulse' : 'translate-x-[0.5px]'} />
+                <Send
+                  size={14}
+                  className={isSendingEffective ? 'animate-pulse' : 'translate-x-[0.5px]'}
+                />
               </button>
             ) : (
               <button
@@ -882,8 +930,8 @@ export default function MessageComposer({
                       ? 'Hold to record voice message, click to switch to video'
                       : 'Hold to record video note, click to switch to voice'
                 }
-                disabled={!canSendVoice || isSending}
-                className={`w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-full transition-all duration-200 cursor-pointer ${
+                disabled={!canSendVoice || isSendingEffective}
+                className={`w-8 h-8 shrink-0 flex items-center justify-center rounded-full transition-all duration-200 cursor-pointer ${
                   !canSendVoice
                     ? 'opacity-40 cursor-not-allowed text-gray-600'
                     : recorder.recordState !== 'idle'

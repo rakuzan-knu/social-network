@@ -8,28 +8,28 @@ export type JamRoomStatus = 'active' | 'reconnecting';
 export interface JamListenerProfile {
   id: string;
   username: string;
-  avatar?: string;
-  isHost?: boolean;
-  socketId?: string;
+  avatar?: string | undefined;
+  isHost?: boolean | undefined;
+  socketId?: string | undefined;
 }
 
 export interface JamTrack {
   id: string;
   title: string;
   artist: string;
-  albumArt?: string;
+  albumArt?: string | undefined;
   durationMs: number;
-  previewUrl?: string | null;
-  spotifyUrl?: string;
-  source?: 'platform' | 'spotify' | 'soundcloud';
-  streamUrl?: string;
+  previewUrl?: string | null | undefined;
+  spotifyUrl?: string | undefined;
+  source?: 'platform' | 'spotify' | 'soundcloud' | undefined;
+  streamUrl?: string | undefined;
 }
 
 export interface JamRoom {
   roomId: string;
   hostUserId: string;
   hostUsername: string;
-  hostAvatar?: string;
+  hostAvatar?: string | undefined;
   currentTrack: JamTrack | null;
   trackSource: 'platform' | 'spotify' | 'soundcloud';
   positionMs: number;
@@ -38,18 +38,18 @@ export interface JamRoom {
   listeners: JamListenerProfile[];
   queuePolicy: JamQueuePolicy;
   queue: JamTrack[];
-  lastPreloadTrackId?: string;
+  lastPreloadTrackId?: string | undefined;
   updatedAt: number;
   createdAt: number;
 }
 
 export interface JamSyncPayload {
   roomId: string;
-  trackId?: string;
+  trackId?: string | undefined;
   positionMs: number;
   isPlaying: boolean;
   timestamp: number;
-  currentTrack?: JamTrack | null;
+  currentTrack?: JamTrack | null | undefined;
 }
 
 @Injectable()

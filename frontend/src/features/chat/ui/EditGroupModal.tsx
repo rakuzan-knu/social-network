@@ -7,7 +7,7 @@ import { ConversationView } from '../../../entities/chat/model/types';
 import { useUpdateGroup } from '../model/useConversationMutations';
 import { chatApi } from '../api/chatApi';
 import { useQueryClient } from '@tanstack/react-query';
-import { CONVERSATIONS_KEY } from '@/shared/api/queryKeys';
+import { queryKeys } from '@/shared/api/queryKeys';
 
 interface EditGroupModalProps {
   conversation: ConversationView;
@@ -85,8 +85,10 @@ export default function EditGroupModal({
         await updateGroup.mutateAsync({ conversationId: conversation.id, name: trimmed });
       }
 
-      queryClient.invalidateQueries({ queryKey: [CONVERSATIONS_KEY] });
-      queryClient.invalidateQueries({ queryKey: ['conversation', conversation.id] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversations.root });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.conversations.detail(conversation.id),
+      });
       requestClose();
     } catch (err: any) {
       setIsSaving(false);

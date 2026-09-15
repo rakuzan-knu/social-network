@@ -1,16 +1,27 @@
 import { Test, type TestingModule } from '@nestjs/testing';
 import { ShowcaseService } from '../showcase.service';
-import { MediaProxyService } from '../media-proxy.service';
-import { PrismaService } from '@common/prisma';
 import { RedisService } from '../../redis/redis.service';
 import { FollowStatus } from '@prisma/client';
 import { ShowcasePrivacy, ShowcaseMediaType } from '@common/contracts';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { SHOWCASE_REPOSITORY } from '../interfaces/showcase-repository.interface';
 
 describe('ShowcaseService', () => {
   let service: ShowcaseService;
-  let prisma: any;
-  let redis: any;
+  let showcaseRepo: {
+    findUserWithShowcase: jest.Mock;
+    findUserBasic: jest.Mock;
+    getFollowStatus: jest.Mock;
+    upsertDefaultShowcase: jest.Mock;
+    updateShowcase: jest.Mock;
+    findUsersByIds: jest.Mock;
+    updateConnectedAccounts: jest.Mock;
+  };
+  let redis: {
+    del: jest.Mock;
+    get: jest.Mock;
+    set: jest.Mock;
+  };
 
   const mockUser = {
     id: 'user-1',
@@ -70,36 +81,14 @@ describe('ShowcaseService', () => {
   };
 
   beforeEach(async () => {
-    prisma = {
-      user: {
-        findUnique: jest.fn().mockResolvedValue(mockUser),
-        findMany: jest.fn().mockResolvedValue([]),
-      },
-      follow: {
-        findUnique: jest.fn(),
-      },
-      profileShowcase: {
-        findUnique: jest.fn().mockResolvedValue(mockUser.showcase),
-        upsert: jest.fn(),
-      },
-      $transaction: jest.fn((cb) =>
-        cb({
-          profileShowcase: {
-            findUnique: jest.fn().mockResolvedValue(mockUser.showcase),
-            upsert: jest.fn().mockResolvedValue({
-              id: 'showcase-1',
-              userId: 'user-1',
-            }),
-          },
-          user: {
-            update: jest.fn().mockResolvedValue(mockUser),
-          },
-          showcaseMedia: {
-            deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
-            createMany: jest.fn().mockResolvedValue({ count: 1 }),
-          },
-        }),
-      ),
+    showcaseRepo = {
+      findUserWithShowcase: jest.fn().mockResolvedValue(mockUser),
+      findUserBasic: jest.fn().mockResolvedValue({ id: 'user-1', username: 'ayate' }),
+      getFollowStatus: jest.fn().mockResolvedValue(null),
+      upsertDefaultShowcase: jest.fn().mockResolvedValue({ id: 'showcase-1', userId: 'user-1' }),
+      updateShowcase: jest.fn().mockResolvedValue(undefined),
+      findUsersByIds: jest.fn().mockResolvedValue([]),
+      updateConnectedAccounts: jest.fn().mockResolvedValue(undefined),
     };
 
     redis = {
@@ -111,7 +100,7 @@ describe('ShowcaseService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ShowcaseService,
-        { provide: PrismaService, useValue: prisma },
+        { provide: SHOWCASE_REPOSITORY, useValue: showcaseRepo },
         { provide: RedisService, useValue: redis },
       ],
     }).compile();
@@ -144,7 +133,7 @@ describe('ShowcaseService', () => {
           privacyLinks: ShowcasePrivacy.PRIVATE,
         },
       };
-      prisma.user.findUnique.mockResolvedValueOnce(privateShowcaseUser);
+      showcaseRepo.findUserWithShowcase.mockResolvedValueOnce(privateShowcaseUser);
 
       const result = await service.getShowcase('ayate', 'viewer-guest');
 
@@ -167,8 +156,8 @@ describe('ShowcaseService', () => {
           privacyActivity: ShowcasePrivacy.FOLLOWERS,
         },
       };
-      prisma.user.findUnique.mockResolvedValueOnce(followersShowcaseUser);
-      prisma.follow.findUnique.mockResolvedValueOnce({ status: FollowStatus.ACCEPTED });
+      showcaseRepo.findUserWithShowcase.mockResolvedValueOnce(followersShowcaseUser);
+      showcaseRepo.getFollowStatus.mockResolvedValueOnce(FollowStatus.ACCEPTED);
 
       const result = await service.getShowcase('ayate', 'follower-user-2');
 
@@ -178,7 +167,7 @@ describe('ShowcaseService', () => {
     });
 
     it('should throw NotFoundException if user does not exist', async () => {
-      prisma.user.findUnique.mockResolvedValueOnce(null);
+      showcaseRepo.findUserWithShowcase.mockResolvedValueOnce(null);
 
       await expect(service.getShowcase('nonexistent', null)).rejects.toThrow(NotFoundException);
     });
@@ -218,7 +207,7 @@ describe('ShowcaseService', () => {
         ],
       });
 
-      expect(prisma.$transaction).toHaveBeenCalled();
+      expect(showcaseRepo.updateShowcase).toHaveBeenCalled();
       expect(redis.del).toHaveBeenCalledWith('showcase:user-1');
       expect(result).toBeDefined();
     });

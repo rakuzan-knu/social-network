@@ -1,14 +1,27 @@
 import React from 'react';
 import { X, Reply } from 'lucide-react';
 import { MessageView } from '../../../entities/chat/model/types';
+import { useDecryptedMessageBody } from '../model/useDecryptedMessageBody';
 
 interface ReplyPreviewProps {
   message: MessageView;
   onCancel: () => void;
+  /** 1:1 peer for E2EE quote decrypt; null/undefined = groups or unknown. */
+  e2eePeerUserId?: string | null;
 }
 
-export default function ReplyPreview({ message, onCancel }: ReplyPreviewProps) {
+export default function ReplyPreview({
+  message,
+  onCancel,
+  e2eePeerUserId = null,
+}: ReplyPreviewProps) {
   const senderName = message.sender.displayName ?? message.sender.username ?? 'User';
+  const previewBody = useDecryptedMessageBody(
+    message.body,
+    e2eePeerUserId,
+    message.conversationId,
+    message.sender?.id ?? null,
+  );
 
   const replyAttachment = message.attachments?.[0];
   const replyThumbnail = replyAttachment?.thumbnailUrl || replyAttachment?.url;
@@ -23,7 +36,7 @@ export default function ReplyPreview({ message, onCancel }: ReplyPreviewProps) {
   );
 
   const getPreviewText = () => {
-    if (message.body) return message.body;
+    if (message.body) return previewBody;
     if (!replyAttachment) return 'Message';
     if (replyAttachment.type === 'STICKER') return '⭐ Sticker';
     if (replyAttachment.type === 'IMAGE') return '🖼️ Photo';

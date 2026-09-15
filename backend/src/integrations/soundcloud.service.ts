@@ -163,7 +163,7 @@ export class SoundCloudService {
         return [];
       }
 
-      const data = await res.json();
+      const data = (await res.json()) as any;
       if (!Array.isArray(data.collection)) return [];
 
       return data.collection
@@ -211,7 +211,7 @@ export class SoundCloudService {
         return [];
       }
 
-      const data = await res.json();
+      const data = (await res.json()) as any;
       if (!Array.isArray(data.collection)) return [];
 
       return data.collection
@@ -301,7 +301,7 @@ export class SoundCloudService {
         return null;
       }
 
-      const track = await trackRes.json();
+      const track = (await trackRes.json()) as any;
       const transcodings: any[] = track.media?.transcodings || [];
 
       // 1. Prefer progressive MP3
@@ -324,7 +324,7 @@ export class SoundCloudService {
         return null;
       }
 
-      const streamData = await streamUrlRes.json();
+      const streamData = (await streamUrlRes.json()) as any;
       if (!streamData?.url) {
         return null;
       }
@@ -375,7 +375,7 @@ export class SoundCloudService {
       }
 
       if (!res.ok) return null;
-      const data = await res.json();
+      const data = (await res.json()) as any;
       if (!data || !data.id || !data.title) return null;
 
       return this.mapSoundCloudTrack(data);
@@ -426,7 +426,7 @@ export class SoundCloudService {
       }
 
       if (!res.ok) return null;
-      const data = await res.json();
+      const data = (await res.json()) as any;
       if (!data || !data.id || !data.title) return null;
 
       const rawArtwork = data.artwork_url || data.user?.avatar_url || '';
@@ -485,7 +485,7 @@ export class SoundCloudService {
                 );
               }
               if (!r.ok) return [];
-              const json = await r.json();
+              const json = (await r.json()) as any;
               return Array.isArray(json) ? json : [];
             } catch (err) {
               this.logger.warn(
@@ -569,7 +569,7 @@ export class SoundCloudService {
 
       if (!res.ok) return [];
 
-      const data = await res.json();
+      const data = (await res.json()) as any;
       if (!Array.isArray(data.collection)) return [];
 
       const normalizedExcludes = new Set(

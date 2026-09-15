@@ -213,6 +213,7 @@ export default function SearchPage() {
 
   const inputRef = useRef<HTMLInputElement>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
+  const hasSyncedRecentRef = useRef(false);
   const navigate = useNavigate();
   const currentUserId = useAuthStore((s) => s.userId);
   const openCommentModal = useUIStore((state) => state.openCommentModal);
@@ -269,6 +270,7 @@ export default function SearchPage() {
     queryKey: ['currentUserProfile'],
     queryFn: () => userApi.getMe(),
     staleTime: 10 * 1000,
+    enabled: Boolean(currentUserId),
   });
 
   // Sync meProfile with recent searches
@@ -317,7 +319,8 @@ export default function SearchPage() {
 
   // Refresh all recent searches users on mount
   useEffect(() => {
-    if (recentSearches.length === 0) return;
+    if (hasSyncedRecentRef.current || recentSearches.length === 0) return;
+    hasSyncedRecentRef.current = true;
     const usernames = recentSearches.map((u) => u.username).filter(Boolean);
     if (usernames.length === 0) return;
 
@@ -369,8 +372,7 @@ export default function SearchPage() {
         });
       }
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [recentSearches]);
 
   // 1. Trending Hashtags
   const { data: trendingHashtags = [] } = useQuery<HashtagItem[]>({

@@ -1,5 +1,5 @@
-import React, { useRef, useMemo } from 'react';
-import { Virtuoso } from 'react-virtuoso';
+import React, { useRef, useEffect } from 'react';
+import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import CreatePost from '../../features/posts/ui/CreatePost';
 import { StoriesBar } from '@/widgets/feed/ui/StoriesBar';
 import { PostCard } from '@/widgets/post/ui/PostCard';
@@ -21,9 +21,24 @@ export default function FeedPage() {
   const posts = data?.pages.flatMap((p) => p.posts) ?? [];
   const visiblePosts = posts.filter((p) => !hiddenIds.has(p.id));
 
-  const handleRangeChanged = (range: { startIndex: number; endIndex: number }) => {
-    // Look ahead 2 posts and prefetch image with low priority
-    for (let i = range.endIndex + 1; i <= range.endIndex + 3 && i < visiblePosts.length; i++) {
+  const postVirtualizer = useWindowVirtualizer({
+    count: visiblePosts.length,
+    estimateSize: () => 480,
+    overscan: 4,
+  });
+
+  const virtualItems = postVirtualizer.getVirtualItems();
+  const lastVirtualItem = virtualItems[virtualItems.length - 1];
+
+  useEffect(() => {
+    if (!lastVirtualItem) return;
+
+    // Look ahead 2 posts and prefetch images with low priority
+    for (
+      let i = lastVirtualItem.index + 1;
+      i <= lastVirtualItem.index + 3 && i < visiblePosts.length;
+      i++
+    ) {
       const post = visiblePosts[i];
       const mediaUrl = post?.media?.[0]?.url || post?.image;
       if (mediaUrl && !prefetchQueueRef.current.has(mediaUrl)) {
@@ -33,28 +48,11 @@ export default function FeedPage() {
         img.src = mediaUrl;
       }
     }
-  };
 
-  const virtuosoComponents = useMemo(
-    () => ({
-      Footer: () => {
-        if (isFetchingNextPage) {
-          return (
-            <div className="py-6 flex justify-center">
-              <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
-            </div>
-          );
-        }
-
-        if (!hasNextPage && visiblePosts.length > 0) {
-          return <AllCaughtUpBanner showCarousel={true} />;
-        }
-
-        return <div className="pb-8" />;
-      },
-    }),
-    [isFetchingNextPage, hasNextPage, visiblePosts.length],
-  );
+    if (lastVirtualItem.index >= visiblePosts.length - 2 && hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [lastVirtualItem, visiblePosts, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   return (
     <div className="w-full flex flex-col gap-6 animate-fadeIn">
@@ -79,23 +77,45 @@ export default function FeedPage() {
       {isLoading ? (
         <SkeletonFeed count={10} />
       ) : visiblePosts.length > 0 ? (
-        <Virtuoso
-          useWindowScroll
-          data={visiblePosts}
-          components={virtuosoComponents}
-          initialItemCount={Math.min(visiblePosts.length, 10)}
-          rangeChanged={handleRangeChanged}
-          endReached={() => {
-            if (hasNextPage && !isFetchingNextPage) {
-              fetchNextPage();
-            }
-          }}
-          itemContent={(_index, post) => (
-            <div className="pb-4">
-              <PostCard key={post.id} post={post} queryKey={[FEED_KEY]} />
+        <>
+          <div
+            style={{
+              height: `${postVirtualizer.getTotalSize()}px`,
+              width: '100%',
+              position: 'relative',
+            }}
+          >
+            {virtualItems.map((virtualItem) => {
+              const post = visiblePosts[virtualItem.index];
+              if (!post) return null;
+              return (
+                <div
+                  key={post.id || virtualItem.key}
+                  ref={postVirtualizer.measureElement}
+                  data-index={virtualItem.index}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    transform: `translateY(${virtualItem.start}px)`,
+                    paddingBottom: '16px',
+                  }}
+                >
+                  <PostCard post={post} queryKey={[FEED_KEY]} />
+                </div>
+              );
+            })}
+          </div>
+
+          {isFetchingNextPage && (
+            <div className="py-6 flex justify-center">
+              <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
             </div>
           )}
-        />
+
+          {!hasNextPage && visiblePosts.length > 0 && <AllCaughtUpBanner showCarousel={true} />}
+        </>
       ) : (
         <div className="flex flex-col gap-6">
           <div className="flex flex-col items-center justify-center py-16 text-center border border-dashed border-white/5 rounded-3xl bg-white/[0.01]">

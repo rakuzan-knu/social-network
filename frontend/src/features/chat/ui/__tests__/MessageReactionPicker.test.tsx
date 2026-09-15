@@ -63,4 +63,22 @@ describe('MessageReactionPicker', () => {
 
     expect(onPick).toHaveBeenCalledWith('😈', expect.any(Object));
   });
+
+  it('closes on click outside', () => {
+    const onClose = vi.fn();
+    render(<MessageReactionPicker onPick={vi.fn()} onClose={onClose} />);
+
+    fireEvent.mouseDown(document.body);
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('supports align="right" and handles mouse move when item ref is missing', () => {
+    const { container } = render(
+      <MessageReactionPicker onPick={vi.fn()} onClose={vi.fn()} align="right" />,
+    );
+    expect(container.firstChild).toHaveClass('right-0');
+
+    const bar = container.querySelector('.relative.flex.items-center')!;
+    fireEvent.mouseMove(bar, { clientX: 200, clientY: 200 });
+  });
 });

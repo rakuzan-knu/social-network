@@ -36,7 +36,35 @@ describe('PrivacySupportSection', () => {
     fireEvent.click(screen.getByText('Mute notifications'));
     expect(onToggleMute).toHaveBeenCalled();
 
+    fireEvent.click(screen.getByText('Message permissions'));
+    expect(onOpenPermissions).toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText('Restrict'));
+    expect(onOpenRestrict).toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText('Report'));
+    expect(onOpenReport).toHaveBeenCalled();
+
     fireEvent.click(screen.getByText('Block'));
     expect(onBlock).toHaveBeenCalledWith('u2');
+  });
+
+  it('renders "Unmute notifications" when isMuted is true', () => {
+    render(
+      <PrivacySupportSection
+        isOpen={true}
+        onToggle={vi.fn()}
+        isMuted={true}
+        onToggleMute={vi.fn()}
+        isGroup={true}
+        otherUserId={null}
+        onOpenPermissions={vi.fn()}
+        onOpenRestrict={vi.fn()}
+        onBlock={vi.fn()}
+        onOpenReport={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Unmute notifications')).toBeInTheDocument();
   });
 });

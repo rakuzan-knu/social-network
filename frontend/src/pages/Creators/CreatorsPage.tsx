@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useLanguageStore } from '../../shared/lib/language/languageStore';
 import { PrivacyNavbar } from '../Privacy/ui/PrivacyNavbar';
-import { EternalFooter } from '../../shared/ui/EternalFooter';
+import { EternalFooter } from '@/widgets/footer';
 import { SEOHead } from '../../shared/seo';
 import {
   CREATORS_DATA_EN,

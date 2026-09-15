@@ -18,6 +18,11 @@ function renderWithProviders(ui: React.ReactElement) {
 }
 
 describe('MarkdownContent', () => {
+  it('returns null when content is empty', () => {
+    const { container } = renderWithProviders(<MarkdownContent content="" />);
+    expect(container.firstChild).toBeNull();
+  });
+
   it('renders standard typography elements (bold, italic, strikethrough, blockquote)', () => {
     const markdown = '**Bold text** and *italic text* and ~~strike text~~\n\n> This is a quote';
     renderWithProviders(<MarkdownContent content={markdown} />);
@@ -120,5 +125,42 @@ describe('MarkdownContent', () => {
 
     const link = screen.getByRole('link', { name: 'Google' });
     expect(link).toHaveAttribute('href', 'https://google.com');
+  });
+
+  it('renders lists, tables, and horizontal rules', () => {
+    const markdown = `
+- Bullet item 1
+- Bullet item 2
+
+1. Numbered item 1
+2. Numbered item 2
+
+| Header 1 | Header 2 |
+| --- | --- |
+| Cell 1 | Cell 2 |
+
+---
+`;
+    const { container } = renderWithProviders(<MarkdownContent content={markdown} />);
+
+    expect(screen.getByText('Bullet item 1')).toBeInTheDocument();
+    expect(screen.getByText('Numbered item 1')).toBeInTheDocument();
+    expect(screen.getByText('Header 1')).toBeInTheDocument();
+    expect(screen.getByText('Cell 1')).toBeInTheDocument();
+    expect(container.querySelector('hr')).toBeInTheDocument();
+  });
+
+  it('handles trailing punctuation and disabled mentions/hashtags props', () => {
+    const textWithPunct = 'Contact @sam! or visit #travel.';
+    renderWithProviders(<MarkdownContent content={textWithPunct} />);
+
+    expect(screen.getByText('@sam')).toBeInTheDocument();
+    expect(screen.getByText('#travel')).toBeInTheDocument();
+
+    const disabledProps = 'Plain @alex and #tag without links';
+    const { container } = renderWithProviders(
+      <MarkdownContent content={disabledProps} enableMentions={false} enableHashtags={false} />,
+    );
+    expect(container.querySelector('a')).toBeNull();
   });
 });

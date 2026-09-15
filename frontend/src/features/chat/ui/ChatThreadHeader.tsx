@@ -5,10 +5,12 @@ import GroupAvatarCollage from '../../../shared/ui/GroupAvatarCollage';
 import OnlineStatusIndicator from '../../../shared/ui/OnlineStatusIndicator';
 import { ConversationDisplay } from '../lib/getConversationDisplay';
 import { VerifiedCheckmark } from '@/entities/profile/ui/VerifiedCheckmark';
+import { useCallPrewarmer } from '../lib/webrtc/webrtcPrewarmer';
 import { usePresenceStore } from '@/shared/model/usePresenceStore';
 import { DiscordGamepadIcon } from '@/shared/ui/BrandIcons';
 
 interface ChatThreadHeaderProps {
+  conversationId?: string;
   display: ConversationDisplay;
   otherUserId: string | null;
   isOtherTyping: boolean;
@@ -17,9 +19,11 @@ interface ChatThreadHeaderProps {
   isGroup?: boolean;
   memberAvatars?: (string | null)[];
   memberCount?: number;
+  onStartCall?: (type: 'audio' | 'video') => void;
 }
 
 export default function ChatThreadHeader({
+  conversationId: _conversationId,
   display,
   otherUserId,
   isOtherTyping,
@@ -28,7 +32,11 @@ export default function ChatThreadHeader({
   isGroup,
   memberAvatars = [],
   memberCount = 0,
+  onStartCall,
 }: ChatThreadHeaderProps) {
+  const callKey = otherUserId || 'default';
+  const prewarmer = useCallPrewarmer(callKey);
+
   const otherActivity = usePresenceStore((s) =>
     otherUserId ? s.userActivities[otherUserId] : null,
   );
@@ -51,7 +59,7 @@ export default function ChatThreadHeader({
   );
 
   return (
-    <div className="flex items-center justify-between px-5 h-16 border-b border-white/5 flex-shrink-0">
+    <div className="flex items-center justify-between px-5 h-16 border-b border-white/5 shrink-0">
       <div className="flex items-center gap-3 min-w-0">
         <div className="relative">
           {isGroup ? (
@@ -113,7 +121,7 @@ export default function ChatThreadHeader({
                 <OnlineStatusIndicator
                   userId={otherUserId}
                   variant="dot"
-                  className="static flex-shrink-0 !border-0 !w-2 !h-2"
+                  className="static shrink-0 border-0! w-2! h-2!"
                   showOfflineDot={false}
                 />
                 <OnlineStatusIndicator
@@ -127,19 +135,37 @@ export default function ChatThreadHeader({
         </div>
       </div>
 
-      <div className="flex items-center gap-1 flex-shrink-0">
+      <div className="flex items-center gap-1.5 shrink-0">
         <button
+          onClick={() => {
+            prewarmer.prewarmImmediately();
+            onStartCall?.('audio');
+          }}
+          onMouseEnter={prewarmer.onMouseEnter}
+          onMouseLeave={prewarmer.onMouseLeave}
+          onTouchStart={prewarmer.onTouchStart}
           title="Audio call"
+          aria-label="Start audio call"
           className="w-9 h-9 flex items-center justify-center rounded-full text-gray-400 hover:bg-white/5 hover:text-white transition-colors"
         >
           <Phone size={19} />
         </button>
+
         <button
+          onClick={() => {
+            prewarmer.prewarmImmediately();
+            onStartCall?.('video');
+          }}
+          onMouseEnter={prewarmer.onMouseEnter}
+          onMouseLeave={prewarmer.onMouseLeave}
+          onTouchStart={prewarmer.onTouchStart}
           title="Video call"
+          aria-label="Start video call"
           className="w-9 h-9 flex items-center justify-center rounded-full text-gray-400 hover:bg-white/5 hover:text-white transition-colors"
         >
           <Video size={19} />
         </button>
+
         <button
           onClick={onToggleDetails}
           title="Conversation info"

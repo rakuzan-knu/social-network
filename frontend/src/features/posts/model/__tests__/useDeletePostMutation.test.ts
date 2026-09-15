@@ -38,4 +38,17 @@ describe('useDeletePostMutation', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(postsApi.deletePost).toHaveBeenCalledWith('p1');
   });
+
+  it('handles delete failure with error toast and works without currentQueryKey', async () => {
+    vi.mocked(postsApi.deletePost).mockRejectedValue(new Error('Failed'));
+
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(QueryClientProvider, { client: queryClient }, children);
+
+    const { result } = renderHook(() => useDeletePostMutation('p2'), { wrapper });
+
+    result.current.mutate();
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+  });
 });

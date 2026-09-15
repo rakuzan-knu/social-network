@@ -21,7 +21,11 @@ describe('useUploadAvatar', () => {
       await result.current.mutateAsync({ userId: 'usr-1', file });
     });
 
-    expect(postSpy).toHaveBeenCalledWith('/users/usr-1/avatar', expect.any(FormData));
+    expect(postSpy).toHaveBeenCalledWith(
+      '/users/usr-1/avatar',
+      expect.any(FormData),
+      expect.objectContaining({ signal: undefined }),
+    );
     expect(invalidateSpy).toHaveBeenCalled();
   });
 });

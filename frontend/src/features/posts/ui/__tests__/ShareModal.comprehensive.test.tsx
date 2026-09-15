@@ -5,8 +5,8 @@ import { ShareModal } from '../ShareModal';
 import { renderWithProviders } from '@/test/renderWithProviders';
 import { useUIStore } from '@/shared/model/useUIStore';
 import { useCurrentUser } from '@/entities/profile/model/useCurrentUser';
-import { followApi } from '@/features/follow/api/followApi';
-import { chatApi } from '@/features/chat/api/chatApi';
+import { followApi } from '@/entities/user';
+import { chatApi } from '@/entities/chat';
 import { postsApi } from '@/features/posts/api/postsApi';
 import * as socketModule from '@/shared/api/socket';
 

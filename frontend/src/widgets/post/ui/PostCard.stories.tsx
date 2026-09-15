@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import React from 'react';
 import { PostCard } from './PostCard';
-import { PostType } from '@/shared/model/useUIStore';
+import type { PostType } from '@/entities/post/model/types';
 
 const sampleTextPost: PostType = {
   id: 'post-1',

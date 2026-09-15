@@ -16,7 +16,7 @@ import { MediaShowcaseWidget } from './MediaShowcaseWidget';
 import { ShowcaseWishlistWidget } from './ShowcaseWishlistWidget';
 import { ProfileAnthemCard } from './ProfileAnthemCard';
 import { TasteMatchBanner } from './TasteMatchBanner';
-import { MediaDetailModal } from '@/shared/ui/media';
+import { MediaDetailModal } from '@/widgets/showcase';
 import { ShowcaseWidgetWrapper } from './ShowcaseWidgetWrapper';
 import { UnsavedChangesBar } from './UnsavedChangesBar';
 import { ShowcaseMediaType, type ShowcaseMediaItemDto } from '@backend/common/contracts';
@@ -42,9 +42,9 @@ const DEFAULT_BOARD_WIDGET_ORDER = ['spotlight', 'media', 'meta'];
 export function ShowcaseSidebarSkeleton() {
   return (
     <div className="w-full flex flex-col gap-4 animate-pulse">
-      <div className="h-16 rounded-2xl bg-white/[0.03] border border-white/[0.06]" />
-      <div className="h-44 rounded-3xl bg-white/[0.03] border border-white/[0.06]" />
-      <div className="h-40 rounded-3xl bg-white/[0.03] border border-white/[0.06]" />
+      <div className="h-16 rounded-2xl bg-white/3 border border-white/6" />
+      <div className="h-44 rounded-3xl bg-white/3 border border-white/6" />
+      <div className="h-40 rounded-3xl bg-white/3 border border-white/6" />
     </div>
   );
 }
@@ -143,7 +143,7 @@ export const ProfileShowcaseSidebar: React.FC<ProfileShowcaseSidebarProps> = ({
         <aside
           className={
             variant === 'desktop'
-              ? 'w-[320px] xl:w-[360px] shrink-0 hidden lg:flex flex-col gap-4 sticky top-6 self-start'
+              ? 'w-[320px] xl:w-90 shrink-0 hidden lg:flex flex-col gap-4 sticky top-6 self-start'
               : 'w-full flex flex-col gap-4 mb-6 lg:hidden'
           }
         >
@@ -341,7 +341,7 @@ export const ProfileShowcaseSidebar: React.FC<ProfileShowcaseSidebarProps> = ({
       />
 
       {/* 3. Discord-Grade 3-Tab Selector with Framer Motion Sliding Pill */}
-      <div className="relative flex items-center p-1 rounded-2xl bg-[#111116] border border-white/[0.08] shadow-inner mb-2">
+      <div className="relative flex items-center p-1 rounded-2xl bg-[#111116] border border-white/8 shadow-inner mb-2">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           return (
@@ -376,7 +376,7 @@ export const ProfileShowcaseSidebar: React.FC<ProfileShowcaseSidebarProps> = ({
           <button
             type="button"
             onClick={() => openEditor(activeTab === 'wishlist' ? 'wishlist' : 'media')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.08] hover:border-white/20 text-xs font-semibold text-white transition-all cursor-pointer shadow-sm hover:scale-102 active:scale-98"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/6 hover:bg-white/12 border border-white/8 hover:border-white/20 text-xs font-semibold text-white transition-all cursor-pointer shadow-sm hover:scale-102 active:scale-98"
           >
             <span className="text-indigo-400 font-bold">+</span>
             <span>Add Widget</span>
@@ -409,8 +409,8 @@ export const ProfileShowcaseSidebar: React.FC<ProfileShowcaseSidebarProps> = ({
                 {serverWidgetOrder.map((widgetId) => renderBoardWidget(widgetId))}
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-12 px-4 text-center rounded-3xl bg-white/[0.02] border border-white/[0.06] shadow-sm">
-                <div className="w-10 h-10 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-gray-400 mb-2.5">
+              <div className="flex flex-col items-center justify-center py-12 px-4 text-center rounded-3xl bg-white/2 border border-white/6 shadow-sm">
+                <div className="w-10 h-10 rounded-2xl bg-white/4 border border-white/8 flex items-center justify-center text-gray-400 mb-2.5">
                   <LayoutGrid size={18} className="opacity-50 text-gray-400" />
                 </div>
                 <p className="text-xs font-medium text-gray-400">There is nothing here yet...</p>
@@ -435,8 +435,8 @@ export const ProfileShowcaseSidebar: React.FC<ProfileShowcaseSidebarProps> = ({
                 onEditClick={() => openEditor('activity')}
               />
             ) : (
-              <div className="flex flex-col items-center justify-center py-12 px-4 text-center rounded-3xl bg-white/[0.02] border border-white/[0.06] shadow-sm">
-                <div className="w-10 h-10 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-gray-400 mb-2.5">
+              <div className="flex flex-col items-center justify-center py-12 px-4 text-center rounded-3xl bg-white/2 border border-white/6 shadow-sm">
+                <div className="w-10 h-10 rounded-2xl bg-white/4 border border-white/8 flex items-center justify-center text-gray-400 mb-2.5">
                   <Radio size={18} className="opacity-50 text-gray-400" />
                 </div>
                 <p className="text-xs font-medium text-gray-400">There is nothing here yet...</p>
@@ -466,8 +466,8 @@ export const ProfileShowcaseSidebar: React.FC<ProfileShowcaseSidebarProps> = ({
                 }
               />
             ) : (
-              <div className="flex flex-col items-center justify-center py-12 px-4 text-center rounded-3xl bg-white/[0.02] border border-white/[0.06] shadow-sm">
-                <div className="w-10 h-10 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-gray-400 mb-2.5">
+              <div className="flex flex-col items-center justify-center py-12 px-4 text-center rounded-3xl bg-white/2 border border-white/6 shadow-sm">
+                <div className="w-10 h-10 rounded-2xl bg-white/4 border border-white/8 flex items-center justify-center text-gray-400 mb-2.5">
                   <Bookmark size={18} className="opacity-50 text-gray-400" />
                 </div>
                 <p className="text-xs font-medium text-gray-400">There is nothing here yet...</p>
@@ -482,7 +482,7 @@ export const ProfileShowcaseSidebar: React.FC<ProfileShowcaseSidebarProps> = ({
         <button
           type="button"
           onClick={() => setIsExportOpen(true)}
-          className="w-full py-2.5 rounded-2xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.08] text-xs font-semibold text-gray-300 hover:text-white flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm hover:border-white/20 mt-1"
+          className="w-full py-2.5 rounded-2xl bg-white/3 hover:bg-white/8 border border-white/8 text-xs font-semibold text-gray-300 hover:text-white flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm hover:border-white/20 mt-1"
         >
           <Share2 size={13} className="text-indigo-400" />
           <span>Share Showcase Card</span>
@@ -541,7 +541,7 @@ export const ProfileShowcaseSidebar: React.FC<ProfileShowcaseSidebarProps> = ({
 
   // Desktop sticky sidebar container
   return (
-    <aside className="w-[320px] xl:w-[360px] shrink-0 hidden lg:flex flex-col gap-4 sticky top-6 z-20 self-start animate-fadeIn select-none">
+    <aside className="w-[320px] xl:w-90 shrink-0 hidden lg:flex flex-col gap-4 sticky top-6 z-20 self-start animate-fadeIn select-none">
       {content}
     </aside>
   );

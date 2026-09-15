@@ -53,4 +53,46 @@ describe('GroupMembersSection', () => {
     fireEvent.click(memberBtn);
     expect(onSelectMember).toHaveBeenCalledWith('u1');
   });
+
+  it('renders admin role, nickname, username fallback, and view all for >5 participants', () => {
+    const onViewAll = vi.fn();
+    const multiMembersConv: any = {
+      id: 'c2',
+      participants: [
+        {
+          userId: 'u2',
+          role: 'ADMIN',
+          nickname: 'AdminNick',
+          user: { id: 'u2', username: 'admin2', displayName: 'Admin User', avatar: null },
+        },
+        {
+          userId: 'u3',
+          role: 'MEMBER',
+          nickname: null,
+          user: { id: 'u3', username: 'just_username', displayName: null, avatar: null },
+        },
+        { userId: 'u4', role: 'MEMBER', user: { id: 'u4', username: 'u4' } },
+        { userId: 'u5', role: 'MEMBER', user: { id: 'u5', username: 'u5' } },
+        { userId: 'u6', role: 'MEMBER', user: { id: 'u6', username: 'u6' } },
+        { userId: 'u7', role: 'MEMBER', user: { id: 'u7', username: 'u7' } },
+      ],
+    };
+
+    render(
+      <GroupMembersSection
+        conversation={multiMembersConv}
+        onAddMembers={vi.fn()}
+        onSelectMember={vi.fn()}
+        onViewAll={onViewAll}
+      />,
+    );
+
+    expect(screen.getByText('AdminNick')).toBeInTheDocument();
+    expect(screen.getByText('Admin')).toBeInTheDocument();
+    expect(screen.getByText('just_username')).toBeInTheDocument();
+
+    const viewAllBtn = screen.getByText('View all 6 participants');
+    fireEvent.click(viewAllBtn);
+    expect(onViewAll).toHaveBeenCalled();
+  });
 });

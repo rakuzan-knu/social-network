@@ -1,28 +1,14 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  Gamepad2,
-  Play,
-  Pause,
-  ExternalLink,
-  Pencil,
-  Headphones,
-  Check,
-  Send,
-  Music,
-  Radio,
-} from 'lucide-react';
+import { Play, Pause, ExternalLink, Pencil, Headphones, Send, Music, Radio } from 'lucide-react';
 import type { ProfileShowcaseDto } from '@backend/common/contracts';
 import {
   SpotifyBrandIcon,
   SoundCloudBrandIcon,
   SteamBrandIcon,
-  DiscordBrandIcon,
   TwitchBrandIcon,
-  GitHubBrandIcon,
   DiscordGamepadIcon,
 } from '@/shared/ui/BrandIcons';
-import { audioCoordinator } from '@/shared/lib/audioCoordinator';
 import { useLiveElapsedTimer } from '@/shared/lib/activityTimer';
 import { useSpotifyPlayerStore } from '@/shared/model/useSpotifyPlayerStore';
 import { useJamSession } from '@/features/music/model/useJamSession';
@@ -363,7 +349,7 @@ const SpotifyPlayerCard: React.FC<{
       </div>
 
       {/* Action Row: Listen Together / Open in Spotify or SoundCloud + Share */}
-      <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/[0.06]">
+      <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/6">
         {isPlatformTrack ? (
           <button
             type="button"
@@ -410,7 +396,7 @@ const SpotifyPlayerCard: React.FC<{
         <button
           type="button"
           onClick={handleShareToChat}
-          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-gray-300 hover:text-white text-[11px] font-semibold transition-all cursor-pointer border border-white/[0.06]"
+          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white text-[11px] font-semibold transition-all cursor-pointer border border-white/6"
           title="Copy track link"
         >
           <Send
@@ -437,10 +423,7 @@ export const LivePresenceWidget: React.FC<LivePresenceWidgetProps> = ({
 }) => {
   const { activityStatus, connectedAccounts, accentColor } = showcase;
   const accent = accentColor || '#6366f1';
-  const [isPlayingPreview, setIsPlayingPreview] = useState(false);
   const elapsedTimer = useLiveElapsedTimer(activityStatus?.startedAt);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const audioId = `activity-${showcase.userId}-${activityStatus?.title}`;
 
   // Dual-activity resolution for stacked display
   const connectedSteam = (connectedAccounts as any)?.steam;
@@ -557,7 +540,7 @@ export const LivePresenceWidget: React.FC<LivePresenceWidgetProps> = ({
 
   return (
     <div
-      className="relative overflow-hidden rounded-3xl bg-[#121216]/90 border border-white/[0.08] p-4.5 transition-all duration-300 hover:border-white/[0.16] shadow-xl flex flex-col gap-3.5 group"
+      className="relative overflow-hidden rounded-3xl bg-white/3 backdrop-blur-2xl border border-white/8 p-4.5 transition-all duration-300 hover:border-white/16 shadow-xl flex flex-col gap-3.5 group"
       style={{ boxShadow: `0 8px 32px 0 rgba(0, 0, 0, 0.37)` }}
     >
       {/* Background Accent Glow */}
@@ -567,7 +550,7 @@ export const LivePresenceWidget: React.FC<LivePresenceWidgetProps> = ({
       />
 
       {/* Widget Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-white/[0.06]">
+      <div className="flex items-center justify-between pb-3 border-b border-white/6">
         <div className="flex items-center gap-2">
           <span className="text-xs font-bold text-gray-300 uppercase tracking-wider">
             {twitchActivity && (steamActivity || spotifyActivity)
@@ -592,7 +575,7 @@ export const LivePresenceWidget: React.FC<LivePresenceWidgetProps> = ({
           <button
             type="button"
             onClick={onEditClick}
-            className="opacity-0 group-hover:opacity-100 p-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-gray-400 hover:text-white transition-all cursor-pointer"
+            className="opacity-0 group-hover:opacity-100 p-1.5 rounded-xl bg-white/6 hover:bg-white/12 text-gray-400 hover:text-white transition-all cursor-pointer"
             title="Edit Activity"
           >
             <Pencil size={13} />
@@ -612,7 +595,7 @@ export const LivePresenceWidget: React.FC<LivePresenceWidgetProps> = ({
               }
               target="_blank"
               rel="noopener noreferrer"
-              className="relative flex items-center gap-3.5 p-3 rounded-2xl bg-gradient-to-r from-purple-950/60 via-[#18181b]/90 to-[#121316]/90 border border-purple-500/30 hover:border-purple-400/60 shadow-md hover:bg-white/[0.06] transition-all duration-200 cursor-pointer group/twitch"
+              className="relative flex items-center gap-3.5 p-3 rounded-2xl bg-linear-to-r from-purple-950/60 via-[#18181b]/90 to-[#121316]/90 border border-purple-500/30 hover:border-purple-400/60 shadow-md hover:bg-white/6 transition-all duration-200 cursor-pointer group/twitch"
             >
               <div className="relative w-14 h-14 rounded-2xl overflow-visible bg-black/60 shrink-0 border border-purple-500/30 flex items-center justify-center shadow-inner">
                 <div className="w-full h-full rounded-2xl overflow-hidden flex items-center justify-center bg-black/40">
@@ -673,8 +656,8 @@ export const LivePresenceWidget: React.FC<LivePresenceWidgetProps> = ({
                   window.open(safeUrl, '_blank', 'noopener,noreferrer');
                 }
               }}
-              className={`relative flex items-center gap-3.5 p-3 rounded-2xl bg-[#121316]/90 border border-white/[0.08] hover:border-white/[0.16] shadow-md transition-all duration-200 ${
-                steamActivity.externalUrl ? 'cursor-pointer hover:bg-white/[0.06]' : ''
+              className={`relative flex items-center gap-3.5 p-3 rounded-2xl bg-[#121316]/90 border border-white/8 hover:border-white/16 shadow-md transition-all duration-200 ${
+                steamActivity.externalUrl ? 'cursor-pointer hover:bg-white/6' : ''
               }`}
             >
               {/* 1:1 Authentic Icon with Bottom-Right Platform Badge */}
@@ -748,7 +731,7 @@ export const LivePresenceWidget: React.FC<LivePresenceWidgetProps> = ({
         <button
           type="button"
           onClick={onEditClick}
-          className="py-2.5 border border-dashed border-white/10 rounded-2xl text-xs text-gray-400 hover:text-white hover:border-white/20 transition-all flex items-center justify-center gap-1.5 bg-white/[0.01]"
+          className="py-2.5 border border-dashed border-white/10 rounded-2xl text-xs text-gray-400 hover:text-white hover:border-white/20 transition-all flex items-center justify-center gap-1.5 bg-white/1"
         >
           <Headphones size={13} />
           <span>Broadcast live Spotify or gaming activity</span>
@@ -757,7 +740,7 @@ export const LivePresenceWidget: React.FC<LivePresenceWidgetProps> = ({
 
       {/* Connected Accounts & Rich Platform Cards */}
       {hasConnectedAccounts && (
-        <div className="flex flex-col gap-3 pt-2 border-t border-white/[0.05]">
+        <div className="flex flex-col gap-3 pt-2 border-t border-white/5">
           <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
             Connected Platform Highlights
           </span>

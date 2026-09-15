@@ -5,6 +5,11 @@ import { PrismaService } from '@common/prisma';
 import type { IConversationsRepository } from '../interfaces/conversations-repository.interface';
 import type { ConversationWithDetails, ParticipantWithUser } from '../interfaces/types';
 import type { UserSnapshot } from '@common/contracts';
+import {
+  DEFAULT_MEMBER_PERMISSIONS,
+  DEFAULT_OWNER_PERMISSIONS,
+  Permission,
+} from '@common/contracts';
 import { conversationInclude, participantInclude, userSnapshot } from '../interfaces/types';
 
 @Injectable()
@@ -28,7 +33,16 @@ export class ConversationsRepository implements IConversationsRepository {
       data: {
         type: 'DIRECT',
         participants: {
-          create: [{ userId: userAId }, { userId: userBId }],
+          create: [
+            {
+              userId: userAId,
+              permissions: DEFAULT_MEMBER_PERMISSIONS | Permission.CAN_PIN_MESSAGES,
+            },
+            {
+              userId: userBId,
+              permissions: DEFAULT_MEMBER_PERMISSIONS | Permission.CAN_PIN_MESSAGES,
+            },
+          ],
         },
       },
       include: conversationInclude,
@@ -46,12 +60,14 @@ export class ConversationsRepository implements IConversationsRepository {
       data: {
         type: 'GROUP',
         name: data.name,
-        description: data.description,
+        description: data.description ?? null,
         createdById: data.createdById,
         participants: {
           create: allMemberIds.map((userId) => ({
             userId,
             role: userId === data.createdById ? ParticipantRole.OWNER : ParticipantRole.MEMBER,
+            permissions:
+              userId === data.createdById ? DEFAULT_OWNER_PERMISSIONS : DEFAULT_MEMBER_PERMISSIONS,
           })),
         },
       },
@@ -83,11 +99,19 @@ export class ConversationsRepository implements IConversationsRepository {
 
   updateGroup(
     conversationId: string,
-    data: { name?: string; description?: string; avatar?: string | null },
+    data: {
+      name?: string | undefined;
+      description?: string | undefined;
+      avatar?: string | null | undefined;
+    },
   ): Promise<Conversation> {
     return this.prisma.conversation.update({
       where: { id: conversationId },
-      data,
+      data: {
+        ...(data.name !== undefined ? { name: data.name } : {}),
+        ...(data.description !== undefined ? { description: data.description } : {}),
+        ...(data.avatar !== undefined ? { avatar: data.avatar } : {}),
+      },
     });
   }
 
@@ -127,7 +151,7 @@ export class ConversationsRepository implements IConversationsRepository {
         this.prisma.conversationParticipant.upsert({
           where: { conversationId_userId: { conversationId, userId } },
           update: { leftAt: null, joinedAt: new Date() },
-          create: { conversationId, userId },
+          create: { conversationId, userId, permissions: DEFAULT_MEMBER_PERMISSIONS },
         }),
       ),
     );
@@ -149,6 +173,7 @@ export class ConversationsRepository implements IConversationsRepository {
       muteLevel: MuteLevel;
       mutedUntil: Date | null;
       role: ParticipantRole;
+      permissions: number;
       archivedAt: Date | null;
       leftAt: Date | null;
       pinnedAt: Date | null;

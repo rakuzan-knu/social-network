@@ -12,7 +12,7 @@ interface AddGifButtonProps {
   className?: string;
 }
 
-const mockGifs = [
+const PRESET_GIFS = [
   'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbW9sc3A0b3g0Ym9pZnd5Ym9pZnd5Ym9pZnd5Ym9pZnd5JnB0Xz1mLg/a5viI92PAFUsU/giphy.gif',
   'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbXN6MXN3bXN6MXN3bXN6MXN3bXN6MXN3bXN6MXN3bXN6JnB0Xz1mLg/du3J3cXyzhj75IOgvA/giphy.gif',
   'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbW9pZnd5Ym9pZnd5Ym9pZnd5Ym9pZnd5Ym9pZnd5JnB0Xz1mLg/l3q2zVr6cu95nF6O4/giphy.gif',
@@ -132,7 +132,7 @@ export const AddGifButton: React.FC<AddGifButtonProps> = ({
         <span className="text-[10px] text-purple-400 font-medium">Giphy</span>
       </div>
       <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
-        {mockGifs.map((gif, index) => (
+        {PRESET_GIFS.map((gif, index) => (
           <img
             key={index}
             src={gif}

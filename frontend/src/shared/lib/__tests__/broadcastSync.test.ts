@@ -79,4 +79,48 @@ describe('broadcastSync', () => {
     expect(localStorage.getItem('accessToken')).toBe('new-access-token');
     expect(localStorage.getItem('refreshToken')).toBe('new-refresh-token');
   });
+
+  it('handles null/invalid message data and unhandled events', () => {
+    initCrossTabSync();
+    expect(messageHandler).not.toBeNull();
+    // @ts-expect-error test purpose
+    messageHandler?.({ data: null });
+    // @ts-expect-error test purpose
+    messageHandler?.({ data: {} });
+    // @ts-expect-error test purpose
+    messageHandler?.({ data: { type: 'UNKNOWN_EVENT' } });
+  });
+
+  it('handles BroadcastChannel constructor throwing error', () => {
+    Object.defineProperty(window, 'BroadcastChannel', {
+      value: vi.fn().mockImplementation(() => {
+        throw new Error('Not permitted');
+      }),
+      writable: true,
+      configurable: true,
+    });
+
+    expect(() => notifyAuthChange('LOGOUT')).not.toThrow();
+    expect(() => initCrossTabSync()).not.toThrow();
+  });
+
+  it('covers catch block (lines 19-20) when BroadcastChannel throws on fresh module', async () => {
+    // Need a fresh module where channel === null so the constructor can be called (and throw)
+    vi.resetModules();
+
+    Object.defineProperty(window, 'BroadcastChannel', {
+      value: vi.fn().mockImplementation(() => {
+        throw new Error('SecurityError: Not permitted');
+      }),
+      writable: true,
+      configurable: true,
+    });
+
+    const { notifyAuthChange: freshNotify, initCrossTabSync: freshInit } =
+      await import('../broadcastSync');
+
+    // These should not throw - catch sets channel to null
+    expect(() => freshNotify('LOGOUT')).not.toThrow();
+    expect(() => freshInit()).not.toThrow();
+  });
 });

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PrivacyNavbar } from '../Privacy/ui/PrivacyNavbar';
-import { EternalFooter } from '../../shared/ui/EternalFooter';
+import { EternalFooter } from '@/widgets/footer';
 import { NotFoundMilkyWayMascot } from './ui/NotFoundMilkyWayMascot';
 import { SEOHead } from '../../shared/seo';
 import { useLanguageStore } from '../../shared/lib/language/languageStore';

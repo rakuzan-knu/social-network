@@ -38,7 +38,6 @@ export const ExceptionMode = {
 export type ExceptionMode = (typeof ExceptionMode)[keyof typeof ExceptionMode];
 import { sanitizeHtml } from './sanitize';
 import { HARDENED_USERNAME_REGEX, RESERVED_USERNAMES } from './auth';
-
 export const LastSeenGranularity = {
   RECENTLY: 'RECENTLY',
   WITHIN_WEEK: 'WITHIN_WEEK',
@@ -91,8 +90,33 @@ export const updateUserSchema = z.object({
 });
 export type UpdateUserDto = z.infer<typeof updateUserSchema>;
 
+export const searchUsersQuerySchema = z.object({
+  q: z.string().max(100).default(''),
+});
+export type SearchUsersQueryDto = z.infer<typeof searchUsersQuerySchema>;
+
+export const getTopUsersQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(50).default(5),
+});
+export type GetTopUsersQueryDto = z.infer<typeof getTopUsersQuerySchema>;
+
+export const getSuggestedUsersQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(50).default(5),
+});
+export type GetSuggestedUsersQueryDto = z.infer<typeof getSuggestedUsersQuerySchema>;
+
+export const searchHashtagsQuerySchema = z.object({
+  q: z.string().max(100).default(''),
+});
+export type SearchHashtagsQueryDto = z.infer<typeof searchHashtagsQuerySchema>;
+
+export const getTrendingHashtagsQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(50).default(6),
+});
+export type GetTrendingHashtagsQueryDto = z.infer<typeof getTrendingHashtagsQuerySchema>;
+
 export const deleteAccountSchema = z.object({
-  password: z.string().min(1),
+  password: z.string().min(1).max(128),
 });
 export type DeleteAccountDto = z.infer<typeof deleteAccountSchema>;
 
@@ -102,7 +126,7 @@ export const setUserAliasSchema = z.object({
 export type SetUserAliasDto = z.infer<typeof setUserAliasSchema>;
 
 export const updatePrimaryBadgeSchema = z.object({
-  badgeId: z.string().nullable().optional(),
+  badgeId: z.string().max(64).nullable().optional(),
 });
 export type UpdatePrimaryBadgeDto = z.infer<typeof updatePrimaryBadgeSchema>;
 
@@ -144,23 +168,28 @@ export type UpdatePrivacyDto = z.infer<typeof updatePrivacySchema>;
 
 export const addPrivacyExceptionSchema = z.object({
   dimension: z.nativeEnum(PrivacyDimension),
-  targetId: z.string().min(1),
+  targetId: z.string().min(1).max(128),
   mode: z.nativeEnum(ExceptionMode),
 });
 export type AddPrivacyExceptionDto = z.infer<typeof addPrivacyExceptionSchema>;
 
+export const listExceptionsQuerySchema = z.object({
+  dimension: z.nativeEnum(PrivacyDimension),
+});
+export type ListExceptionsQueryDto = z.infer<typeof listExceptionsQuerySchema>;
+
 export const recommendationMutualFriendSchema = z.object({
-  id: z.string(),
-  username: z.string(),
-  avatar: z.string().nullable(),
+  id: z.string().max(128),
+  username: z.string().max(64),
+  avatar: z.string().max(2048).nullable(),
 });
 export type RecommendationMutualFriendDto = z.infer<typeof recommendationMutualFriendSchema>;
 
 export const recommendationReasonSchema = z.object({
   type: z.enum(['MUTUAL_FRIENDS', 'NEARBY', 'SAME_CITY', 'POPULAR']),
-  text: z.string(),
-  mutualFriends: z.array(recommendationMutualFriendSchema).optional(),
-  totalMutualCount: z.number().optional(),
+  text: z.string().max(255),
+  mutualFriends: z.array(recommendationMutualFriendSchema).max(10).optional(),
+  totalMutualCount: z.number().int().min(0).optional(),
 });
 export type RecommendationReasonDto = z.infer<typeof recommendationReasonSchema>;
 
@@ -199,6 +228,7 @@ export const userProfileSchema = z.object({
   postsCount: z.number().optional(),
   followingCount: z.number().optional(),
   alias: z.string().nullable().optional(),
+  flags: z.number().optional(),
   recommendationReason: recommendationReasonSchema.optional(),
   activityStatus: liveActivityStatusSchema.nullable().optional(),
 });
@@ -208,15 +238,15 @@ export class CreateUserDto {
   readonly email: string;
   readonly username: string;
   readonly passwordHash: string;
-  readonly displayName?: string;
-  readonly birthDate?: Date | null;
+  readonly displayName?: string | undefined;
+  readonly birthDate?: Date | null | undefined;
 
   constructor(props: {
     email: string;
     username: string;
     passwordHash: string;
-    displayName?: string;
-    birthDate?: Date | null;
+    displayName?: string | undefined;
+    birthDate?: Date | null | undefined;
   }) {
     this.email = props.email;
     this.username = props.username;

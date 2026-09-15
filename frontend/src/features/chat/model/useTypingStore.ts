@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { registerSessionResetHandler } from '@/shared/model/resetSession';
 
 export interface TypistInfo {
   userId: string;
@@ -54,3 +55,7 @@ export const useTypingStore = create<TypingState>((set) => ({
     });
   },
 }));
+
+registerSessionResetHandler(() => {
+  useTypingStore.setState({ typingByConversation: {} });
+});

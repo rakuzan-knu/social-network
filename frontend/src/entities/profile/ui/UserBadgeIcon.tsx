@@ -9,8 +9,8 @@ import {
 } from '../model/badgeTiers';
 import PremiumTierBadge from './PremiumTierBadge';
 import ContributorTierBadge from './ContributorTierBadge';
-import PremiumBadgeModal from '@/features/profile/ui/PremiumBadgeModal';
-import ContributorBadgeModal from '@/features/profile/ui/ContributorBadgeModal';
+import PremiumBadgeModal from './PremiumBadgeModal';
+import ContributorBadgeModal from './ContributorBadgeModal';
 
 interface UserBadgeIconProps {
   badgeId?: string | null;
@@ -183,8 +183,9 @@ export function UserBadgeIcon({
               />
             )}
 
-            {/* Rich Hover Card for Premium (Level 1+) or Contributor */}
-            {isPremium && (explicitPremiumTier || premiumTier.level >= 1) ? (
+            {/* Rich Hover Card for Premium (Level 1+ or active subscriber) or Contributor */}
+            {isPremium &&
+            (explicitPremiumTier || premiumTier.level >= 1 || subscriptionMonths > 0) ? (
               <div className="bg-gradient-to-b from-[#1c1c24] via-[#15151c] to-[#0f0f13] text-white p-3.5 rounded-2xl border border-white/[0.15] shadow-[0_20px_50px_rgba(0,0,0,0.85)] flex flex-col items-center gap-2 min-w-[170px] text-center backdrop-blur-xl">
                 <div className="p-1 rounded-xl bg-white/[0.04] border border-white/[0.08] shadow-inner">
                   <PremiumTierBadge level={premiumTier.level} size={36} />
@@ -218,7 +219,7 @@ export function UserBadgeIcon({
               </div>
             ) : (
               <div className="bg-[#18181b] text-white text-[11px] font-semibold px-2.5 py-1 rounded-lg border border-white/10 shadow-2xl whitespace-nowrap tracking-wide">
-                {badge.name}
+                {isPremium ? 'No active subscription' : badge.name}
               </div>
             )}
 

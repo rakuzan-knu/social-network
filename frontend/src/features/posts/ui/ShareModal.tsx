@@ -13,10 +13,10 @@ import {
 } from 'lucide-react';
 import { useUIStore } from '@/shared/model/useUIStore';
 import { useCurrentUser } from '@/entities/profile/model/useCurrentUser';
-import { followApi, FollowUserSummary } from '@/features/follow/api/followApi';
+import { followApi, FollowUserSummary } from '@/entities/user';
 import { useQuery, useQueryClient, InfiniteData } from '@tanstack/react-query';
 import { useMessageToastStore } from '@/shared/model/useMessageToastStore';
-import { chatApi } from '@/features/chat/api/chatApi';
+import { chatApi } from '@/entities/chat';
 import { postsApi } from '@/features/posts/api/postsApi';
 import { FeedPage } from '@/entities/post/api/postsApi';
 import {
@@ -29,7 +29,9 @@ import { getSocket } from '@/shared/api/socket';
 import Avatar from '@/shared/ui/Avatar';
 
 export function ShareModal() {
-  const { isShareModalOpen, activePostForShare, closeShareModal } = useUIStore();
+  const isShareModalOpen = useUIStore((s) => s.isShareModalOpen);
+  const activePostForShare = useUIStore((s) => s.activePostForShare);
+  const closeShareModal = useUIStore((s) => s.closeShareModal);
   const { data: currentUser } = useCurrentUser();
   const myUserId = currentUser?.id ?? '';
   const queryClient = useQueryClient();

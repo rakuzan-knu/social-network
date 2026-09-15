@@ -1,6 +1,6 @@
 import { SupportedLanguage } from '../../../shared/lib/language/languageStore';
 import { TERMS_SECTIONS, TermsSection } from './termsContent';
-import { getLegalTranslation as getPrivacyTranslation } from '../../Privacy/data/privacyTranslations';
+import { getLegalTranslation as getPrivacyTranslation } from '@/shared/config/privacyTranslations';
 
 export interface TermsUITranslation {
   navbar: {

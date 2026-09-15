@@ -68,7 +68,10 @@ export class SteamPresenceService implements OnModuleInit, OnModuleDestroy {
         signal: AbortSignal.timeout(4000),
       });
       if (res.ok) {
-        const data = await res.json();
+        const data = (await res.json()) as Record<
+          string,
+          { data?: { capsule_image?: string; header_image?: string } }
+        >;
         const app = data?.[gameId]?.data;
         if (app) {
           const assets = {

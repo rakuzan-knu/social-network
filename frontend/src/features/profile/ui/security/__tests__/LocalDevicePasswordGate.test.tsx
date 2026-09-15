@@ -17,10 +17,21 @@ vi.mock('../../../model/useDevicePasswordStore', () => {
 });
 
 describe('LocalDevicePasswordGate', () => {
-  it('renders device passcode toggle settings', () => {
+  it('renders device passcode toggle settings', async () => {
     render(<LocalDevicePasswordGate />);
 
     expect(screen.getByText('Device passcode')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Change' })).toBeInTheDocument();
+
+    const { useDevicePasswordStore } = await import('../../../model/useDevicePasswordStore');
+    const { fireEvent } = await import('@testing-library/react');
+
+    const removeBtn = screen.getByRole('button', { name: 'Remove' });
+    fireEvent.click(removeBtn);
+    expect(useDevicePasswordStore().disable).toHaveBeenCalled();
+
+    const changeBtn = screen.getByRole('button', { name: 'Change' });
+    fireEvent.click(changeBtn);
+    expect(screen.getAllByPlaceholderText(/passcode/i).length).toBeGreaterThan(0);
   });
 });

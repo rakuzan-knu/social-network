@@ -3,10 +3,10 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Search, Send, MessageCircle, Check, Loader2 } from 'lucide-react';
 import { useCurrentUser } from '@/entities/profile/model/useCurrentUser';
-import { followApi, FollowUserSummary } from '@/features/follow/api/followApi';
+import { followApi, FollowUserSummary } from '@/entities/user';
 import { useQuery } from '@tanstack/react-query';
 import { useMessageToastStore } from '@/shared/model/useMessageToastStore';
-import { chatApi } from '@/features/chat/api/chatApi';
+import { chatApi } from '@/entities/chat';
 import { getSocket } from '@/shared/api/socket';
 import Avatar from '@/shared/ui/Avatar';
 

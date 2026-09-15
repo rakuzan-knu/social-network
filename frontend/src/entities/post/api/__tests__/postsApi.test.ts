@@ -94,6 +94,30 @@ describe('postsApi and normalizers', () => {
       expect(normalized.text).toBe('Just text');
       expect(normalized.pinnedAt).toBeDefined();
     });
+
+    it('handles author username fallback, raw username, empty media and missing createdAt', () => {
+      const raw = {
+        id: 'post-3',
+        author: { username: 'onlyusername' },
+        username: 'rawuser',
+        updatedAt: '2026-05-01T12:00:00.000Z',
+        media: [{}],
+      };
+
+      const normalized = normalizePost(raw);
+      expect(normalized.author).toBe('onlyusername');
+      expect(normalized.handle).toBe('onlyusername');
+      expect(normalized.editedAt).toBe('2026-05-01T12:00:00.000Z');
+      expect(normalized.media?.[0]?.type).toBe('image');
+      expect(normalized.media?.[0]?.url).toBe('');
+
+      const raw2 = {
+        id: 'post-4',
+        username: 'rawuseronly',
+      };
+      const normalized2 = normalizePost(raw2);
+      expect(normalized2.handle).toBe('rawuseronly');
+    });
   });
 
   describe('normalizeFeedPage', () => {

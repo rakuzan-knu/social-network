@@ -44,6 +44,9 @@ describe('sessions-repository.interface', () => {
       deleteByJti: jest.fn().mockResolvedValue(undefined),
       deleteById: jest.fn().mockResolvedValue(undefined),
       deleteOtherJtis: jest.fn().mockResolvedValue(['jti-old-1']),
+      findByUserAndAgent: jest.fn().mockResolvedValue(null),
+      updateSession: jest.fn().mockResolvedValue(mockSession),
+      touchWithMeta: jest.fn().mockResolvedValue(undefined),
     };
 
     expect(await mockRepo.create(sessionData)).toEqual(mockSession);

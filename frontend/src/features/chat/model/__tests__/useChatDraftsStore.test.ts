@@ -25,4 +25,17 @@ describe('useChatDraftsStore', () => {
     useChatDraftsStore.getState().clearDraft('conv-2');
     expect(useChatDraftsStore.getState().hasDraft('conv-2')).toBe(false);
   });
+
+  it('tracks draft presence with replyingTo and pendingAttachments', () => {
+    expect(useChatDraftsStore.getState().hasDraft('conv-nonexistent')).toBe(false);
+
+    useChatDraftsStore.getState().setDraft('conv-3', '', { id: 'm1' } as any);
+    expect(useChatDraftsStore.getState().hasDraft('conv-3')).toBe(true);
+
+    useChatDraftsStore.getState().clearDraft('conv-3');
+    useChatDraftsStore
+      .getState()
+      .setDraft('conv-3', '', null, [{ name: 'img.png', size: 100, type: 'image/png' }]);
+    expect(useChatDraftsStore.getState().hasDraft('conv-3')).toBe(true);
+  });
 });

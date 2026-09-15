@@ -70,5 +70,17 @@ describe('SecurityTab', () => {
     const deleteBtn = screen.getByRole('button', { name: /delete account/i });
     fireEvent.click(deleteBtn);
     expect(screen.getByText('This action cannot be undone.')).toBeInTheDocument();
+
+    // Change password
+    fireEvent.click(screen.getByText('Change password'));
+    expect(screen.getByPlaceholderText('Current password')).toBeInTheDocument();
+
+    // Blocked users
+    fireEvent.click(screen.getByText('Blocked users'));
+    expect(screen.getByText('Restricted accounts')).toBeInTheDocument();
+
+    // Active sessions
+    fireEvent.click(screen.getByText('Active sessions'));
+    expect(screen.getByText('Devices where you are logged in.')).toBeInTheDocument();
   });
 });

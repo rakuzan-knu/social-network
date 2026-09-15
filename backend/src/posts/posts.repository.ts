@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { IPostRepository } from './interfaces/posts-repository.interface';
 import { PrismaService } from '@common/prisma';
+import { SnowflakeService } from '../common/id/snowflake.service';
 import {
   FollowStatus,
   type Post,
@@ -48,7 +49,11 @@ type PrismaPostQueryResult = {
 
 @Injectable()
 export class PostsRepository implements IPostRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional()
+    private readonly snowflake?: SnowflakeService,
+  ) {}
 
   private async getBlockedUserIds(userId: string): Promise<string[]> {
     const blocks = await this.prisma.userBlock.findMany({
@@ -155,7 +160,7 @@ export class PostsRepository implements IPostRepository {
             isVerified: authorRecord.isVerified ?? false,
             primaryBadge: authorRecord.primaryBadge ?? null,
           }
-        : undefined,
+        : null,
       createdAt: post.createdAt,
       updatedAt: post.updatedAt,
       media: post.media ?? [],
@@ -178,12 +183,49 @@ export class PostsRepository implements IPostRepository {
     });
   }
 
+  async incrementManyShareCounts(entries: { postId: string; count: number }[]): Promise<void> {
+    if (!entries || entries.length === 0) return;
+    await this.prisma.$transaction(
+      entries.map(({ postId, count }) =>
+        this.prisma.post.update({
+          where: { id: postId },
+          data: {
+            sharesCount: { increment: count },
+          },
+        }),
+      ),
+    );
+  }
+
   async createPost(data: Prisma.PostCreateInput): Promise<PostWithRelations> {
-    const created = await this.prisma.post.create({
-      data,
-      include: this.postInclude(),
-    });
     const authorId = (data.author as { connect?: { id?: string } })?.connect?.id;
+    const postId = data.id ?? (this.snowflake ? this.snowflake.generate() : undefined);
+    const created = await this.prisma.$transaction(async (tx) => {
+      const post = await tx.post.create({
+        data: {
+          ...data,
+          ...(postId ? { id: postId } : {}),
+        },
+        include: this.postInclude(),
+      });
+
+      await tx.outboxEvent.create({
+        data: {
+          aggregateType: 'POST',
+          aggregateId: post.id,
+          eventType: 'POST_CREATED',
+          payload: {
+            postId: post.id,
+            authorId: post.authorId,
+            content: post.content,
+          },
+          status: 'PENDING',
+        },
+      });
+
+      return post;
+    });
+
     return this.mapPost(created, authorId);
   }
 
@@ -195,10 +237,10 @@ export class PostsRepository implements IPostRepository {
     const blockedIds = viewerId ? await this.getBlockedUserIds(viewerId) : [];
 
     const posts = await this.prisma.post.findMany({
-      where: blockedIds.length > 0 ? { authorId: { notIn: blockedIds } } : undefined,
+      ...(blockedIds.length > 0 ? { where: { authorId: { notIn: blockedIds } } } : {}),
       take: limit + 1,
       skip: after ? 1 : 0,
-      cursor: after ? { id: after } : undefined,
+      ...(after ? { cursor: { id: after } } : {}),
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       include: this.postInclude(viewerId),
     });
@@ -235,7 +277,7 @@ export class PostsRepository implements IPostRepository {
       where: { authorId: userId },
       take: limit + 1,
       skip: after ? 1 : 0,
-      cursor: after ? { id: after } : undefined,
+      ...(after ? { cursor: { id: after } } : {}),
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       include: this.postInclude(viewerId),
     });
@@ -258,7 +300,7 @@ export class PostsRepository implements IPostRepository {
       where: { userId },
       take: limit + 1,
       skip: after ? 1 : 0,
-      cursor: after ? { id: after } : undefined,
+      ...(after ? { cursor: { id: after } } : {}),
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       include: {
         post: {
@@ -283,11 +325,11 @@ export class PostsRepository implements IPostRepository {
     const saved = await this.prisma.savedPost.findMany({
       where: {
         userId,
-        post: blockedIds.length > 0 ? { authorId: { notIn: blockedIds } } : undefined,
+        ...(blockedIds.length > 0 ? { post: { authorId: { notIn: blockedIds } } } : {}),
       },
       take: limit + 1,
       skip: after ? 1 : 0,
-      cursor: after ? { id: after } : undefined,
+      ...(after ? { cursor: { id: after } } : {}),
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       include: {
         post: {
@@ -334,7 +376,7 @@ export class PostsRepository implements IPostRepository {
       where: { AND: andFilters },
       take: limit + 1,
       skip: after ? 1 : 0,
-      cursor: after ? { id: after } : undefined,
+      ...(after ? { cursor: { id: after } } : {}),
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       include: this.postInclude(viewerId),
     });
@@ -363,7 +405,7 @@ export class PostsRepository implements IPostRepository {
       }
 
       const fallbackPosts = await this.prisma.post.findMany({
-        where: fallbackFilters.length > 0 ? { AND: fallbackFilters } : undefined,
+        ...(fallbackFilters.length > 0 ? { where: { AND: fallbackFilters } } : {}),
         take: limit + 1,
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         include: this.postInclude(viewerId),
@@ -417,7 +459,7 @@ export class PostsRepository implements IPostRepository {
         where: whereClause,
         take: limit + 1,
         skip: after ? 1 : 0,
-        cursor: after ? { id: after } : undefined,
+        ...(after ? { cursor: { id: after } } : {}),
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         include: this.postInclude(viewerId),
       }),
@@ -476,7 +518,7 @@ export class PostsRepository implements IPostRepository {
       where: { AND: andFilters },
       take: limit + 1,
       skip: after ? 1 : 0,
-      cursor: after ? { id: after } : undefined,
+      ...(after ? { cursor: { id: after } } : {}),
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       include: this.postInclude(viewerId),
     });
@@ -543,11 +585,135 @@ export class PostsRepository implements IPostRepository {
         reportedId: post.authorId,
         postId,
         category,
-        details,
+        details: details ?? null,
       },
       select: { id: true },
     });
 
     return report;
+  }
+
+  async createPollForPost(
+    authorId: string,
+    postId: string,
+    title: string,
+    options: string[],
+  ): Promise<unknown> {
+    return this.prisma.poll.create({
+      data: {
+        authorId,
+        postId,
+        title,
+        options: {
+          createMany: {
+            data: options.map((text: string, index: number) => ({
+              optionText: text,
+              sortOrder: index,
+            })),
+          },
+        },
+      },
+      include: {
+        options: { orderBy: { sortOrder: 'asc' } },
+        votes: true,
+      },
+    });
+  }
+
+  async findMentionUsers(
+    usernames: string[],
+    excludeUserId: string,
+  ): Promise<{ id: string; username: string }[]> {
+    return this.prisma.user.findMany({
+      where: {
+        username: { in: usernames, mode: 'insensitive' },
+        id: { not: excludeUserId },
+      },
+      select: { id: true, username: true },
+    });
+  }
+
+  async findUserBasic(id: string): Promise<{
+    id: string;
+    username: string;
+    displayName: string | null;
+    avatar: string | null;
+  } | null> {
+    return this.prisma.user.findUnique({
+      where: { id },
+      select: { id: true, username: true, displayName: true, avatar: true },
+    });
+  }
+
+  async getPollForVote(postId: string): Promise<{
+    id: string;
+    isActive: boolean;
+    options: { id: string; optionText: string; votesCount: number }[];
+    votes: { id: string; userId: string; optionId: string }[];
+  } | null> {
+    return this.prisma.poll.findUnique({
+      where: { postId },
+      include: { options: true, votes: true },
+    });
+  }
+
+  async updateVote(voteId: string, oldOptionId: string, newOptionId: string): Promise<void> {
+    await this.prisma.$transaction([
+      this.prisma.vote.update({
+        where: { id: voteId },
+        data: { optionId: newOptionId },
+      }),
+      this.prisma.pollOption.update({
+        where: { id: oldOptionId },
+        data: { votesCount: { decrement: 1 } },
+      }),
+      this.prisma.pollOption.update({
+        where: { id: newOptionId },
+        data: { votesCount: { increment: 1 } },
+      }),
+    ]);
+  }
+
+  async createVote(pollId: string, optionId: string, userId: string): Promise<void> {
+    await this.prisma.$transaction([
+      this.prisma.vote.create({
+        data: {
+          pollId,
+          optionId,
+          userId,
+        },
+      }),
+      this.prisma.pollOption.update({
+        where: { id: optionId },
+        data: { votesCount: { increment: 1 } },
+      }),
+    ]);
+  }
+
+  async getPollVoters(postId: string): Promise<{
+    options: { id: string }[];
+    votes: {
+      optionId: string;
+      user: { id: string; username: string; displayName?: string | null; avatar?: string | null };
+    }[];
+  } | null> {
+    return this.prisma.poll.findUnique({
+      where: { postId },
+      include: {
+        options: true,
+        votes: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+                avatar: true,
+              },
+            },
+          },
+        },
+      },
+    });
   }
 }

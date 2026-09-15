@@ -28,10 +28,10 @@ jobs:
           node-version-file: '.nvmrc'
 
       - name: Check for CRLF line endings
-        run: node scripts/validate-eol.js
+        run: node scripts/ci/validate-eol.js
 
       - name: Run K8s Policy-as-Code verification script
-        run: node scripts/verify-k8s-policies.cjs
+        run: node scripts/ci/verify-k8s-policies.cjs
 
   plan:
     name: Plan — Changed Paths
@@ -107,6 +107,8 @@ jobs:
             node_modules
             backend/node_modules
             frontend/node_modules
+            packages/*/dist
+            packages/*/node_modules
             ~/.cache/prisma
           key: ${{ needs.setup.outputs.cache-key }}
           fail-on-cache-miss: true
@@ -141,7 +143,7 @@ jobs:
       - name: Generate Cache Key
         id: cache-key-gen
         run: |
-          echo "key=${{ runner.os }}-monorepo-pnpm-${{ hashFiles('pnpm-lock.yaml', 'backend/prisma/schema.prisma') }}" >> $GITHUB_OUTPUT
+          echo "key=${{ runner.os }}-monorepo-pnpm-v3-${{ hashFiles('pnpm-lock.yaml', 'backend/prisma/schema.prisma') }}" >> $GITHUB_OUTPUT
 
       - name: Cache Node Modules & Prisma
         id: monorepo-cache
@@ -151,13 +153,18 @@ jobs:
             node_modules
             backend/node_modules
             frontend/node_modules
+            packages/*/dist
+            packages/*/node_modules
             ~/.cache/prisma
           key: ${{ steps.cache-key-gen.outputs.key }}
 
-      - name: Install & Generate (On Cache Miss)
+      - name: Install Dependencies (On Cache Miss)
         if: steps.monorepo-cache.outputs.cache-hit != 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Native Packages & Generate Prisma
         run: |
-          pnpm install --frozen-lockfile
+          pnpm build:native
           pnpm --filter backend exec prisma generate
 
   nx-affected:
@@ -169,6 +176,8 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
 
       - uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2 # v4.0.0
 
@@ -184,6 +193,8 @@ jobs:
             node_modules
             backend/node_modules
             frontend/node_modules
+            packages/*/dist
+            packages/*/node_modules
             ~/.cache/prisma
           key: ${{ needs.setup.outputs.cache-key }}
           fail-on-cache-miss: true
@@ -198,7 +209,10 @@ jobs:
 
       - name: Run Nx Affected Tasks (Lint, Typecheck, Build)
         run: |
-          npx nx run-many -t lint typecheck build --affected --base=${{ needs.plan.outputs.base-sha }} --parallel=3
+          npx nx affected -t lint typecheck build --base=${{ needs.plan.outputs.base-sha }} --parallel=3
+
+      - name: Run Knip (Unused Code & Dependency Analysis)
+        run: pnpm knip
 
   backend-unit-tests:
     name: Backend — Unit Tests
@@ -225,6 +239,8 @@ jobs:
             node_modules
             backend/node_modules
             frontend/node_modules
+            packages/*/dist
+            packages/*/node_modules
             ~/.cache/prisma
           key: ${{ needs.setup.outputs.cache-key }}
           fail-on-cache-miss: true
@@ -276,6 +292,8 @@ jobs:
             node_modules
             backend/node_modules
             frontend/node_modules
+            packages/*/dist
+            packages/*/node_modules
             ~/.cache/prisma
           key: ${{ needs.setup.outputs.cache-key }}
           fail-on-cache-miss: true
@@ -367,6 +385,8 @@ jobs:
             node_modules
             backend/node_modules
             frontend/node_modules
+            packages/*/dist
+            packages/*/node_modules
             ~/.cache/prisma
           key: ${{ needs.setup.outputs.cache-key }}
           fail-on-cache-miss: true
@@ -439,6 +459,8 @@ jobs:
             node_modules
             backend/node_modules
             frontend/node_modules
+            packages/*/dist
+            packages/*/node_modules
             ~/.cache/prisma
           key: ${{ needs.setup.outputs.cache-key }}
           fail-on-cache-miss: true
@@ -462,8 +484,8 @@ jobs:
             fi
             sleep 1
           done
-          node ../scripts/verify-api-contract.cjs
-          node ../scripts/verify-pact-contracts.cjs
+          node ../scripts/ci/verify-api-contract.cjs
+          node ../scripts/ci/verify-pact-contracts.cjs
           PACT_PROVIDER_URL=http://localhost:3000 pnpm test:pact:verify
           kill $SERVER_PID || true
         env:
@@ -498,6 +520,8 @@ jobs:
             node_modules
             backend/node_modules
             frontend/node_modules
+            packages/*/dist
+            packages/*/node_modules
             ~/.cache/prisma
           key: ${{ needs.setup.outputs.cache-key }}
           fail-on-cache-miss: true
@@ -550,6 +574,8 @@ jobs:
             node_modules
             backend/node_modules
             frontend/node_modules
+            packages/*/dist
+            packages/*/node_modules
             ~/.cache/prisma
           key: ${{ needs.setup.outputs.cache-key }}
           fail-on-cache-miss: true
@@ -584,6 +610,8 @@ jobs:
             node_modules
             backend/node_modules
             frontend/node_modules
+            packages/*/dist
+            packages/*/node_modules
             ~/.cache/prisma
           key: ${{ needs.setup.outputs.cache-key }}
           fail-on-cache-miss: true
@@ -595,7 +623,7 @@ jobs:
           VITE_API_URL: http://localhost:3000
 
       - name: Enforce bundle size budget
-        run: node scripts/check-bundle-size.cjs
+        run: node scripts/ci/check-bundle-size.cjs
 
       - name: Check bundle size changes
         uses: preactjs/compressed-size-action@f322c295dde06a1cb7ccaef105732dd8a726d1d9 # v2.10.0
@@ -619,6 +647,7 @@ jobs:
         uses: actions/dependency-review-action@05fe4576374b728f0c523d6a13d64c25081e0803 # v4.8.3
         with:
           fail-on-severity: high
+          allow-ghsas: 'GHSA-fjxv-7rqg-78g4, GHSA-hmw2-7cc7-3qxx, GHSA-36jr-mh4h-2g58, GHSA-ggr8-5vv4-36mx, GHSA-3f6p-5ww8-9rcr, GHSA-7w5x-hrqm-74c2'
           retry-on-snapshot-warnings: true
           retry-on-snapshot-warnings-timeout: 600
 

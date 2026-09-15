@@ -11,7 +11,7 @@ export function generateDefaultWaveform(
   targetCount = DEFAULT_WAVEFORM_BAR_COUNT,
   seed = 'voice-note',
 ): number[] {
-  const bars: number[] = [];
+  const bars: number[] = new Array<number>(targetCount);
   let hash = 0;
   for (let i = 0; i < seed.length; i++) {
     hash = (hash << 5) - hash + seed.charCodeAt(i);
@@ -25,7 +25,7 @@ export function generateDefaultWaveform(
     const envelope = Math.sin((i / (targetCount - 1)) * Math.PI);
     const speechMod = 0.3 + 0.7 * Math.abs(Math.sin(i * 0.7 + hash));
     const value = 0.12 + 0.78 * pseudo * (0.35 + 0.65 * envelope) * speechMod;
-    bars.push(Number(Math.max(0.12, Math.min(1.0, value)).toFixed(2)));
+    bars[i] = Number(Math.max(0.12, Math.min(1.0, value)).toFixed(2));
   }
 
   return bars;
@@ -59,7 +59,7 @@ export function samplePeaks(
     return validPeaks.map((p) => Number(Math.max(0.12, Math.min(1.0, p / maxVal)).toFixed(2)));
   }
 
-  const result: number[] = [];
+  const result: number[] = new Array<number>(targetCount);
   const step = validPeaks.length / targetCount;
 
   for (let i = 0; i < targetCount; i++) {
@@ -84,7 +84,7 @@ export function samplePeaks(
     const combined = maxInBucket * 0.65 + avg * 0.35;
     const normalized = Math.max(0.12, Math.min(1.0, combined / maxVal));
 
-    result.push(Number(normalized.toFixed(2)));
+    result[i] = Number(normalized.toFixed(2));
   }
 
   return result;

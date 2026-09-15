@@ -7,6 +7,7 @@ export type LoginPayload = Partial<LoginDto> & {
   email?: string;
   identity?: string;
   password?: string;
+  turnstileToken?: string;
 };
 
 export type RegisterPayload = Partial<RegisterDto> & {
@@ -15,6 +16,7 @@ export type RegisterPayload = Partial<RegisterDto> & {
   displayName?: string;
   password?: string;
   birthDate?: string;
+  turnstileToken?: string;
 };
 
 export interface FindAccountPayload {
@@ -36,22 +38,32 @@ export interface AuthResponse {
 }
 
 export const authApi = {
-  login: (data: LoginPayload) =>
-    api.post<AuthResponse>('/auth/login', data).then((res) => res.data),
-
-  register: (data: RegisterPayload) =>
-    api.post<AuthResponse>('/auth/register', data).then((res) => res.data),
-
-  logout: (refreshToken?: string) => {
-    const token = refreshToken || localStorage.getItem('refreshToken') || '';
-    return api.post('/auth/logout', { refreshToken: token });
-  },
-
-  findAccount: (identifier: string) =>
+  login: (data: LoginPayload, signal?: AbortSignal) =>
     api
-      .post<FoundUserResponse>('/auth/find-account', { identifier } satisfies FindAccountPayload)
+      .post<AuthResponse>('/auth/login', data, ...(signal ? [{ signal }] : []))
       .then((res) => res.data),
 
-  resetPassword: (data: ResetPasswordPayload) =>
-    api.post<{ success: boolean }>('/auth/reset-password', data).then((res) => res.data),
+  register: (data: RegisterPayload, signal?: AbortSignal) =>
+    api
+      .post<AuthResponse>('/auth/register', data, ...(signal ? [{ signal }] : []))
+      .then((res) => res.data),
+
+  logout: (refreshToken?: string, signal?: AbortSignal) => {
+    const token = refreshToken || localStorage.getItem('refreshToken') || '';
+    return api.post('/auth/logout', { refreshToken: token }, ...(signal ? [{ signal }] : []));
+  },
+
+  findAccount: (identifier: string, signal?: AbortSignal) =>
+    api
+      .post<FoundUserResponse>(
+        '/auth/find-account',
+        { identifier } satisfies FindAccountPayload,
+        ...(signal ? [{ signal }] : []),
+      )
+      .then((res) => res.data),
+
+  resetPassword: (data: ResetPasswordPayload, signal?: AbortSignal) =>
+    api
+      .post<{ success: boolean }>('/auth/reset-password', data, ...(signal ? [{ signal }] : []))
+      .then((res) => res.data),
 };

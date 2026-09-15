@@ -12,7 +12,7 @@ vi.mock('react-router-dom', () => ({
   ),
 }));
 
-vi.mock('@/entities/profile/ui/MiniProfileHoverCard', () => ({
+vi.mock('@/widgets/profile', () => ({
   MiniProfileHoverCard: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 

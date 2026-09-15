@@ -3,7 +3,7 @@ import { ChevronDown, CornerDownRight } from 'lucide-react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { CommentItem } from './CommentItem';
 import { CommentType } from '../model/types';
-import { commentsApi, CommentListPage } from '@/features/comment/api/commentsApi';
+import { commentsApi, CommentListPage } from '../api/commentsApi';
 import { COMMENT_REPLIES_KEY } from '@/shared/api/queryKeys';
 
 interface CommentThreadProps {
@@ -34,8 +34,8 @@ export function CommentThread({
   const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } =
     useInfiniteQuery<CommentListPage>({
       queryKey: [COMMENT_REPLIES_KEY, comment.id],
-      queryFn: ({ pageParam }) =>
-        commentsApi.getReplies(comment.id, pageParam as string | undefined, 20),
+      queryFn: async ({ pageParam, signal }) =>
+        commentsApi.getReplies(comment.id, pageParam as string | undefined, 20, signal),
       getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
       initialPageParam: undefined,
       enabled: isExpanded,

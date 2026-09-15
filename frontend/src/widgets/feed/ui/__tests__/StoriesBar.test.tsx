@@ -1,9 +1,11 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
 import { StoriesBar } from '../StoriesBar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useStoryEditorStore } from '@/features/stories/model/useStoryEditorStore';
+import { useStoryViewerStore } from '@/features/stories/model/useStoryViewerStore';
+import * as storiesModule from '@/features/stories/model/useStories';
 
 vi.mock('@/entities/profile/model/useCurrentUser', () => ({
   useCurrentUser: () => ({
@@ -16,28 +18,30 @@ vi.mock('@/entities/profile/model/useCurrentUser', () => ({
   }),
 }));
 
-vi.mock('@/features/stories/model/useStories', () => ({
-  useStoriesFeed: () => ({
-    data: [
+const mockFeed = [
+  {
+    user: { id: 'u-1', username: 'alice', displayName: 'Alice Wonderland', avatar: null },
+    hasUnviewed: true,
+    hasCloseFriendsStory: true,
+    latestStoryTimestamp: new Date().toISOString(),
+    stories: [{ id: 's-own', authorId: 'u-1', mediaUrl: 'https://img.jpg' } as any],
+  },
+  {
+    user: { id: 'u-2', username: 'bob', displayName: 'Bob', avatar: null },
+    hasUnviewed: true,
+    hasCloseFriendsStory: true,
+    latestStoryTimestamp: new Date().toISOString(),
+    stories: [
       {
-        user: { id: 'u-2', username: 'bob', displayName: 'Bob', avatar: null },
-        hasUnviewed: true,
-        hasCloseFriendsStory: false,
-        latestStoryTimestamp: new Date().toISOString(),
-        stories: [
-          {
-            id: 's-1',
-            authorId: 'u-2',
-            mediaUrl: 'https://example.com/s1.jpg',
-            mediaType: 'IMAGE',
-            author: { id: 'u-2', username: 'bob', displayName: 'Bob', avatar: null },
-          },
-        ],
-      },
+        id: 's-1',
+        authorId: 'u-2',
+        mediaUrl: 'https://example.com/s1.jpg',
+        mediaType: 'IMAGE',
+        author: { id: 'u-2', username: 'bob', displayName: 'Bob', avatar: null },
+      } as any,
     ],
-    isLoading: false,
-  }),
-}));
+  },
+];
 
 const createWrapper = () => {
   const queryClient = new QueryClient({
@@ -49,21 +53,48 @@ const createWrapper = () => {
 };
 
 describe('StoriesBar', () => {
-  it('renders current user add story button and followed users', () => {
-    render(<StoriesBar />, { wrapper: createWrapper() });
-
-    expect(screen.getByText('Add')).toBeDefined();
-    expect(screen.getByText('Bob')).toBeDefined();
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useStoryEditorStore.getState().closeEditor();
+    useStoryViewerStore.getState().closeViewer();
+    vi.spyOn(storiesModule, 'useStoriesFeed').mockReturnValue({
+      data: mockFeed as any,
+      isLoading: false,
+    } as any);
   });
 
-  it('opens story editor modal when clicking on own add story button', () => {
+  it('renders current user active story and followed users', () => {
     render(<StoriesBar />, { wrapper: createWrapper() });
 
-    const ownButton = screen.getByText('Add').parentElement;
-    if (ownButton) {
-      fireEvent.click(ownButton.querySelector('button')!);
-    }
+    expect(screen.getByText('Your story')).toBeInTheDocument();
+    expect(screen.getByText('Bob')).toBeInTheDocument();
+    expect(screen.getByTitle('Close Friends Story')).toBeInTheDocument();
 
+    // Click own avatar -> opens viewer
+    const ownAvatarBtn = screen.getByText('Your story').parentElement!.querySelector('button')!;
+    fireEvent.click(ownAvatarBtn);
+    expect(useStoryViewerStore.getState().isOpen).toBe(true);
+
+    // Click plus button -> opens editor
+    const plusBtn = screen.getByTitle('Create story');
+    fireEvent.click(plusBtn);
     expect(useStoryEditorStore.getState().isOpen).toBe(true);
+  });
+
+  it('opens viewer when clicking another user story', () => {
+    render(<StoriesBar />, { wrapper: createWrapper() });
+
+    fireEvent.click(screen.getByText('Bob'));
+    expect(useStoryViewerStore.getState().isOpen).toBe(true);
+  });
+
+  it('renders loading skeleton when loading and empty feed', () => {
+    vi.spyOn(storiesModule, 'useStoriesFeed').mockReturnValue({
+      data: [],
+      isLoading: true,
+    } as any);
+
+    render(<StoriesBar />, { wrapper: createWrapper() });
+    expect(document.querySelector('.animate-pulse')).toBeInTheDocument();
   });
 });

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { X, Loader2, AlertCircle, Eye, Edit3 } from 'lucide-react';
 import Avatar from '../../../shared/ui/Avatar';
 import { PollCreator } from './PollCreator';
@@ -12,11 +12,12 @@ import { PollOptionDraft, MediaDraft } from '../model/types';
 import { compressMediaFiles } from '@/shared/lib/compressImage';
 import { PostType, PostMedia } from '@/entities/post/model/types';
 import MarkdownContent from '@/shared/ui/MarkdownContent';
-import SmartCodePasteBanner from '@/features/chat/ui/SmartCodePasteBanner';
-import FloatingSelectionToolbar, {
-  SelectionFormatType,
-} from '@/features/chat/ui/FloatingSelectionToolbar';
-import { detectCodeSnippet, DetectedCodeSnippet } from '@/features/chat/lib/smartCodeDetection';
+import {
+  SmartCodePasteBanner,
+  FloatingSelectionToolbar,
+  type SelectionFormatType,
+} from '@/shared/ui/editor';
+import { detectCodeSnippet, type DetectedCodeSnippet } from '@/shared/lib/editor';
 
 const MAX_MEDIA = 5;
 
@@ -92,7 +93,21 @@ export default function CreatePost({ onSubmitFormData, isPending = false }: Crea
     setActiveMenu(null);
   };
 
-  const removeMedia = (idx: number) => setMedia((prev) => prev.filter((_, i) => i !== idx));
+  const removeMedia = (idx: number) => {
+    setMedia((prev) => {
+      const removed = prev[idx];
+      if (removed?.previewUrl) URL.revokeObjectURL(removed.previewUrl);
+      return prev.filter((_, i) => i !== idx);
+    });
+  };
+
+  useEffect(() => {
+    return () => {
+      media.forEach((m) => {
+        if (m.previewUrl) URL.revokeObjectURL(m.previewUrl);
+      });
+    };
+  }, [media]);
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setText(e.target.value);

@@ -10,9 +10,11 @@ import { initSentry } from '@/shared/config/sentry';
 import { ErrorFallback } from '@/shared/ui/ErrorFallback';
 import { queryClient } from '@/shared/api/queryClient';
 import { initCrossTabSync } from '@/shared/lib/broadcastSync';
+import { ensureDevAccounts } from '@/shared/lib/devAccounts';
 
 initSentry();
 initCrossTabSync();
+void ensureDevAccounts();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

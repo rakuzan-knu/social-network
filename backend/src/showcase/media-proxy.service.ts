@@ -1,6 +1,7 @@
 import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import axios from 'axios';
 import { RedisService } from '../redis/redis.service';
+import { CircuitBreaker } from '../common/resilience/circuit-breaker';
 import {
   ShowcaseMediaType,
   type MediaSearchResultDto,
@@ -2882,12 +2883,56 @@ const POPULAR_CINEMA_DATABASE: Array<MediaSearchResultDto & { aliases?: string[]
 export class MediaProxyService {
   private readonly logger = new Logger(MediaProxyService.name);
   private readonly CACHE_TTL_SECONDS = 86400; // 24 hours
+  private readonly aniListBreaker: CircuitBreaker;
+  private readonly rawgBreaker: CircuitBreaker;
+  private readonly tmdbBreaker: CircuitBreaker;
+  private readonly itunesBreaker: CircuitBreaker;
 
   constructor(
     private readonly redis: RedisService,
     @Inject(forwardRef(() => SoundCloudService))
     private readonly soundCloudService: SoundCloudService,
-  ) {}
+  ) {
+    this.aniListBreaker = new CircuitBreaker({
+      name: 'AniList-API',
+      failureThreshold: 4,
+      resetTimeoutMs: 20_000,
+      halfOpenSuccessThreshold: 2,
+      onStateChange: (from, to) => {
+        this.logger.warn(`AniList API CircuitBreaker transitioned from ${from} to ${to}`);
+      },
+    });
+
+    this.rawgBreaker = new CircuitBreaker({
+      name: 'RAWG-API',
+      failureThreshold: 4,
+      resetTimeoutMs: 20_000,
+      halfOpenSuccessThreshold: 2,
+      onStateChange: (from, to) => {
+        this.logger.warn(`RAWG API CircuitBreaker transitioned from ${from} to ${to}`);
+      },
+    });
+
+    this.tmdbBreaker = new CircuitBreaker({
+      name: 'TMDB-API',
+      failureThreshold: 4,
+      resetTimeoutMs: 20_000,
+      halfOpenSuccessThreshold: 2,
+      onStateChange: (from, to) => {
+        this.logger.warn(`TMDB API CircuitBreaker transitioned from ${from} to ${to}`);
+      },
+    });
+
+    this.itunesBreaker = new CircuitBreaker({
+      name: 'iTunes-API',
+      failureThreshold: 4,
+      resetTimeoutMs: 20_000,
+      halfOpenSuccessThreshold: 2,
+      onStateChange: (from, to) => {
+        this.logger.warn(`iTunes API CircuitBreaker transitioned from ${from} to ${to}`);
+      },
+    });
+  }
 
   async searchMedia(query: string, type: ShowcaseMediaType): Promise<MediaSearchResultDto[]> {
     const cleanQuery = (query || '').trim().toLowerCase();
@@ -2934,8 +2979,22 @@ export class MediaProxyService {
       return localMatches.slice(0, 15);
     }
 
-    // 2. Query AniList for additional/unlisted anime
-    try {
+    // 2. Query AniList for additional/unlisted anime with CircuitBreaker protection
+    const fallbackResponse = (): MediaSearchResultDto[] => {
+      if (localMatches.length > 0) return localMatches;
+      return [
+        {
+          id: `anime-${encodeURIComponent(query)}`,
+          title: query.charAt(0).toUpperCase() + query.slice(1),
+          posterUrl:
+            'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=500&auto=format&fit=crop&q=80',
+          type: ShowcaseMediaType.ANIME,
+          rating: 8.5,
+        },
+      ];
+    };
+
+    return this.aniListBreaker.execute(async () => {
       const gqlQuery = `
         query ($search: String) {
           Page(page: 1, perPage: 10) {
@@ -3021,29 +3080,33 @@ export class MediaProxyService {
       }
 
       return combined.slice(0, 15);
-    } catch (error) {
-      this.logger.warn(`AniList API query failed for "${query}": ${(error as Error).message}`);
-      if (localMatches.length > 0) {
-        return localMatches;
-      }
-      return [
-        {
-          id: `anime-${encodeURIComponent(query)}`,
-          title: query.charAt(0).toUpperCase() + query.slice(1),
-          posterUrl:
-            'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=500&auto=format&fit=crop&q=80',
-          type: ShowcaseMediaType.ANIME,
-          rating: 8.5,
-        },
-      ];
-    }
+    }, fallbackResponse);
   }
 
   private async searchGames(query: string): Promise<MediaSearchResultDto[]> {
     const rawgApiKey = process.env.RAWG_API_KEY;
 
     if (rawgApiKey && query) {
-      try {
+      const fallbackGames = (): MediaSearchResultDto[] => {
+        const filtered = POPULAR_GAMES_DATABASE.filter((g) =>
+          g.title.toLowerCase().includes(query),
+        );
+        if (filtered.length > 0) return filtered;
+        return [
+          {
+            id: `custom-game-${encodeURIComponent(query)}`,
+            title: query.charAt(0).toUpperCase() + query.slice(1),
+            posterUrl:
+              'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=500&auto=format&fit=crop&q=80',
+            releaseYear: new Date().getFullYear(),
+            rating: 9.0,
+            type: ShowcaseMediaType.GAME,
+          },
+          ...POPULAR_GAMES_DATABASE.slice(0, 4),
+        ];
+      };
+
+      return this.rawgBreaker.execute(async () => {
         const response = await axios.get<{
           results?: Array<{
             id: number;
@@ -3074,9 +3137,8 @@ export class MediaProxyService {
             externalUrl: g.slug ? `https://rawg.io/games/${g.slug}` : undefined,
           }));
         }
-      } catch (err) {
-        this.logger.warn(`RAWG API search failed: ${(err as Error).message}`);
-      }
+        return fallbackGames();
+      }, fallbackGames);
     }
 
     if (!query) return POPULAR_GAMES_DATABASE;
@@ -3125,10 +3187,26 @@ export class MediaProxyService {
       return localMatches.slice(0, 15);
     }
 
-    // 2. Query TMDB API for additional/unlisted movies or TV series
+    // 2. Query TMDB API with CircuitBreaker protection
     const tmdbApiKey = process.env.TMDB_API_KEY;
     if (tmdbApiKey && clean) {
-      try {
+      const fallbackCinema = (): MediaSearchResultDto[] => {
+        if (localMatches.length > 0) return localMatches;
+        return [
+          {
+            id: `custom-cinema-${encodeURIComponent(query)}`,
+            title: query.charAt(0).toUpperCase() + query.slice(1),
+            posterUrl:
+              'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=500&auto=format&fit=crop&q=80',
+            releaseYear: new Date().getFullYear(),
+            rating: 9.0,
+            type,
+          },
+          ...POPULAR_CINEMA_DATABASE.slice(0, 3).map(({ aliases: _, ...rest }) => rest),
+        ];
+      };
+
+      return this.tmdbBreaker.execute(async () => {
         const endpoint = type === ShowcaseMediaType.MOVIE ? 'movie' : 'tv';
         const response = await axios.get<{
           results?: Array<{
@@ -3169,9 +3247,8 @@ export class MediaProxyService {
           );
           return unique.slice(0, 15);
         }
-      } catch (err) {
-        this.logger.warn(`TMDB API search failed: ${(err as Error).message}`);
-      }
+        return fallbackCinema();
+      }, fallbackCinema);
     }
 
     if (localMatches.length > 0) return localMatches;
@@ -3336,97 +3413,144 @@ export class MediaProxyService {
         spotifyUrl: 'https://open.spotify.com/track/7MXVkk9YMctZqd1Srtv4MB',
       },
       {
-        id: '4Dvkj6JhhA12EX05fT7y2e',
-        trackId: '4Dvkj6JhhA12EX05fT7y2e',
-        title: 'As It Was',
-        artist: 'Harry Styles',
-        albumArt: 'https://i.scdn.co/image/ab67616d0000b27382ce362511fb3d9dda6578ee',
+        id: '1rqqCSm0Qe4I9rUvWncaom',
+        trackId: '1rqqCSm0Qe4I9rUvWncaom',
+        title: 'High Hopes',
+        artist: 'Panic! At The Disco',
+        albumArt: 'https://i.scdn.co/image/ab67616d0000b273d1624c96576b5d92df99dbef',
         previewUrl: null,
-        durationMs: 167303,
-        spotifyUrl: 'https://open.spotify.com/track/4Dvkj6JhhA12EX05fT7y2e',
+        durationMs: 190946,
+        spotifyUrl: 'https://open.spotify.com/track/1rqqCSm0Qe4I9rUvWncaom',
       },
       {
-        id: '3KkXRkHbMCARz0aVfEt68P',
-        trackId: '3KkXRkHbMCARz0aVfEt68P',
-        title: 'Sunflower - Spider-Man: Into the Spider-Verse',
+        id: '2takcwOaAZWiRcymsPHBUv',
+        trackId: '2takcwOaAZWiRcymsPHBUv',
+        title: 'Sunflower',
         artist: 'Post Malone, Swae Lee',
         albumArt: 'https://i.scdn.co/image/ab67616d0000b273e2e352d89826aef6dbd5ff8f',
         previewUrl: null,
-        durationMs: 158040,
-        spotifyUrl: 'https://open.spotify.com/track/3KkXRkHbMCARz0aVfEt68P',
+        durationMs: 157560,
+        spotifyUrl: 'https://open.spotify.com/track/2takcwOaAZWiRcymsPHBUv',
       },
       {
-        id: '1zi7xx7UVEFkmKfv06H8x0',
-        trackId: '1zi7xx7UVEFkmKfv06H8x0',
-        title: 'One Dance',
-        artist: 'Drake, Wizkid, Kyla',
-        albumArt: 'https://i.scdn.co/image/ab67616d0000b2739416ed64daf84936d89e671c',
+        id: '3ee8Jmje8o58CHK66QrVC2',
+        trackId: '3ee8Jmje8o58CHK66QrVC2',
+        title: 'Sad!',
+        artist: 'XXXTENTACION',
+        albumArt: 'https://i.scdn.co/image/ab67616d0000b27380ee45155f9f6e1f0e4b8a21',
         previewUrl: null,
-        durationMs: 173986,
-        spotifyUrl: 'https://open.spotify.com/track/1zi7xx7UVEFkmKfv06H8x0',
+        durationMs: 166605,
+        spotifyUrl: 'https://open.spotify.com/track/3ee8Jmje8o58CHK66QrVC2',
       },
       {
-        id: '567e29TDzLwZwfDuEpGTwo',
-        trackId: '567e29TDzLwZwfDuEpGTwo',
-        title: 'STAY (with Justin Bieber)',
-        artist: 'The Kid LAROI, Justin Bieber',
-        albumArt: 'https://i.scdn.co/image/ab67616d0000b273b4d59e6fa7e5e7cbc57ac33a',
+        id: '0e8caQ078qduDT32x8kn4V',
+        trackId: '0e8caQ078qduDT32x8kn4V',
+        title: 'Lucid Dreams',
+        artist: 'Juice WRLD',
+        albumArt: 'https://i.scdn.co/image/ab67616d0000b273f7db43292a6a99b21b51d5b4',
         previewUrl: null,
-        durationMs: 141805,
-        spotifyUrl: 'https://open.spotify.com/track/567e29TDzLwZwfDuEpGTwo',
+        durationMs: 239835,
+        spotifyUrl: 'https://open.spotify.com/track/0e8caQ078qduDT32x8kn4V',
       },
       {
-        id: '7qEHsqek33rTcFNT9PFqLf',
-        trackId: '7qEHsqek33rTcFNT9PFqLf',
-        title: 'Someone You Loved',
-        artist: 'Lewis Capaldi',
-        albumArt: 'https://i.scdn.co/image/ab67616d0000b273fc2101e6889d6ce9025f85f2',
+        id: '4LRPiXqCikLlN15c3ySbp7',
+        trackId: '4LRPiXqCikLlN15c3ySbp7',
+        title: 'As It Was',
+        artist: 'Harry Styles',
+        albumArt: 'https://i.scdn.co/image/ab67616d0000b2732e8f6fb74623f3775a077490',
         previewUrl: null,
-        durationMs: 182160,
-        spotifyUrl: 'https://open.spotify.com/track/7qEHsqek33rTcFNT9PFqLf',
+        durationMs: 167303,
+        spotifyUrl: 'https://open.spotify.com/track/4LRPiXqCikLlN15c3ySbp7',
       },
       {
-        id: '2QjOHCTQ1Jl3zawyYOpxh6',
-        trackId: '2QjOHCTQ1Jl3zawyYOpxh6',
-        title: 'Sweater Weather',
-        artist: 'The Neighbourhood',
-        albumArt: 'https://i.scdn.co/image/ab67616d0000b2738265a736a1eb838ad5a0b921',
+        id: '5QO79kh1waicV47BqGRL3g',
+        trackId: '5QO79kh1waicV47BqGRL3g',
+        title: 'Save Your Tears',
+        artist: 'The Weeknd',
+        albumArt: 'https://i.scdn.co/image/ab67616d0000b2738863bc11d2aa12b54f5aeb36',
         previewUrl: null,
-        durationMs: 240400,
-        spotifyUrl: 'https://open.spotify.com/track/2QjOHCTQ1Jl3zawyYOpxh6',
+        durationMs: 215626,
+        spotifyUrl: 'https://open.spotify.com/track/5QO79kh1waicV47BqGRL3g',
       },
       {
-        id: '0pqnGHJpmpxLKifKRmU6WP',
-        trackId: '0pqnGHJpmpxLKifKRmU6WP',
-        title: 'Believer',
-        artist: 'Imagine Dragons',
-        albumArt: 'https://i.scdn.co/image/ab67616d0000b2735675e83f707f1d7271e5cf8a',
+        id: '4Dvkj6JhhA12EX05QKi792',
+        trackId: '4Dvkj6JhhA12EX05QKi792',
+        title: 'Is There Someone Else?',
+        artist: 'The Weeknd',
+        albumArt: 'https://i.scdn.co/image/ab67616d0000b2734718e2b124f79258be7bc452',
         previewUrl: null,
-        durationMs: 204346,
-        spotifyUrl: 'https://open.spotify.com/track/0pqnGHJpmpxLKifKRmU6WP',
+        durationMs: 199111,
+        spotifyUrl: 'https://open.spotify.com/track/4Dvkj6JhhA12EX05QKi792',
       },
     ];
 
-    if (!cleanQuery) {
-      return TOP_10_SPOTIFY_TRACKS;
-    }
-
-    const cacheKey = `showcase:search:tracks:${encodeURIComponent(cleanQuery.toLowerCase())}`;
+    const cacheKey = `showcase:search:tracks:v3:${encodeURIComponent(cleanQuery.toLowerCase() || '__top10__')}`;
 
     return this.redis.getOrSet(cacheKey, this.CACHE_TTL_SECONDS, async () => {
+      if (cleanQuery) {
+        try {
+          const itunesRes = await axios.get<{
+            resultCount: number;
+            results: Array<{
+              trackName?: string;
+              artistName?: string;
+              artworkUrl100?: string;
+              previewUrl?: string;
+              trackViewUrl?: string;
+              trackTimeMillis?: number;
+            }>;
+          }>(
+            `https://itunes.apple.com/search?term=${encodeURIComponent(cleanQuery)}&media=music&entity=song&limit=15`,
+            { timeout: 5000 },
+          );
+
+          if (itunesRes.data?.results && itunesRes.data.results.length > 0) {
+            return itunesRes.data.results
+              .filter((t) => Boolean(t.trackName && t.artistName))
+              .map((t) => ({
+                title: t.trackName!,
+                artist: t.artistName!,
+                albumArt: (t.artworkUrl100 || '').replace('100x100bb', '600x600bb'),
+                previewUrl: t.previewUrl || null,
+                spotifyUrl: t.trackViewUrl || null,
+                durationMs: t.trackTimeMillis || null,
+              }));
+          }
+        } catch {
+          // Fall through to Spotify & SoundCloud & curated fallback
+        }
+      }
+
       const [spotifyResults, scResults] = await Promise.all([
-        this.searchSpotifyCatalog(cleanQuery).catch(() => []),
-        this.soundCloudService.searchTracks(cleanQuery, 10).catch(() => []),
+        cleanQuery ? this.searchSpotifyCatalog(cleanQuery) : Promise.resolve([]),
+        this.soundCloudService?.searchTracks?.(cleanQuery, 10)?.catch(() => []) ??
+          Promise.resolve([]),
       ]);
+
+      const filteredPopular = TOP_10_SPOTIFY_TRACKS.filter(
+        (t) =>
+          t.title.toLowerCase().includes(cleanQuery.toLowerCase()) ||
+          t.artist.toLowerCase().includes(cleanQuery.toLowerCase()),
+      );
 
       const baseSpotify =
         spotifyResults.length > 0
           ? spotifyResults
-          : TOP_10_SPOTIFY_TRACKS.filter(
-              (t) =>
-                t.title.toLowerCase().includes(cleanQuery.toLowerCase()) ||
-                t.artist.toLowerCase().includes(cleanQuery.toLowerCase()),
-            );
+          : !cleanQuery
+            ? TOP_10_SPOTIFY_TRACKS
+            : filteredPopular.length > 0
+              ? filteredPopular
+              : [
+                  {
+                    title: cleanQuery.charAt(0).toUpperCase() + cleanQuery.slice(1),
+                    artist: 'Unknown Artist',
+                    albumArt:
+                      'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=80',
+                    previewUrl: null,
+                    spotifyUrl: `https://open.spotify.com/search/${encodeURIComponent(cleanQuery)}`,
+                    durationMs: null,
+                  },
+                ];
 
       const mappedSpotify = baseSpotify.map((t: any) => ({
         ...t,
@@ -4050,14 +4174,14 @@ export class MediaProxyService {
         videoUrl:
           item.videoUrl ||
           'https://cdn.cloudflare.steamstatic.com/steam/apps/256666958/movie480.mp4',
-        videoThumbnail: item.videoThumbnail,
         videoDuration: '1:30',
         screenshots: item.screenshots || [],
-        genres: item.genres,
-        publisher: item.publisher,
-        developer: item.developer,
-        releaseDate: item.releaseDate,
-        externalUrl: item.externalUrl,
+        ...(item.videoThumbnail ? { videoThumbnail: item.videoThumbnail } : {}),
+        ...(item.genres ? { genres: item.genres } : {}),
+        ...(item.publisher ? { publisher: item.publisher } : {}),
+        ...(item.developer ? { developer: item.developer } : {}),
+        ...(item.releaseDate ? { releaseDate: item.releaseDate } : {}),
+        ...(item.externalUrl ? { externalUrl: item.externalUrl } : {}),
       };
     }
 
@@ -4139,14 +4263,14 @@ export class MediaProxyService {
         videoUrl:
           item.videoUrl ||
           'https://cdn.discordapp.com/app-assets/356875988589740042/store/1486740188892893284.mp4?size=3072',
-        videoThumbnail: item.videoThumbnail,
         videoDuration: '2:15',
         screenshots: item.screenshots || [],
-        genres: item.genres,
-        publisher: item.publisher,
-        developer: item.developer,
-        releaseDate: item.releaseDate,
-        externalUrl: item.externalUrl,
+        ...(item.videoThumbnail ? { videoThumbnail: item.videoThumbnail } : {}),
+        ...(item.genres ? { genres: item.genres } : {}),
+        ...(item.publisher ? { publisher: item.publisher } : {}),
+        ...(item.developer ? { developer: item.developer } : {}),
+        ...(item.releaseDate ? { releaseDate: item.releaseDate } : {}),
+        ...(item.externalUrl ? { externalUrl: item.externalUrl } : {}),
       };
     }
 

@@ -7,8 +7,16 @@ import rehypeKatex from 'rehype-katex';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import { Link } from 'react-router-dom';
 import CodeBlock from './CodeBlock';
-import { MiniProfileHoverCard } from '@/entities/profile/ui/MiniProfileHoverCard';
+import { CpuCircuitBreaker } from '@/shared/lib/v8/cpuCircuitBreaker';
 import 'katex/dist/katex.min.css';
+
+const markdownCircuitBreaker = new CpuCircuitBreaker('markdown-content', {
+  budgetMs: 5,
+  tripThreshold: 3,
+  cooldownMs: 8_000,
+});
+
+const HAS_SPECIAL_FORMATTING_REGEX = /[*_`#~|>$@[\]]/;
 
 interface MarkdownContentProps {
   content: string;
@@ -178,15 +186,13 @@ function renderTextWithMentionsAndSpoilers(
 
       return (
         <React.Fragment key={index}>
-          <MiniProfileHoverCard username={cleanHandle}>
-            <Link
-              to={`/profile/${cleanHandle}`}
-              onClick={(e) => e.stopPropagation()}
-              className="text-sky-400 font-semibold hover:underline hover:text-sky-300 transition-colors"
-            >
-              @{cleanHandle}
-            </Link>
-          </MiniProfileHoverCard>
+          <Link
+            to={`/profile/${cleanHandle}`}
+            onClick={(e) => e.stopPropagation()}
+            className="text-sky-400 font-semibold hover:underline hover:text-sky-300 transition-colors"
+          >
+            @{cleanHandle}
+          </Link>
           {trailingPunct}
         </React.Fragment>
       );
@@ -244,7 +250,7 @@ function processChildren(
   });
 }
 
-export default function MarkdownContent({
+export function MarkdownContent({
   content,
   className = '',
   enableMentions = true,
@@ -252,7 +258,37 @@ export default function MarkdownContent({
 }: MarkdownContentProps) {
   if (!content) return null;
 
-  const processedContent = preprocessDiscordMarkdown(content);
+  // Fast-Path: If text does not contain any formatting tokens or links, render directly
+  if (
+    !HAS_SPECIAL_FORMATTING_REGEX.test(content) &&
+    !content.includes('http://') &&
+    !content.includes('https://') &&
+    !content.startsWith('-# ')
+  ) {
+    return (
+      <div
+        className={`markdown-content w-full min-w-0 max-w-full leading-relaxed select-text wrap-anywhere ${className}`}
+      >
+        <p className="my-1 text-white/90">{content}</p>
+      </div>
+    );
+  }
+
+  // CPU Circuit Breaker: Protect main thread against complex string/math execution spikes
+  const { processedContent, isTripped } = markdownCircuitBreaker.execute(
+    () => ({ isTripped: false, processedContent: preprocessDiscordMarkdown(content) }),
+    () => ({ isTripped: true, processedContent: content }),
+  );
+
+  if (isTripped) {
+    return (
+      <div
+        className={`markdown-content w-full min-w-0 max-w-full leading-relaxed select-text wrap-anywhere ${className}`}
+      >
+        <p className="my-1 text-white/80 whitespace-pre-wrap">{content}</p>
+      </div>
+    );
+  }
 
   const components: Components = {
     // Custom pre renderer (unwraps to avoid double <pre> nesting)
@@ -310,7 +346,7 @@ export default function MarkdownContent({
     // Blockquote
     blockquote({ children }) {
       return (
-        <blockquote className="border-l-2 border-purple-500 pl-3 my-1.5 text-white/80 bg-white/[0.03] py-1 rounded-r-md italic">
+        <blockquote className="border-l-2 border-purple-500 pl-3 my-1.5 text-white/80 bg-white/3 py-1 rounded-r-md italic">
           {processChildren(children, enableMentions, enableHashtags)}
         </blockquote>
       );
@@ -372,7 +408,7 @@ export default function MarkdownContent({
     // Paragraph
     p({ children }) {
       return (
-        <p className="leading-relaxed my-1 break-words [overflow-wrap:anywhere] first:mt-0 last:mb-0">
+        <p className="leading-relaxed my-1 wrap-anywhere first:mt-0 last:mb-0">
           {processChildren(children, enableMentions, enableHashtags)}
         </p>
       );
@@ -381,7 +417,7 @@ export default function MarkdownContent({
     // Tables
     table({ children }) {
       return (
-        <div className="w-full my-2 overflow-x-auto rounded-lg border border-white/10 bg-white/[0.02] custom-scrollbar">
+        <div className="w-full my-2 overflow-x-auto rounded-lg border border-white/10 bg-white/2 custom-scrollbar">
           <table className="min-w-full divide-y divide-white/10 text-xs text-left">
             {children}
           </table>
@@ -411,7 +447,7 @@ export default function MarkdownContent({
 
   return (
     <div
-      className={`markdown-content w-full min-w-0 max-w-full leading-relaxed select-text [overflow-wrap:anywhere] ${className}`}
+      className={`markdown-content w-full min-w-0 max-w-full leading-relaxed select-text wrap-anywhere ${className}`}
     >
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
@@ -424,4 +460,4 @@ export default function MarkdownContent({
   );
 }
 
-export { MarkdownContent, renderTextWithMentionsAndSpoilers };
+export default MarkdownContent;

@@ -47,12 +47,27 @@ describe('useChatActivityMap', () => {
     expect(chatApi.getChatActivity).toHaveBeenCalledWith('conv-123', 2026, 8, expect.any(String));
   });
 
-  it('returns empty object when conversationId is null', () => {
+  it('returns empty object when conversationId is null and resolves empty on explicit refetch', async () => {
     const { result } = renderHook(() => useChatActivityMap(null, { year: 2026, month: 8 }), {
       wrapper: createWrapper(),
     });
 
     expect(result.current.activityMap).toEqual({});
-    expect(chatApi.getChatActivity).not.toHaveBeenCalled();
+    const refetchRes = await result.current.refetch();
+    expect(refetchRes.data).toEqual({});
+  });
+
+  it('falls back to UTC when timeZone is falsy', () => {
+    const origDTF = Intl.DateTimeFormat;
+    (Intl as any).DateTimeFormat = () => ({
+      resolvedOptions: () => ({ timeZone: '' }),
+    });
+
+    const { result } = renderHook(() => useChatActivityMap('conv-123', { year: 2026, month: 8 }), {
+      wrapper: createWrapper(),
+    });
+    expect(result.current).toBeDefined();
+
+    Intl.DateTimeFormat = origDTF;
   });
 });

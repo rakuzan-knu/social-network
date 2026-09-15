@@ -14,11 +14,13 @@ describe('useSavedCollectionsStore', () => {
   });
 
   it('renames an existing collection', () => {
-    const col = useSavedCollectionsStore.getState().createCollection('usr-1', 'Old Name');
-    useSavedCollectionsStore.getState().renameCollection(col.id, 'New Name');
+    const col1 = useSavedCollectionsStore.getState().createCollection('usr-1', 'Old Name');
+    const col2 = useSavedCollectionsStore.getState().createCollection('usr-1', 'Other Name');
+    useSavedCollectionsStore.getState().renameCollection(col1.id, 'New Name');
 
-    const updated = useSavedCollectionsStore.getState().collections[0];
-    expect(updated.name).toBe('New Name');
+    const collections = useSavedCollectionsStore.getState().collections;
+    expect(collections.find((c) => c.id === col1.id)?.name).toBe('New Name');
+    expect(collections.find((c) => c.id === col2.id)?.name).toBe('Other Name');
   });
 
   it('deletes a collection', () => {
@@ -30,17 +32,23 @@ describe('useSavedCollectionsStore', () => {
 
   it('adds and removes posts from collection', () => {
     const col = useSavedCollectionsStore.getState().createCollection('usr-1', 'Memes');
+    const otherCol = useSavedCollectionsStore.getState().createCollection('usr-1', 'Other');
     useSavedCollectionsStore.getState().addPostToCollection(col.id, 'post-1');
     useSavedCollectionsStore.getState().addPostToCollection(col.id, 'post-2');
     // Duplicate addition should be ignored
     useSavedCollectionsStore.getState().addPostToCollection(col.id, 'post-1');
 
-    let current = useSavedCollectionsStore.getState().collections[0];
+    let current = useSavedCollectionsStore.getState().collections.find((c) => c.id === col.id)!;
     expect(current.postIds).toEqual(['post-2', 'post-1']);
 
     useSavedCollectionsStore.getState().removePostFromCollection(col.id, 'post-1');
-    current = useSavedCollectionsStore.getState().collections[0];
+    current = useSavedCollectionsStore.getState().collections.find((c) => c.id === col.id)!;
     expect(current.postIds).toEqual(['post-2']);
+
+    const other = useSavedCollectionsStore
+      .getState()
+      .collections.find((c) => c.id === otherCol.id)!;
+    expect(other.postIds).toEqual([]);
   });
 
   it('filters collections for a specific user', () => {

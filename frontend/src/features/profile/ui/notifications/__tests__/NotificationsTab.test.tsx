@@ -2,12 +2,16 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import NotificationsTab from '../NotificationsTab';
-import { useNotificationSettingsStore } from '@/shared/model/useNotificationSettingsStore';
+import { useNotificationSettingsStore } from '@/entities/notification';
 import * as pushService from '@/shared/lib/browserPushNotifications';
 
-vi.mock('@/shared/lib/messageNotificationSound', () => ({
-  playPreviewNotificationSound: vi.fn(),
-}));
+vi.mock('@/entities/notification', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/entities/notification')>();
+  return {
+    ...actual,
+    playPreviewNotificationSound: vi.fn(),
+  };
+});
 
 describe('NotificationsTab', () => {
   beforeEach(() => {
@@ -129,5 +133,32 @@ describe('NotificationsTab', () => {
     fireEvent.click(unmuteBtn);
 
     expect(useNotificationSettingsStore.getState().mutedActorIds).toEqual([]);
+  });
+
+  it('handles volume change, sound toggle, name/text preview toggles and DND resume', () => {
+    useNotificationSettingsStore.setState({
+      dndUntil: new Date(Date.now() + 3600000).toISOString(),
+    });
+
+    render(<NotificationsTab />);
+
+    // Resume DND
+    const resumeBtn = screen.getByRole('button', { name: /Resume/i });
+    fireEvent.click(resumeBtn);
+    expect(useNotificationSettingsStore.getState().dndUntil).toBeNull();
+
+    // Volume range slider
+    const slider = screen.getByRole('slider');
+    fireEvent.change(slider, { target: { value: '50' } });
+    expect(useNotificationSettingsStore.getState().volume).toBe(50);
+
+    // Toggle Name & Text in Preview card
+    const namePill = screen.getByRole('button', { name: /Name/i });
+    fireEvent.click(namePill);
+    expect(useNotificationSettingsStore.getState().showName).toBe(false);
+
+    const textPill = screen.getByRole('button', { name: /Text/i });
+    fireEvent.click(textPill);
+    expect(useNotificationSettingsStore.getState().showText).toBe(true);
   });
 });

@@ -18,6 +18,10 @@ describe('followers-repository.interface', () => {
       acceptRequest: jest.fn().mockResolvedValue(true),
       rejectRequest: jest.fn().mockResolvedValue(true),
       pendingCount: jest.fn().mockResolvedValue(0),
+      getFollowStatusSets: jest.fn().mockResolvedValue({ accepted: new Set(), pending: new Set() }),
+      getFollowingIds: jest.fn().mockResolvedValue([]),
+      getMutualFollowers: jest.fn().mockResolvedValue([]),
+      findUserBasic: jest.fn().mockResolvedValue(null),
     };
 
     expect(await mockRepo.followUser('usr-1', 'usr-2', FollowStatus.ACCEPTED)).toBe(

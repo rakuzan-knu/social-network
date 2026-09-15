@@ -6,11 +6,12 @@ import OnlineStatusIndicator from '@/shared/ui/OnlineStatusIndicator';
 import AttachmentDropZone from '@/shared/ui/AttachmentDropZone';
 import { useAuthStore } from '@/shared/model/useAuthStore';
 import { useStagedAttachments } from '@/shared/model/useStagedAttachments';
-import { ConversationView, MessageView } from '../../../entities/chat/model/types';
+import { ConversationView, MessageView } from '@/entities/chat';
 import { useArchiveConversation } from '../model/useConversationMutations';
 import { useMessages } from '../model/useMessages';
 import { useMessageActions } from '../model/useMessageActions';
 import { getConversationDisplay } from '../lib/getConversationDisplay';
+import { promptEditMessage } from '../lib/promptEditMessage';
 import MessageList from './MessageList';
 import MessageComposer from './MessageComposer';
 import ForwardMessageModal from './ForwardMessageModal';
@@ -25,7 +26,7 @@ export default function ArchivedThreadPane({
   conversation,
   onUnarchived,
 }: ArchivedThreadPaneProps) {
-  const { userId } = useAuthStore();
+  const userId = useAuthStore((s) => s.userId);
   const display = getConversationDisplay(conversation, userId);
   const isGroup = conversation.type === 'GROUP';
   const otherParticipant = isGroup
@@ -48,8 +49,14 @@ export default function ArchivedThreadPane({
   const [forwardingMessage, setForwardingMessage] = useState<MessageView | null>(null);
 
   const handleUnarchive = () => {
-    archiveConversation.mutate({ conversationId: conversation.id, archived: false });
-    onUnarchived();
+    archiveConversation.mutate(
+      { conversationId: conversation.id, archived: false },
+      {
+        onSuccess: () => {
+          onUnarchived();
+        },
+      },
+    );
   };
 
   const handleDelete = (messageId: string, forAll: boolean) => {
@@ -63,7 +70,7 @@ export default function ArchivedThreadPane({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex flex-shrink-0 items-center justify-between border-b border-white/10 px-5 py-3">
+      <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-5 py-3">
         <div className="flex min-w-0 items-center gap-3">
           <div className="relative">
             {isGroup ? (
@@ -87,7 +94,7 @@ export default function ArchivedThreadPane({
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-white">{display.title}</p>
             <p className="flex items-center gap-1.5 truncate text-[12px] text-gray-500">
-              <Lock size={11} className="flex-shrink-0" />
+              <Lock size={11} className="shrink-0" />
               Secured archived chat
             </p>
           </div>
@@ -95,7 +102,7 @@ export default function ArchivedThreadPane({
 
         <button
           onClick={handleUnarchive}
-          className="flex flex-shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3.5 py-1.5 text-[13px] font-semibold text-gray-100 transition-colors hover:bg-white/10 hover:text-white active:scale-95"
+          className="flex shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3.5 py-1.5 text-[13px] font-semibold text-gray-100 transition-colors hover:bg-white/10 hover:text-white active:scale-95"
         >
           <ArchiveRestore size={15} />
           Unarchive
@@ -115,9 +122,7 @@ export default function ArchivedThreadPane({
           onLoadMore={fetchNextPage}
           onReply={setReplyingTo}
           onEdit={(message) => {
-            const nextBody = window.prompt('Edit message', message.body ?? '');
-            if (nextBody && nextBody !== message.body)
-              actions.editMessage(message.id, nextBody).catch(() => {});
+            void promptEditMessage(message, otherParticipant?.userId ?? null, actions.editMessage);
           }}
           onDelete={handleDelete}
           onForward={setForwardingMessage}
@@ -128,7 +133,7 @@ export default function ArchivedThreadPane({
         />
 
         <div
-          className="w-full max-w-[960px] mx-auto px-2 sm:px-4 transition-[padding-bottom] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
+          className="w-full max-w-240 mx-auto px-2 sm:px-4 transition-[padding-bottom] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
           style={{ paddingBottom: `${composerPaddingBottom}px` }}
         >
           <MessageComposer
@@ -144,6 +149,7 @@ export default function ArchivedThreadPane({
             onClearFiles={staged.clear}
             onDismissFilesError={staged.dismissError}
             isGroup={isGroup}
+            e2eePeerUserId={isGroup ? null : (otherParticipant?.userId ?? null)}
           />
         </div>
       </AttachmentDropZone>
@@ -152,7 +158,7 @@ export default function ArchivedThreadPane({
         <ForwardMessageModal
           onClose={() => setForwardingMessage(null)}
           onForward={(conversationIds) => {
-            actions.forwardMessage(forwardingMessage.id, conversationIds).catch(() => {});
+            actions.forwardMessage(forwardingMessage, conversationIds).catch(() => {});
             setForwardingMessage(null);
           }}
         />

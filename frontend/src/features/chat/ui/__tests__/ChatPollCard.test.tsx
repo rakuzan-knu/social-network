@@ -35,5 +35,23 @@ describe('ChatPollCard', () => {
     expect(useChatPollVotesStore.getState().getVote('msg-poll-1')).toBe('opt-1');
     expect(screen.getByText('100%')).toBeInTheDocument();
     expect(screen.getByText('1 vote')).toBeInTheDocument();
+
+    // Clicking again when already voted triggers handleVote guard (hasVoted = true)
+    const votedDiv = screen.getByText('Yes').closest('div')!;
+    fireEvent.click(votedDiv);
+    expect(useChatPollVotesStore.getState().getVote('msg-poll-1')).toBe('opt-1');
+  });
+
+  it('renders plural votes label when multiple votes exist', () => {
+    const multiVotesPoll: ChatPollData = {
+      type: 'POLL',
+      question: 'Plural?',
+      options: [
+        { id: 'o1', text: 'Option 1', votes: 2 },
+        { id: 'o2', text: 'Option 2', votes: 3 },
+      ],
+    };
+    render(<ChatPollCard messageId="msg-2" poll={multiVotesPoll} isOwnMessage={false} />);
+    expect(screen.getByText('5 votes')).toBeInTheDocument();
   });
 });

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Play, Pause, ExternalLink, Music2, Edit3, Cloud, Radio } from 'lucide-react';
+import { Play, Pause, ExternalLink, Music2, Edit3, Radio } from 'lucide-react';
 import type { ProfileAnthemDto } from '@backend/common/contracts';
 import { SpotifyBrandIcon, SoundCloudBrandIcon } from '@/shared/ui/BrandIcons';
 import { useSpotifyPlayerStore } from '@/shared/model/useSpotifyPlayerStore';
@@ -16,10 +16,10 @@ import {
 } from '@/shared/lib/spotifyUrl';
 
 interface ProfileAnthemCardProps {
-  anthem?: ProfileAnthemDto | null;
+  anthem?: ProfileAnthemDto | null | undefined;
   isOwner: boolean;
-  onEditClick?: () => void;
-  targetUserId?: string;
+  onEditClick?: (() => void) | undefined;
+  targetUserId?: string | undefined;
 }
 
 export const ProfileAnthemCard: React.FC<ProfileAnthemCardProps> = ({
@@ -37,10 +37,10 @@ export const ProfileAnthemCard: React.FC<ProfileAnthemCardProps> = ({
     return (
       <div
         onClick={onEditClick}
-        className="group relative overflow-hidden rounded-2xl bg-white/[0.02] hover:bg-white/[0.05] border border-dashed border-white/10 hover:border-indigo-400/40 p-3 mb-4 flex items-center justify-between cursor-pointer transition-all animate-fadeIn"
+        className="group relative overflow-hidden rounded-2xl bg-white/2 hover:bg-white/5 border border-dashed border-white/10 hover:border-indigo-400/40 p-3 mb-4 flex items-center justify-between cursor-pointer transition-all animate-fadeIn"
       >
         <div className="flex items-center gap-2.5 text-gray-400 group-hover:text-gray-200">
-          <div className="p-2 rounded-xl bg-white/[0.04] text-indigo-400">
+          <div className="p-2 rounded-xl bg-white/4 text-indigo-400">
             <Music2 size={16} />
           </div>
           <div className="flex flex-col">
@@ -54,7 +54,7 @@ export const ProfileAnthemCard: React.FC<ProfileAnthemCardProps> = ({
         </div>
         <button
           type="button"
-          className="px-2.5 py-1 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-[11px] font-semibold text-indigo-300"
+          className="px-2.5 py-1 rounded-xl bg-white/6 hover:bg-white/12 text-[11px] font-semibold text-indigo-300"
         >
           Add
         </button>
@@ -309,7 +309,7 @@ export const ProfileAnthemCard: React.FC<ProfileAnthemCardProps> = ({
             <button
               type="button"
               onClick={onEditClick}
-              className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.1] text-gray-400 hover:text-white transition-colors cursor-pointer"
+              className="p-1.5 rounded-lg bg-white/4 hover:bg-white/10 text-gray-400 hover:text-white transition-colors cursor-pointer"
               title="Change Profile Anthem"
             >
               <Edit3 size={12} />

@@ -82,4 +82,29 @@ describe('ForwardMessageModal', () => {
 
     expect(onForward).toHaveBeenCalledWith(['c1'], false);
   });
+
+  it('handles multiple message count header, hide author toggle, and unselecting conversation', () => {
+    useAuthStore.setState({ userId: 'u1' });
+    const onForward = vi.fn();
+    const queryClient = new QueryClient();
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ForwardMessageModal messageCount={3} onClose={vi.fn()} onForward={onForward} />
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByText('Forward 3 messages')).toBeInTheDocument();
+
+    // Toggle hide author
+    fireEvent.click(screen.getByText('Show sender name'));
+    expect(screen.getByText('Sender name hidden')).toBeInTheDocument();
+
+    // Select then unselect Bob
+    fireEvent.click(screen.getByText('Bob'));
+    expect(screen.getByRole('button', { name: /forward \(1\)/i })).toBeEnabled();
+
+    fireEvent.click(screen.getByText('Bob'));
+    expect(screen.getByRole('button', { name: /^forward$/i })).toBeDisabled();
+  });
 });

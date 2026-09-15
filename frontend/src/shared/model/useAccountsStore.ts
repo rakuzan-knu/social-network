@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { useAuthStore } from './useAuthStore';
-import { resetSessionStores } from './resetSession';
+import { registerSessionResetHandler, resetSessionStores } from './resetSession';
 import { notifyAuthChange } from '@/shared/lib/broadcastSync';
 
 export interface SavedAccount {
@@ -47,11 +47,14 @@ export const useAccountsStore = create<AccountsState>()(
         const account = get().accounts.find((a) => a.id === id);
         if (!account) return undefined;
 
+        // Tear down the previous session BEFORE activating the next one:
+        // reset clears the query cache + socket while the old auth is still
+        // set, so no fetch/socket churn happens under the new identity.
         localStorage.setItem('accessToken', account.accessToken);
         localStorage.setItem('refreshToken', account.refreshToken);
-        useAuthStore.getState().setAuth(account.id);
         resetSessionStores();
         set({ activeAccountId: id });
+        useAuthStore.getState().setAuth(account.id);
         notifyAuthChange('ACCOUNT_SWITCHED', { accountId: id });
         return account;
       },
@@ -72,3 +75,13 @@ export const useAccountsStore = create<AccountsState>()(
     },
   ),
 );
+
+/**
+ * RESET_STORES: keep the saved account LIST (device-scoped, powers the
+ * switcher UI) but drop the active pointer — the next `setAuth` /
+ * `switchAccount` re-establishes it. Clearing prevents a logged-out session
+ * from rendering as still-active.
+ */
+registerSessionResetHandler(() => {
+  useAccountsStore.setState({ activeAccountId: null });
+});

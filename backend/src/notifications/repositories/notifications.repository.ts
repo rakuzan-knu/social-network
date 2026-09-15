@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@common/prisma';
 import type { Prisma, UserNotificationSettings } from '@prisma/client';
 import {
@@ -39,17 +39,19 @@ const NOTIFICATION_INCLUDE = {
 
 @Injectable()
 export class NotificationsRepository implements INotificationsRepository {
+  private readonly logger = new Logger(NotificationsRepository.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   async create(data: CreateNotificationParams): Promise<NotificationWithRelations> {
     const created = await this.prisma.notification.create({
       data: {
         userId: data.userId,
-        actorId: data.actorId,
+        actorId: data.actorId ?? null,
         type: data.type,
-        postId: data.postId,
-        commentId: data.commentId,
-        text: data.text,
+        postId: data.postId ?? null,
+        commentId: data.commentId ?? null,
+        text: data.text ?? null,
         extraCount: data.extraCount ?? 0,
       },
       include: NOTIFICATION_INCLUDE,
@@ -60,9 +62,9 @@ export class NotificationsRepository implements INotificationsRepository {
   async findRecentMatching(params: {
     userId: string;
     type: NotificationType;
-    postId?: string | null;
-    commentId?: string | null;
-    withinSeconds?: number;
+    postId?: string | null | undefined;
+    commentId?: string | null | undefined;
+    withinSeconds?: number | undefined;
   }): Promise<NotificationWithRelations | null> {
     const seconds = params.withinSeconds ?? 86400; // Default 24h grouping window
     const since = new Date(Date.now() - seconds * 1000);
@@ -120,12 +122,13 @@ export class NotificationsRepository implements INotificationsRepository {
         where,
         take: params.limit + 1,
         skip: params.cursor ? 1 : 0,
-        cursor: params.cursor ? { id: params.cursor } : undefined,
         orderBy: { createdAt: 'desc' },
+        ...(params.cursor ? { cursor: { id: params.cursor } } : {}),
         include: NOTIFICATION_INCLUDE,
       });
       return items;
-    } catch {
+    } catch (e) {
+      this.logger.warn(`Failed to find notifications for user ${params.userId}: ${String(e)}`);
       return [];
     }
   }
@@ -141,7 +144,8 @@ export class NotificationsRepository implements INotificationsRepository {
         include: NOTIFICATION_INCLUDE,
       });
       return updated;
-    } catch {
+    } catch (e) {
+      this.logger.warn(`Failed to mark notification ${id} as read: ${String(e)}`);
       return null;
     }
   }
@@ -160,7 +164,8 @@ export class NotificationsRepository implements INotificationsRepository {
       });
 
       return res.count;
-    } catch {
+    } catch (e) {
+      this.logger.warn(`Failed to mark all notifications as read for user ${userId}: ${String(e)}`);
       return 0;
     }
   }
@@ -170,7 +175,8 @@ export class NotificationsRepository implements INotificationsRepository {
       return await this.prisma.notification.count({
         where: { userId, isRead: false },
       });
-    } catch {
+    } catch (e) {
+      this.logger.warn(`Failed to count unread notifications for user ${userId}: ${String(e)}`);
       return 0;
     }
   }
@@ -219,7 +225,10 @@ export class NotificationsRepository implements INotificationsRepository {
         reposts,
         system,
       };
-    } catch {
+    } catch (e) {
+      this.logger.warn(
+        `Failed to count unread notifications by category for user ${userId}: ${String(e)}`,
+      );
       return {
         likes: 0,
         comments: 0,
@@ -243,7 +252,8 @@ export class NotificationsRepository implements INotificationsRepository {
 
       await this.prisma.notification.delete({ where: { id } });
       return true;
-    } catch {
+    } catch (e) {
+      this.logger.warn(`Failed to delete notification ${id}: ${String(e)}`);
       return false;
     }
   }
@@ -311,5 +321,18 @@ export class NotificationsRepository implements INotificationsRepository {
       create: createData,
       update: data,
     });
+  }
+
+  async isBlocked(userId: string, actorId: string): Promise<boolean> {
+    const block = await this.prisma.userBlock.findFirst({
+      where: {
+        OR: [
+          { blockerId: userId, blockedId: actorId },
+          { blockerId: actorId, blockedId: userId },
+        ],
+      },
+      select: { blockerId: true },
+    });
+    return block !== null;
   }
 }

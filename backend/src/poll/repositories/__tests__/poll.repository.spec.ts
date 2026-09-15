@@ -60,8 +60,8 @@ describe('PollRepository', () => {
         authorId: 'usr-1',
         title: 'Poll Title',
         postId: 'post-100',
-        description: undefined,
-        expiresAt: undefined,
+        description: null,
+        expiresAt: null,
         isMultiple: false,
         options: {
           createMany: {

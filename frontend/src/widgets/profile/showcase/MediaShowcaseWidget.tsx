@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, Reorder } from 'framer-motion';
+import { Reorder } from 'framer-motion';
 import { Star, Plus, Film, Gamepad2, Tv, ExternalLink, Pencil } from 'lucide-react';
 import {
   ShowcaseMediaType,
@@ -90,7 +90,7 @@ const SpecularPosterSlot: React.FC<SpecularPosterSlotProps> = ({ item, isOwner, 
       onPointerDown={handlePointerDown}
       onMouseDown={handlePointerDown}
       onClick={handleClick}
-      className={`relative w-full h-full aspect-[2/3] rounded-2xl overflow-hidden border border-white/[0.08] bg-[#121215] group/card transition-all duration-300 hover:scale-105 hover:border-indigo-500/50 hover:shadow-2xl ${
+      className={`relative w-full h-full aspect-2/3 rounded-2xl overflow-hidden border border-white/8 bg-[#121215] group/card transition-all duration-300 hover:scale-105 hover:border-indigo-500/50 hover:shadow-2xl ${
         isOwner ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
       }`}
     >
@@ -127,7 +127,7 @@ const SpecularPosterSlot: React.FC<SpecularPosterSlotProps> = ({ item, isOwner, 
       )}
 
       {/* Glass Tooltip / Overlay on Hover */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/65 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity p-2 flex flex-col justify-end text-left z-20 pointer-events-none">
+      <div className="absolute inset-0 bg-linear-to-t from-black/95 via-black/65 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity p-2 flex flex-col justify-end text-left z-20 pointer-events-none">
         <span className="text-[11px] font-extrabold text-white leading-tight line-clamp-2">
           {item.title}
         </span>
@@ -197,7 +197,6 @@ export const MediaShowcaseWidget: React.FC<MediaShowcaseWidgetProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>('GAMES');
   const accent = showcase.accentColor || '#6366f1';
-
   const mediaList = mediaItems || showcase?.mediaItems || [];
 
   const isCurrentCategory = (m: ShowcaseMediaItemDto, tab: TabType): boolean => {
@@ -225,20 +224,20 @@ export const MediaShowcaseWidget: React.FC<MediaShowcaseWidgetProps> = ({
     return ShowcaseMediaType.MOVIE;
   };
 
-  const handleCategoryReorder = (reordered: ShowcaseMediaItemDto[]) => {
+  const handleCategoryReorder = (newItems: ShowcaseMediaItemDto[]) => {
     const otherItems = mediaList.filter((m) => !isCurrentCategory(m, activeTab));
-    const updatedCategory = reordered.map((item, idx) => ({
+    const indexedNewItems = newItems.map((item, idx) => ({
       ...item,
       position: idx,
     }));
-    onMediaReorder?.([...otherItems, ...updatedCategory]);
+    onMediaReorder?.([...otherItems, ...indexedNewItems]);
   };
 
   const emptySlotsCount = Math.max(0, 5 - currentItems.length);
 
   return (
     <div
-      className="relative overflow-hidden rounded-3xl bg-[#121216]/90 border border-white/[0.08] p-4.5 transition-all duration-300 hover:border-white/[0.16] shadow-xl flex flex-col gap-3.5 group"
+      className="relative overflow-hidden rounded-3xl bg-white/3 backdrop-blur-2xl border border-white/8 p-4.5 transition-all duration-300 hover:border-white/16 shadow-xl flex flex-col gap-3.5 group"
       style={{ boxShadow: `0 8px 32px 0 rgba(0, 0, 0, 0.37)` }}
     >
       {/* Background Glow */}
@@ -248,8 +247,8 @@ export const MediaShowcaseWidget: React.FC<MediaShowcaseWidgetProps> = ({
       />
 
       {/* Header & Tabs */}
-      <div className="flex items-center justify-between pb-2 border-b border-white/[0.06] relative z-10">
-        <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-black/40 border border-white/[0.06]">
+      <div className="flex items-center justify-between pb-2 border-b border-white/6 relative z-10">
+        <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-black/40 border border-white/6">
           <button
             type="button"
             onClick={() => setActiveTab('GAMES')}
@@ -294,7 +293,7 @@ export const MediaShowcaseWidget: React.FC<MediaShowcaseWidgetProps> = ({
           <button
             type="button"
             onClick={() => onEditClick?.(getActiveMediaType())}
-            className="opacity-0 group-hover:opacity-100 p-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-gray-400 hover:text-white transition-all cursor-pointer"
+            className="opacity-0 group-hover:opacity-100 p-1.5 rounded-xl bg-white/6 hover:bg-white/12 text-gray-400 hover:text-white transition-all cursor-pointer"
             title="Edit Top 5 Showcase"
           >
             <Pencil size={13} />
@@ -325,7 +324,7 @@ export const MediaShowcaseWidget: React.FC<MediaShowcaseWidgetProps> = ({
                 boxShadow: '0 20px 48px -10px rgba(0, 0, 0, 0.8)',
               }}
               transition={{ duration: 0.15 }}
-              className="aspect-[2/3] flex-1 min-w-0"
+              className="aspect-2/3 flex-1 min-w-0"
             >
               <SpecularPosterSlot item={item} isOwner={isOwner} targetUserId={showcase.userId} />
             </Reorder.Item>
@@ -338,7 +337,7 @@ export const MediaShowcaseWidget: React.FC<MediaShowcaseWidgetProps> = ({
                 key={`empty-${emptyIdx}`}
                 type="button"
                 onClick={() => onAddMediaClick?.(getActiveMediaType())}
-                className="aspect-[2/3] flex-1 min-w-0 rounded-2xl border-2 border-dashed border-white/10 hover:border-white/25 hover:bg-white/[0.04] transition-all flex flex-col items-center justify-center gap-1 text-gray-500 hover:text-white cursor-pointer group/add"
+                className="aspect-2/3 flex-1 min-w-0 rounded-2xl border-2 border-dashed border-white/10 hover:border-white/25 hover:bg-white/4 transition-all flex flex-col items-center justify-center gap-1 text-gray-500 hover:text-white cursor-pointer group/add"
                 title={`Add ${activeTab.toLowerCase()} title`}
               >
                 <Plus size={16} className="transition-transform group-hover/add:scale-110" />
@@ -350,14 +349,14 @@ export const MediaShowcaseWidget: React.FC<MediaShowcaseWidgetProps> = ({
       ) : (
         <div className="flex gap-2 relative z-10 w-full">
           {currentItems.map((item, idx) => (
-            <div key={item.id || idx} className="aspect-[2/3] flex-1 min-w-0">
+            <div key={item.id || idx} className="aspect-2/3 flex-1 min-w-0">
               <SpecularPosterSlot item={item} isOwner={false} targetUserId={showcase.userId} />
             </div>
           ))}
           {Array.from({ length: emptySlotsCount }).map((_, emptyIdx) => (
             <div
               key={`placeholder-${emptyIdx}`}
-              className="aspect-[2/3] flex-1 min-w-0 rounded-2xl border border-white/[0.03] bg-white/[0.01]"
+              className="aspect-2/3 flex-1 min-w-0 rounded-2xl border border-white/3 bg-white/1"
             />
           ))}
         </div>

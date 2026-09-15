@@ -29,5 +29,27 @@ describe('useResizablePanel', () => {
     });
 
     expect(result.current.isResizing).toBe(false);
+
+    // Test hover state
+    act(() => {
+      result.current.setIsHandleHovered(true);
+    });
+    expect(result.current.isHandleHovered).toBe(true);
+
+    // Mousemove while not resizing does nothing
+    act(() => {
+      window.dispatchEvent(new MouseEvent('mousemove', { clientX: 200 }));
+    });
+    expect(result.current.width).toBe(350);
+
+    // Mousemove when isResizing is true but dragStart.current is null
+    act(() => {
+      result.current.handleResizeStart({ preventDefault: () => {}, clientX: 100 } as any);
+    });
+    // simulate dragStart becoming null before mousemove
+    (result.current as any).dragStart = null;
+    act(() => {
+      window.dispatchEvent(new MouseEvent('mouseup'));
+    });
   });
 });

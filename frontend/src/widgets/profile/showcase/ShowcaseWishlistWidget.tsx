@@ -128,7 +128,7 @@ export const ShowcaseWishlistWidget: React.FC<ShowcaseWishlistWidgetProps> = ({
   };
 
   return (
-    <div className="relative overflow-hidden rounded-3xl bg-[#121216]/90 border border-white/[0.08] p-4.5 transition-all duration-300 hover:border-white/[0.16] shadow-xl flex flex-col gap-3.5 group">
+    <div className="relative overflow-hidden rounded-3xl bg-white/3 backdrop-blur-2xl border border-white/8 p-4.5 transition-all duration-300 hover:border-white/16 shadow-xl flex flex-col gap-3.5 group">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -145,7 +145,7 @@ export const ShowcaseWishlistWidget: React.FC<ShowcaseWishlistWidgetProps> = ({
           <button
             type="button"
             onClick={() => onEditClick?.(activeCategory)}
-            className="p-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-gray-400 hover:text-white transition-colors cursor-pointer"
+            className="p-1.5 rounded-xl bg-white/4 hover:bg-white/8 text-gray-400 hover:text-white transition-colors cursor-pointer"
             title="Edit Wishlist"
           >
             <Edit3 size={13} />
@@ -154,13 +154,13 @@ export const ShowcaseWishlistWidget: React.FC<ShowcaseWishlistWidgetProps> = ({
       </div>
 
       {/* Category Tabs */}
-      <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-black/40 border border-white/[0.06]">
+      <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-black/40 border border-white/6">
         <button
           type="button"
           onClick={() => setActiveCategory(ShowcaseMediaType.GAME)}
           className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
             activeCategory === ShowcaseMediaType.GAME
-              ? 'bg-white/[0.1] text-white shadow-sm'
+              ? 'bg-white/10 text-white shadow-sm'
               : 'text-gray-400 hover:text-gray-200'
           }`}
         >
@@ -173,7 +173,7 @@ export const ShowcaseWishlistWidget: React.FC<ShowcaseWishlistWidgetProps> = ({
           onClick={() => setActiveCategory(ShowcaseMediaType.ANIME)}
           className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
             activeCategory === ShowcaseMediaType.ANIME
-              ? 'bg-white/[0.1] text-white shadow-sm'
+              ? 'bg-white/10 text-white shadow-sm'
               : 'text-gray-400 hover:text-gray-200'
           }`}
         >
@@ -186,7 +186,7 @@ export const ShowcaseWishlistWidget: React.FC<ShowcaseWishlistWidgetProps> = ({
           onClick={() => setActiveCategory(ShowcaseMediaType.MOVIE)}
           className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
             activeCategory === ShowcaseMediaType.MOVIE
-              ? 'bg-white/[0.1] text-white shadow-sm'
+              ? 'bg-white/10 text-white shadow-sm'
               : 'text-gray-400 hover:text-gray-200'
           }`}
         >
@@ -221,7 +221,7 @@ export const ShowcaseWishlistWidget: React.FC<ShowcaseWishlistWidgetProps> = ({
                   pointerDownPos.current = { x: e.clientX, y: e.clientY };
                 }}
                 onClick={(e) => handleCardClick(item, e)}
-                className="flex items-center gap-3 p-2.5 rounded-2xl bg-white/[0.02] hover:bg-white/[0.06] border border-white/[0.06] transition-all cursor-pointer hover:border-indigo-500/40"
+                className="flex items-center gap-3 p-2.5 rounded-2xl bg-white/2 hover:bg-white/6 border border-white/6 transition-all cursor-pointer hover:border-indigo-500/40"
               >
                 <img
                   src={sanitizeImageUrl(item.posterUrl)}
@@ -265,7 +265,7 @@ export const ShowcaseWishlistWidget: React.FC<ShowcaseWishlistWidgetProps> = ({
                       {item.tags.slice(0, 3).map((tag, idx) => (
                         <span
                           key={idx}
-                          className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-[9px] font-semibold text-gray-300"
+                          className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white/4 border border-white/8 text-[9px] font-semibold text-gray-300"
                         >
                           {getTagIcon(tag)}
                           <span>{tag}</span>
@@ -295,7 +295,7 @@ export const ShowcaseWishlistWidget: React.FC<ShowcaseWishlistWidgetProps> = ({
                   <button
                     type="button"
                     onClick={() => handleRecommendationClick(item.title)}
-                    className="w-full text-left p-2 rounded-xl bg-gradient-to-r from-indigo-500/20 via-purple-500/20 to-pink-500/20 border border-indigo-400/40 text-[11px] font-bold text-indigo-200 hover:text-white flex items-center justify-between gap-2 transition-all cursor-pointer shadow-sm hover:scale-[1.01]"
+                    className="w-full text-left p-2 rounded-xl bg-linear-to-r from-indigo-500/20 via-purple-500/20 to-pink-500/20 border border-indigo-400/40 text-[11px] font-bold text-indigo-200 hover:text-white flex items-center justify-between gap-2 transition-all cursor-pointer shadow-sm hover:scale-[1.01]"
                   >
                     <div className="flex items-center gap-1.5 truncate">
                       <CheckCircle2 size={13} className="text-emerald-400 shrink-0" />
@@ -312,7 +312,7 @@ export const ShowcaseWishlistWidget: React.FC<ShowcaseWishlistWidgetProps> = ({
                 {/* Wishlist Card */}
                 <div
                   onClick={(e) => handleCardClick(item, e)}
-                  className="flex items-center gap-3 p-2.5 rounded-2xl bg-white/[0.02] hover:bg-white/[0.06] border border-white/[0.06] transition-all cursor-pointer hover:border-indigo-500/40"
+                  className="flex items-center gap-3 p-2.5 rounded-2xl bg-white/2 hover:bg-white/6 border border-white/6 transition-all cursor-pointer hover:border-indigo-500/40"
                 >
                   <img
                     src={sanitizeImageUrl(item.posterUrl)}
@@ -354,7 +354,7 @@ export const ShowcaseWishlistWidget: React.FC<ShowcaseWishlistWidgetProps> = ({
                         {item.tags.slice(0, 3).map((tag, idx) => (
                           <span
                             key={idx}
-                            className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-[9px] font-semibold text-gray-300"
+                            className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white/4 border border-white/8 text-[9px] font-semibold text-gray-300"
                           >
                             {getTagIcon(tag)}
                             <span>{tag}</span>

@@ -11,6 +11,14 @@ export const envSchema = z
       .min(32, 'JWT_REFRESH_SECRET must be at least 32 characters long'),
     JWT_REFRESH_TTL: z.string().min(1),
     PORT: z.coerce.number().int().min(1).max(65535).default(3000),
+    DATABASE_POOL_LIMIT: z.coerce.number().int().min(1).max(100).default(20),
+    DATABASE_POOL_TIMEOUT_SECONDS: z.coerce.number().int().min(1).max(60).default(10),
+    DATABASE_CONNECT_TIMEOUT_SECONDS: z.coerce.number().int().min(1).max(60).default(10),
+    DATABASE_STATEMENT_TIMEOUT_MS: z.coerce.number().int().min(100).max(60000).default(10000),
+    DATABASE_QUERY_TIMEOUT_MS: z.coerce.number().int().min(100).max(60000).default(10000),
+    REDIS_MAXMEMORY_POLICY: z
+      .enum(['allkeys-lru', 'volatile-lru', 'allkeys-lfu', 'volatile-lfu', 'noeviction'])
+      .default('noeviction'),
     SENTRY_DSN: z.string().optional(),
     SENTRY_TRACES_SAMPLE_RATE: z.string().optional(),
     GITHUB_CLIENT_ID: z.string().optional(),
@@ -18,10 +26,26 @@ export const envSchema = z
     GITHUB_CALLBACK_URL: z.string().optional(),
     GITHUB_SYSTEM_TOKEN: z.string().optional(),
     GITHUB_WEBHOOK_SECRET: z.string().optional(),
+    TURNSTILE_SECRET_KEY: z.string().optional(),
+    FEED_PRESET: z.enum(['legacy', 'balanced']).optional(),
+    SANITIZE_BACKEND: z.enum(['legacy', 'pipeline']).optional(),
+    BLIND_RSA_N_HEX: z.string().optional(),
+    BLIND_RSA_E_HEX: z.string().optional(),
+    BLIND_RSA_D_HEX: z.string().optional(),
   })
+
   .refine((data) => data.JWT_ACCESS_SECRET !== data.JWT_REFRESH_SECRET, {
     message: 'JWT_ACCESS_SECRET and JWT_REFRESH_SECRET must be different',
-  });
+  })
+  .refine(
+    (data) => {
+      const set = [data.BLIND_RSA_N_HEX, data.BLIND_RSA_E_HEX, data.BLIND_RSA_D_HEX].filter(
+        (v) => v !== undefined && v !== '',
+      ).length;
+      return set === 0 || set === 3;
+    },
+    { message: 'BLIND_RSA_N_HEX/E_HEX/D_HEX must be set together or all absent' },
+  );
 
 export type EnvironmentVariables = z.infer<typeof envSchema>;
 

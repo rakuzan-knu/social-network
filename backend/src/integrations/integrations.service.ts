@@ -53,7 +53,7 @@ export class IntegrationsService {
         }),
       });
       if (res.ok) {
-        const data = await res.json();
+        const data = (await res.json()) as any;
         this.cachedTwitchAppToken = data.access_token;
         this.cachedTwitchAppTokenExpiresAt = Date.now() + (data.expires_in || 3600) * 1000 - 60000;
         return this.cachedTwitchAppToken;
@@ -337,7 +337,7 @@ export class IntegrationsService {
             }),
           });
           if (tokenRes.ok) {
-            tokenData = await tokenRes.json();
+            tokenData = (await tokenRes.json()) as any;
             break;
           }
         } catch (e) {
@@ -361,7 +361,7 @@ export class IntegrationsService {
         throw new BadRequestException('Failed to fetch YouTube channel details from Google API.');
       }
 
-      const chData = await chRes.json();
+      const chData = (await chRes.json()) as any;
       const ch = chData.items?.[0];
       if (!ch) {
         throw new BadRequestException('No YouTube channel found for this Google account.');
@@ -375,7 +375,7 @@ export class IntegrationsService {
             `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${uploadsId}&maxResults=3&key=${process.env.YOUTUBE_API_KEY}`,
           );
           if (pRes.ok) {
-            const pData = await pRes.json();
+            const pData = (await pRes.json()) as any;
             const vIds = (pData.items || [])
               .map((it: any) => it.contentDetails?.videoId)
               .filter(Boolean);
@@ -384,7 +384,7 @@ export class IntegrationsService {
                 `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,statistics,snippet&id=${vIds.join(',')}&key=${process.env.YOUTUBE_API_KEY}`,
               );
               if (vRes.ok) {
-                const vData = await vRes.json();
+                const vData = (await vRes.json()) as any;
                 videos = (vData.items || []).map((v: any) => ({
                   id: v.id,
                   title: v.snippet?.title || 'Video',
@@ -451,7 +451,7 @@ export class IntegrationsService {
             }),
           });
           if (tokenRes.ok) {
-            tokenData = await tokenRes.json();
+            tokenData = (await tokenRes.json()) as any;
             break;
           }
         } catch (e) {
@@ -477,7 +477,7 @@ export class IntegrationsService {
         throw new BadRequestException('Failed to fetch Twitch user profile from Twitch Helix API.');
       }
 
-      const userData = await userRes.json();
+      const userData = (await userRes.json()) as any;
       const u = userData.data?.[0];
       if (!u) {
         throw new BadRequestException('No Twitch user profile returned from Helix API.');
@@ -498,7 +498,7 @@ export class IntegrationsService {
           },
         });
         if (streamRes.ok) {
-          const streamData = await streamRes.json();
+          const streamData = (await streamRes.json()) as any;
           const stream = streamData.data?.[0];
           if (stream) {
             isLive = true;
@@ -526,7 +526,7 @@ export class IntegrationsService {
           },
         );
         if (folRes.ok) {
-          const folData = await folRes.json();
+          const folData = (await folRes.json()) as any;
           followersCount = typeof folData.total === 'number' ? folData.total : 0;
         }
       } catch (e) {
@@ -597,7 +597,7 @@ export class IntegrationsService {
         body: JSON.stringify({ usernames: [cleanUsername], excludeBannedUsers: true }),
       });
       if (lookupRes.ok) {
-        const lookupData = await lookupRes.json();
+        const lookupData = (await lookupRes.json()) as any;
         robloxUser = lookupData.data?.[0];
       }
     } catch (e) {
@@ -615,7 +615,7 @@ export class IntegrationsService {
         `https://thumbnails.roblox.com/v1/users/avatar-bust?userIds=${robloxUser.id}&size=420x420&format=Png&isCircular=false`,
       );
       if (thumbRes.ok) {
-        const thumbData = await thumbRes.json();
+        const thumbData = (await thumbRes.json()) as any;
         avatarBustUrl = thumbData.data?.[0]?.imageUrl || avatarBustUrl;
       }
     } catch (e) {
@@ -666,7 +666,7 @@ export class IntegrationsService {
     try {
       const userRes = await fetch(`https://users.roblox.com/v1/users/${session.robloxId}`);
       if (userRes.ok) {
-        const userData = await userRes.json();
+        const userData = (await userRes.json()) as any;
         about = userData.description || '';
       }
     } catch (e) {
@@ -680,7 +680,7 @@ export class IntegrationsService {
           headers: { 'x-api-key': process.env.ROBLOX_API_KEY },
         });
         if (cloudRes.ok) {
-          const cloudData = await cloudRes.json();
+          const cloudData = (await cloudRes.json()) as any;
           about = cloudData.about || '';
         }
       } catch (e) {}
@@ -957,14 +957,14 @@ export class IntegrationsService {
       if (!userRes.ok) {
         throw new Error('User not found on GitHub');
       }
-      const userData = await userRes.json();
+      const userData = (await userRes.json()) as any;
 
       // Fetch user repos
       const reposRes = await fetch(
         `https://api.github.com/users/${encodeURIComponent(username)}/repos?sort=updated&per_page=12`,
         { headers: { 'User-Agent': 'SocialNetwork-App' } },
       );
-      const reposData = reposRes.ok ? await reposRes.json() : [];
+      const reposData = reposRes.ok ? ((await reposRes.json()) as any) : [];
       const repos = Array.isArray(reposData)
         ? reposData.map((r: any) => ({
             name: r.name,
@@ -1047,7 +1047,7 @@ export class IntegrationsService {
             `https://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/?key=${apiKey}&vanityurl=${encodeURIComponent(numericId)}`,
           );
           if (vanityRes.ok) {
-            const vanityJson = await vanityRes.json();
+            const vanityJson = (await vanityRes.json()) as any;
             if (vanityJson.response?.steamid) {
               numericId = vanityJson.response.steamid;
             }
@@ -1059,7 +1059,7 @@ export class IntegrationsService {
           `https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=${apiKey}&steamids=${numericId}`,
         );
         if (summaryRes.ok) {
-          const summaryJson = await summaryRes.json();
+          const summaryJson = (await summaryRes.json()) as any;
           const player = summaryJson.response?.players?.[0];
           if (player) {
             profileData = {
@@ -1076,7 +1076,7 @@ export class IntegrationsService {
           `https://api.steampowered.com/IPlayerService/GetBadges/v1/?key=${apiKey}&steamid=${numericId}`,
         );
         if (badgesRes.ok) {
-          const badgesJson = await badgesRes.json();
+          const badgesJson = (await badgesRes.json()) as any;
           if (badgesJson.response?.player_level !== undefined) {
             steamLevel = badgesJson.response.player_level;
           }
@@ -1087,7 +1087,7 @@ export class IntegrationsService {
           `https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key=${apiKey}&steamid=${numericId}&include_appinfo=1&include_played_free_games=1`,
         );
         if (gamesRes.ok) {
-          const gamesJson = await gamesRes.json();
+          const gamesJson = (await gamesRes.json()) as any;
           if (typeof gamesJson.response?.game_count === 'number') {
             gamesCount = gamesJson.response.game_count;
           } else if (Array.isArray(gamesJson.response?.games)) {
@@ -1137,7 +1137,7 @@ export class IntegrationsService {
           ]);
 
           if (playerRes && playerRes.ok) {
-            const playerJson = await playerRes.json();
+            const playerJson = (await playerRes.json()) as any;
             const rankTier = playerJson.rank_tier; // e.g. 35 (Crusader 5), 80 (Immortal)
 
             if (typeof rankTier === 'number' && rankTier > 0) {
@@ -1165,7 +1165,7 @@ export class IntegrationsService {
           }
 
           if (wlRes && wlRes.ok) {
-            const wlJson = await wlRes.json();
+            const wlJson = (await wlRes.json()) as any;
             const win = wlJson.win ?? 0;
             const lose = wlJson.lose ?? 0;
             const total = win + lose;
@@ -1302,7 +1302,7 @@ export class IntegrationsService {
           `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics,contentDetails&forHandle=${encodeURIComponent(clean)}&key=${apiKey}`,
         );
         if (handleRes.ok) {
-          const handleData = await handleRes.json();
+          const handleData = (await handleRes.json()) as any;
           if (handleData.items?.[0]) {
             const ch = handleData.items[0];
             channelSnippet = ch.snippet;
@@ -1317,7 +1317,7 @@ export class IntegrationsService {
             `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(clean)}&maxResults=1&key=${apiKey}`,
           );
           if (searchRes.ok) {
-            const searchData = await searchRes.json();
+            const searchData = (await searchRes.json()) as any;
             const foundChannelId =
               searchData.items?.[0]?.snippet?.channelId || searchData.items?.[0]?.id?.channelId;
             if (foundChannelId) {
@@ -1325,7 +1325,7 @@ export class IntegrationsService {
                 `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics,contentDetails&id=${foundChannelId}&key=${apiKey}`,
               );
               if (chRes.ok) {
-                const chData = await chRes.json();
+                const chData = (await chRes.json()) as any;
                 if (chData.items?.[0]) {
                   const ch = chData.items[0];
                   channelSnippet = ch.snippet;
@@ -1344,7 +1344,7 @@ export class IntegrationsService {
               `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${uploadsPlaylistId}&maxResults=3&key=${apiKey}`,
             );
             if (playlistRes.ok) {
-              const playlistData = await playlistRes.json();
+              const playlistData = (await playlistRes.json()) as any;
               const items = playlistData.items || [];
               const videoIds = items.map((it: any) => it.contentDetails?.videoId).filter(Boolean);
 
@@ -1353,7 +1353,7 @@ export class IntegrationsService {
                   `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,statistics,snippet&id=${videoIds.join(',')}&key=${apiKey}`,
                 );
                 if (videosRes.ok) {
-                  const vidsData = await videosRes.json();
+                  const vidsData = (await videosRes.json()) as any;
                   videos = (vidsData.items || []).map((v: any) => ({
                     id: v.id,
                     title: v.snippet?.title || 'Video',
@@ -1448,7 +1448,7 @@ export class IntegrationsService {
           },
         );
         if (userRes.ok) {
-          const userData = await userRes.json();
+          const userData = (await userRes.json()) as any;
           const user = userData.data?.[0];
           if (user) {
             let isLive = false;
@@ -1468,7 +1468,7 @@ export class IntegrationsService {
               },
             );
             if (streamRes.ok) {
-              const streamData = await streamRes.json();
+              const streamData = (await streamRes.json()) as any;
               const stream = streamData.data?.[0];
               if (stream) {
                 isLive = true;
@@ -1494,7 +1494,7 @@ export class IntegrationsService {
                 },
               );
               if (folRes.ok) {
-                const folData = await folRes.json();
+                const folData = (await folRes.json()) as any;
                 followersCount = typeof folData.total === 'number' ? folData.total : 0;
               }
             } catch (folErr) {
@@ -1574,7 +1574,7 @@ export class IntegrationsService {
       });
 
       if (streamRes.ok) {
-        const streamData = await streamRes.json();
+        const streamData = (await streamRes.json()) as any;
         const stream = streamData.data?.[0];
         if (stream) {
           isLive = true;
@@ -1600,7 +1600,7 @@ export class IntegrationsService {
             },
           );
           if (folRes.ok) {
-            const folData = await folRes.json();
+            const folData = (await folRes.json()) as any;
             if (typeof folData.total === 'number') {
               followersCount = folData.total;
             }
@@ -1671,7 +1671,7 @@ export class IntegrationsService {
         userId = clean;
         const uRes = await fetch(`https://users.roblox.com/v1/users/${userId}`);
         if (uRes.ok) {
-          const uData = await uRes.json();
+          const uData = (await uRes.json()) as any;
           name = uData.name;
           displayName = uData.displayName;
           hasVerifiedBadge = Boolean(uData.hasVerifiedBadge);
@@ -1683,7 +1683,7 @@ export class IntegrationsService {
           body: JSON.stringify({ usernames: [clean], excludeBannedUsers: true }),
         });
         if (searchRes.ok) {
-          const searchData = await searchRes.json();
+          const searchData = (await searchRes.json()) as any;
           const found = searchData.data?.[0];
           if (found) {
             userId = found.id;
@@ -1707,13 +1707,13 @@ export class IntegrationsService {
             ),
           ]);
           if (headshotRes.ok) {
-            const headData = await headshotRes.json();
+            const headData = (await headshotRes.json()) as any;
             if (headData.data?.[0]?.imageUrl) {
               avatarUrl = headData.data[0].imageUrl;
             }
           }
           if (fullRes.ok) {
-            const fullData = await fullRes.json();
+            const fullData = (await fullRes.json()) as any;
             if (fullData.data?.[0]?.imageUrl) {
               avatarBustUrl = fullData.data[0].imageUrl;
             }
@@ -1727,8 +1727,8 @@ export class IntegrationsService {
             fetch(`https://friends.roblox.com/v1/users/${userId}/friends/count`),
             fetch(`https://friends.roblox.com/v1/users/${userId}/followers/count`),
           ]);
-          if (frRes.ok) friendsCount = (await frRes.json()).count || 0;
-          if (foRes.ok) followersCount = (await foRes.json()).count || 0;
+          if (frRes.ok) friendsCount = ((await frRes.json()) as any).count || 0;
+          if (foRes.ok) followersCount = ((await foRes.json()) as any).count || 0;
         } catch {}
 
         if (apiKey) {
@@ -1737,7 +1737,7 @@ export class IntegrationsService {
               headers: { 'x-api-key': apiKey },
             });
             if (ocRes.ok) {
-              const ocData = await ocRes.json();
+              const ocData = (await ocRes.json()) as any;
               if (ocData.displayName) displayName = ocData.displayName;
             }
           } catch {}
@@ -1759,7 +1759,7 @@ export class IntegrationsService {
             `https://inventory.roblox.com/v1/users/${userId}/assets/collectibles?limit=10`,
           );
           if (colRes.ok) {
-            const colData = await colRes.json();
+            const colData = (await colRes.json()) as any;
             if (Array.isArray(colData.data) && colData.data.length > 0) {
               const rawItems = colData.data.slice(0, 5);
               const assetIds = rawItems.map((it: any) => it.assetId).filter(Boolean);
@@ -1770,7 +1770,7 @@ export class IntegrationsService {
                     `https://thumbnails.roblox.com/v1/assets?assetIds=${assetIds.join(',')}&size=150x150&format=Png&isCircular=false`,
                   );
                   if (thumbRes.ok) {
-                    const thumbData = await thumbRes.json();
+                    const thumbData = (await thumbRes.json()) as any;
                     if (Array.isArray(thumbData.data)) {
                       for (const td of thumbData.data) {
                         if (td.targetId && td.imageUrl) {
@@ -1814,7 +1814,7 @@ export class IntegrationsService {
             `https://games.roblox.com/v2/users/${userId}/favorite/games?limit=10`,
           );
           if (favRes.ok) {
-            const favData = await favRes.json();
+            const favData = (await favRes.json()) as any;
             if (Array.isArray(favData.data) && favData.data.length > 0) {
               const rawPlaces = favData.data.slice(0, 5);
               const universeIds = rawPlaces.map((g: any) => g.id).filter(Boolean);
@@ -1825,7 +1825,7 @@ export class IntegrationsService {
                     `https://thumbnails.roblox.com/v1/games/icons?universeIds=${universeIds.join(',')}&size=150x150&format=Png&isCircular=false`,
                   );
                   if (pThumbRes.ok) {
-                    const pThumbData = await pThumbRes.json();
+                    const pThumbData = (await pThumbRes.json()) as any;
                     if (Array.isArray(pThumbData.data)) {
                       for (const td of pThumbData.data) {
                         if (td.targetId && td.imageUrl) {

@@ -190,4 +190,118 @@ describe('ChatItemMenu', () => {
     fireEvent.click(screen.getByText('Create folder'));
     expect(onCreateFolder).toHaveBeenCalled();
   });
+
+  it('handles SelectToneModal, open in new window, toggle pin and archive', () => {
+    const onTogglePin = vi.fn();
+    const onClose = vi.fn();
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue({ opener: null } as any);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ChatItemMenu
+            conversation={{ ...mockConv, isPinned: true }}
+            otherUserId="usr-2"
+            conversationTitle="Alice"
+            isPinnedLocally={true}
+            isForcedUnread={true}
+            onClose={onClose}
+            onTogglePinLocally={onTogglePin}
+            onToggleUnreadLocally={vi.fn()}
+          />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    // 1. Open in new window
+    fireEvent.click(screen.getByText('Open in new window'));
+    expect(openSpy).toHaveBeenCalledWith(
+      '/messages/standalone/conv-1',
+      'chat_standalone_conv-1',
+      expect.any(String),
+    );
+
+    // 2. Unpin
+    fireEvent.click(screen.getByText('Unpin'));
+    expect(onTogglePin).toHaveBeenCalledWith('conv-1');
+
+    // 3. Select tone modal
+    const muteMenuBtn = screen.getByText('Mute notifications');
+    fireEvent.click(muteMenuBtn);
+    fireEvent.click(screen.getByText('Select tone'));
+    expect(screen.getByText('Select chat tone')).toBeInTheDocument();
+  });
+
+  it('handles profile navigation and confirmation handlers for clear, delete, and mute', async () => {
+    const mutationsModule = await import('../../model/useConversationMutations');
+    const mockClearMutate = vi.fn();
+    const mockDeleteMutate = vi.fn();
+    const mockMuteMutate = vi.fn();
+
+    vi.spyOn(mutationsModule, 'useClearChatHistory').mockReturnValue({
+      mutate: mockClearMutate,
+      isPending: false,
+    } as any);
+    vi.spyOn(mutationsModule, 'useDeleteConversation').mockReturnValue({
+      mutate: mockDeleteMutate,
+      isPending: false,
+    } as any);
+    vi.spyOn(mutationsModule, 'useMuteConversation').mockReturnValue({
+      mutate: mockMuteMutate,
+      isPending: false,
+    } as any);
+
+    const { unmount } = render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ChatItemMenu
+            conversation={mockConv}
+            otherUserId="usr-2"
+            otherUsername="alice"
+            conversationTitle="Alice"
+            isPinnedLocally={false}
+            isForcedUnread={false}
+            onClose={vi.fn()}
+            onTogglePinLocally={vi.fn()}
+            onToggleUnreadLocally={vi.fn()}
+          />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    // Profile navigation
+    fireEvent.click(screen.getByText('View user profile'));
+
+    // Confirm Clear History
+    fireEvent.click(screen.getByText('Clear history'));
+    const confirmClearBtn = screen.getByRole('button', { name: 'Delete' });
+    fireEvent.click(confirmClearBtn);
+    unmount();
+
+    // Fresh render for Delete Chat
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ChatItemMenu
+            conversation={mockConv}
+            otherUserId="usr-2"
+            otherUsername="alice"
+            conversationTitle="Alice"
+            isPinnedLocally={false}
+            isForcedUnread={false}
+            onClose={vi.fn()}
+            onTogglePinLocally={vi.fn()}
+            onToggleUnreadLocally={vi.fn()}
+          />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    fireEvent.click(screen.getByText('Delete chat'));
+    const confirmDeleteBtn = screen.getByRole('button', { name: /Delete/i });
+    fireEvent.click(confirmDeleteBtn);
+    expect(mockDeleteMutate).toHaveBeenCalledWith(
+      expect.objectContaining({ conversationId: 'conv-1' }),
+    );
+  });
 });

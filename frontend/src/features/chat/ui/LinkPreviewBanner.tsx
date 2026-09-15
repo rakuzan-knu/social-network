@@ -1,6 +1,6 @@
 import React from 'react';
 import { X, Globe, Music2 } from 'lucide-react';
-import { YoutubeIcon, GithubIcon } from '@/shared/ui/embeds/EmbedIcons';
+import { YoutubeIcon, GithubIcon } from '@/entities/opengraph';
 import type { LinkEmbedData } from '@/entities/opengraph/model/types';
 
 interface LinkPreviewBannerProps {

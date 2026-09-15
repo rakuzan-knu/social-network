@@ -28,4 +28,18 @@ describe('RestrictUserModal', () => {
       expect(onClose).toHaveBeenCalled();
     });
   });
+
+  it('handles error in restrictAccount gracefully', async () => {
+    vi.mocked(chatApi.restrictAccount).mockRejectedValueOnce(new Error('Network error'));
+    const onClose = vi.fn();
+
+    render(<RestrictUserModal userId="target-u1" onClose={onClose} />);
+
+    const restrictBtn = screen.getByRole('button', { name: 'Restrict' });
+    fireEvent.click(restrictBtn);
+
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalled();
+    });
+  });
 });

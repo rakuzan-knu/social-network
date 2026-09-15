@@ -81,4 +81,30 @@ describe('FloatingSelectionToolbar', () => {
 
     expect(handleFormat).toHaveBeenCalledWith('link', 'https://github.com');
   });
+
+  it('handles link cancellation, remaining format buttons and preventDefault on mousedown', () => {
+    const handleFormat = vi.fn();
+    const { container } = render(
+      <FloatingSelectionToolbar position={position} onFormat={handleFormat} onClose={vi.fn()} />,
+    );
+
+    // Italic, strike, code
+    fireEvent.click(screen.getByTitle(/Italic/i));
+    expect(handleFormat).toHaveBeenCalledWith('italic');
+
+    fireEvent.click(screen.getByTitle(/Strikethrough/i));
+    expect(handleFormat).toHaveBeenCalledWith('strike');
+
+    fireEvent.click(screen.getByTitle(/Inline code/i));
+    expect(handleFormat).toHaveBeenCalledWith('code');
+
+    // Link cancel
+    fireEvent.click(screen.getByTitle(/Insert Link/i));
+    expect(screen.getByTitle('Cancel')).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Cancel'));
+    expect(screen.queryByTitle('Cancel')).not.toBeInTheDocument();
+
+    // Toolbar mousedown
+    fireEvent.mouseDown(container.firstChild as HTMLElement);
+  });
 });

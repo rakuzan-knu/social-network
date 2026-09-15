@@ -6,9 +6,15 @@ import { PostsModule } from '../posts/posts.module';
 import { PrismaModule } from '@common/prisma';
 import { MessengerModule } from '../messenger/messenger.module';
 import { LIKES_REPOSITORY } from './interfaces/likes-repository.interface';
+import { CrdtModule } from '../common/crdt/crdt.module';
 
 @Module({
-  imports: [forwardRef(() => PostsModule), PrismaModule, forwardRef(() => MessengerModule)],
+  imports: [
+    forwardRef(() => PostsModule),
+    PrismaModule,
+    forwardRef(() => MessengerModule),
+    CrdtModule,
+  ],
   controllers: [LikesController],
   providers: [
     LikesService,

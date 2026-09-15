@@ -1,12 +1,12 @@
 import { z } from 'zod';
 
 export const createPollSchema = z.object({
-  postId: z.string().min(1),
-  title: z.string().min(1),
-  description: z.string().optional(),
+  postId: z.string().min(1).max(128),
+  title: z.string().min(1).max(255),
+  description: z.string().max(1000).optional(),
   isMultiple: z.boolean().optional(),
-  expiresAt: z.string().optional(),
-  options: z.array(z.string().min(1)).min(2),
+  expiresAt: z.string().max(64).optional(),
+  options: z.array(z.string().min(1).max(255)).min(2).max(10),
 });
 export type CreatePollDto = z.infer<typeof createPollSchema>;
 

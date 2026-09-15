@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { PrivacyNavbar } from '../Privacy/ui/PrivacyNavbar';
-import { EternalFooter } from '../../shared/ui/EternalFooter';
+import { EternalFooter } from '@/widgets/footer';
 import { useLanguageStore } from '../../shared/lib/language/languageStore';
 import { SEOHead } from '../../shared/seo';
 import { MapPin, Mail, Users, Copy, Check } from 'lucide-react';

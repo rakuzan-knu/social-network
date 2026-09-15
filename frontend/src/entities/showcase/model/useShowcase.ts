@@ -1,8 +1,7 @@
 import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { showcaseApi } from '../api/showcaseApi';
-import { useChatSocket } from '@/features/chat/model/useChatSocket';
-import { useCurrentUser } from '@/entities/profile/model/useCurrentUser';
+import { getSocket } from '@/shared/api/socket';
 import type {
   ProfileShowcaseDto,
   UpdateShowcaseDto,
@@ -23,14 +22,13 @@ export function useShowcase(username?: string) {
   });
 }
 
-export function useUpdateShowcase() {
+export function useUpdateShowcase(targetUsername?: string) {
   const queryClient = useQueryClient();
-  const { data: currentUser } = useCurrentUser();
 
   return useMutation({
     mutationFn: (dto: UpdateShowcaseDto) => showcaseApi.updateShowcase(dto),
     onMutate: async (newDto: UpdateShowcaseDto) => {
-      const myUsername = currentUser?.username;
+      const myUsername = targetUsername;
       if (!myUsername) return;
 
       const queryKey = [SHOWCASE_QUERY_KEY, myUsername];
@@ -94,7 +92,7 @@ export function useUpdateShowcase() {
       return { previousShowcase, queryKey };
     },
     onSuccess: (updatedShowcase) => {
-      const myUsername = currentUser?.username;
+      const myUsername = targetUsername;
       if (myUsername && updatedShowcase) {
         queryClient.setQueryData([SHOWCASE_QUERY_KEY, myUsername], updatedShowcase);
       }
@@ -105,9 +103,8 @@ export function useUpdateShowcase() {
       }
     },
     onSettled: () => {
-      const myUsername = currentUser?.username;
-      if (myUsername) {
-        void queryClient.invalidateQueries({ queryKey: [SHOWCASE_QUERY_KEY, myUsername] });
+      if (targetUsername) {
+        void queryClient.invalidateQueries({ queryKey: [SHOWCASE_QUERY_KEY, targetUsername] });
       }
       void queryClient.invalidateQueries({ queryKey: [SHOWCASE_QUERY_KEY] });
     },
@@ -132,11 +129,12 @@ export function useTrackSearch(query: string) {
 }
 
 export function useShowcasePresenceSync(targetUserId?: string, targetUsername?: string) {
-  const socket = useChatSocket();
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    if (!socket || !targetUserId || !targetUsername) return;
+    if (!targetUserId || !targetUsername) return;
+    const socket = getSocket();
+    if (!socket) return;
 
     socket.emit('subscribeShowcase', { targetUserId });
 
@@ -168,5 +166,5 @@ export function useShowcasePresenceSync(targetUserId?: string, targetUsername?: 
       socket.emit('unsubscribeShowcase', { targetUserId });
       socket.off('showcase:presence:update', handlePresenceUpdate);
     };
-  }, [socket, targetUserId, targetUsername, queryClient]);
+  }, [targetUserId, targetUsername, queryClient]);
 }

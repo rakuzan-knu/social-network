@@ -1,22 +1,22 @@
-import React, { useRef, useState, useEffect, useCallback, useLayoutEffect } from 'react';
-import { createPortal } from 'react-dom';
+import { useMessageToastStore } from '@/shared/model/useMessageToastStore';
 import {
-  MoreHorizontal,
-  EyeOff,
   Bookmark,
   BookmarkCheck,
+  EyeOff,
   Flag,
-  UserX,
-  Pencil,
-  Trash2,
   HeartOff,
-  MessageSquareOff,
   Link2,
+  MessageSquareOff,
+  MoreHorizontal,
+  Pencil,
   Pin,
   PinOff,
+  Trash2,
+  UserX,
 } from 'lucide-react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useHiddenPostsStore } from '../../../shared/model/useHiddenPostsStore';
-import { useMessageToastStore } from '@/shared/model/useMessageToastStore';
 
 interface PostMenuProps {
   postId: string | number;
@@ -56,9 +56,10 @@ export function PostMenu({
   onOpenChange,
 }: PostMenuProps) {
   const [open, setOpen] = useState(false);
-  const [coords, setCoords] = useState<{ top?: number; bottom?: number; right: number } | null>(
-    null,
-  );
+  const [coords, setCoords] = useState<{ top?: number; bottom?: number; right: number }>({
+    top: 0,
+    right: 12,
+  });
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const hidePost = useHiddenPostsStore((s) => s.hidePost);
@@ -179,7 +180,7 @@ export function PostMenu({
       className={`flex items-center gap-3 w-full px-3 py-2.5 text-sm rounded-xl transition-colors cursor-pointer text-left ${
         variant === 'danger'
           ? 'text-red-400 hover:text-red-300 hover:bg-red-500/10'
-          : 'text-gray-200 hover:text-white hover:bg-white/[0.08]'
+          : 'text-gray-200 hover:text-white hover:bg-white/8'
       }`}
     >
       <span className="shrink-0">{icon}</span>
@@ -211,7 +212,7 @@ export function PostMenu({
               bottom: coords.bottom !== undefined ? `${coords.bottom}px` : undefined,
               right: `${coords.right}px`,
             }}
-            className={`z-[99999] w-64 max-h-[calc(100vh-24px)] overflow-y-auto custom-scrollbar bg-[#141418]/95 backdrop-blur-2xl border border-white/[0.12] rounded-2xl shadow-2xl shadow-black/80 p-1.5 animate-fadeIn space-y-0.5 ${
+            className={`z-99999 w-64 max-h-[calc(100vh-24px)] overflow-y-auto custom-scrollbar bg-[#141418]/95 backdrop-blur-2xl border border-white/12 rounded-2xl shadow-2xl shadow-black/80 p-1.5 animate-fadeIn space-y-0.5 ${
               coords.bottom !== undefined ? 'origin-bottom-right' : 'origin-top-right'
             }`}
           >

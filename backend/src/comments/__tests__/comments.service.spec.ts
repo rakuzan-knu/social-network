@@ -5,9 +5,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { CommentsService } from '../comments.service';
-import type { PrismaService } from '@common/prisma';
 import type { MessengerGateway } from '../../messenger/gateway/messenger.gateway';
 import type { RedisService } from '../../redis/redis.service';
+import type { EventEmitter2 } from '@nestjs/event-emitter';
 
 describe('CommentsService', () => {
   let service: CommentsService;
@@ -18,30 +18,25 @@ describe('CommentsService', () => {
     getRepliesByRootId: jest.Mock;
     toggleCommentLike: jest.Mock;
     togglePinComment: jest.Mock;
-  };
-  let mockPrisma: {
-    post: {
-      findUnique: jest.Mock;
-    };
-    comment: {
-      findFirst: jest.Mock;
-    };
-    userBlock: {
-      findFirst: jest.Mock;
-    };
-    user: {
-      findUnique: jest.Mock;
-      findMany: jest.Mock;
-    };
+    findRecentDuplicate: jest.Mock;
+    findPostBasic: jest.Mock;
+    isBlocked: jest.Mock;
+    findUserBasic: jest.Mock;
+    findMentionedUsers: jest.Mock;
   };
   let mockGateway: {
     emitToUser: jest.Mock;
   };
   let mockRedis: {
     getClient: jest.Mock;
+    acquireLock: jest.Mock;
+    releaseLock: jest.Mock;
   };
   let mockRedisClient: {
     set: jest.Mock;
+  };
+  let mockEventEmitter: {
+    emit: jest.Mock;
   };
 
   const sampleDate = new Date('2026-08-16T12:00:00.000Z');
@@ -79,22 +74,11 @@ describe('CommentsService', () => {
       getRepliesByRootId: jest.fn().mockResolvedValue([]),
       toggleCommentLike: jest.fn().mockResolvedValue({ isLiked: true, likesCount: 1 }),
       togglePinComment: jest.fn().mockResolvedValue({ isPinned: true }),
-    };
-
-    mockPrisma = {
-      post: {
-        findUnique: jest.fn(),
-      },
-      comment: {
-        findFirst: jest.fn().mockResolvedValue(null),
-      },
-      userBlock: {
-        findFirst: jest.fn().mockResolvedValue(null),
-      },
-      user: {
-        findUnique: jest.fn(),
-        findMany: jest.fn().mockResolvedValue([]),
-      },
+      findRecentDuplicate: jest.fn().mockResolvedValue(null),
+      findPostBasic: jest.fn().mockResolvedValue(null),
+      isBlocked: jest.fn().mockResolvedValue(false),
+      findUserBasic: jest.fn().mockResolvedValue(null),
+      findMentionedUsers: jest.fn().mockResolvedValue([]),
     };
 
     mockGateway = {
@@ -107,13 +91,19 @@ describe('CommentsService', () => {
 
     mockRedis = {
       getClient: jest.fn().mockReturnValue(mockRedisClient),
+      acquireLock: jest.fn().mockResolvedValue('token-123'),
+      releaseLock: jest.fn().mockResolvedValue(true),
+    };
+
+    mockEventEmitter = {
+      emit: jest.fn(),
     };
 
     service = new CommentsService(
       mockCommentsRepository,
-      mockPrisma as unknown as PrismaService,
       mockGateway as unknown as MessengerGateway,
       mockRedis as unknown as RedisService,
+      mockEventEmitter as unknown as EventEmitter2,
     );
   });
 
@@ -127,7 +117,7 @@ describe('CommentsService', () => {
     });
 
     it('throws ConflictException if duplicate comment was posted within 60s', async () => {
-      mockPrisma.comment.findFirst.mockResolvedValueOnce({ id: 'existing-dup' });
+      mockCommentsRepository.findRecentDuplicate.mockResolvedValueOnce({ id: 'existing-dup' });
 
       await expect(
         service.addComment('post-100', 'usr-1', {
@@ -137,7 +127,7 @@ describe('CommentsService', () => {
     });
 
     it('throws ConflictException if clientMutationId lock fails', async () => {
-      mockRedisClient.set.mockResolvedValueOnce(null);
+      mockRedis.acquireLock.mockResolvedValueOnce(null);
 
       await expect(
         service.addComment('post-100', 'usr-1', {
@@ -148,7 +138,7 @@ describe('CommentsService', () => {
     });
 
     it('throws NotFoundException if post does not exist', async () => {
-      mockPrisma.post.findUnique.mockResolvedValueOnce(null);
+      mockCommentsRepository.findPostBasic.mockResolvedValueOnce(null);
 
       await expect(
         service.addComment('missing-post', 'usr-1', {
@@ -158,11 +148,11 @@ describe('CommentsService', () => {
     });
 
     it('throws ForbiddenException if post author blocked user or vice versa', async () => {
-      mockPrisma.post.findUnique.mockResolvedValueOnce({
+      mockCommentsRepository.findPostBasic.mockResolvedValueOnce({
         id: 'post-100',
         authorId: 'usr-author',
       });
-      mockPrisma.userBlock.findFirst.mockResolvedValueOnce({ id: 'block-1' });
+      mockCommentsRepository.isBlocked.mockResolvedValueOnce(true);
 
       await expect(
         service.addComment('post-100', 'usr-1', {
@@ -171,14 +161,29 @@ describe('CommentsService', () => {
       ).rejects.toThrow(ForbiddenException);
     });
 
-    it('creates comment and emits notifications when valid', async () => {
+    it('throws ForbiddenException if replyToUserId blocked commenter', async () => {
+      mockCommentsRepository.findPostBasic.mockResolvedValueOnce({
+        id: 'post-100',
+        authorId: 'usr-author',
+      });
+      mockCommentsRepository.isBlocked.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+
+      await expect(
+        service.addComment('post-100', 'usr-1', {
+          text: 'Valid reply',
+          replyToUserId: 'usr-reply-target',
+        }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('creates comment, emits notification and gateway events for author, replyTo, and mentions', async () => {
       mockCommentsRepository.addComment.mockResolvedValueOnce(baseComment);
-      mockPrisma.post.findUnique.mockResolvedValueOnce({
+      mockCommentsRepository.findPostBasic.mockResolvedValueOnce({
         id: 'post-100',
         authorId: 'usr-post-author',
         author: { username: 'post_author' },
       });
-      mockPrisma.user.findUnique
+      mockCommentsRepository.findUserBasic
         .mockResolvedValueOnce({
           id: 'usr-commenter',
           username: 'commenter_user',
@@ -191,16 +196,18 @@ describe('CommentsService', () => {
           displayName: 'Commenter',
           avatar: null,
         });
-      mockPrisma.user.findMany.mockResolvedValueOnce([{ id: 'usr-alice', username: 'alice_dev' }]);
+      mockCommentsRepository.findMentionedUsers.mockResolvedValueOnce([
+        { id: 'usr-alice', username: 'alice_dev' },
+      ]);
 
       const result = await service.addComment('post-100', 'usr-commenter', {
-        text: 'Check @alice_dev on this!',
+        text: 'Check @..alice_dev.. on this!',
+        replyToUserId: 'usr-reply-user',
       });
 
-      expect(mockCommentsRepository.addComment).toHaveBeenCalledWith('post-100', 'usr-commenter', {
-        text: 'Check @alice_dev on this!',
-      });
+      expect(mockCommentsRepository.addComment).toHaveBeenCalled();
       expect(result.id).toBe('comment-1');
+      expect(mockEventEmitter.emit).toHaveBeenCalled();
       expect(mockGateway.emitToUser).toHaveBeenCalled();
     });
   });

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { registerSessionResetHandler } from './resetSession';
 
 export interface ActiveMediaInfo {
   id: string;
@@ -240,3 +241,16 @@ export const useActiveMediaPlaybackStore = create<ActiveMediaPlaybackState>((set
       isPiPVisible: false,
     }),
 }));
+
+/**
+ * RESET_STORES: stop playback + drop queue on logout/switch. Device prefs
+ * (volume/mute/rate) are preserved.
+ */
+registerSessionResetHandler(() => {
+  try {
+    useActiveMediaPlaybackStore.getState().stopAll();
+  } catch {
+    // ignore in tests
+  }
+  useActiveMediaPlaybackStore.setState({ currentViewingChatId: null });
+});

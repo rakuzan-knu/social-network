@@ -46,6 +46,7 @@ describe('FeedPage', () => {
     renderWithProviders(<FeedPage />);
 
     expect(await screen.findByText("There's nothing here yet...")).toBeInTheDocument();
+    expect(await screen.findByText('Discover Creators')).toBeInTheDocument();
   });
 
   it('submits a new post and clears the composer', async () => {

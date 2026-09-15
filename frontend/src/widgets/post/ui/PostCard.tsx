@@ -1,9 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useOptimistic, useTransition } from 'react';
 import { Link } from 'react-router-dom';
 import { MessageSquare, Repeat, Heart, Share, Bookmark, ChevronDown, Pin } from 'lucide-react';
 
-import Avatar from '@/shared/ui/Avatar';
-import StoryAvatar from '@/shared/ui/StoryAvatar';
+import { StoryAvatar } from '@/entities/story';
 import { ExpandableText } from '@/shared/ui/ExpandableText';
 import { PostMenu } from '@/features/posts/ui/PostMenu';
 import { FollowButton } from '@/features/follow/ui/FollowButton';
@@ -11,11 +10,11 @@ import { PollDisplay } from '@/features/posts/ui/PollDisplay';
 import { PostMedia } from '@/entities/post/ui/PostMedia';
 import { PollVotersModal } from '@/entities/post/ui/PollVotersModal';
 import { SaveToCollectionPopover } from '@/features/posts/ui/SaveToCollectionPopover';
-import { LinkPreviewCard } from '@/shared/ui/LinkPreviewCard';
+import { LinkPreviewCard } from '@/entities/opengraph';
 import { extractFirstUrl } from '@/shared/lib/urlUtils';
 
-import type { PostMedia as PostMediaType } from '@/entities/post/model/types';
-import { useUIStore, PostType } from '@/shared/model/useUIStore';
+import type { PostType, PostMedia as PostMediaType } from '@/entities/post/model/types';
+import { useUIStore } from '@/shared/model/useUIStore';
 import { useLikeMutation } from '@/features/posts/model/useLikeMutation';
 import { useRepostMutation } from '@/features/posts/model/useRepostMutation';
 import { useSavePostMutation } from '@/features/posts/model/useSavePostMutation';
@@ -30,7 +29,7 @@ import { DeletePostConfirmModal } from '@/features/posts/ui/DeletePostConfirmMod
 import { EditPostModal } from '@/features/posts/ui/EditPostModal';
 import { formatRelativeTime } from '@/shared/lib/formatRelativeTime';
 import { VerifiedCheckmark } from '@/entities/profile/ui/VerifiedCheckmark';
-import { MiniProfileHoverCard } from '@/entities/profile/ui/MiniProfileHoverCard';
+import { MiniProfileHoverCard } from '@/widgets/profile';
 import { useAuthStore } from '@/shared/model/useAuthStore';
 import { useCurrentUser } from '@/entities/profile/model/useCurrentUser';
 import { useMessageToastStore } from '@/shared/model/useMessageToastStore';
@@ -66,17 +65,17 @@ export function PostCard({ post, queryKey }: PostCardProps) {
     (currentUser?.username && post.handle?.toLowerCase() === currentUser.username.toLowerCase()),
   );
 
-  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const likeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const repostTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     return () => {
+      if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
       if (likeTimerRef.current) clearTimeout(likeTimerRef.current);
       if (repostTimerRef.current) clearTimeout(repostTimerRef.current);
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-      if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
     };
   }, []);
 
@@ -90,6 +89,15 @@ export function PostCard({ post, queryKey }: PostCardProps) {
   const pinMutation = usePinPostMutation(post.id, !!post.isPinned, queryKey);
   const blockUserMutation = useBlockUser();
 
+  const [, startLikeTransition] = useTransition();
+  const [optimisticLikes, setOptimisticLikes] = useOptimistic(
+    { isLiked: !!post.isLiked, count: post.likes ?? 0 },
+    (state, _update: 'toggle') => ({
+      isLiked: !state.isLiked,
+      count: state.isLiked ? Math.max(0, state.count - 1) : state.count + 1,
+    }),
+  );
+
   const isHidden = hiddenIds.has(post.id);
   if (isHidden && !isCollapsing) {
     return null;
@@ -101,12 +109,25 @@ export function PostCard({ post, queryKey }: PostCardProps) {
 
   const handleLike = () => {
     setIsLikePopping(true);
+    if (likeTimerRef.current) clearTimeout(likeTimerRef.current);
     likeTimerRef.current = setTimeout(() => setIsLikePopping(false), 400);
-    likeMutation.mutate();
+    startLikeTransition(async () => {
+      setOptimisticLikes('toggle');
+      try {
+        if (likeMutation.mutateAsync) {
+          await likeMutation.mutateAsync();
+        } else {
+          likeMutation.mutate();
+        }
+      } catch {
+        // useOptimistic automatically rolls back when transition settles
+      }
+    });
   };
 
   const handleRepost = () => {
     setIsRepostSpinning(true);
+    if (repostTimerRef.current) clearTimeout(repostTimerRef.current);
     repostTimerRef.current = setTimeout(() => setIsRepostSpinning(false), 400);
     repostMutation.mutate();
   };
@@ -119,6 +140,7 @@ export function PostCard({ post, queryKey }: PostCardProps) {
   const handleHidePost = () => {
     setIsCollapsing(true);
     showUndo(post.id);
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
     hideTimerRef.current = setTimeout(() => {
       hidePost(post.id);
       setIsCollapsing(false);
@@ -126,6 +148,7 @@ export function PostCard({ post, queryKey }: PostCardProps) {
   };
 
   const handleTouchStart = () => {
+    if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
     longPressTimerRef.current = setTimeout(() => {
       setIsPopoverOpen(true);
     }, 450);
@@ -134,16 +157,17 @@ export function PostCard({ post, queryKey }: PostCardProps) {
   const handleTouchEnd = () => {
     if (longPressTimerRef.current) {
       clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
     }
   };
 
   return (
     <div
       id={`post-${post.id}`}
-      className={`bg-white/[0.02] backdrop-blur-xl border border-white/[0.05] rounded-3xl shadow-lg flex flex-col gap-3 transition-all duration-300 ease-out scroll-mt-20 relative ${
+      className={`bg-white/2 backdrop-blur-xl border border-white/5 rounded-3xl shadow-lg flex flex-col gap-3 transition-all duration-300 ease-out scroll-mt-20 relative ${
         isCollapsing
           ? 'max-h-0 opacity-0 py-0 -my-2 border-0 pointer-events-none scale-95 overflow-hidden'
-          : 'max-h-[3000px] opacity-100 p-5 hover:bg-white/[0.03]'
+          : 'max-h-[3000px] opacity-100 p-5 hover:bg-white/3'
       } ${isMenuOpen ? 'z-30' : 'z-0'}`}
     >
       {post.isPinned && (
@@ -362,20 +386,20 @@ export function PostCard({ post, queryKey }: PostCardProps) {
                 type="button"
                 onClick={handleLike}
                 className={`flex items-center gap-1.5 cursor-pointer hover:text-pink-500 transition-colors group relative ${
-                  post.isLiked ? 'text-pink-500' : ''
+                  optimisticLikes.isLiked ? 'text-pink-500' : ''
                 }`}
-                title={post.isLiked ? 'Unlike' : 'Like'}
+                title={optimisticLikes.isLiked ? 'Unlike' : 'Like'}
               >
                 <Heart
                   size={16}
-                  fill={post.isLiked ? 'currentColor' : 'none'}
+                  fill={optimisticLikes.isLiked ? 'currentColor' : 'none'}
                   className={`transition-all duration-300 ${
                     isLikePopping
                       ? 'scale-150 text-pink-500 animate-pulse'
                       : 'group-hover:scale-110'
-                  } ${post.isLiked ? 'scale-105' : ''}`}
+                  } ${optimisticLikes.isLiked ? 'scale-105' : ''}`}
                 />
-                {!hideLikesCount && <span>{post.likes ?? 0}</span>}
+                {!hideLikesCount && <span>{optimisticLikes.count}</span>}
               </button>
 
               {/* Share Button with Shares Count */}

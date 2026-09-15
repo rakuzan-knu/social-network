@@ -1,12 +1,13 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useActionState } from 'react';
 import { Send, Image, X } from 'lucide-react';
 import { AddEmojiButton } from '../../../shared/ui/AddEmojiButton';
-import { MentionAutocomplete } from '../../posts/ui/MentionAutocomplete';
-import SmartCodePasteBanner from '@/features/chat/ui/SmartCodePasteBanner';
-import FloatingSelectionToolbar, {
-  SelectionFormatType,
-} from '@/features/chat/ui/FloatingSelectionToolbar';
-import { detectCodeSnippet, DetectedCodeSnippet } from '@/features/chat/lib/smartCodeDetection';
+import {
+  MentionAutocomplete,
+  SmartCodePasteBanner,
+  FloatingSelectionToolbar,
+  type SelectionFormatType,
+} from '@/shared/ui/editor';
+import { detectCodeSnippet, type DetectedCodeSnippet } from '@/shared/lib/editor';
 
 interface CommentFormProps {
   currentUserHandle: string;
@@ -184,6 +185,11 @@ export function CommentForm({
     setFloatingToolbarPos(null);
   };
 
+  const [, formAction, isActionPending] = useActionState(async () => {
+    handleCommentSubmit();
+    return null;
+  }, null);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     handleCommentSubmit();
@@ -263,8 +269,25 @@ export function CommentForm({
     }
   };
 
+  const handleImageRemove = (idx: number) => {
+    setImages((prev) => {
+      const removed = prev[idx];
+      if (removed) URL.revokeObjectURL(removed);
+      return prev.filter((_, i) => i !== idx);
+    });
+  };
+
+  useEffect(() => {
+    return () => {
+      images.forEach((url) => {
+        if (url.startsWith('blob:')) URL.revokeObjectURL(url);
+      });
+    };
+  }, [images]);
+
   return (
     <form
+      action={formAction}
       onSubmit={handleSubmit}
       className="flex flex-col gap-3 border-t border-white/[0.06] pt-4 mt-2 w-full relative"
     >
@@ -289,7 +312,7 @@ export function CommentForm({
               <img src={url} className="w-full h-full object-cover" alt="preview" />
               <button
                 type="button"
-                onClick={() => setImages(images.filter((_, i) => i !== idx))}
+                onClick={() => handleImageRemove(idx)}
                 className="absolute top-1 right-1 bg-black/75 p-0.5 rounded-full text-white transition-all cursor-pointer"
               >
                 <X size={12} />
@@ -347,7 +370,7 @@ export function CommentForm({
 
         <button
           type="submit"
-          disabled={(!text.trim() && images.length === 0) || isSubmitting}
+          disabled={(!text.trim() && images.length === 0) || isSubmitting || isActionPending}
           className="text-blue-500 hover:text-blue-400 disabled:opacity-20 bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] p-3 mb-1 rounded-xl transition-all cursor-pointer flex items-center justify-center h-[50px] w-[50px]"
         >
           <Send size={20} />

@@ -24,10 +24,22 @@ describe('commentsApi', () => {
     expect(partial.id).toBe('c1');
     expect(partial.author).toBe('user1');
     expect(partial.text).toBe('hi');
+
+    const withReplyTo = normalizeComment({
+      id: 'c2',
+      replyToUser: { id: 'u2', username: 'bob', displayName: 'Bobby' },
+    });
+    expect(withReplyTo.replyToUser?.displayName).toBe('Bobby');
+
+    const withReplyToDefault = normalizeComment({
+      id: 'c3',
+      replyToUser: { id: 'u3', username: 'sarah' },
+    });
+    expect(withReplyToDefault.replyToUser?.displayName).toBe('sarah');
   });
 
-  it('fetches comments list with pagination params', async () => {
-    vi.mocked(apiClient.get).mockResolvedValue({
+  it('fetches comments list with pagination params and alternative array formats', async () => {
+    vi.mocked(apiClient.get).mockResolvedValueOnce({
       data: {
         data: [{ id: 'c1', text: 'comment 1' }],
         meta: { nextCursor: 'next-1' },
@@ -40,14 +52,39 @@ describe('commentsApi', () => {
     });
     expect(res.comments).toHaveLength(1);
     expect(res.nextCursor).toBe('next-1');
+
+    // comments property and raw array
+    vi.mocked(apiClient.get).mockResolvedValueOnce({
+      data: { comments: [{ id: 'c2' }], nextCursor: 'nc-2' },
+    });
+    const res2 = await commentsApi.getComments('post-2');
+    expect(res2.comments).toHaveLength(1);
+    expect(res2.nextCursor).toBe('nc-2');
+
+    vi.mocked(apiClient.get).mockResolvedValueOnce({
+      data: [{ id: 'c3' }],
+    });
+    const res3 = await commentsApi.getComments('post-3');
+    expect(res3.comments).toHaveLength(1);
   });
 
   it('fetches replies, adds comment, toggles like/pin, and deletes comment', async () => {
-    vi.mocked(apiClient.get).mockResolvedValue({ data: { data: [] } });
+    vi.mocked(apiClient.get).mockResolvedValueOnce({ data: { data: [] } });
     await commentsApi.getReplies('root-1');
     expect(apiClient.get).toHaveBeenCalledWith('/comments/root-1/replies', {
       params: { after: undefined, limit: 20 },
     });
+
+    // getReplies alternative formats
+    vi.mocked(apiClient.get).mockResolvedValueOnce({
+      data: { comments: [{ id: 'r2' }], nextCursor: 'rc-2' },
+    });
+    const rep2 = await commentsApi.getReplies('root-2');
+    expect(rep2.comments).toHaveLength(1);
+
+    vi.mocked(apiClient.get).mockResolvedValueOnce({ data: [{ id: 'r3' }] });
+    const rep3 = await commentsApi.getReplies('root-3');
+    expect(rep3.comments).toHaveLength(1);
 
     vi.mocked(apiClient.post).mockResolvedValue({ data: { id: 'c2', text: 'new reply' } });
     const added = await commentsApi.addComment('p1', 'new reply', 'root-1');

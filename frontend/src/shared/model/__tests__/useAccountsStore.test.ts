@@ -21,19 +21,26 @@ describe('useAccountsStore', () => {
       accessToken: 'token-1',
       refreshToken: 'refresh-1',
     };
+    const acc2: SavedAccount = {
+      id: 'acc-2',
+      username: 'jane_doe',
+      accessToken: 'token-2',
+      refreshToken: 'refresh-2',
+    };
 
     useAccountsStore.getState().upsertAccount(acc1);
-    expect(useAccountsStore.getState().accounts).toHaveLength(1);
-    expect(useAccountsStore.getState().activeAccountId).toBe('acc-1');
-    expect(useAccountsStore.getState().getActiveAccount()?.username).toBe('john_doe');
+    useAccountsStore.getState().upsertAccount(acc2);
+    expect(useAccountsStore.getState().accounts).toHaveLength(2);
+    expect(useAccountsStore.getState().activeAccountId).toBe('acc-2');
 
-    // Update existing account
+    // Update existing account when other accounts exist in array
     useAccountsStore.getState().upsertAccount({
       ...acc1,
       displayName: 'John Doe',
     });
-    expect(useAccountsStore.getState().accounts).toHaveLength(1);
+    expect(useAccountsStore.getState().accounts).toHaveLength(2);
     expect(useAccountsStore.getState().accounts[0].displayName).toBe('John Doe');
+    expect(useAccountsStore.getState().accounts[1].username).toBe('jane_doe');
   });
 
   it('switches active account and updates auth store + localStorage', () => {

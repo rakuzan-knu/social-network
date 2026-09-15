@@ -1,9 +1,9 @@
 import { ForbiddenException, GoneException, NotFoundException } from '@nestjs/common';
+import { ReportCategory } from '@prisma/client';
 import { MediaType } from '@common/contracts';
 import { PostsService } from '../posts.service';
 import type { PostsMediaService } from '../posts-media.service';
 import type { RedisService } from '../../redis/redis.service';
-import type { PrismaService } from '@common/prisma';
 import type { MessengerGateway } from '../../messenger/gateway/messenger.gateway';
 
 describe('PostsService', () => {
@@ -26,9 +26,19 @@ describe('PostsService', () => {
     getRepostsByUserId: jest.Mock;
     reportPost: jest.Mock;
     incrementShareCount: jest.Mock;
+    incrementManyShareCounts: jest.Mock;
+    createPollForPost: jest.Mock;
+    findMentionUsers: jest.Mock;
+    findUserBasic: jest.Mock;
+    getPollForVote: jest.Mock;
+    updateVote: jest.Mock;
+    createVote: jest.Mock;
+    getPollVoters: jest.Mock;
   };
   let mockMediaService: {
     processUploadedFiles: jest.Mock;
+    uploadChunk: jest.Mock;
+    getChunkStatus: jest.Mock;
   };
   let mockRedis: {
     get: jest.Mock;
@@ -36,24 +46,7 @@ describe('PostsService', () => {
     del: jest.Mock;
     delByPattern: jest.Mock;
     getOrSet: jest.Mock;
-  };
-  let mockPrisma: {
-    poll: {
-      create: jest.Mock;
-      findUnique: jest.Mock;
-    };
-    vote: {
-      create: jest.Mock;
-      deleteMany: jest.Mock;
-    };
-    pollOption: {
-      update: jest.Mock;
-    };
-    user: {
-      findMany: jest.Mock;
-      findUnique: jest.Mock;
-    };
-    $transaction: jest.Mock;
+    withLock?: jest.Mock;
   };
   let mockGateway: {
     emitToUser: jest.Mock;
@@ -105,10 +98,20 @@ describe('PostsService', () => {
       getRepostsByUserId: jest.fn().mockResolvedValue([]),
       reportPost: jest.fn().mockResolvedValue({ id: 'rep-1' }),
       incrementShareCount: jest.fn().mockResolvedValue(undefined),
+      incrementManyShareCounts: jest.fn().mockResolvedValue(undefined),
+      createPollForPost: jest.fn().mockResolvedValue(undefined),
+      findMentionUsers: jest.fn().mockResolvedValue([]),
+      findUserBasic: jest.fn().mockResolvedValue(null),
+      getPollForVote: jest.fn().mockResolvedValue(null),
+      updateVote: jest.fn().mockResolvedValue(undefined),
+      createVote: jest.fn().mockResolvedValue(undefined),
+      getPollVoters: jest.fn().mockResolvedValue(null),
     };
 
     mockMediaService = {
       processUploadedFiles: jest.fn().mockResolvedValue([]),
+      uploadChunk: jest.fn().mockResolvedValue({ complete: true }),
+      getChunkStatus: jest.fn().mockReturnValue({ uploadedChunks: [0], totalChunks: 1 }),
     };
 
     mockRedis = {
@@ -116,32 +119,10 @@ describe('PostsService', () => {
       set: jest.fn(),
       del: jest.fn().mockResolvedValue(1),
       delByPattern: jest.fn().mockResolvedValue(1),
+      withLock: jest.fn((_k: string, action: () => unknown) => action()),
       getOrSet: jest
         .fn()
         .mockImplementation((_key: string, _ttl: number, factory: () => unknown) => factory()),
-    };
-
-    mockPrisma = {
-      poll: {
-        create: jest.fn().mockResolvedValue({ id: 'poll-1', options: [], votes: [] }),
-        findUnique: jest.fn(),
-      },
-      vote: {
-        create: jest.fn().mockResolvedValue({}),
-        deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
-      },
-      pollOption: {
-        update: jest.fn().mockResolvedValue({}),
-      },
-      user: {
-        findMany: jest.fn().mockResolvedValue([]),
-        findUnique: jest.fn(),
-      },
-      $transaction: jest
-        .fn()
-        .mockImplementation((cb: ((p: unknown) => unknown) | unknown[]) =>
-          typeof cb === 'function' ? cb(mockPrisma) : cb,
-        ),
     };
 
     mockGateway = {
@@ -152,7 +133,6 @@ describe('PostsService', () => {
       mockPostsRepository,
       mockMediaService as unknown as PostsMediaService,
       mockRedis as unknown as RedisService,
-      mockPrisma as unknown as PrismaService,
       mockGateway as unknown as MessengerGateway,
     );
   });
@@ -192,8 +172,10 @@ describe('PostsService', () => {
         ...basePost,
         id: 'post-new-1',
       });
-      mockPrisma.user.findMany.mockResolvedValueOnce([{ id: 'usr-sam', username: 'sam_dev' }]);
-      mockPrisma.user.findUnique.mockResolvedValueOnce({
+      mockPostsRepository.findMentionUsers.mockResolvedValueOnce([
+        { id: 'usr-sam', username: 'sam_dev' },
+      ]);
+      mockPostsRepository.findUserBasic.mockResolvedValueOnce({
         id: 'usr-author-1',
         username: 'author_one',
         displayName: 'Author One',
@@ -210,7 +192,7 @@ describe('PostsService', () => {
       const result = await service.createPost(dto, 'usr-author-1');
 
       expect(mockPostsRepository.createPost).toHaveBeenCalledTimes(1);
-      expect(mockPrisma.poll.create).toHaveBeenCalledTimes(1);
+      expect(mockPostsRepository.createPollForPost).toHaveBeenCalledTimes(1);
       expect(mockGateway.emitToUser).toHaveBeenCalledWith(
         'usr-sam',
         'socialNotification',
@@ -295,7 +277,7 @@ describe('PostsService', () => {
   describe('repost & unrepost', () => {
     it('repost delegates to repository, invalidates cache and emits notification', async () => {
       mockPostsRepository.getPostById.mockResolvedValueOnce(basePost);
-      mockPrisma.user.findUnique
+      mockPostsRepository.findUserBasic
         .mockResolvedValueOnce({ id: 'usr-reposter', username: 'reposter_user' })
         .mockResolvedValueOnce({ username: 'author_one' });
 
@@ -319,7 +301,7 @@ describe('PostsService', () => {
 
   describe('votePoll', () => {
     it('throws NotFoundException if poll does not exist', async () => {
-      mockPrisma.poll.findUnique.mockResolvedValueOnce(null);
+      mockPostsRepository.getPollForVote.mockResolvedValueOnce(null);
 
       await expect(service.votePoll('post-missing', 'opt-1', 'usr-1')).rejects.toThrow(
         NotFoundException,
@@ -327,7 +309,7 @@ describe('PostsService', () => {
     });
 
     it('throws GoneException if poll is no longer active', async () => {
-      mockPrisma.poll.findUnique.mockResolvedValueOnce({
+      mockPostsRepository.getPollForVote.mockResolvedValueOnce({
         isActive: false,
         options: [{ id: 'opt-1' }],
         votes: [],
@@ -337,7 +319,7 @@ describe('PostsService', () => {
     });
 
     it('throws NotFoundException if chosen option is not in poll', async () => {
-      mockPrisma.poll.findUnique.mockResolvedValueOnce({
+      mockPostsRepository.getPollForVote.mockResolvedValueOnce({
         isActive: true,
         options: [{ id: 'opt-1' }],
         votes: [],
@@ -348,8 +330,47 @@ describe('PostsService', () => {
       );
     });
 
+    it('records first-time vote and allows changing existing vote', async () => {
+      mockPostsRepository.getPollForVote.mockResolvedValue({
+        id: 'poll-1',
+        postId: 'post-100',
+        isActive: true,
+        options: [{ id: 'opt-1' }, { id: 'opt-2' }],
+        votes: [],
+      });
+
+      // 1. First time vote
+      const vote1 = await service.votePoll('post-100', 'opt-1', 'usr-1');
+      expect(vote1.success).toBe(true);
+      expect(mockPostsRepository.createVote).toHaveBeenCalled();
+
+      // 2. Change vote from opt-1 to opt-2
+      mockPostsRepository.getPollForVote.mockResolvedValueOnce({
+        id: 'poll-1',
+        postId: 'post-100',
+        isActive: true,
+        options: [{ id: 'opt-1' }, { id: 'opt-2' }],
+        votes: [{ id: 'vote-1', userId: 'usr-1', optionId: 'opt-1' }],
+      });
+
+      const vote2 = await service.votePoll('post-100', 'opt-2', 'usr-1');
+      expect(vote2.success).toBe(true);
+
+      // 3. Voting same option returns without transaction
+      mockPostsRepository.getPollForVote.mockResolvedValueOnce({
+        id: 'poll-1',
+        postId: 'post-100',
+        isActive: true,
+        options: [{ id: 'opt-1' }, { id: 'opt-2' }],
+        votes: [{ id: 'vote-1', userId: 'usr-1', optionId: 'opt-1' }],
+      });
+
+      const voteSame = await service.votePoll('post-100', 'opt-1', 'usr-1');
+      expect(voteSame.success).toBe(true);
+    });
+
     it('getPollVoters returns grouped options with voter details', async () => {
-      mockPrisma.poll.findUnique.mockResolvedValueOnce({
+      mockPostsRepository.getPollVoters.mockResolvedValueOnce({
         options: [{ id: 'opt-1' }, { id: 'opt-2' }],
         votes: [
           {
@@ -368,12 +389,63 @@ describe('PostsService', () => {
     });
 
     it('getPollVoters throws NotFoundException when poll does not exist', async () => {
-      mockPrisma.poll.findUnique.mockResolvedValueOnce(null);
+      mockPostsRepository.getPollVoters.mockResolvedValueOnce(null);
       await expect(service.getPollVoters('post-none', 'usr-1')).rejects.toThrow(NotFoundException);
     });
   });
 
+  describe('user posts, reposts, reports, and chunked uploads', () => {
+    it('getUserPosts sorts pinned post to front', async () => {
+      mockRedis.get.mockResolvedValueOnce('post-2');
+      mockPostsRepository.getPostsByUserId.mockResolvedValueOnce([
+        { ...basePost, id: 'post-1' },
+        { ...basePost, id: 'post-2' },
+      ]);
+
+      const res = await service.getUserPosts('usr-author-1', 10);
+      expect(res.data[0].id).toBe('post-2');
+      expect(res.data[0].isPinned).toBe(true);
+    });
+
+    it('getUserReposts and reportPost delegate correctly', async () => {
+      mockPostsRepository.getRepostsByUserId.mockResolvedValueOnce([basePost]);
+      const reposts = await service.getUserReposts('usr-1', 10);
+      expect(reposts.data).toHaveLength(1);
+
+      mockPostsRepository.reportPost.mockResolvedValueOnce({ id: 'rep-1' });
+      const rep = await service.reportPost('post-100', 'usr-1', ReportCategory.SPAM, 'Spam post');
+      expect(rep.status).toBe('queued');
+    });
+
+    it('uploadChunk and getChunkStatus delegate to mediaService', async () => {
+      mockMediaService.uploadChunk.mockResolvedValueOnce({ complete: true });
+      mockMediaService.getChunkStatus.mockReturnValueOnce({ uploadedChunks: [0], totalChunks: 1 });
+
+      const chunkRes = await service.uploadChunk('up-1', 0, 1, {} as Express.Multer.File);
+      expect(chunkRes.complete).toBe(true);
+
+      const statusRes = service.getChunkStatus('up-1');
+      expect(statusRes.totalChunks).toBe(1);
+    });
+  });
+
   describe('pinPost, unpinPost, sharePost & getPostOgHtml', () => {
+    it('pinPost and unpinPost enforce author permissions', async () => {
+      mockPostsRepository.getPostById.mockResolvedValueOnce({
+        ...basePost,
+        id: 'post-100',
+        authorId: 'usr-author-1',
+      });
+      await expect(service.pinPost('post-100', 'other-user')).rejects.toThrow(ForbiddenException);
+
+      mockPostsRepository.getPostById.mockResolvedValueOnce({
+        ...basePost,
+        id: 'post-100',
+        authorId: 'usr-author-1',
+      });
+      await expect(service.unpinPost('post-100', 'other-user')).rejects.toThrow(ForbiddenException);
+    });
+
     it('pinPost sets user pinned post and marks isPinned true', async () => {
       mockPostsRepository.getPostById.mockResolvedValue({
         ...basePost,
@@ -414,7 +486,7 @@ describe('PostsService', () => {
       expect(res2.incremented).toBe(false);
     });
 
-    it('getPostOgHtml returns HTML with metadata', async () => {
+    it('getPostOgHtml returns HTML with metadata and handles not found', async () => {
       mockPostsRepository.getPostById.mockResolvedValueOnce({
         ...basePost,
         content: 'Check out this awesome post!',
@@ -423,6 +495,10 @@ describe('PostsService', () => {
       const html = await service.getPostOgHtml('post-100');
       expect(html).toContain('<meta property="og:site_name" content="Eternal Social Network" />');
       expect(html).toContain('Check out this awesome post!');
+
+      mockPostsRepository.getPostById.mockResolvedValueOnce(null);
+      const notFoundHtml = await service.getPostOgHtml('missing-post');
+      expect(notFoundHtml).toContain('Post not found');
     });
   });
 });

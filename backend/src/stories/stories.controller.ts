@@ -5,6 +5,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Logger,
   Param,
   Post,
   UploadedFile,
@@ -20,7 +21,9 @@ import type { RequestUser } from '../auth/interfaces/jwt-payload.interface';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { StoriesService } from './stories.service';
 import { Throttle } from '@nestjs/throttler';
+import { safeJsonParse } from '../common/utils/json.util';
 import {
+  CreateStoryDtoSchema,
   ReactToStoryDtoSchema,
   ReplyToStoryDtoSchema,
   VoteStoryPollDtoSchema,
@@ -33,6 +36,8 @@ import {
 @ApiTags('Stories')
 @Controller('stories')
 export class StoriesController {
+  private readonly logger = new Logger(StoriesController.name);
+
   constructor(private readonly storiesService: StoriesService) {}
 
   @Get('feed')
@@ -54,7 +59,7 @@ export class StoriesController {
 
   @Post()
   @UseGuards(AuthGuard)
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 100 * 1024 * 1024, files: 1 } }))
   @ApiBearerAuth()
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Create and publish a new story' })
@@ -62,19 +67,25 @@ export class StoriesController {
   createStory(
     @CurrentUser() user: RequestUser,
     @UploadedFile() file?: Express.Multer.File,
-    @Body() body?: any,
+    @Body()
+    body?: {
+      mediaType?: CreateStoryDto['mediaType'];
+      caption?: string;
+      overlays?: string | CreateStoryDto['overlays'];
+      privacy?: CreateStoryDto['privacy'];
+      backgroundColor?: string;
+    },
   ) {
     // Parse overlays and other fields from multipart formData if sent as strings
     let overlays = body?.overlays;
     if (typeof overlays === 'string') {
-      try {
-        overlays = JSON.parse(overlays);
-      } catch {
-        overlays = [];
-      }
+      const parsed = safeJsonParse<CreateStoryDto['overlays']>(overlays, {
+        maxSizeBytes: 256 * 1024,
+      });
+      overlays = parsed ?? [];
     }
 
-    const dto: CreateStoryDto = {
+    const rawDto: CreateStoryDto = {
       mediaType: body?.mediaType || (file ? undefined : 'IMAGE'),
       caption: body?.caption,
       overlays: Array.isArray(overlays) ? overlays : undefined,
@@ -82,7 +93,8 @@ export class StoriesController {
       backgroundColor: body?.backgroundColor,
     };
 
-    return this.storiesService.createStory(user.id, dto, file);
+    const validatedDto = CreateStoryDtoSchema.parse(rawDto);
+    return this.storiesService.createStory(user.id, validatedDto, file);
   }
 
   @Post(':id/view')

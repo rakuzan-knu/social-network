@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MessageSquare, UserMinus, ChevronDown } from 'lucide-react';
 import { useFollowMutation } from '../model/useFollowMutation';
-import { chatApi } from '@/features/chat/api/chatApi';
+import { chatApi } from '@/entities/chat';
 
 import { useAuthStore } from '@/shared/model/useAuthStore';
 import { useCurrentUser } from '@/entities/profile/model/useCurrentUser';
@@ -10,9 +10,9 @@ import { useCurrentUser } from '@/entities/profile/model/useCurrentUser';
 interface FollowButtonProps {
   authorId: string;
   isFollowing: boolean;
-  isFriend?: boolean;
-  followsYou?: boolean;
-  className?: string;
+  isFriend?: boolean | undefined;
+  followsYou?: boolean | undefined;
+  className?: string | undefined;
 }
 
 export function FollowButton({

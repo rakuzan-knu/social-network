@@ -3,11 +3,13 @@ import { apiClient } from '@/shared/api/httpClient';
 import {
   deleteNotification,
   fetchNotifications,
+  fetchNotificationSettings,
   fetchUnreadNotificationCounts,
   markAllNotificationsAsRead,
   markNotificationAsRead,
   muteNotificationAuthor,
   unmuteNotificationAuthor,
+  updateNotificationSettings,
 } from '../api/notificationApi';
 
 vi.mock('@/shared/api/httpClient', () => ({
@@ -24,7 +26,7 @@ describe('notificationApi', () => {
     vi.clearAllMocks();
   });
 
-  it('fetchNotifications calls GET /notifications with query parameters', async () => {
+  it('fetchNotifications calls GET /notifications with query parameters and handles errors gracefully', async () => {
     (apiClient.get as any).mockResolvedValueOnce({
       data: {
         items: [],
@@ -48,9 +50,15 @@ describe('notificationApi', () => {
       params: { limit: 10, cursor: 'cursor-1', type: 'likes' },
     });
     expect(result.items).toEqual([]);
+
+    // Test error catch
+    (apiClient.get as any).mockRejectedValueOnce(new Error('Network error'));
+    const fallbackResult = await fetchNotifications();
+    expect(fallbackResult.items).toEqual([]);
+    expect(fallbackResult.hasMore).toBe(false);
   });
 
-  it('fetchUnreadNotificationCounts calls GET /notifications/unread-count', async () => {
+  it('fetchUnreadNotificationCounts calls GET /notifications/unread-count and handles errors', async () => {
     const counts = {
       total: 3,
       likes: 2,
@@ -66,6 +74,11 @@ describe('notificationApi', () => {
 
     expect(apiClient.get).toHaveBeenCalledWith('/notifications/unread-count');
     expect(result).toEqual(counts);
+
+    // Test error catch
+    (apiClient.get as any).mockRejectedValueOnce(new Error('API error'));
+    const fallbackCounts = await fetchUnreadNotificationCounts();
+    expect(fallbackCounts.total).toBe(0);
   });
 
   it('markNotificationAsRead calls PATCH /notifications/:id/read', async () => {
@@ -78,7 +91,7 @@ describe('notificationApi', () => {
     expect(result).toEqual(mockItem);
   });
 
-  it('markAllNotificationsAsRead calls PATCH /notifications/read-all', async () => {
+  it('markAllNotificationsAsRead calls PATCH /notifications/read-all with optional filter', async () => {
     const response = {
       success: true,
       count: 2,
@@ -94,12 +107,28 @@ describe('notificationApi', () => {
     };
     (apiClient.patch as any).mockResolvedValueOnce({ data: response });
 
-    const result = await markAllNotificationsAsRead('likes');
+    const result = await markAllNotificationsAsRead('all');
 
+    expect(apiClient.patch).toHaveBeenCalledWith('/notifications/read-all', null, {
+      params: {},
+    });
+    expect(result).toEqual(response);
+
+    (apiClient.patch as any).mockResolvedValueOnce({ data: response });
+    await markAllNotificationsAsRead('likes');
     expect(apiClient.patch).toHaveBeenCalledWith('/notifications/read-all', null, {
       params: { type: 'likes' },
     });
-    expect(result).toEqual(response);
+  });
+
+  it('handles fetchNotificationSettings and updateNotificationSettings', async () => {
+    (apiClient.get as any).mockResolvedValueOnce({ data: { soundEnabled: true } });
+    const settings = await fetchNotificationSettings();
+    expect(settings).toEqual({ soundEnabled: true });
+
+    (apiClient.patch as any).mockResolvedValueOnce({ data: { soundEnabled: false } });
+    const updated = await updateNotificationSettings({ soundEnabled: false });
+    expect(updated).toEqual({ soundEnabled: false });
   });
 
   it('deleteNotification calls DELETE /notifications/:id', async () => {

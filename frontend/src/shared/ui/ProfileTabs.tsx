@@ -1,7 +1,7 @@
 import React from 'react';
-import { Bookmark, Grid, Repeat } from 'lucide-react';
+import { Bookmark, Film, Grid, Repeat } from 'lucide-react';
 
-export type ProfileTabType = 'posts' | 'reposts' | 'saved';
+export type ProfileTabType = 'posts' | 'reposts' | 'reels' | 'saved';
 
 interface ProfileTabsProps {
   activeTab: ProfileTabType;
@@ -15,7 +15,7 @@ export default function ProfileTabs({
   showSavedTab = false,
 }: ProfileTabsProps) {
   return (
-    <div className="flex border-t border-white/[0.05]">
+    <div className="flex border-t border-white/5">
       <button
         type="button"
         onClick={() => setActiveTab('posts')}
@@ -26,7 +26,7 @@ export default function ProfileTabs({
         <Grid size={15} />
         <span>Posts</span>
         {activeTab === 'posts' && (
-          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-[3px] bg-white rounded-full transition-all" />
+          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-0.75 bg-white rounded-full transition-all" />
         )}
       </button>
 
@@ -40,7 +40,21 @@ export default function ProfileTabs({
         <Repeat size={15} />
         <span>Reposts</span>
         {activeTab === 'reposts' && (
-          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-[3px] bg-white rounded-full transition-all" />
+          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-0.75 bg-white rounded-full transition-all" />
+        )}
+      </button>
+
+      <button
+        type="button"
+        onClick={() => setActiveTab('reels')}
+        className={`flex-1 py-4 cursor-pointer text-center text-sm font-semibold relative flex items-center justify-center gap-2 transition-colors ${
+          activeTab === 'reels' ? 'text-white' : 'text-gray-500 hover:text-gray-300'
+        }`}
+      >
+        <Film size={15} />
+        <span>Reels</span>
+        {activeTab === 'reels' && (
+          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-0.75 bg-white rounded-full transition-all" />
         )}
       </button>
 
@@ -55,7 +69,7 @@ export default function ProfileTabs({
           <Bookmark size={15} className={activeTab === 'saved' ? 'fill-white' : ''} />
           <span>Saved</span>
           {activeTab === 'saved' && (
-            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-[3px] bg-white rounded-full transition-all" />
+            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-0.75 bg-white rounded-full transition-all" />
           )}
         </button>
       )}

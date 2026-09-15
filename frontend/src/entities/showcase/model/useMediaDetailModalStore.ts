@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { registerSessionResetHandler } from '@/shared/model/resetSession';
 import type { ShowcaseMediaType } from '@backend/common/contracts';
 
 export interface MediaModalItem {
@@ -32,3 +33,8 @@ export const useMediaDetailModalStore = create<MediaDetailModalState>((set) => (
   closeMediaDetail: () => set({ isOpen: false, activeItem: null }),
   setActiveItem: (item) => set({ activeItem: item }),
 }));
+
+/** RESET_STORES: close modal + drop item on logout/switch. */
+registerSessionResetHandler(() => {
+  useMediaDetailModalStore.setState({ isOpen: false, activeItem: null });
+});

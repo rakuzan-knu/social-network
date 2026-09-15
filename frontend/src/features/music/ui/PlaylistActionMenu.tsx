@@ -61,6 +61,7 @@ export const PlaylistActionMenu: React.FC<PlaylistActionMenuProps> = ({
 
   const { data: currentUser } = useCurrentUser();
   const updateShowcaseMutation = useUpdateShowcase();
+  const hasCurrentTrack = useSpotifyPlayerStore((s) => Boolean(s.currentTrack));
 
   const showToast = (title: string, body: string) => {
     useMessageToastStore.getState().addToast({
@@ -176,7 +177,7 @@ export const PlaylistActionMenu: React.FC<PlaylistActionMenuProps> = ({
   const menuWidth = 260;
   const menuHeight = isOwner || isCollaborator ? 360 : 300;
 
-  const isDockActive = Boolean(useSpotifyPlayerStore.getState?.()?.currentTrack);
+  const isDockActive = hasCurrentTrack;
   const bottomClearance = isDockActive ? 92 : 16;
 
   const isPointAnchor = !anchorRect.width || anchorRect.width === 0;

@@ -1,4 +1,4 @@
-import { Injectable, Inject, NotFoundException, Optional } from '@nestjs/common';
+import { Injectable, Inject, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { S3Client } from '@aws-sdk/client-s3';
 import { S3_CLIENT } from './s3-provider';
@@ -13,6 +13,7 @@ import {
 
 @Injectable()
 export class AvatarsService {
+  private readonly logger = new Logger(AvatarsService.name);
   private readonly bucket: string;
   private readonly publicUrl: string;
 
@@ -40,7 +41,9 @@ export class AvatarsService {
         url: user.avatar,
         bucket: this.bucket,
         publicUrl: this.publicUrl,
-      }).catch(() => {});
+      }).catch((e) => {
+        this.logger.warn(`Failed to delete old avatar storage file for ${userId}: ${String(e)}`);
+      });
     }
 
     const { buffer: uploadBuffer, contentType, ext } = await optimizeAvatar(file.buffer);
@@ -58,8 +61,8 @@ export class AvatarsService {
     try {
       await this.redis?.del(`user:${userId}`);
       await this.redis?.del(`user${userId}`);
-    } catch {
-      // Safe non-blocking cache invalidation
+    } catch (e) {
+      this.logger.warn(`Failed to invalidate user avatar cache for ${userId}: ${String(e)}`);
     }
     return updated;
   }
@@ -75,15 +78,17 @@ export class AvatarsService {
         url: user.avatar,
         bucket: this.bucket,
         publicUrl: this.publicUrl,
-      }).catch(() => {});
+      }).catch((e) => {
+        this.logger.warn(`Failed to delete avatar storage file for ${userId}: ${String(e)}`);
+      });
     }
 
     const updated = await this.avatarRepository.updateAvatar(userId, null);
     try {
       await this.redis?.del(`user:${userId}`);
       await this.redis?.del(`user${userId}`);
-    } catch {
-      // Safe non-blocking cache invalidation
+    } catch (e) {
+      this.logger.warn(`Failed to invalidate user avatar cache for ${userId}: ${String(e)}`);
     }
     return updated;
   }

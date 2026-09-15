@@ -23,6 +23,11 @@ describe('badgeTiers', () => {
       const tier = getPremiumTierByMonths(72);
       expect(tier.id).toBe('OPAL');
     });
+
+    it('returns BRONZE fallback when months is NaN', () => {
+      const tier = getPremiumTierByMonths(Number.NaN);
+      expect(tier.id).toBe('BRONZE');
+    });
   });
 
   describe('getContributorTierByCount', () => {

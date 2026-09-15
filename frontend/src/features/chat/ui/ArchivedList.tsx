@@ -64,13 +64,14 @@ export default function ArchivedList({
             </div>
 
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 archiveConversation.mutate({ conversationId: c.id, archived: false });
               }}
               title="Unarchive chat"
               aria-label="Unarchive chat"
-              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-gray-400 opacity-0 transition-all hover:bg-white/10 hover:text-white group-hover:opacity-100"
+              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-gray-400 opacity-80 sm:opacity-0 transition-all hover:bg-white/15 hover:text-white group-hover:opacity-100 focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 active:scale-95"
             >
               <ArchiveRestore size={16} />
             </button>

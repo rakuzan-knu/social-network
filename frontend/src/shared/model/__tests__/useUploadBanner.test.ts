@@ -21,7 +21,11 @@ describe('useUploadBanner', () => {
       await result.current.mutateAsync({ userId: 'usr-1', file, positionY: 35 });
     });
 
-    expect(postSpy).toHaveBeenCalledWith('/users/usr-1/banner', expect.any(FormData));
+    expect(postSpy).toHaveBeenCalledWith(
+      '/users/usr-1/banner',
+      expect.any(FormData),
+      expect.objectContaining({ signal: undefined }),
+    );
     expect(invalidateSpy).toHaveBeenCalled();
   });
 });

@@ -1,15 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient as api } from '@/shared/api/httpClient';
 import { useAuthStore } from '@/shared/model/useAuthStore';
-import { followApi, type FollowUserSummary } from '@/features/follow/api/followApi';
+import { followApi, type FollowUserSummary } from '../api/followApi';
 
 export function useSuggestedUsers(limit = 5) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   return useQuery<FollowUserSummary[]>({
     queryKey: ['suggestedUsers', limit],
-    queryFn: async (): Promise<FollowUserSummary[]> => {
-      const res = await api.get<FollowUserSummary[]>(`/users/suggested?limit=${limit}`);
+    queryFn: async ({ signal }): Promise<FollowUserSummary[]> => {
+      const res = await api.get<FollowUserSummary[]>(`/users/suggested?limit=${limit}`, { signal });
       const list = Array.isArray(res.data) ? res.data : [];
       return list.map((u) => ({
         id: u.id ?? '',

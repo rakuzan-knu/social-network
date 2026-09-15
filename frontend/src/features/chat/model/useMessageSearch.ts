@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { chatApi } from '../api/chatApi';
+import { queryKeys } from '@/shared/api/queryKeys';
+import { queryStaleTimes } from '@/shared/api/queryClient';
 
 import type { MessageView } from '../../../entities/chat/model/types';
 
@@ -17,10 +19,12 @@ export function useMessageSearch(conversationId: string | null, rawQuery: string
   const trimmed = debouncedQuery.trim();
 
   const query = useQuery<MessageView[]>({
-    queryKey: ['message-search', conversationId, trimmed],
+    queryKey: trimmed
+      ? queryKeys.conversations.search(conversationId ?? '', trimmed)
+      : ['message-search', conversationId ?? '', ''],
     queryFn: () => chatApi.searchMessages(conversationId!, trimmed),
     enabled: !!conversationId && trimmed.length > 0,
-    staleTime: 1000 * 10,
+    staleTime: queryStaleTimes.search,
   });
 
   return {

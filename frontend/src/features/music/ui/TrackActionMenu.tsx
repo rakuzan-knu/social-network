@@ -51,7 +51,7 @@ export const TrackActionMenu: React.FC<TrackActionMenuProps> = ({
     toggleLikeTrack,
   } = useMusicHubStore();
 
-  const { queue, addToQueue, removeFromQueue } = useSpotifyPlayerStore();
+  const { queue, addToQueue, removeFromQueue, currentTrack } = useSpotifyPlayerStore();
 
   const [activeSubmenu, setActiveSubmenu] = useState<'playlist' | 'share' | null>(null);
   const [playlistSearch, setPlaylistSearch] = useState('');
@@ -209,7 +209,7 @@ export const TrackActionMenu: React.FC<TrackActionMenuProps> = ({
   const menuHeight = 290;
 
   // Dock clearance: only apply when dock has an active track in the player store
-  const isDockActive = Boolean(useSpotifyPlayerStore.getState?.()?.currentTrack);
+  const isDockActive = Boolean(currentTrack);
   const bottomClearance = isDockActive ? 92 : 16;
 
   const isPointAnchor = !anchorRect.width || anchorRect.width === 0;

@@ -30,4 +30,20 @@ describe('ReportConversationModal', () => {
       expect(onClose).toHaveBeenCalled();
     });
   });
+
+  it('handles error in reportUser gracefully and still adds toast and closes', async () => {
+    vi.mocked(chatApi.reportUser).mockRejectedValueOnce(new Error('Network failure'));
+    const onClose = vi.fn();
+
+    render(
+      <ReportConversationModal userId="target-u1" conversationId="conv-1" onClose={onClose} />,
+    );
+
+    const reasonBtn = screen.getByText('Violence, hostility or exploitation');
+    fireEvent.click(reasonBtn);
+
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalled();
+    });
+  });
 });

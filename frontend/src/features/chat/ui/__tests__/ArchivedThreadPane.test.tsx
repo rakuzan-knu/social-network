@@ -27,7 +27,9 @@ vi.mock('../../model/useMessageActions', () => ({
   }),
 }));
 
-const mockArchiveMutate = vi.fn();
+const mockArchiveMutate = vi.fn((_vars?: any, opts?: any) => {
+  opts?.onSuccess?.();
+});
 vi.mock('../../model/useConversationMutations', () => ({
   useArchiveConversation: () => ({
     mutate: mockArchiveMutate,
@@ -78,7 +80,38 @@ describe('ArchivedThreadPane', () => {
     const unarchiveBtn = screen.getByRole('button', { name: /unarchive/i });
     fireEvent.click(unarchiveBtn);
 
-    expect(mockArchiveMutate).toHaveBeenCalledWith({ conversationId: 'c1', archived: false });
+    expect(mockArchiveMutate).toHaveBeenCalledWith(
+      { conversationId: 'c1', archived: false },
+      expect.any(Object),
+    );
     expect(onUnarchive).toHaveBeenCalled();
+  });
+
+  it('renders group conversation header', () => {
+    const queryClient = new QueryClient();
+    const groupConv = {
+      id: 'c2',
+      type: 'GROUP' as const,
+      name: 'Dev Group',
+      isArchived: true,
+      updatedAt: '2026-01-01',
+      unreadCount: 0,
+      participants: [
+        {
+          userId: 'u1',
+          role: 'MEMBER' as const,
+          joinedAt: '2026-01-01',
+          user: { id: 'u1', username: 'me', displayName: 'Me', avatar: null },
+        },
+      ],
+    } as unknown as ConversationView;
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ArchivedThreadPane conversation={groupConv} onUnarchived={vi.fn()} />
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByText('Dev Group')).toBeInTheDocument();
   });
 });

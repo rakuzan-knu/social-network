@@ -18,6 +18,11 @@ function renderWithProviders(ui: React.ReactElement) {
 }
 
 describe('FormattedText', () => {
+  it('returns null when text is empty', () => {
+    const { container } = renderWithProviders(<FormattedText text="" />);
+    expect(container.firstChild).toBeNull();
+  });
+
   it('renders regular text as normal strings', () => {
     renderWithProviders(<FormattedText text="Hello world" />);
     expect(screen.getByText('Hello world')).toBeInTheDocument();

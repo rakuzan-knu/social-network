@@ -60,7 +60,7 @@ export default function VoiceRecorderBar({
       className="relative flex items-center justify-between gap-3 px-4 py-2.5 mx-4 mb-2 rounded-2xl bg-[#0e0f18]/95 border border-purple-500/30 backdrop-blur-2xl shadow-[0_4px_25px_rgba(168,85,247,0.25)] select-none animate-fadeIn z-30"
     >
       {/* Left: Indicator & Timer */}
-      <div className="flex items-center gap-2.5 flex-shrink-0">
+      <div className="flex items-center gap-2.5 shrink-0">
         {recordState !== 'preview' ? (
           <div className="relative flex items-center justify-center w-4 h-4">
             <span className="absolute w-3.5 h-3.5 rounded-full bg-red-500 animate-ping opacity-75" />
@@ -89,7 +89,7 @@ export default function VoiceRecorderBar({
           ? liveAmplitudes.map((amp, idx) => (
               <span
                 key={idx}
-                className="w-1 rounded-full bg-gradient-to-t from-purple-500 to-indigo-400 transition-all duration-75"
+                className="w-1 rounded-full bg-linear-to-t from-purple-500 to-indigo-400 transition-all duration-75"
                 style={{
                   height: `${Math.max(4, amp * 26)}px`,
                 }}
@@ -116,7 +116,7 @@ export default function VoiceRecorderBar({
       )}
 
       {/* Right: Holding vs Locked vs Preview Actions */}
-      <div className="flex items-center gap-2 flex-shrink-0">
+      <div className="flex items-center gap-2 shrink-0">
         {recordState === 'recording' && (
           <div className="flex items-center gap-3 text-xs text-gray-400">
             {/* Slide to Cancel hint */}
@@ -171,7 +171,7 @@ export default function VoiceRecorderBar({
               type="button"
               onClick={onSend}
               title="Send voice note"
-              className="w-8 h-8 flex items-center justify-center rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-400 hover:to-indigo-400 text-white shadow-[0_0_12px_rgba(168,85,247,0.5)] transition-all active:scale-95"
+              className="w-8 h-8 flex items-center justify-center rounded-full bg-linear-to-r from-purple-500 to-indigo-500 hover:from-purple-400 hover:to-indigo-400 text-white shadow-[0_0_12px_rgba(168,85,247,0.5)] transition-all active:scale-95"
             >
               <Send size={14} className="translate-x-[0.5px]" />
             </button>

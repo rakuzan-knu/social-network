@@ -1,13 +1,10 @@
-import React, { lazy, Suspense } from 'react';
-import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
+import React, { lazy, Suspense, useMemo } from 'react';
+import { useLocation, useNavigate, Navigate, Routes, Route } from 'react-router-dom';
 
 import Sidebar from '../widgets/sidebar/ui/Sidebar';
-import { UndoHideSnackbar } from '../features/posts/ui/UndoHideSnackbar';
-import { UndoClearHistorySnackbar } from '../features/chat/ui/UndoClearHistorySnackbar';
 import DeviceLockGate from '../features/profile/ui/security/DeviceLockGate';
-const MessageToastViewport = lazy(() => import('../features/chat/ui/MessageToastViewport'));
-const FloatingVideoNotePiP = lazy(() => import('../features/chat/ui/FloatingVideoNotePiP'));
-const ReactionBurstCanvas = lazy(() => import('../features/chat/ui/ReactionBurstCanvas'));
+import MessageToastViewport from '../features/chat/ui/MessageToastViewport';
+import { CallProvider } from '../features/chat/model/CallProvider';
 
 import { useUIStore } from '../shared/model/useUIStore';
 import { useAuthStore } from '../shared/model/useAuthStore';
@@ -34,13 +31,36 @@ const ShareModal = lazy(() =>
   import('../features/posts/ui/ShareModal').then((m) => ({ default: m.ShareModal })),
 );
 const CommentModal = lazy(() =>
-  import('../features/comment/ui/CommentModal').then((m) => ({ default: m.CommentModal })),
+  import('@/widgets/comment').then((m) => ({ default: m.CommentModal })),
 );
 const StoryViewerModal = lazy(() =>
   import('../features/stories/ui/StoryViewerModal').then((m) => ({ default: m.StoryViewerModal })),
 );
 const StoryEditorModal = lazy(() =>
   import('../features/stories/ui/StoryEditorModal').then((m) => ({ default: m.StoryEditorModal })),
+);
+const UndoHideSnackbar = lazy(() =>
+  import('../features/posts/ui/UndoHideSnackbar').then((m) => ({ default: m.UndoHideSnackbar })),
+);
+const UndoClearHistorySnackbar = lazy(() =>
+  import('../features/chat/ui/UndoClearHistorySnackbar').then((m) => ({
+    default: m.UndoClearHistorySnackbar,
+  })),
+);
+const FloatingVideoNotePiP = lazy(() => import('../features/chat/ui/FloatingVideoNotePiP'));
+const ReactionBurstCanvas = lazy(() => import('../features/chat/ui/ReactionBurstCanvas'));
+const CallModal = lazy(() =>
+  import('../features/chat/ui/Call/CallModal').then((m) => ({ default: m.CallModal })),
+);
+const IncomingCallToast = lazy(() =>
+  import('../features/chat/ui/Call/IncomingCallToast').then((m) => ({
+    default: m.IncomingCallToast,
+  })),
+);
+const PictureInPicture = lazy(() =>
+  import('../features/chat/ui/Call/PictureInPicture').then((m) => ({
+    default: m.PictureInPicture,
+  })),
 );
 
 const FeedPage = lazy(() => import('../pages/Feed/Feed'));
@@ -49,6 +69,7 @@ const MessengerPage = lazy(() => import('../pages/Chat/Messenger'));
 const MusicHubPage = lazy(() => import('../pages/Music/MusicHubPage'));
 const StandaloneChatPage = lazy(() => import('../pages/Chat/StandaloneChatPage'));
 const SearchPage = lazy(() => import('../pages/Search/SearchPage'));
+const ReelsPage = lazy(() => import('../pages/Reels/ReelsPage'));
 const NotificationsPage = lazy(() =>
   import('../pages/Notifications/NotificationsPage').then((m) => ({
     default: m.NotificationsPage,
@@ -128,9 +149,8 @@ const OnlineFriendsSidebar = lazy(() =>
   })),
 );
 import { usePresenceSync } from '../features/chat/model/usePresence';
-import { useDynamicTabBadge } from '../shared/lib/useDynamicTabBadge';
+import { useDynamicTabBadge, useNotificationRealtime } from '@/entities/notification';
 import { ScrollToTop } from '../shared/lib/ScrollToTop';
-import { useNotificationRealtime } from '@/entities/notification';
 import { useStoriesRealtime } from '../features/stories/model/useStoriesRealtime';
 const OAuthCallbackHandler = lazy(() => import('../pages/OAuth/OAuthCallbackHandler'));
 
@@ -203,20 +223,27 @@ export default function App() {
     }
   }, [isGameModeOpen]);
 
-  const isOAuthCallback =
-    new URLSearchParams(location.search).has('code') ||
-    new URLSearchParams(location.search).has('error') ||
-    location.pathname.includes('/callback') ||
-    location.pathname.startsWith('/api/auth/') ||
-    location.pathname.startsWith('/integrations/') ||
-    location.pathname.startsWith('/auth/');
+  const isOAuthCallback = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return (
+      params.has('code') ||
+      params.has('error') ||
+      location.pathname.includes('/callback') ||
+      location.pathname.startsWith('/api/auth/') ||
+      location.pathname.startsWith('/integrations/') ||
+      location.pathname.startsWith('/auth/')
+    );
+  }, [location.search, location.pathname]);
 
-  if (
-    isOAuthCallback &&
-    (new URLSearchParams(location.search).has('code') ||
-      new URLSearchParams(location.search).has('error') ||
-      location.pathname.includes('/callback'))
-  ) {
+  const showOAuthCallback = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return (
+      isOAuthCallback &&
+      (params.has('code') || params.has('error') || location.pathname.includes('/callback'))
+    );
+  }, [isOAuthCallback, location.search, location.pathname]);
+
+  if (showOAuthCallback) {
     return (
       <div className="relative min-h-screen bg-[#070709] text-white flex items-center justify-center">
         <Suspense fallback={<PageFallback />}>
@@ -327,311 +354,333 @@ export default function App() {
     );
   }
 
-  const isStandaloneRoute =
-    location.pathname.startsWith('/music') ||
-    location.pathname.startsWith('/playlist') ||
-    location.pathname.startsWith('/track') ||
-    location.pathname.startsWith('/messages') ||
-    location.pathname.startsWith('/messenger') ||
-    location.pathname.startsWith('/privacy') ||
-    location.pathname.startsWith('/terms') ||
-    location.pathname.startsWith('/copyright') ||
-    location.pathname.startsWith('/dmca') ||
-    location.pathname.startsWith('/developers') ||
-    location.pathname.startsWith('/developer') ||
-    location.pathname.startsWith('/guidelines') ||
-    location.pathname.startsWith('/acknowledgements') ||
-    location.pathname.startsWith('/licenses') ||
-    location.pathname.startsWith('/licences') ||
-    location.pathname.startsWith('/company-information') ||
-    location.pathname.startsWith('/impressum') ||
-    location.pathname.startsWith('/company') ||
-    location.pathname.startsWith('/about') ||
-    location.pathname.startsWith('/careers') ||
-    location.pathname.startsWith('/jobs') ||
-    location.pathname.startsWith('/branding') ||
-    location.pathname.startsWith('/brand') ||
-    location.pathname.startsWith('/download') ||
-    location.pathname.startsWith('/newsroom') ||
-    location.pathname.startsWith('/blog') ||
-    location.pathname.startsWith('/category') ||
-    location.pathname.startsWith('/safety-family-center') ||
-    location.pathname.startsWith('/safety-library') ||
-    location.pathname.startsWith('/safety-privacy') ||
-    location.pathname.startsWith('/safety-law') ||
-    location.pathname.startsWith('/safety-law-enforcement') ||
-    location.pathname.startsWith('/law-enforcement') ||
-    location.pathname.startsWith('/policies') ||
-    location.pathname.startsWith('/teen-charter') ||
-    location.pathname.startsWith('/wellbeing') ||
-    location.pathname.startsWith('/404') ||
-    location.pathname.startsWith('/faq') ||
-    location.pathname.startsWith('/help-center') ||
-    location.pathname.startsWith('/safety');
+  const isStandaloneRoute = useMemo(() => {
+    return (
+      location.pathname.startsWith('/music') ||
+      location.pathname.startsWith('/playlist') ||
+      location.pathname.startsWith('/track') ||
+      location.pathname.startsWith('/messages') ||
+      location.pathname.startsWith('/messenger') ||
+      location.pathname.startsWith('/privacy') ||
+      location.pathname.startsWith('/terms') ||
+      location.pathname.startsWith('/copyright') ||
+      location.pathname.startsWith('/dmca') ||
+      location.pathname.startsWith('/developers') ||
+      location.pathname.startsWith('/developer') ||
+      location.pathname.startsWith('/guidelines') ||
+      location.pathname.startsWith('/acknowledgements') ||
+      location.pathname.startsWith('/licenses') ||
+      location.pathname.startsWith('/licences') ||
+      location.pathname.startsWith('/company-information') ||
+      location.pathname.startsWith('/impressum') ||
+      location.pathname.startsWith('/company') ||
+      location.pathname.startsWith('/about') ||
+      location.pathname.startsWith('/careers') ||
+      location.pathname.startsWith('/jobs') ||
+      location.pathname.startsWith('/branding') ||
+      location.pathname.startsWith('/brand') ||
+      location.pathname.startsWith('/download') ||
+      location.pathname.startsWith('/newsroom') ||
+      location.pathname.startsWith('/blog') ||
+      location.pathname.startsWith('/category') ||
+      location.pathname.startsWith('/safety-family-center') ||
+      location.pathname.startsWith('/safety-library') ||
+      location.pathname.startsWith('/safety-privacy') ||
+      location.pathname.startsWith('/safety-law') ||
+      location.pathname.startsWith('/safety-law-enforcement') ||
+      location.pathname.startsWith('/law-enforcement') ||
+      location.pathname.startsWith('/policies') ||
+      location.pathname.startsWith('/teen-charter') ||
+      location.pathname.startsWith('/wellbeing') ||
+      location.pathname.startsWith('/404') ||
+      location.pathname.startsWith('/faq') ||
+      location.pathname.startsWith('/help-center') ||
+      location.pathname.startsWith('/safety')
+    );
+  }, [location.pathname]);
 
-  const isMessengerRoute =
-    location.pathname.startsWith('/messages') ||
-    location.pathname.startsWith('/messenger') ||
-    location.pathname.startsWith('/chat/standalone');
+  const isMessengerRoute = useMemo(() => {
+    return (
+      location.pathname.startsWith('/messages') ||
+      location.pathname.startsWith('/messenger') ||
+      location.pathname.startsWith('/chat/standalone')
+    );
+  }, [location.pathname]);
+
+  const isReelsRoute = useMemo(() => {
+    return location.pathname.startsWith('/reels');
+  }, [location.pathname]);
 
   return (
     <DeviceLockGate>
-      <div
-        className={`relative ${isGameModeOpen ? 'h-screen overflow-hidden' : 'min-h-screen'} bg-[#070709] text-white`}
-      >
-        <ScrollToTop />
-        {isGameModeOpen ? (
-          <Suspense fallback={null}>
-            <SpotifyGameModePlayer />
-            <SpotifyLyricsModal />
-          </Suspense>
-        ) : (
-          <>
-            {!isStandaloneRoute && <Sidebar />}
+      <CallProvider>
+        <div
+          className={`relative ${isGameModeOpen ? 'h-screen overflow-hidden' : 'min-h-screen'} bg-[#070709] text-white`}
+        >
+          <ScrollToTop />
+          {isGameModeOpen ? (
             <Suspense fallback={null}>
-              <EditProfileModal />
-              <ShareModal />
-              <CommentModal />
-              <StoryViewerModal />
-              <StoryEditorModal />
-            </Suspense>
-            <UndoHideSnackbar />
-            <UndoClearHistorySnackbar />
-            <Suspense fallback={null}>
-              <FloatingVideoNotePiP />
-              <ReactionBurstCanvas />
-              {!isMessengerRoute && <MessageToastViewport />}
-            </Suspense>
-
-            {/* Global Spotify Apple Liquid Glass Player Dock & Overlays */}
-            <Suspense fallback={null}>
-              <SpotifyBottomDock />
+              <SpotifyGameModePlayer />
               <SpotifyLyricsModal />
-              <SpotifyMobilePlayerSheet />
             </Suspense>
-
-            <main
-              className={
-                isStandaloneRoute
-                  ? `min-h-screen flex-1 transition-[padding-bottom] duration-300 ${
-                      isSpotifyDockVisible ? (isSpotifyDockMinimized ? 'pb-14' : 'pb-28') : ''
-                    }`
-                  : `flex min-h-screen flex-1 justify-center py-8 transition-[padding-left,padding-bottom] duration-300 ${
-                      isSidebarExpanded ? 'pl-[232px]' : 'pl-24'
-                    } ${isSpotifyDockVisible ? (isSpotifyDockMinimized ? 'pb-14' : 'pb-28') : ''}`
-              }
-            >
-              <Suspense fallback={<PageFallback />}>
-                <Routes>
-                  <Route path="/privacy" element={<PrivacyPage />} />
-                  <Route path="/terms" element={<TermsPage />} />
-                  <Route
-                    path="/terms/applicant-candidate-privacy-policy"
-                    element={<ApplicantCandidatePrivacyPage />}
-                  />
-                  <Route
-                    path="/terms/applicant-candidate"
-                    element={<ApplicantCandidatePrivacyPage />}
-                  />
-                  <Route path="/terms/cookie-policy" element={<CookiePolicyPage />} />
-                  <Route path="/terms/cookies" element={<CookiePolicyPage />} />
-                  <Route path="/terms/local-laws" element={<RegionalPrivacyPage />} />
-                  <Route path="/terms/regional-privacy" element={<RegionalPrivacyPage />} />
-                  <Route path="/privacy/regional" element={<RegionalPrivacyPage />} />
-                  <Route path="/terms/retention-policy" element={<RetentionPolicyPage />} />
-                  <Route path="/terms/retention" element={<RetentionPolicyPage />} />
-                  <Route path="/privacy/retention" element={<RetentionPolicyPage />} />
-                  <Route
-                    path="/terms/data-privacy-controls"
-                    element={<DataPrivacyControlsPage />}
-                  />
-                  <Route path="/terms/privacy-controls" element={<DataPrivacyControlsPage />} />
-                  <Route path="/privacy/controls" element={<DataPrivacyControlsPage />} />
-                  <Route
-                    path="/terms/your-eternal-data-package"
-                    element={<YourDataPackagePage />}
-                  />
-                  <Route path="/terms/data-package" element={<YourDataPackagePage />} />
-                  <Route path="/privacy/data-package" element={<YourDataPackagePage />} />
-                  <Route path="/copyright" element={<CopyrightPolicyPage />} />
-                  <Route path="/dmca" element={<CopyrightPolicyPage />} />
-                  <Route path="/terms/copyright" element={<CopyrightPolicyPage />} />
-                  <Route path="/terms/dmca" element={<CopyrightPolicyPage />} />
-                  <Route path="/terms/paid-services" element={<PaidServicesPage />} />
-                  <Route path="/terms/paid" element={<PaidServicesPage />} />
-                  <Route path="/terms/refunds" element={<PaidServicesPage />} />
-                  <Route path="/terms/refund-policy" element={<PaidServicesPage />} />
-                  <Route path="/safety-law-enforcement" element={<LawEnforcementPage />} />
-                  <Route path="/safety/law-enforcement" element={<LawEnforcementPage />} />
-                  <Route path="/safety/law" element={<LawEnforcementPage />} />
-                  <Route path="/law-enforcement" element={<LawEnforcementPage />} />
-                  <Route path="/terms/developer" element={<DeveloperTermsPage />} />
-                  <Route path="/terms/developers" element={<DeveloperTermsPage />} />
-                  <Route path="/developers" element={<DeveloperTermsPage />} />
-                  <Route path="/developer" element={<DeveloperTermsPage />} />
-                  <Route path="/guidelines" element={<GuidelinesPage />} />
-                  <Route path="/acknowledgements" element={<AcknowledgementsPage />} />
-                  <Route path="/licenses" element={<LicensesPage />} />
-                  <Route path="/licences" element={<LicensesPage />} />
-                  <Route path="/company-information" element={<CompanyInformationPage />} />
-                  <Route path="/impressum" element={<CompanyInformationPage />} />
-                  <Route path="/company" element={<CompanyAboutPage />} />
-                  <Route path="/about" element={<CompanyAboutPage />} />
-                  <Route path="/careers" element={<CareersPage />} />
-                  <Route path="/jobs" element={<CareersPage />} />
-                  <Route path="/branding" element={<BrandingPage />} />
-                  <Route path="/brand" element={<BrandingPage />} />
-                  <Route path="/download" element={<DownloadPage />} />
-                  <Route path="/newsroom" element={<NewsroomPage />} />
-                  <Route path="/blog" element={<BlogPage />} />
-                  <Route path="/category/:categoryId" element={<CategoryPage />} />
-                  <Route path="/category/community" element={<CategoryPage />} />
-                  <Route path="/safety-family-center" element={<FamilyCenterPage />} />
-                  <Route path="/safety/family-center" element={<FamilyCenterPage />} />
-                  <Route path="/safety-library" element={<SafetyLibraryPage />} />
-                  <Route path="/safety/library" element={<SafetyLibraryPage />} />
-                  <Route path="/safety-privacy" element={<PrivacyHubPage />} />
-                  <Route path="/safety/privacy" element={<PrivacyHubPage />} />
-                  <Route path="/safety-transparency" element={<TransparencyHubPage />} />
-                  <Route path="/safety/transparency" element={<TransparencyHubPage />} />
-                  <Route path="/transparency" element={<TransparencyHubPage />} />
-                  <Route path="/safety-news" element={<SafetyNewsHubPage />} />
-                  <Route path="/safety/news" element={<SafetyNewsHubPage />} />
-                  <Route path="/safety-policies" element={<PolicyHubPage />} />
-                  <Route path="/safety/policies" element={<PolicyHubPage />} />
-                  <Route path="/policies" element={<PolicyHubPage />} />
-                  <Route path="/safety-teen-charter" element={<TeenCharterPage />} />
-                  <Route path="/safety/teen-charter" element={<TeenCharterPage />} />
-                  <Route path="/teen-charter" element={<TeenCharterPage />} />
-                  <Route path="/safety-wellbeing" element={<WellbeingHubPage />} />
-                  <Route path="/safety/wellbeing" element={<WellbeingHubPage />} />
-                  <Route path="/wellbeing" element={<WellbeingHubPage />} />
-                  <Route path="/safety" element={<SafetyCenterPage />} />
-                  <Route path="/faq" element={<Navigate to="/safety" replace />} />
-                  <Route path="/help-center" element={<Navigate to="/safety" replace />} />
-                  <Route path="/creators" element={<CreatorsPage />} />
-                  <Route
-                    path="/"
-                    element={
-                      <FeedLayout>
-                        <FeedPage />
-                      </FeedLayout>
-                    }
-                  />
-                  <Route
-                    path="/feed"
-                    element={
-                      <FeedLayout>
-                        <FeedPage />
-                      </FeedLayout>
-                    }
-                  />
-                  <Route path="/api/auth/:platform/callback" element={<OAuthCallbackHandler />} />
-                  <Route
-                    path="/integrations/:platform/callback"
-                    element={<OAuthCallbackHandler />}
-                  />
-                  <Route path="/auth/:platform/callback" element={<OAuthCallbackHandler />} />
-                  <Route path="/oauth/callback" element={<OAuthCallbackHandler />} />
-                  <Route path="/callback" element={<OAuthCallbackHandler />} />
-
-                  <Route
-                    path="/profile"
-                    element={
-                      <ProfileLayout>
-                        <ProfilePage />
-                      </ProfileLayout>
-                    }
-                  />
-                  <Route
-                    path="/profile/:username"
-                    element={
-                      <ProfileLayout>
-                        <ProfilePage />
-                      </ProfileLayout>
-                    }
-                  />
-
-                  <Route
-                    path="/search"
-                    element={
-                      <CenteredPage>
-                        <SearchPage />
-                      </CenteredPage>
-                    }
-                  />
-
-                  <Route
-                    path="/explore"
-                    element={
-                      <CenteredPage>
-                        <SearchPage />
-                      </CenteredPage>
-                    }
-                  />
-
-                  <Route path="/music" element={<MusicHubPage />} />
-                  <Route path="/music/content-feed" element={<MusicHubPage />} />
-                  <Route path="/music/feed" element={<MusicHubPage />} />
-                  <Route
-                    path="/content-feed"
-                    element={<Navigate to="/music/content-feed" replace />}
-                  />
-                  <Route path="/music/section/:sectionId" element={<MusicHubPage />} />
-                  <Route path="/section/:sectionId" element={<MusicHubPage />} />
-                  <Route path="/music/playlist/:playlistId" element={<MusicHubPage />} />
-                  <Route path="/music/track/:trackId" element={<MusicHubPage />} />
-                  <Route path="/playlist/:playlistId" element={<MusicHubPage />} />
-                  <Route path="/track/:trackId" element={<MusicHubPage />} />
-                  <Route path="/music/:playlistOrTrackId" element={<MusicHubPage />} />
-                  <Route path="/reels" element={<Navigate to="/music" replace />} />
-
-                  <Route
-                    path="/messages/standalone/:conversationId"
-                    element={<StandaloneChatPage />}
-                  />
-                  <Route path="/chat/standalone/:conversationId" element={<StandaloneChatPage />} />
-                  <Route path="/messages" element={<MessengerPage />} />
-                  <Route path="/messages/:conversationId" element={<MessengerPage />} />
-
-                  <Route
-                    path="/notifications"
-                    element={
-                      <CenteredPage>
-                        <NotificationsPage />
-                      </CenteredPage>
-                    }
-                  />
-                  <Route
-                    path="/create"
-                    element={
-                      <CenteredPage>
-                        <FeedPage />
-                      </CenteredPage>
-                    }
-                  />
-
-                  <Route path="/login" element={<Navigate to="/" replace />} />
-                  <Route path="/register" element={<Navigate to="/" replace />} />
-                  <Route path="/forgot-password" element={<Navigate to="/" replace />} />
-
-                  <Route
-                    path="/:username"
-                    element={
-                      <ProfileLayout>
-                        <ProfilePage />
-                      </ProfileLayout>
-                    }
-                  />
-
-                  <Route path="/404" element={<NotFoundPage />} />
-                  <Route path="*" element={<NotFoundPage />} />
-                </Routes>
+          ) : (
+            <>
+              {!isStandaloneRoute && <Sidebar />}
+              <Suspense fallback={null}>
+                <EditProfileModal />
+                <ShareModal />
+                <CommentModal />
+                <StoryViewerModal />
+                <StoryEditorModal />
+                <CallModal />
+                <IncomingCallToast />
+                <PictureInPicture />
               </Suspense>
-            </main>
-          </>
-        )}
-      </div>
+              <UndoHideSnackbar />
+              <UndoClearHistorySnackbar />
+              <Suspense fallback={null}>
+                <FloatingVideoNotePiP />
+                <ReactionBurstCanvas />
+                {!isMessengerRoute && <MessageToastViewport />}
+              </Suspense>
+
+              {/* Global Spotify Apple Liquid Glass Player Dock & Overlays */}
+              <Suspense fallback={null}>
+                <SpotifyBottomDock />
+                <SpotifyLyricsModal />
+                <SpotifyMobilePlayerSheet />
+              </Suspense>
+
+              <main
+                className={
+                  isStandaloneRoute
+                    ? `min-h-screen flex-1 transition-[padding-bottom] duration-300 ${
+                        isSpotifyDockVisible ? (isSpotifyDockMinimized ? 'pb-14' : 'pb-28') : ''
+                      }`
+                    : isReelsRoute
+                      ? `min-h-screen flex-1 transition-[padding-left,padding-bottom] duration-200 ease-out will-change-[padding-left] ${
+                          isSidebarExpanded ? 'pl-72' : 'pl-24'
+                        } max-md:pl-0 ${isSpotifyDockVisible ? (isSpotifyDockMinimized ? 'pb-14' : 'pb-28') : ''}`
+                      : `flex min-h-screen flex-1 justify-center py-8 transition-[padding-left,padding-bottom] duration-300 ${
+                          isSidebarExpanded ? 'pl-72' : 'pl-24'
+                        } ${isSpotifyDockVisible ? (isSpotifyDockMinimized ? 'pb-14' : 'pb-28') : ''}`
+                }
+              >
+                <Suspense fallback={<PageFallback />}>
+                  <Routes>
+                    <Route path="/privacy" element={<PrivacyPage />} />
+                    <Route path="/terms" element={<TermsPage />} />
+                    <Route
+                      path="/terms/applicant-candidate-privacy-policy"
+                      element={<ApplicantCandidatePrivacyPage />}
+                    />
+                    <Route
+                      path="/terms/applicant-candidate"
+                      element={<ApplicantCandidatePrivacyPage />}
+                    />
+                    <Route path="/terms/cookie-policy" element={<CookiePolicyPage />} />
+                    <Route path="/terms/cookies" element={<CookiePolicyPage />} />
+                    <Route path="/terms/local-laws" element={<RegionalPrivacyPage />} />
+                    <Route path="/terms/regional-privacy" element={<RegionalPrivacyPage />} />
+                    <Route path="/privacy/regional" element={<RegionalPrivacyPage />} />
+                    <Route path="/terms/retention-policy" element={<RetentionPolicyPage />} />
+                    <Route path="/terms/retention" element={<RetentionPolicyPage />} />
+                    <Route path="/privacy/retention" element={<RetentionPolicyPage />} />
+                    <Route
+                      path="/terms/data-privacy-controls"
+                      element={<DataPrivacyControlsPage />}
+                    />
+                    <Route path="/terms/privacy-controls" element={<DataPrivacyControlsPage />} />
+                    <Route path="/privacy/controls" element={<DataPrivacyControlsPage />} />
+                    <Route
+                      path="/terms/your-eternal-data-package"
+                      element={<YourDataPackagePage />}
+                    />
+                    <Route path="/terms/data-package" element={<YourDataPackagePage />} />
+                    <Route path="/privacy/data-package" element={<YourDataPackagePage />} />
+                    <Route path="/copyright" element={<CopyrightPolicyPage />} />
+                    <Route path="/dmca" element={<CopyrightPolicyPage />} />
+                    <Route path="/terms/copyright" element={<CopyrightPolicyPage />} />
+                    <Route path="/terms/dmca" element={<CopyrightPolicyPage />} />
+                    <Route path="/terms/paid-services" element={<PaidServicesPage />} />
+                    <Route path="/terms/paid" element={<PaidServicesPage />} />
+                    <Route path="/terms/refunds" element={<PaidServicesPage />} />
+                    <Route path="/terms/refund-policy" element={<PaidServicesPage />} />
+                    <Route path="/safety-law-enforcement" element={<LawEnforcementPage />} />
+                    <Route path="/safety/law-enforcement" element={<LawEnforcementPage />} />
+                    <Route path="/safety/law" element={<LawEnforcementPage />} />
+                    <Route path="/law-enforcement" element={<LawEnforcementPage />} />
+                    <Route path="/terms/developer" element={<DeveloperTermsPage />} />
+                    <Route path="/terms/developers" element={<DeveloperTermsPage />} />
+                    <Route path="/developers" element={<DeveloperTermsPage />} />
+                    <Route path="/developer" element={<DeveloperTermsPage />} />
+                    <Route path="/guidelines" element={<GuidelinesPage />} />
+                    <Route path="/acknowledgements" element={<AcknowledgementsPage />} />
+                    <Route path="/licenses" element={<LicensesPage />} />
+                    <Route path="/licences" element={<LicensesPage />} />
+                    <Route path="/company-information" element={<CompanyInformationPage />} />
+                    <Route path="/impressum" element={<CompanyInformationPage />} />
+                    <Route path="/company" element={<CompanyAboutPage />} />
+                    <Route path="/about" element={<CompanyAboutPage />} />
+                    <Route path="/careers" element={<CareersPage />} />
+                    <Route path="/jobs" element={<CareersPage />} />
+                    <Route path="/branding" element={<BrandingPage />} />
+                    <Route path="/brand" element={<BrandingPage />} />
+                    <Route path="/download" element={<DownloadPage />} />
+                    <Route path="/newsroom" element={<NewsroomPage />} />
+                    <Route path="/blog" element={<BlogPage />} />
+                    <Route path="/category/:categoryId" element={<CategoryPage />} />
+                    <Route path="/category/community" element={<CategoryPage />} />
+                    <Route path="/safety-family-center" element={<FamilyCenterPage />} />
+                    <Route path="/safety/family-center" element={<FamilyCenterPage />} />
+                    <Route path="/safety-library" element={<SafetyLibraryPage />} />
+                    <Route path="/safety/library" element={<SafetyLibraryPage />} />
+                    <Route path="/safety-privacy" element={<PrivacyHubPage />} />
+                    <Route path="/safety/privacy" element={<PrivacyHubPage />} />
+                    <Route path="/safety-transparency" element={<TransparencyHubPage />} />
+                    <Route path="/safety/transparency" element={<TransparencyHubPage />} />
+                    <Route path="/transparency" element={<TransparencyHubPage />} />
+                    <Route path="/safety-news" element={<SafetyNewsHubPage />} />
+                    <Route path="/safety/news" element={<SafetyNewsHubPage />} />
+                    <Route path="/safety-policies" element={<PolicyHubPage />} />
+                    <Route path="/safety/policies" element={<PolicyHubPage />} />
+                    <Route path="/policies" element={<PolicyHubPage />} />
+                    <Route path="/safety-teen-charter" element={<TeenCharterPage />} />
+                    <Route path="/safety/teen-charter" element={<TeenCharterPage />} />
+                    <Route path="/teen-charter" element={<TeenCharterPage />} />
+                    <Route path="/safety-wellbeing" element={<WellbeingHubPage />} />
+                    <Route path="/safety/wellbeing" element={<WellbeingHubPage />} />
+                    <Route path="/wellbeing" element={<WellbeingHubPage />} />
+                    <Route path="/safety" element={<SafetyCenterPage />} />
+                    <Route path="/faq" element={<Navigate to="/safety" replace />} />
+                    <Route path="/help-center" element={<Navigate to="/safety" replace />} />
+                    <Route path="/creators" element={<CreatorsPage />} />
+                    <Route
+                      path="/"
+                      element={
+                        <FeedLayout>
+                          <FeedPage />
+                        </FeedLayout>
+                      }
+                    />
+                    <Route
+                      path="/feed"
+                      element={
+                        <FeedLayout>
+                          <FeedPage />
+                        </FeedLayout>
+                      }
+                    />
+                    <Route path="/api/auth/:platform/callback" element={<OAuthCallbackHandler />} />
+                    <Route
+                      path="/integrations/:platform/callback"
+                      element={<OAuthCallbackHandler />}
+                    />
+                    <Route path="/auth/:platform/callback" element={<OAuthCallbackHandler />} />
+                    <Route path="/oauth/callback" element={<OAuthCallbackHandler />} />
+                    <Route path="/callback" element={<OAuthCallbackHandler />} />
+
+                    <Route
+                      path="/profile"
+                      element={
+                        <ProfileLayout>
+                          <ProfilePage />
+                        </ProfileLayout>
+                      }
+                    />
+                    <Route
+                      path="/profile/:username"
+                      element={
+                        <ProfileLayout>
+                          <ProfilePage />
+                        </ProfileLayout>
+                      }
+                    />
+
+                    <Route
+                      path="/search"
+                      element={
+                        <CenteredPage>
+                          <SearchPage />
+                        </CenteredPage>
+                      }
+                    />
+
+                    <Route
+                      path="/explore"
+                      element={
+                        <CenteredPage>
+                          <SearchPage />
+                        </CenteredPage>
+                      }
+                    />
+
+                    <Route path="/music" element={<MusicHubPage />} />
+                    <Route path="/music/content-feed" element={<MusicHubPage />} />
+                    <Route path="/music/feed" element={<MusicHubPage />} />
+                    <Route
+                      path="/content-feed"
+                      element={<Navigate to="/music/content-feed" replace />}
+                    />
+                    <Route path="/music/section/:sectionId" element={<MusicHubPage />} />
+                    <Route path="/section/:sectionId" element={<MusicHubPage />} />
+                    <Route path="/music/playlist/:playlistId" element={<MusicHubPage />} />
+                    <Route path="/music/track/:trackId" element={<MusicHubPage />} />
+                    <Route path="/playlist/:playlistId" element={<MusicHubPage />} />
+                    <Route path="/track/:trackId" element={<MusicHubPage />} />
+                    <Route path="/music/:playlistOrTrackId" element={<MusicHubPage />} />
+                    <Route path="/reels" element={<ReelsPage />} />
+
+                    <Route
+                      path="/messages/standalone/:conversationId"
+                      element={<StandaloneChatPage />}
+                    />
+                    <Route
+                      path="/chat/standalone/:conversationId"
+                      element={<StandaloneChatPage />}
+                    />
+                    <Route path="/messages" element={<MessengerPage />} />
+                    <Route path="/messages/:conversationId" element={<MessengerPage />} />
+
+                    <Route
+                      path="/notifications"
+                      element={
+                        <CenteredPage>
+                          <NotificationsPage />
+                        </CenteredPage>
+                      }
+                    />
+                    <Route
+                      path="/create"
+                      element={
+                        <CenteredPage>
+                          <FeedPage />
+                        </CenteredPage>
+                      }
+                    />
+
+                    <Route path="/login" element={<Navigate to="/" replace />} />
+                    <Route path="/register" element={<Navigate to="/" replace />} />
+                    <Route path="/forgot-password" element={<Navigate to="/" replace />} />
+
+                    <Route
+                      path="/:username"
+                      element={
+                        <ProfileLayout>
+                          <ProfilePage />
+                        </ProfileLayout>
+                      }
+                    />
+
+                    <Route path="/404" element={<NotFoundPage />} />
+                    <Route path="*" element={<NotFoundPage />} />
+                  </Routes>
+                </Suspense>
+              </main>
+            </>
+          )}
+        </div>
+      </CallProvider>
     </DeviceLockGate>
   );
 }

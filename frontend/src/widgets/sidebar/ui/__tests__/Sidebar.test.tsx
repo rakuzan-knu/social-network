@@ -5,19 +5,25 @@ import { useUIStore } from '../../../../shared/model/useUIStore';
 import { useAuthStore } from '../../../../shared/model/useAuthStore';
 import { resetUIStore } from '../../../../test/resetUIStore';
 import { renderWithProviders } from '../../../../test/renderWithProviders';
+import { useStoryEditorStore } from '@/features/stories/model/useStoryEditorStore';
 
 vi.mock('@/features/chat/model/usePresence', () => ({
   useQueryOnlineStatus: vi.fn(),
 }));
 
 vi.mock('@/features/chat/model/useUnreadMessagesCount', () => ({
-  useUnreadMessagesCount: () => 0,
+  useUnreadMessagesCount: () => 5,
+}));
+
+vi.mock('../../model/useUnreadNotificationsCount', () => ({
+  useUnreadNotificationsCount: () => 3,
 }));
 
 describe('Sidebar', () => {
   beforeEach(() => {
     act(() => {
       useAuthStore.getState().setAuth('user-1');
+      useStoryEditorStore.getState().closeEditor();
     });
   });
 
@@ -28,12 +34,14 @@ describe('Sidebar', () => {
     });
   });
 
-  it('renders collapsed by default', () => {
+  it('renders collapsed by default with unread badges', () => {
     act(() => {
       renderWithProviders(<Sidebar />);
     });
 
     expect(screen.getByText('Home').closest('aside')).toHaveClass('w-20');
+    expect(screen.getByText('5')).toBeInTheDocument();
+    expect(screen.getByText('3')).toBeInTheDocument();
   });
 
   it('expands on mouse enter and updates the store', () => {
@@ -81,6 +89,28 @@ describe('Sidebar', () => {
       '/notifications',
     );
     expect(screen.getByText('Create').closest('a')).toHaveAttribute('href', '/create');
+  });
+
+  it('opens Create menu and clicks Создать пост and Опубликовать историю', () => {
+    act(() => {
+      renderWithProviders(<Sidebar />);
+    });
+
+    const createBtn = screen.getByText('Create').closest('a')!;
+    fireEvent.click(createBtn);
+
+    expect(screen.getByText('Create Post')).toBeInTheDocument();
+    expect(screen.getByText('Create Story')).toBeInTheDocument();
+
+    // Click Create Story
+    fireEvent.click(screen.getByText('Create Story'));
+    expect(useStoryEditorStore.getState().isOpen).toBe(true);
+
+    // Reopen and test outside click
+    fireEvent.click(createBtn);
+    expect(screen.getByText('Create Post')).toBeInTheDocument();
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByText('Create Post')).not.toBeInTheDocument();
   });
 
   it('marks the current route as active', () => {

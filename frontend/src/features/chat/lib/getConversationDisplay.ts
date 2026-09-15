@@ -127,6 +127,51 @@ export function getMessagePreview(
     return `${senderPrefix}Video message`;
   }
 
+  if (msg.messageType === 'CALL_LOG') {
+    try {
+      let meta: {
+        callType?: string;
+        status?: string;
+        durationMs?: number;
+      } = {};
+      if (msg.body) {
+        if (typeof msg.body === 'object' && msg.body !== null) {
+          meta = msg.body as unknown as typeof meta;
+        } else if (typeof msg.body === 'string') {
+          meta = JSON.parse(msg.body) as typeof meta;
+        }
+      }
+      const rawType = meta.callType || (msg as unknown as { callType?: string }).callType || '';
+      const isVideo = String(rawType).toUpperCase() === 'VIDEO';
+      const callLabel = isVideo ? 'Video call' : 'Voice call';
+
+      if (meta.status === 'MISSED' || meta.status === 'DECLINED' || meta.status === 'NO_ANSWER') {
+        return `Missed ${callLabel.toLowerCase()}`;
+      }
+
+      if (meta.durationMs && meta.durationMs > 0) {
+        const dur = formatDurationSec(meta.durationMs / 1000);
+        return dur ? `${callLabel} (${dur})` : callLabel;
+      }
+
+      return callLabel;
+    } catch {
+      return 'Call';
+    }
+  }
+
+  if (msg.messageType === 'SYSTEM') {
+    return msg.body?.trim() || 'System message';
+  }
+
+  if (msg.messageType === 'THEME_PROPOSAL') {
+    return `${senderPrefix}Suggested a chat theme`;
+  }
+
+  if (msg.messageType === 'STORY_REPLY') {
+    return `${senderPrefix}Replied to a story`;
+  }
+
   if (msg.body && msg.body.trim()) {
     return `${senderPrefix}${msg.body.trim()}`;
   }

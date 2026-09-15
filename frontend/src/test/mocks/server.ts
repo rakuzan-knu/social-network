@@ -8,8 +8,8 @@ import { storiesHandlers } from './handlers/stories.handlers';
 import { musicHandlers } from './handlers/music.handlers';
 
 export const server = setupServer(
-  ...authHandlers,
   ...profileHandlers,
+  ...authHandlers,
   ...postsHandlers,
   ...chatHandlers,
   ...notificationsHandlers,

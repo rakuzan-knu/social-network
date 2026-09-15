@@ -39,7 +39,7 @@ export class AvatarsController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_FILE_SIZE_BYTES, files: 1 } }))
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {

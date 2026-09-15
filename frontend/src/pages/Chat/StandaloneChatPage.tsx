@@ -24,8 +24,12 @@ import { useConversations } from '@/features/chat/model/useConversations';
 import { useMessages } from '@/features/chat/model/useMessages';
 import { useMessageActions } from '@/features/chat/model/useMessageActions';
 import { useConversationRealtime } from '@/features/chat/model/useConversationRealtime';
+import { useChatGapFill } from '@/features/chat/model/useChatGapFill';
 import { useQueryOnlineStatus } from '@/features/chat/model/usePresence';
 import { getConversationDisplay } from '@/features/chat/lib/getConversationDisplay';
+import { promptEditMessage } from '@/features/chat/lib/promptEditMessage';
+import { useDecryptedMessageBody } from '@/features/chat/model/useDecryptedMessageBody';
+import { E2eePinChangedError } from '@/features/chat/lib/e2ee/messageE2ee';
 import { VerifiedCheckmark } from '@/entities/profile/ui/VerifiedCheckmark';
 import MessageList from '@/features/chat/ui/MessageList';
 import MessageSearchPanel from '@/features/chat/ui/MessageSearchPanel';
@@ -43,7 +47,8 @@ export default function StandaloneChatPage() {
   const { dockOffset } = useSpotifyDockOffset();
   const { conversationId } = useParams<{ conversationId: string }>();
   const navigate = useNavigate();
-  const { userId, isAuthenticated } = useAuthStore();
+  const userId = useAuthStore((s) => s.userId);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const { data: conversations, isLoading: isLoadingConversations } = useConversations();
 
   useEffect(() => {
@@ -77,6 +82,7 @@ export default function StandaloneChatPage() {
     isLoading: isLoadingMessages,
   } = useMessages(conversationId ?? '');
   const { typingUserIds } = useConversationRealtime(conversationId ?? null);
+  useChatGapFill(conversationId ? [conversationId] : []);
   const actions = useMessageActions(conversationId ?? '');
 
   const [text, setText] = useState(() => {
@@ -91,6 +97,15 @@ export default function StandaloneChatPage() {
   });
   const [forwardingMessage, setForwardingMessage] = useState<MessageView | null>(null);
   const [isMaximized, setIsMaximized] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+
+  // Decrypted quote for the reply banner (same dialog, same peer).
+  const replyingPreview = useDecryptedMessageBody(
+    replyingTo?.body ?? null,
+    conversation?.type === 'GROUP' ? null : (otherParticipant?.userId ?? null),
+    replyingTo?.conversationId ?? conversationId,
+    replyingTo?.sender?.id ?? null,
+  );
 
   const { markRead } = actions;
 
@@ -115,7 +130,15 @@ export default function StandaloneChatPage() {
 
   const handleSend = () => {
     if (!text.trim() || !conversationId) return;
-    actions.sendMessage(text.trim(), replyingTo?.id).catch(() => {});
+    actions.sendMessage(text.trim(), replyingTo?.id).catch((err: unknown) => {
+      // Suspected key substitution blocks the send (fail closed) — explain.
+      if (err instanceof E2eePinChangedError) {
+        setSendError(
+          'This contact\u2019s security key changed. Sending is blocked to protect your messages.',
+        );
+        setTimeout(() => setSendError(null), 6000);
+      }
+    });
     useChatDraftsStore.getState().clearDraft(conversationId);
     setText('');
     setReplyingTo(null);
@@ -188,10 +211,10 @@ export default function StandaloneChatPage() {
         noindex={true}
       />
       {/* PC Style Liquid Glass Titlebar / Header */}
-      <div className="flex items-center justify-between px-4 h-14 bg-[#111622]/90 backdrop-blur-2xl border-b border-white/10 select-none flex-shrink-0 z-30">
+      <div className="flex items-center justify-between px-4 h-14 bg-[#111622]/90 backdrop-blur-2xl border-b border-white/10 select-none shrink-0 z-30">
         {/* User Info */}
         <div className="flex items-center gap-3 min-w-0 flex-1">
-          <div className="relative flex-shrink-0">
+          <div className="relative shrink-0">
             {display.isGroup ? (
               display.avatar ? (
                 <Avatar size="sm" src={display.avatar} />
@@ -232,7 +255,7 @@ export default function StandaloneChatPage() {
         </div>
 
         {/* Window Actions & Controls */}
-        <div className="flex items-center gap-1 flex-shrink-0">
+        <div className="flex items-center gap-1 shrink-0">
           <button
             type="button"
             onClick={() => setRightPanel((p) => (p === 'search' ? null : 'search'))}
@@ -302,12 +325,12 @@ export default function StandaloneChatPage() {
         <div className="flex-1 flex flex-col min-w-0 bg-[#0d111a]/70">
           {/* Pinned Message Banner (matching Image 2) */}
           {pinnedMessage && (
-            <div className="flex items-center justify-between px-4 py-2 bg-[#141926]/90 border-b border-sky-500/20 text-xs backdrop-blur-xl flex-shrink-0">
+            <div className="flex items-center justify-between px-4 py-2 bg-[#141926]/90 border-b border-sky-500/20 text-xs backdrop-blur-xl shrink-0">
               <div
                 onClick={() => setHighlightMessageId(pinnedMessage.id)}
                 className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer group"
               >
-                <div className="w-0.5 h-6 bg-sky-400 rounded-full flex-shrink-0" />
+                <div className="w-0.5 h-6 bg-sky-400 rounded-full shrink-0" />
                 <div className="min-w-0 flex-1">
                   <span className="font-semibold text-sky-400 flex items-center gap-1 leading-none">
                     <Pin size={11} /> Pinned message
@@ -344,9 +367,11 @@ export default function StandaloneChatPage() {
               onLoadMore={fetchNextPage}
               onReply={setReplyingTo}
               onEdit={(message) => {
-                const nextBody = window.prompt('Edit message', message.body ?? '');
-                if (nextBody && nextBody !== message.body)
-                  actions.editMessage(message.id, nextBody).catch(() => {});
+                void promptEditMessage(
+                  message,
+                  otherParticipant?.userId ?? null,
+                  actions.editMessage,
+                );
               }}
               onDelete={(messageId, forAll) => {
                 actions.deleteMessage(messageId, forAll).catch(() => {});
@@ -371,12 +396,12 @@ export default function StandaloneChatPage() {
 
           {/* Replying banner */}
           {replyingTo && (
-            <div className="flex items-center justify-between px-4 py-2 bg-[#161a26]/95 border-t border-white/10 text-xs flex-shrink-0">
+            <div className="flex items-center justify-between px-4 py-2 bg-[#161a26]/95 border-t border-white/10 text-xs shrink-0">
               <div className="min-w-0">
                 <span className="text-sky-400 font-semibold">
                   Replying to {replyingTo.sender.displayName || replyingTo.sender.username}
                 </span>
-                <p className="text-gray-400 truncate">{replyingTo.body || 'Attachment'}</p>
+                <p className="text-gray-400 truncate">{replyingPreview || 'Attachment'}</p>
               </div>
               <button
                 type="button"
@@ -389,13 +414,18 @@ export default function StandaloneChatPage() {
           )}
 
           {/* Bottom Message Composer */}
+          {sendError && (
+            <div className="mx-3 mb-2 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-400/30 text-xs text-amber-200 shrink-0">
+              {sendError}
+            </div>
+          )}
           <div
-            className="p-3 bg-[#111520]/90 backdrop-blur-2xl border-t border-white/10 flex items-center gap-2 flex-shrink-0 transition-[padding-bottom] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
+            className="p-3 bg-[#111520]/90 backdrop-blur-2xl border-t border-white/10 flex items-center gap-2 shrink-0 transition-[padding-bottom] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
             style={{ paddingBottom: `${12 + dockOffset}px` }}
           >
             <button
               type="button"
-              className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-400 hover:bg-white/10 hover:text-white transition-colors flex-shrink-0"
+              className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-400 hover:bg-white/10 hover:text-white transition-colors shrink-0"
               title="Attach file"
             >
               <Paperclip size={18} />
@@ -414,7 +444,7 @@ export default function StandaloneChatPage() {
 
             <button
               type="button"
-              className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-400 hover:bg-white/10 hover:text-white transition-colors flex-shrink-0"
+              className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-400 hover:bg-white/10 hover:text-white transition-colors shrink-0"
               title="Emoji"
             >
               <Smile size={19} />
@@ -424,7 +454,7 @@ export default function StandaloneChatPage() {
               <button
                 type="button"
                 onClick={handleSend}
-                className="w-9 h-9 flex items-center justify-center rounded-xl bg-sky-500 text-white hover:bg-sky-400 transition-colors flex-shrink-0"
+                className="w-9 h-9 flex items-center justify-center rounded-xl bg-sky-500 text-white hover:bg-sky-400 transition-colors shrink-0"
                 title="Send message"
               >
                 <Send size={16} />
@@ -432,7 +462,7 @@ export default function StandaloneChatPage() {
             ) : (
               <button
                 type="button"
-                className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-400 hover:bg-white/10 hover:text-white transition-colors flex-shrink-0"
+                className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-400 hover:bg-white/10 hover:text-white transition-colors shrink-0"
                 title="Record voice message"
               >
                 <Mic size={19} />
@@ -473,7 +503,7 @@ export default function StandaloneChatPage() {
         <ForwardMessageModal
           onClose={() => setForwardingMessage(null)}
           onForward={(conversationIds) => {
-            actions.forwardMessage(forwardingMessage.id, conversationIds).catch(() => {});
+            actions.forwardMessage(forwardingMessage, conversationIds).catch(() => {});
             setForwardingMessage(null);
           }}
         />

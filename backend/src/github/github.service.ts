@@ -1,9 +1,22 @@
-import { Injectable, UnauthorizedException, Logger, NotFoundException } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  UnauthorizedException,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '@common/prisma';
 import { RedisService } from '../redis/redis.service';
+import { CircuitBreaker } from '../common/resilience/circuit-breaker';
+import { safeJsonParse } from '../common/utils/json.util';
+import { TraceContext } from '../common/tracing/trace-context';
 import * as crypto from 'crypto';
+import { timingSafeEqual } from '../common/crypto/timing-safe';
 import type { Request, Response } from 'express';
+import {
+  GITHUB_REPOSITORY,
+  type IGithubRepository,
+} from './interfaces/github-repository.interface';
 
 const CONTRIBUTOR_TIERS_MAPPING = [
   { count: 100, badgeId: 'CONTRIBUTOR_OPAL' },
@@ -18,19 +31,31 @@ const CONTRIBUTOR_TIERS_MAPPING = [
 @Injectable()
 export class GithubService {
   private readonly logger = new Logger(GithubService.name);
+  private readonly circuitBreaker: CircuitBreaker;
 
   constructor(
-    private readonly prisma: PrismaService,
+    @Inject(GITHUB_REPOSITORY)
+    private readonly githubRepo: IGithubRepository,
     private readonly redis: RedisService,
     private readonly config: ConfigService,
-  ) {}
+  ) {
+    this.circuitBreaker = new CircuitBreaker({
+      name: 'GitHub-API',
+      failureThreshold: 4,
+      resetTimeoutMs: 20_000,
+      halfOpenSuccessThreshold: 2,
+      onStateChange: (from, to) => {
+        this.logger.warn(`GitHub API CircuitBreaker transitioned from ${from} to ${to}`);
+      },
+    });
+  }
 
   private get clientId(): string {
-    return this.config.get<string>('GITHUB_CLIENT_ID') || '9407946148e4d58d7030';
+    return this.config.get<string>('GITHUB_CLIENT_ID') || '';
   }
 
   private get clientSecret(): string {
-    return this.config.get<string>('GITHUB_CLIENT_SECRET') || 'mock_github_client_secret';
+    return this.config.get<string>('GITHUB_CLIENT_SECRET') || '';
   }
 
   private get callbackUrl(): string {
@@ -61,13 +86,11 @@ export class GithubService {
       try {
         const parts = rawToken.split('.');
         if (parts.length === 3) {
-          const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8')) as {
-            sub?: string;
-          };
-          if (payload.sub) userIdParam = String(payload.sub);
+          const payload = safeJsonParse<{ sub?: string }>(Buffer.from(parts[1], 'base64url'));
+          if (payload?.sub) userIdParam = String(payload.sub);
         }
-      } catch {
-        // ignore
+      } catch (e) {
+        this.logger.debug(`Could not parse optional token in getAuthorizationUrl: ${String(e)}`);
       }
     }
 
@@ -132,8 +155,10 @@ export class GithubService {
     res.clearCookie('github_client_origin');
 
     try {
+      const abortSignal = TraceContext.getAbortSignal();
       let tokenRes = await fetch('https://github.com/login/oauth/access_token', {
         method: 'POST',
+        ...(abortSignal ? { signal: abortSignal } : {}),
         headers: {
           'Content-Type': 'application/json',
           Accept: 'application/json',
@@ -177,6 +202,7 @@ export class GithubService {
       }
 
       const userRes = await fetch('https://api.github.com/user', {
+        ...(abortSignal ? { signal: abortSignal } : {}),
         headers: {
           Authorization: `Bearer ${accessToken}`,
           'User-Agent': 'SocialNetwork-App',
@@ -201,9 +227,7 @@ export class GithubService {
 
       let targetUserId = userId || userIdFromState;
       if (!targetUserId && githubId) {
-        const existing = await this.prisma.user.findFirst({
-          where: { githubId },
-        });
+        const existing = await this.githubRepo.findUserByGithubId(githubId);
         if (existing) targetUserId = existing.id;
       }
 
@@ -262,31 +286,13 @@ export class GithubService {
       };
 
       if (targetUserId) {
-        await this.prisma.user.update({
-          where: { id: targetUserId },
-          data: {
-            githubId,
-            githubUsername,
-          },
+        await this.githubRepo.updateUserGithub(targetUserId, {
+          githubId,
+          githubUsername,
         });
 
         // Upsert showcase connectedAccounts
-        const showcase = await this.prisma.profileShowcase.findUnique({
-          where: { userId: targetUserId },
-        });
-        const currentAccounts = (showcase?.connectedAccounts as Record<string, any>) || {};
-        currentAccounts.github = ghAccountData;
-
-        await this.prisma.profileShowcase.upsert({
-          where: { userId: targetUserId },
-          create: {
-            userId: targetUserId,
-            connectedAccounts: currentAccounts,
-          },
-          update: {
-            connectedAccounts: currentAccounts,
-          },
-        });
+        await this.githubRepo.updateShowcaseGithubAccount(targetUserId, ghAccountData);
 
         await this.redis.del(`user:${targetUserId}`);
         await this.redis.del(`showcase:user:${targetUserId}`);
@@ -294,121 +300,28 @@ export class GithubService {
         await this.syncUserGithubContributions(targetUserId);
       }
 
-      res.setHeader('Content-Type', 'text/html');
-      res.send(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>GitHub Account Connected</title>
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          </head>
-          <body style="background:#0e0e11;color:#fff;font-family:system-ui,-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;user-select:none;">
-            <div style="text-align:center;padding:32px 40px;border:1px solid rgba(255,255,255,0.12);border-radius:24px;background:#141417;box-shadow:0 25px 60px rgba(0,0,0,0.8);max-width:380px;width:90%;">
-              <div style="width:56px;height:56px;margin:0 auto 16px;background:#24292e;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #5865F2;box-shadow:0 0 24px rgba(88,101,242,0.4);">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="#ffffff"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
-              </div>
-              <h2 style="color:#ffffff;margin:0 0 8px;font-size:20px;font-weight:800;letter-spacing:-0.3px;">GitHub Connected!</h2>
-              <p style="color:#a1a1aa;font-size:13px;margin:0 0 16px;line-height:1.5;">Authenticated as <b style="color:#fff;">${githubUsername}</b>.</p>
-              <div style="padding:8px 14px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;display:inline-block;margin-bottom:18px;">
-                <p style="color:#94a3b8;font-size:12px;margin:0;">Closing in <b id="countdown" style="color:#5865F2;">5</b> seconds...</p>
-              </div>
-              <div>
-                <button onclick="window.close()" style="background:#5865F2;color:#fff;border:none;border-radius:12px;padding:10px 24px;font-size:12px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(88,101,242,0.4);transition:all 0.2s;">
-                  Close Window Now
-                </button>
-              </div>
-            </div>
-            <script>
-              function broadcast() {
-                if (window.opener) {
-                  try {
-                    window.opener.postMessage({ type: 'INTEGRATION_AUTH_SUCCESS', platform: 'github', username: '${githubUsername}' }, '*');
-                  } catch(e) {}
-                }
-              }
-              broadcast();
-              var interval = setInterval(broadcast, 400);
-
-              var count = 5;
-              var el = document.getElementById('countdown');
-              var timer = setInterval(function() {
-                count--;
-                if (el) el.textContent = count;
-                if (count <= 0) {
-                  clearInterval(timer);
-                  clearInterval(interval);
-                  broadcast();
-                  if (window.opener) {
-                    window.close();
-                  } else {
-                    window.location.href = '${effectiveFrontendUrl}/settings?github=connected';
-                  }
-                }
-              }, 1000);
-            </script>
-          </body>
-        </html>
-      `);
+      return res.redirect(`${effectiveFrontendUrl}/settings?github=connected`);
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
       this.logger.error(`GitHub OAuth Callback Exception: ${errMsg}`);
-      res.setHeader('Content-Type', 'text/html');
-      res.send(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>GitHub Connection Failed</title>
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          </head>
-          <body style="background:#0e0e11;color:#fff;font-family:system-ui,-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;user-select:none;">
-            <div style="text-align:center;padding:32px 40px;border:1px solid rgba(239,68,68,0.25);border-radius:24px;background:#141417;box-shadow:0 25px 60px rgba(0,0,0,0.8);max-width:380px;width:90%;">
-              <div style="width:56px;height:56px;margin:0 auto 16px;background:#451a1a;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #ef4444;box-shadow:0 0 24px rgba(239,68,68,0.4);">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="#ef4444"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
-              </div>
-              <h2 style="color:#ffffff;margin:0 0 8px;font-size:20px;font-weight:800;letter-spacing:-0.3px;">Connection Failed</h2>
-              <p style="color:#a1a1aa;font-size:13px;margin:0 0 16px;line-height:1.5;">${errMsg || 'Failed to authenticate with GitHub'}</p>
-              <div>
-                <button onclick="window.close()" style="background:#27272a;color:#fff;border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:10px 24px;font-size:12px;font-weight:700;cursor:pointer;">
-                  Close Window
-                </button>
-              </div>
-            </div>
-          </body>
-        </html>
-      `);
+      return res.redirect(`${effectiveFrontendUrl}/settings?error=oauth_failed`);
     }
   }
 
   async unlinkGithub(userId: string): Promise<void> {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const user = await this.githubRepo.findUserById(userId);
     if (!user) throw new NotFoundException('User not found');
 
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        githubId: null,
-        githubUsername: null,
-        mergedPrsCount: 0,
-      },
-    });
-
-    await this.prisma.userBadge.deleteMany({
-      where: {
-        userId,
-        badgeId: {
-          in: [
-            'CONTRIBUTOR',
-            'CONTRIBUTOR_BRONZE',
-            'CONTRIBUTOR_SILVER',
-            'CONTRIBUTOR_GOLD',
-            'CONTRIBUTOR_PLATINUM',
-            'CONTRIBUTOR_DIAMOND',
-            'CONTRIBUTOR_RUBY',
-            'CONTRIBUTOR_OPAL',
-          ],
-        },
-      },
-    });
+    await this.githubRepo.unlinkGithubAndBadges(userId, [
+      'CONTRIBUTOR',
+      'CONTRIBUTOR_BRONZE',
+      'CONTRIBUTOR_SILVER',
+      'CONTRIBUTOR_GOLD',
+      'CONTRIBUTOR_PLATINUM',
+      'CONTRIBUTOR_DIAMOND',
+      'CONTRIBUTOR_RUBY',
+      'CONTRIBUTOR_OPAL',
+    ]);
 
     await this.redis.del(`user:${userId}`);
   }
@@ -417,142 +330,146 @@ export class GithubService {
     mergedPrsCount: number;
     githubUsername: string | null;
   }> {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user || !user.githubId) {
-      return { mergedPrsCount: 0, githubUsername: null };
-    }
-
-    let currentGithubUsername = user.githubUsername || '';
-
-    try {
-      const headers: Record<string, string> = { 'User-Agent': 'SocialNetwork-App' };
-      if (this.systemToken) {
-        headers['Authorization'] = `token ${this.systemToken}`;
+    return this.redis.withLock(`lock:rewards:${userId}`, async () => {
+      const user = await this.githubRepo.findUserById(userId);
+      if (!user || !user.githubId) {
+        return { mergedPrsCount: 0, githubUsername: null };
       }
 
-      const refreshRes = await fetch(`https://api.github.com/user/${user.githubId}`, {
-        headers,
-      });
+      let currentGithubUsername = user.githubUsername || '';
 
-      if (refreshRes.ok) {
-        const ghData = (await refreshRes.json()) as { login?: string };
-        if (ghData.login && ghData.login !== currentGithubUsername) {
-          currentGithubUsername = ghData.login;
-          await this.prisma.user.update({
-            where: { id: userId },
-            data: { githubUsername: currentGithubUsername },
+      try {
+        await this.circuitBreaker.execute(async () => {
+          const headers: Record<string, string> = { 'User-Agent': 'SocialNetwork-App' };
+          if (this.systemToken) {
+            headers['Authorization'] = `token ${this.systemToken}`;
+          }
+
+          const abortSignal = TraceContext.getAbortSignal();
+          const refreshRes = await fetch(`https://api.github.com/user/${user.githubId}`, {
+            ...(abortSignal ? { signal: abortSignal } : {}),
+            headers,
           });
+
+          if (refreshRes.ok) {
+            const ghData = (await refreshRes.json()) as { login?: string };
+            if (ghData.login && ghData.login !== currentGithubUsername) {
+              currentGithubUsername = ghData.login;
+              await this.githubRepo.updateUserGithub(userId, {
+                githubUsername: currentGithubUsername,
+              });
+            }
+          }
+        });
+      } catch (err: unknown) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        this.logger.warn(`Failed to refresh GitHub username for user ${userId}: ${errMsg}`);
+      }
+
+      if (!currentGithubUsername) {
+        return { mergedPrsCount: 0, githubUsername: null };
+      }
+
+      let mergedPrsCount = user.mergedPrsCount || 0;
+      try {
+        mergedPrsCount = await this.circuitBreaker.execute(
+          async () => {
+            const abortSignal = TraceContext.getAbortSignal();
+            const headers: Record<string, string> = {
+              Accept: 'application/vnd.github+json',
+              'User-Agent': 'SocialNetwork-App',
+            };
+            if (this.systemToken) {
+              headers['Authorization'] = `token ${this.systemToken}`;
+            }
+
+            const queryUrl = `https://api.github.com/search/issues?q=repo:rakuzan-knu/social-network+type:pr+is:merged+author:${encodeURIComponent(
+              currentGithubUsername,
+            )}`;
+
+            const searchRes = await fetch(queryUrl, {
+              ...(abortSignal ? { signal: abortSignal } : {}),
+              headers,
+            });
+            if (searchRes.ok) {
+              const searchData = (await searchRes.json()) as { total_count?: number };
+              if (typeof searchData.total_count === 'number') {
+                return searchData.total_count;
+              }
+            } else {
+              this.logger.warn(`GitHub Search API returned status ${searchRes.status}`);
+            }
+            return mergedPrsCount;
+          },
+          () => mergedPrsCount,
+        );
+      } catch (err: unknown) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        this.logger.error(`Error querying GitHub Search API: ${errMsg}`);
+      }
+
+      const badgesToGrant: string[] = [];
+      if (mergedPrsCount >= 1) {
+        badgesToGrant.push('CONTRIBUTOR');
+      }
+
+      for (const tier of CONTRIBUTOR_TIERS_MAPPING) {
+        if (mergedPrsCount >= tier.count) {
+          badgesToGrant.push(tier.badgeId);
         }
       }
-    } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : String(err);
-      this.logger.warn(`Failed to refresh GitHub username for user ${userId}: ${errMsg}`);
-    }
 
-    if (!currentGithubUsername) {
-      return { mergedPrsCount: 0, githubUsername: null };
-    }
+      const tierBadgesInOrder = [
+        'CONTRIBUTOR_OPAL',
+        'CONTRIBUTOR_RUBY',
+        'CONTRIBUTOR_DIAMOND',
+        'CONTRIBUTOR_PLATINUM',
+        'CONTRIBUTOR_GOLD',
+        'CONTRIBUTOR_SILVER',
+        'CONTRIBUTOR_BRONZE',
+      ];
+      const highestEarnedBadge = tierBadgesInOrder.find((b) => badgesToGrant.includes(b));
 
-    let mergedPrsCount = 0;
-    try {
-      const headers: Record<string, string> = {
-        Accept: 'application/vnd.github+json',
-        'User-Agent': 'SocialNetwork-App',
+      const currentUser = await this.githubRepo.findUserById(userId);
+
+      const updateData: { mergedPrsCount: number; primaryBadge?: string } = { mergedPrsCount };
+      if (
+        highestEarnedBadge &&
+        (!currentUser?.primaryBadge ||
+          currentUser.primaryBadge.toUpperCase().startsWith('CONTRIBUTOR'))
+      ) {
+        updateData.primaryBadge = highestEarnedBadge;
+      }
+
+      await this.githubRepo.updateUserGithub(userId, updateData);
+
+      if (badgesToGrant.length > 0) {
+        await this.githubRepo.grantBadges(userId, badgesToGrant);
+      }
+
+      await this.redis.del(`user:${userId}`);
+
+      return {
+        mergedPrsCount,
+        githubUsername: currentGithubUsername,
       };
-      if (this.systemToken) {
-        headers['Authorization'] = `token ${this.systemToken}`;
-      }
-
-      const queryUrl = `https://api.github.com/search/issues?q=repo:rakuzan-knu/social-network+type:pr+is:merged+author:${encodeURIComponent(
-        currentGithubUsername,
-      )}`;
-
-      const searchRes = await fetch(queryUrl, { headers });
-      if (searchRes.ok) {
-        const searchData = (await searchRes.json()) as { total_count?: number };
-        if (typeof searchData.total_count === 'number') {
-          mergedPrsCount = searchData.total_count;
-        }
-      } else {
-        this.logger.warn(`GitHub Search API returned status ${searchRes.status}`);
-      }
-    } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : String(err);
-      this.logger.error(`Error querying GitHub Search API: ${errMsg}`);
-    }
-
-    const badgesToGrant: string[] = [];
-    if (mergedPrsCount >= 1) {
-      badgesToGrant.push('CONTRIBUTOR');
-    }
-
-    for (const tier of CONTRIBUTOR_TIERS_MAPPING) {
-      if (mergedPrsCount >= tier.count) {
-        badgesToGrant.push(tier.badgeId);
-      }
-    }
-
-    const tierBadgesInOrder = [
-      'CONTRIBUTOR_OPAL',
-      'CONTRIBUTOR_RUBY',
-      'CONTRIBUTOR_DIAMOND',
-      'CONTRIBUTOR_PLATINUM',
-      'CONTRIBUTOR_GOLD',
-      'CONTRIBUTOR_SILVER',
-      'CONTRIBUTOR_BRONZE',
-    ];
-    const highestEarnedBadge = tierBadgesInOrder.find((b) => badgesToGrant.includes(b));
-
-    const currentUser = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { primaryBadge: true },
     });
-
-    const updateData: { mergedPrsCount: number; primaryBadge?: string } = { mergedPrsCount };
-    if (
-      highestEarnedBadge &&
-      (!currentUser?.primaryBadge ||
-        currentUser.primaryBadge.toUpperCase().startsWith('CONTRIBUTOR'))
-    ) {
-      updateData.primaryBadge = highestEarnedBadge;
-    }
-
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: updateData,
-    });
-
-    if (badgesToGrant.length > 0) {
-      await this.prisma.userBadge.createMany({
-        data: badgesToGrant.map((badgeId) => ({ userId, badgeId })),
-        skipDuplicates: true,
-      });
-    }
-
-    await this.redis.del(`user:${userId}`);
-
-    return {
-      mergedPrsCount,
-      githubUsername: currentGithubUsername,
-    };
   }
 
   verifySignature(rawBody: string | Buffer, signatureHeader?: string): boolean {
-    if (!this.webhookSecret) {
-      return process.env.NODE_ENV !== 'production';
-    }
-
     if (!signatureHeader) {
       return false;
+    }
+
+    if (!this.webhookSecret) {
+      return process.env.NODE_ENV !== 'production';
     }
 
     const hmac = crypto.createHmac('sha256', this.webhookSecret);
     const expectedSignature = `sha256=${hmac.update(rawBody).digest('hex')}`;
 
     try {
-      const a = Buffer.from(signatureHeader);
-      const b = Buffer.from(expectedSignature);
-      return a.length === b.length && crypto.timingSafeEqual(a, b);
+      return timingSafeEqual(signatureHeader, expectedSignature);
     } catch {
       return false;
     }
@@ -570,14 +487,7 @@ export class GithubService {
     if (action === 'closed' && isMerged && authorLogin) {
       this.logger.log(`Received PR merge webhook for GitHub author: ${authorLogin}`);
 
-      const user = await this.prisma.user.findFirst({
-        where: {
-          githubUsername: {
-            equals: authorLogin,
-            mode: 'insensitive',
-          },
-        },
-      });
+      const user = await this.githubRepo.findUserByGithubUsername(authorLogin);
 
       if (user) {
         await this.syncUserGithubContributions(user.id);

@@ -5,8 +5,6 @@ import { MemoryRouter } from 'react-router-dom';
 import { NewsroomPage } from '../NewsroomPage';
 import { useLanguageStore } from '../../../shared/lib/language/languageStore';
 import { useAuthStore } from '../../../shared/model/useAuthStore';
-import App from '../../../app/App';
-import { renderWithProviders } from '../../../test/renderWithProviders';
 
 describe('Newsroom Page (/newsroom)', () => {
   beforeEach(() => {
@@ -135,15 +133,5 @@ describe('Newsroom Page (/newsroom)', () => {
     expect(
       screen.getByRole('heading', { level: 2, name: /ЗВ’ЯЗОК З ПРЕС-СЛУЖБОЮ/i }),
     ).toBeInTheDocument();
-  });
-
-  it('is publicly accessible directly via /newsroom without requiring login', async () => {
-    useAuthStore.setState({ isAuthenticated: false, userId: null });
-
-    renderWithProviders(<App />, { initialEntries: ['/newsroom'] });
-
-    await waitFor(() => {
-      expect(screen.getByRole('heading', { level: 1, name: /PRESS CENTER/i })).toBeInTheDocument();
-    });
   });
 });

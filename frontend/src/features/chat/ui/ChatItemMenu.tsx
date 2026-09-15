@@ -78,7 +78,8 @@ export default function ChatItemMenu({
   const clearChatHistory = useClearChatHistory();
   const startUndo = useClearHistoryUndoStore((s) => s.startUndo);
 
-  const { folders, toggleConversationInFolder } = useChatFoldersStore();
+  const folders = useChatFoldersStore((s) => s.folders);
+  const toggleConversationInFolder = useChatFoldersStore((s) => s.toggleConversationInFolder);
 
   const [isDropdownVisible, setIsDropdownVisible] = useState(true);
   const [activeModal, setActiveModal] = useState<

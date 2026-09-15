@@ -1,6 +1,6 @@
 import { SupportedLanguage } from '../../../shared/lib/language/languageStore';
 import { GUIDELINES_SECTIONS, GuidelinesSection } from './guidelinesContent';
-import { getLegalTranslation as getPrivacyTranslation } from '../../Privacy/data/privacyTranslations';
+import { getLegalTranslation as getPrivacyTranslation } from '@/shared/config/privacyTranslations';
 
 export interface GuidelinesUITranslation {
   navbar: {

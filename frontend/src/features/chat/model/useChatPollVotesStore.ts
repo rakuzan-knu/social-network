@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { registerSessionResetHandler } from '@/shared/model/resetSession';
 
 interface PollVotesState {
   votes: Record<string, string>; // messageId -> optionId
@@ -22,3 +23,11 @@ export const useChatPollVotesStore = create<PollVotesState>()(
     },
   ),
 );
+
+/**
+ * RESET_STORES: votes are keyed by messageId without a user namespace —
+ * clear on logout/switch to avoid attributing A's votes to B.
+ */
+registerSessionResetHandler(() => {
+  useChatPollVotesStore.setState({ votes: {} });
+});

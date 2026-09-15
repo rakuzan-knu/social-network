@@ -19,7 +19,7 @@ export default function ForwardMessageModal({
   onForward,
 }: ForwardMessageModalProps) {
   const { data: conversations } = useConversations();
-  const { userId } = useAuthStore();
+  const userId = useAuthStore((s) => s.userId);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [hideAuthor, setHideAuthor] = useState(false);
 

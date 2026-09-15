@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, Optional } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import sharp from 'sharp';
@@ -15,6 +15,7 @@ export type SanitizedMedia = {
 
 @Injectable()
 export class CommentsMediaService {
+  private readonly logger = new Logger(CommentsMediaService.name);
   private readonly bucket: string;
   private readonly publicUrl: string;
 
@@ -134,8 +135,10 @@ export class CommentsMediaService {
         );
         const url = `${this.publicUrl}/${this.bucket}/${filename}`;
         return { url, mimetype: contentType, size: sanitizedBuffer.length };
-      } catch {
-        // If S3 upload fails, fallback to inline base64 data URI
+      } catch (e) {
+        this.logger.warn(
+          `S3 upload failed for comment image ${filename}, falling back to data URI: ${String(e)}`,
+        );
       }
     }
 

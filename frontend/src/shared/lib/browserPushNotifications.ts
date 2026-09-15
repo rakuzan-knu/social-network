@@ -3,7 +3,11 @@
  */
 
 export function isNotificationSupported(): boolean {
-  return typeof window !== 'undefined' && 'Notification' in window;
+  return (
+    typeof window !== 'undefined' &&
+    typeof window.Notification !== 'undefined' &&
+    Boolean(window.Notification)
+  );
 }
 
 export async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {

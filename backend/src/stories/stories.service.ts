@@ -5,15 +5,17 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  OnModuleDestroy,
+  Optional,
   forwardRef,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { S3Client, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { uid } from 'uid';
 import { StoryMediaType, StoryPrivacy, NotificationType } from '@prisma/client';
-import { PrismaService } from '@common/prisma';
+export { StoryMediaType, StoryPrivacy } from '@prisma/client';
 import { RedisService } from '../redis/redis.service';
-import { StoriesRepository } from './stories.repository';
+import { StoriesRepository, type StoryWithDetails } from './stories.repository';
 import { ConversationsService } from '../messenger/conversations/conversations.service';
 import { MessagesService } from '../messenger/messages/messages.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -34,16 +36,21 @@ import {
 } from '@common/contracts';
 import { optimizePostImage, uploadToStorageWithFallback } from '../common/media/image-processor';
 
+import { StoryViewsCoalescerService } from './coalescing/story-views-coalescer.service';
+
 @Injectable()
-export class StoriesService {
+export class StoriesService implements OnModuleDestroy {
   private readonly logger = new Logger(StoriesService.name);
   private readonly s3: S3Client;
   private readonly bucket: string;
   private readonly publicUrl: string;
 
+  onModuleDestroy(): void {
+    this.s3.destroy();
+  }
+
   constructor(
     private readonly storiesRepo: StoriesRepository,
-    private readonly prisma: PrismaService,
     private readonly redis: RedisService,
     private readonly configService: ConfigService,
     private readonly eventEmitter: EventEmitter2,
@@ -51,6 +58,8 @@ export class StoriesService {
     private readonly conversationsService: ConversationsService,
     @Inject(forwardRef(() => MessagesService))
     private readonly messagesService: MessagesService,
+    @Optional()
+    private readonly storyViewsCoalescer?: StoryViewsCoalescerService,
   ) {
     this.bucket = this.configService.get<string>('MINIO_BUCKET', 'stories');
     this.publicUrl =
@@ -176,19 +185,17 @@ export class StoriesService {
     return { url, mediaType: type };
   }
 
-  private mapStoryToResponse(story: any, viewerId?: string): StoryViewResponse {
+  private mapStoryToResponse(story: StoryWithDetails, viewerId?: string): StoryViewResponse {
     const views = Array.isArray(story.views) ? story.views : [];
     const reactions = Array.isArray(story.reactions) ? story.reactions : [];
     const pollVotes = Array.isArray(story.pollVotes) ? story.pollVotes : [];
 
     const hasViewed = Boolean(
-      viewerId &&
-      (story.authorId === viewerId ||
-        views.some((v: { viewerId: string }) => v.viewerId === viewerId)),
+      viewerId && (story.authorId === viewerId || views.some((v) => v.viewerId === viewerId)),
     );
 
     const userReaction = viewerId
-      ? (reactions.find((r: { userId: string }) => r.userId === viewerId)?.emoji ?? null)
+      ? (reactions.find((r) => r.userId === viewerId)?.emoji ?? null)
       : null;
 
     const reactionsCount: Record<string, number> = {};
@@ -197,7 +204,9 @@ export class StoriesService {
     }
 
     let pollResult: StoryPollResult | null = null;
-    const rawOverlays = Array.isArray(story.overlays) ? (story.overlays as StoryOverlay[]) : [];
+    const rawOverlays = Array.isArray(story.overlays)
+      ? (story.overlays as unknown as StoryOverlay[])
+      : [];
     const overlays = rawOverlays.map((o: any) => {
       if (o.type === 'image' && (o.isMainMedia || !o.url || String(o.url).startsWith('blob:'))) {
         return {
@@ -208,9 +217,9 @@ export class StoriesService {
       return o;
     });
 
-    const pollOverlay = overlays.find((o) => o.type === 'poll');
+    const pollOverlay = overlays.find((o): o is PollOverlay => o.type === 'poll');
     if (pollOverlay && pollOverlay.options) {
-      const voteCounts = new Array(pollOverlay.options.length).fill(0);
+      const voteCounts = pollOverlay.options.map(() => 0);
       let totalVotes = 0;
       let userVotedIndex: number | null = null;
 
@@ -332,16 +341,10 @@ export class StoriesService {
       const usernames = Array.from(
         new Set(mentions.map((m: any) => String(m.username).toLowerCase().replace(/^@/, ''))),
       );
-      void this.prisma.user
-        .findMany({
-          where: { username: { in: usernames, mode: 'insensitive' } },
-          select: { id: true, username: true },
-        })
-        .then(async (targets) => {
-          const author = await this.prisma.user.findUnique({
-            where: { id: userId },
-            select: { id: true, username: true, displayName: true, avatar: true },
-          });
+      void this.storiesRepo
+        .findUsersByUsernames(usernames)
+        .then(async (targets: { id: string; username: string }[]) => {
+          const author = await this.storiesRepo.findUserBasic(userId);
 
           for (const target of targets) {
             if (target.id !== userId) {
@@ -405,7 +408,7 @@ export class StoriesService {
             }
           }
         })
-        .catch((err) => {
+        .catch((err: unknown) => {
           this.logger.warn(`Failed to notify mentioned users: ${String(err)}`);
         });
     }
@@ -415,82 +418,66 @@ export class StoriesService {
 
   async getStoriesFeed(userId: string): Promise<UserStoriesGroup[]> {
     const cacheKey = `stories:feed:${userId}`;
-    const cached = await this.redis.get(cacheKey);
-    if (cached) {
-      try {
-        return JSON.parse(cached) as UserStoriesGroup[];
-      } catch {
-        // Cache parse error, continue to fresh query
+
+    return this.redis.getOrSetWithProbabilisticEarlyExpiration(cacheKey, 180, async () => {
+      // 1. Get user's following list
+      const followingUserIds = await this.storiesRepo.getFollowingIds(userId, 500);
+
+      // 2. Get author IDs who have added the user as a Close Friend
+      const closeFriendAuthorIds = await this.storiesRepo.getAuthorsWhoAddedViewerAsCloseFriend(
+        userId,
+        followingUserIds,
+      );
+
+      // 3. Find active stories
+      const rawStories = await this.storiesRepo.findActiveFeedStories(
+        userId,
+        followingUserIds,
+        closeFriendAuthorIds,
+      );
+
+      // 4. Group stories by author
+      const groupsMap = new Map<string, StoryViewResponse[]>();
+      for (const story of rawStories) {
+        const mapped = this.mapStoryToResponse(story, userId);
+        const existing = groupsMap.get(story.authorId) || [];
+        existing.push(mapped);
+        groupsMap.set(story.authorId, existing);
       }
-    }
 
-    // 1. Get user's following list
-    const following = await this.prisma.follow.findMany({
-      where: { followerId: userId, status: 'ACCEPTED' },
-      select: { followingId: true },
-      take: 500,
-    });
-    const followingUserIds = following.map((f: { followingId: string }) => f.followingId);
+      const userGroups: UserStoriesGroup[] = [];
+      for (const [, stories] of groupsMap.entries()) {
+        if (stories.length === 0) continue;
+        const author = stories[0].author;
+        const hasUnviewed = stories.some((s) => !s.hasViewed);
+        const hasCloseFriendsStory = stories.some((s) => s.privacy === StoryPrivacy.CLOSE_FRIENDS);
+        const latestStoryTimestamp = stories[stories.length - 1].createdAt;
 
-    // 2. Get author IDs who have added the user as a Close Friend
-    const closeFriendAuthorIds = await this.storiesRepo.getAuthorsWhoAddedViewerAsCloseFriend(
-      userId,
-      followingUserIds,
-    );
+        userGroups.push({
+          user: author,
+          hasUnviewed,
+          hasCloseFriendsStory,
+          stories,
+          latestStoryTimestamp,
+        });
+      }
 
-    // 3. Find active stories
-    const rawStories = await this.storiesRepo.findActiveFeedStories(
-      userId,
-      followingUserIds,
-      closeFriendAuthorIds,
-    );
-
-    // 4. Group stories by author
-    const groupsMap = new Map<string, StoryViewResponse[]>();
-    for (const story of rawStories) {
-      const mapped = this.mapStoryToResponse(story, userId);
-      const existing = groupsMap.get(story.authorId) || [];
-      existing.push(mapped);
-      groupsMap.set(story.authorId, existing);
-    }
-
-    const userGroups: UserStoriesGroup[] = [];
-    for (const [, stories] of groupsMap.entries()) {
-      if (stories.length === 0) continue;
-      const author = stories[0].author;
-      const hasUnviewed = stories.some((s: any) => !s.hasViewed);
-      const hasCloseFriendsStory = stories.some(
-        (s: any) => s.privacy === StoryPrivacy.CLOSE_FRIENDS,
-      );
-      const latestStoryTimestamp = stories[stories.length - 1].createdAt;
-
-      userGroups.push({
-        user: author,
-        hasUnviewed,
-        hasCloseFriendsStory,
-        stories,
-        latestStoryTimestamp,
+      // Sort groups:
+      // - Current user first
+      // - Unviewed groups next (sorted by latest timestamp desc)
+      // - Viewed groups last (sorted by latest timestamp desc)
+      userGroups.sort((a, b) => {
+        if (a.user.id === userId) return -1;
+        if (b.user.id === userId) return 1;
+        if (a.hasUnviewed && !b.hasUnviewed) return -1;
+        if (!a.hasUnviewed && b.hasUnviewed) return 1;
+        return (
+          new Date(b.latestStoryTimestamp).getTime() - new Date(a.latestStoryTimestamp).getTime()
+        );
       });
-    }
 
-    // Sort groups:
-    // - Current user first
-    // - Unviewed groups next (sorted by latest timestamp desc)
-    // - Viewed groups last (sorted by latest timestamp desc)
-    userGroups.sort((a, b) => {
-      if (a.user.id === userId) return -1;
-      if (b.user.id === userId) return 1;
-      if (a.hasUnviewed && !b.hasUnviewed) return -1;
-      if (!a.hasUnviewed && b.hasUnviewed) return 1;
-      return (
-        new Date(b.latestStoryTimestamp).getTime() - new Date(a.latestStoryTimestamp).getTime()
-      );
+      return userGroups;
     });
-
-    // Cache in Redis for 180 seconds (3 minutes) with natural expiration
-    await this.redis.set(cacheKey, JSON.stringify(userGroups), 180);
-
-    return userGroups;
   }
 
   async getUserStories(targetUserId: string, viewerId?: string): Promise<UserStoriesGroup | null> {
@@ -508,11 +495,11 @@ export class StoriesService {
       return null;
     }
 
-    const mappedStories = rawStories.map((s: any) => this.mapStoryToResponse(s, viewerId));
+    const mappedStories = rawStories.map((s) => this.mapStoryToResponse(s, viewerId));
     const author = mappedStories[0].author;
-    const hasUnviewed = mappedStories.some((s: any) => !s.hasViewed);
+    const hasUnviewed = mappedStories.some((s) => !s.hasViewed);
     const hasCloseFriendsStory = mappedStories.some(
-      (s: any) => s.privacy === StoryPrivacy.CLOSE_FRIENDS,
+      (s) => s.privacy === StoryPrivacy.CLOSE_FRIENDS,
     );
 
     return {
@@ -528,14 +515,15 @@ export class StoriesService {
     const story = await this.storiesRepo.findById(storyId);
     if (!story) throw new NotFoundException('Story not found');
 
-    await this.storiesRepo.recordView(storyId, viewerId);
+    if (this.storyViewsCoalescer) {
+      this.storyViewsCoalescer.recordView(storyId, viewerId);
+    } else {
+      await this.storiesRepo.recordView(storyId, viewerId);
+    }
     await this.redis.del(`stories:feed:${viewerId}`);
 
     // Emit live WebSocket event so author's Seen-by Drawer updates in real time
-    const viewer = await this.prisma.user.findUnique({
-      where: { id: viewerId },
-      select: { id: true, username: true, displayName: true, avatar: true, isVerified: true },
-    });
+    const viewer = await this.storiesRepo.findUserBasic(viewerId);
 
     this.eventEmitter.emit('story.viewed', {
       storyId,
@@ -553,10 +541,7 @@ export class StoriesService {
     const reaction = await this.storiesRepo.recordReaction(storyId, userId, dto.emoji);
     await this.redis.del(`stories:feed:${userId}`);
 
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { id: true, username: true, displayName: true, avatar: true },
-    });
+    const user = await this.storiesRepo.findUserBasic(userId);
 
     // Emit live WebSocket event for real-time seen-by drawer and viewers reaction explosion
     this.eventEmitter.emit('story.reacted', {
@@ -570,10 +555,7 @@ export class StoriesService {
 
     // Notify story author on notifications page if someone else reacted
     if (story.authorId !== userId && dto.emoji) {
-      const storyAuthor = await this.prisma.user.findUnique({
-        where: { id: story.authorId },
-        select: { id: true, username: true },
-      });
+      const storyAuthor = await this.storiesRepo.findUserBasic(story.authorId);
 
       this.eventEmitter.emit(
         NOTIFICATION_EVENTS.CREATE,
@@ -607,7 +589,7 @@ export class StoriesService {
     if (!story) throw new NotFoundException('Story not found');
 
     const overlays = Array.isArray(story.overlays) ? (story.overlays as StoryOverlay[]) : [];
-    const pollOverlay = overlays.find((o) => o.type === 'poll');
+    const pollOverlay = overlays.find((o): o is PollOverlay => o.type === 'poll');
     if (!pollOverlay || !pollOverlay.options) {
       throw new BadRequestException('Story does not have a poll');
     }
@@ -622,6 +604,9 @@ export class StoriesService {
 
     // Aggregate votes for real-time response
     const updatedStory = await this.storiesRepo.findById(storyId);
+    if (!updatedStory) {
+      throw new NotFoundException('Story not found');
+    }
     const mapped = this.mapStoryToResponse(updatedStory, userId);
     const pollResult = mapped.pollResult!;
 
@@ -740,7 +725,7 @@ export class StoriesService {
 
   async getCloseFriends(userId: string) {
     const records = await this.storiesRepo.getCloseFriends(userId);
-    return records.map((r: any) => r.friend);
+    return records.map((r) => r.friend);
   }
 
   async toggleCloseFriend(userId: string, friendId: string) {

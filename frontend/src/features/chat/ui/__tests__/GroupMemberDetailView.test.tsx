@@ -6,9 +6,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ConversationView, ParticipantView } from '@/entities/chat/model/types';
 import React from 'react';
 
-const mockPromoteMutate = vi.fn();
-const mockDemoteMutate = vi.fn();
-const mockRemoveMutate = vi.fn();
+const mockPromoteMutate = vi.fn((_args, opts) => opts?.onSettled?.());
+const mockDemoteMutate = vi.fn((_args, opts) => opts?.onSettled?.());
+const mockRemoveMutate = vi.fn((_args, opts) => {
+  opts?.onSuccess?.();
+  opts?.onSettled?.();
+});
 
 vi.mock('../../model/useConversationMutations', () => ({
   usePromoteMember: () => ({ mutate: mockPromoteMutate }),
@@ -67,5 +70,74 @@ describe('GroupMemberDetailView', () => {
       { conversationId: 'c1', userId: 'u2' },
       expect.any(Object),
     );
+  });
+
+  it('handles remove as admin, remove from group with confirm, and onBack button', () => {
+    const onBack = vi.fn();
+    const queryClient = new QueryClient();
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    const adminParticipant = {
+      ...participant,
+      role: 'ADMIN' as const,
+    };
+
+    const { container } = render(
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <GroupMemberDetailView
+            conversation={mockConversation}
+            participant={adminParticipant}
+            canManage={true}
+            onBack={onBack}
+          />
+        </BrowserRouter>
+      </QueryClientProvider>,
+    );
+
+    // Remove as admin
+    const removeAdminBtn = screen.getByText('Remove as admin');
+    fireEvent.click(removeAdminBtn);
+    expect(mockDemoteMutate).toHaveBeenCalledWith(
+      { conversationId: 'c1', userId: 'u2' },
+      expect.any(Object),
+    );
+
+    // Remove from group
+    const removeGroupBtn = screen.getByText('Remove from group');
+    fireEvent.click(removeGroupBtn);
+    expect(mockRemoveMutate).toHaveBeenCalledWith(
+      { conversationId: 'c1', userId: 'u2' },
+      expect.any(Object),
+    );
+
+    // Back button
+    const backBtn = container.querySelector('button')!;
+    fireEvent.click(backBtn);
+    expect(onBack).toHaveBeenCalled();
+
+    // Direct message button
+    const msgBtn = screen.getByText('Message');
+    fireEvent.click(msgBtn);
+  });
+
+  it('renders Crown and Group owner label for OWNER role', () => {
+    const queryClient = new QueryClient();
+    const ownerParticipant = { ...participant, role: 'OWNER' as const };
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <GroupMemberDetailView
+            conversation={mockConversation}
+            participant={ownerParticipant}
+            canManage={false}
+            onBack={vi.fn()}
+          />
+        </BrowserRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByText('Group owner')).toBeInTheDocument();
   });
 });

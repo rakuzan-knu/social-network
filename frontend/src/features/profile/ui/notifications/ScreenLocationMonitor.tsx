@@ -1,8 +1,5 @@
 import React from 'react';
-import {
-  NotificationPosition,
-  useNotificationSettingsStore,
-} from '@/shared/model/useNotificationSettingsStore';
+import { NotificationPosition, useNotificationSettingsStore } from '@/entities/notification';
 
 interface ScreenLocationMonitorProps {
   hoveredCorner: NotificationPosition | null;

@@ -3,7 +3,6 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PersonalMetaWidget } from '../PersonalMetaWidget';
 import { LivePresenceWidget } from '../LivePresenceWidget';
-import { SpotlightMediaWidget } from '../SpotlightMediaWidget';
 import { MediaShowcaseWidget } from '../MediaShowcaseWidget';
 import { ShowcaseWishlistWidget } from '../ShowcaseWishlistWidget';
 import { ProfileAnthemCard } from '../ProfileAnthemCard';
@@ -14,7 +13,7 @@ import { ShowcaseIntegrationCard } from '../ShowcaseIntegrationCard';
 import { ProfileShowcaseSettingsSection } from '@/features/profile/ui/ProfileShowcaseSettingsSection';
 import { SpotifyBrandIcon, SteamBrandIcon, DiscordBrandIcon } from '@/shared/ui/BrandIcons';
 import { BrowserRouter } from 'react-router-dom';
-import { MediaDetailModal } from '@/shared/ui/media';
+import { MediaDetailModal } from '@/widgets/showcase';
 import { useMediaDetailModalStore } from '@/entities/showcase/model/useMediaDetailModalStore';
 import {
   ShowcaseMediaType,

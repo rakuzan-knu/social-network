@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { PrivacyNavbar } from '../Privacy/ui/PrivacyNavbar';
-import { EternalFooter } from '../../shared/ui/EternalFooter';
+import { EternalFooter } from '@/widgets/footer';
 import { SEOHead } from '../../shared/seo';
 import { useLanguageStore } from '../../shared/lib/language/languageStore';
 import { BLOG_TRANSLATIONS, BlogPost } from './data/blogData';

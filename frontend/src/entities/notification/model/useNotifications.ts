@@ -1,5 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { NOTIFICATIONS_KEY, UNREAD_NOTIFICATIONS_COUNT_KEY } from '@/shared/api/queryKeys';
+import { queryKeys } from '@/shared/api/queryKeys';
+import { queryStaleTimes } from '@/shared/api/queryClient';
 import { useAuthStore } from '@/shared/model/useAuthStore';
 import {
   deleteNotification,
@@ -12,7 +13,6 @@ import {
 import { NotificationFilter, PaginatedNotificationsResponse } from './types';
 import { useNotificationStore } from './useNotificationStore';
 import { useSpotifyPlayerStore } from '@/shared/model/useSpotifyPlayerStore';
-import { followApi } from '@/features/follow/api/followApi';
 import { useEffect } from 'react';
 
 export function useNotifications(filter: NotificationFilter = 'all') {
@@ -27,7 +27,7 @@ export function useNotifications(filter: NotificationFilter = 'all') {
     !isGameModeOpen;
 
   const query = useInfiniteQuery({
-    queryKey: [NOTIFICATIONS_KEY, filter],
+    queryKey: queryKeys.notifications.list(filter),
     queryFn: ({ pageParam }) =>
       fetchNotifications({
         type: filter,
@@ -61,7 +61,7 @@ export function useUnreadCountsQuery() {
     !isGameModeOpen;
 
   return useQuery({
-    queryKey: [UNREAD_NOTIFICATIONS_COUNT_KEY],
+    queryKey: queryKeys.notifications.unreadCount,
     queryFn: async () => {
       const counts = await fetchUnreadNotificationCounts();
       setUnreadCounts(counts);
@@ -69,7 +69,7 @@ export function useUnreadCountsQuery() {
     },
     enabled: isEnabled,
     retry: 1,
-    staleTime: 30000,
+    staleTime: queryStaleTimes.notifications,
     refetchOnWindowFocus: !isGameModeOpen,
   });
 }
@@ -80,12 +80,12 @@ export function useMarkNotificationAsRead() {
   return useMutation({
     mutationFn: (id: string) => markNotificationAsRead(id),
     onMutate: async (id: string) => {
-      await queryClient.cancelQueries({ queryKey: [NOTIFICATIONS_KEY] });
+      await queryClient.cancelQueries({ queryKey: queryKeys.notifications.root });
 
       queryClient.setQueriesData<{
         pages: PaginatedNotificationsResponse[];
         pageParams: (string | undefined)[];
-      }>({ queryKey: [NOTIFICATIONS_KEY] }, (old) => {
+      }>({ queryKey: queryKeys.notifications.root }, (old) => {
         if (!old) return old;
         return {
           ...old,
@@ -97,7 +97,7 @@ export function useMarkNotificationAsRead() {
       });
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: [UNREAD_NOTIFICATIONS_COUNT_KEY] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount });
     },
   });
 }
@@ -112,12 +112,12 @@ export function useMarkAllNotificationsAsRead() {
     mutationFn: (filter?: NotificationFilter) => markAllNotificationsAsRead(filter),
     onMutate: async (filter = 'all') => {
       resetUnreadCountForFilter(filter);
-      await queryClient.cancelQueries({ queryKey: [NOTIFICATIONS_KEY] });
+      await queryClient.cancelQueries({ queryKey: queryKeys.notifications.root });
 
       queryClient.setQueriesData<{
         pages: PaginatedNotificationsResponse[];
         pageParams: (string | undefined)[];
-      }>({ queryKey: [NOTIFICATIONS_KEY] }, (old) => {
+      }>({ queryKey: queryKeys.notifications.root }, (old) => {
         if (!old) return old;
         return {
           ...old,
@@ -147,53 +147,9 @@ export function useMarkAllNotificationsAsRead() {
     },
     onSuccess: (data) => {
       useNotificationStore.getState().setUnreadCounts(data.unreadCounts);
-      queryClient.invalidateQueries({ queryKey: [UNREAD_NOTIFICATIONS_COUNT_KEY] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount });
     },
   });
-}
-
-export function useFollowBack() {
-  const optimisticFollows = useNotificationStore((state) => state.optimisticFollows);
-  const setOptimisticFollow = useNotificationStore((state) => state.setOptimisticFollow);
-
-  const followMutation = useMutation({
-    mutationFn: async ({
-      userId,
-      isCurrentlyFollowing,
-    }: {
-      userId: string;
-      isCurrentlyFollowing: boolean;
-    }) => {
-      if (isCurrentlyFollowing) {
-        await followApi.unfollow(userId);
-      } else {
-        await followApi.follow(userId);
-      }
-    },
-    onMutate: ({ userId, isCurrentlyFollowing }) => {
-      setOptimisticFollow(userId, !isCurrentlyFollowing, true);
-    },
-    onSuccess: (_, { userId, isCurrentlyFollowing }) => {
-      setOptimisticFollow(userId, !isCurrentlyFollowing, false);
-    },
-    onError: (_, { userId, isCurrentlyFollowing }) => {
-      setOptimisticFollow(userId, isCurrentlyFollowing, false);
-    },
-  });
-
-  const toggleFollow = (userId: string, isCurrentlyFollowing: boolean) => {
-    const current = optimisticFollows[userId];
-    if (current?.isLoading) return;
-    const targetState = current !== undefined ? current.isFollowing : isCurrentlyFollowing;
-    followMutation.mutate({ userId, isCurrentlyFollowing: targetState });
-  };
-
-  return {
-    toggleFollow,
-    isFollowing: (userId: string, defaultFollowing = false) =>
-      optimisticFollows[userId]?.isFollowing ?? defaultFollowing,
-    isLoading: (userId: string) => Boolean(optimisticFollows[userId]?.isLoading),
-  };
 }
 
 export function useDeleteNotification() {
@@ -202,12 +158,12 @@ export function useDeleteNotification() {
   return useMutation({
     mutationFn: (id: string) => deleteNotification(id),
     onMutate: async (id: string) => {
-      await queryClient.cancelQueries({ queryKey: [NOTIFICATIONS_KEY] });
+      await queryClient.cancelQueries({ queryKey: queryKeys.notifications.root });
 
       queryClient.setQueriesData<{
         pages: PaginatedNotificationsResponse[];
         pageParams: (string | undefined)[];
-      }>({ queryKey: [NOTIFICATIONS_KEY] }, (old) => {
+      }>({ queryKey: queryKeys.notifications.root }, (old) => {
         if (!old) return old;
         return {
           ...old,
@@ -222,7 +178,7 @@ export function useDeleteNotification() {
       if (data?.unreadCounts) {
         useNotificationStore.getState().setUnreadCounts(data.unreadCounts);
       }
-      queryClient.invalidateQueries({ queryKey: [UNREAD_NOTIFICATIONS_COUNT_KEY] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount });
     },
   });
 }
@@ -233,12 +189,12 @@ export function useMuteNotificationAuthor() {
   return useMutation({
     mutationFn: (actorId: string) => muteNotificationAuthor(actorId),
     onMutate: async (actorId: string) => {
-      await queryClient.cancelQueries({ queryKey: [NOTIFICATIONS_KEY] });
+      await queryClient.cancelQueries({ queryKey: queryKeys.notifications.root });
 
       queryClient.setQueriesData<{
         pages: PaginatedNotificationsResponse[];
         pageParams: (string | undefined)[];
-      }>({ queryKey: [NOTIFICATIONS_KEY] }, (old) => {
+      }>({ queryKey: queryKeys.notifications.root }, (old) => {
         if (!old) return old;
         return {
           ...old,
@@ -250,7 +206,7 @@ export function useMuteNotificationAuthor() {
       });
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: [NOTIFICATIONS_KEY] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.root });
     },
   });
 }

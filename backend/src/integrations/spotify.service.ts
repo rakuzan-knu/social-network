@@ -197,7 +197,7 @@ export class SpotifyService {
         return null;
       }
 
-      const data = await res.json();
+      const data = (await res.json()) as any;
       const newAccessToken = data.access_token;
       const expiresIn = data.expires_in || 3600;
       const newRefreshToken = data.refresh_token || refreshToken;
@@ -273,7 +273,7 @@ export class SpotifyService {
         throw new Error(`Failed to fetch app token (${res.status}): ${await res.text()}`);
       }
 
-      const data = await res.json();
+      const data = (await res.json()) as any;
       this.cachedAppToken = data.access_token as string;
       this.cachedAppTokenExpiresAt = Date.now() + (data.expires_in || 3600) * 1000 - 300000; // 55 mins
       return this.cachedAppToken;
@@ -315,7 +315,7 @@ export class SpotifyService {
           this.logger.warn(`Spotify search tracks chunk error (offset=${off}): ${res.status}`);
           return [];
         }
-        const data = await res.json();
+        const data = (await res.json()) as any;
         return Array.isArray(data.tracks?.items) ? data.tracks.items : [];
       });
 
@@ -375,7 +375,7 @@ export class SpotifyService {
           this.logger.warn(`Spotify search playlists chunk error (offset=${off}): ${res.status}`);
           return [];
         }
-        const data = await res.json();
+        const data = (await res.json()) as any;
         return Array.isArray(data.playlists?.items) ? data.playlists.items : [];
       });
 
@@ -501,7 +501,7 @@ export class SpotifyService {
       });
 
       if (metaRes.ok) {
-        const data = await metaRes.json();
+        const data = (await metaRes.json()) as any;
         return {
           id: `sp-pl-${cleanId}`,
           rawId: cleanId,
@@ -563,7 +563,7 @@ export class SpotifyService {
         headers,
       });
       if (res1.ok) {
-        const data1 = await res1.json();
+        const data1 = (await res1.json()) as any;
         totalLiked = data1.total || 0;
         const page1Items = (data1.items || [])
           .map((i: any) => this.mapSpotifyTrack(i.track))
@@ -575,7 +575,7 @@ export class SpotifyService {
             headers,
           });
           if (res2.ok) {
-            const data2 = await res2.json();
+            const data2 = (await res2.json()) as any;
             const page2Items = (data2.items || [])
               .map((i: any) => this.mapSpotifyTrack(i.track))
               .filter((t: any): t is SpotifyTrackDto => Boolean(t));
@@ -595,7 +595,7 @@ export class SpotifyService {
         headers,
       });
       if (res1.ok) {
-        const data1 = await res1.json();
+        const data1 = (await res1.json()) as any;
         totalPlaylists = data1.total || 0;
         const page1Items = (data1.items || [])
           .map((p: any) => this.mapSpotifyPlaylist(p))
@@ -607,7 +607,7 @@ export class SpotifyService {
             headers,
           });
           if (res2.ok) {
-            const data2 = await res2.json();
+            const data2 = (await res2.json()) as any;
             const page2Items = (data2.items || [])
               .map((p: any) => this.mapSpotifyPlaylist(p))
               .filter((p: any): p is SpotifyPlaylistDto => Boolean(p));
@@ -627,7 +627,7 @@ export class SpotifyService {
         { headers },
       );
       if (topRes.ok) {
-        const topData = await topRes.json();
+        const topData = (await topRes.json()) as any;
         topTracks = (topData.items || [])
           .map((t: any) => this.mapSpotifyTrack(t))
           .filter((t: any): t is SpotifyTrackDto => Boolean(t));
@@ -731,7 +731,7 @@ export class SpotifyService {
         return null;
       }
 
-      const data = await res.json();
+      const data = (await res.json()) as any;
 
       // If data or item is missing:
       if (!data || !data.item) {
@@ -827,7 +827,6 @@ export class SpotifyService {
         startedAt,
         updatedAt: now,
         isPaused: false,
-        pausedAt: undefined,
       };
     } catch (err) {
       this.logger.warn(
@@ -939,7 +938,7 @@ export class SpotifyService {
           headers: { Authorization: `Bearer ${accessToken}` },
         });
         if (likedRes.ok) {
-          const likedData = await likedRes.json();
+          const likedData = (await likedRes.json()) as any;
           if (Array.isArray(likedData.items)) {
             likedSongs = likedData.items
               .filter((i: any) => i && i.track && i.track.id)
@@ -968,7 +967,7 @@ export class SpotifyService {
           headers: { Authorization: `Bearer ${accessToken}` },
         });
         if (plRes.ok) {
-          const plData = await plRes.json();
+          const plData = (await plRes.json()) as any;
           if (Array.isArray(plData.items)) {
             playlists = plData.items
               .filter((p: any) => p && p.id && p.name)
@@ -1548,7 +1547,7 @@ export class SpotifyService {
         });
 
         if (res.ok) {
-          const data = await res.json();
+          const data = (await res.json()) as any;
           if (data.syncedLyrics) {
             const parsed = this.parseLrc(data.syncedLyrics);
             if (parsed.length > 0) return { synced: true, lines: parsed };
@@ -1671,7 +1670,7 @@ export class SpotifyService {
           { headers: { 'User-Agent': 'AntigravitySocialMedia/1.0' } },
         );
         if (res.ok) {
-          const data = await res.json();
+          const data = (await res.json()) as any;
           if (data.lyrics && typeof data.lyrics === 'string') {
             const plainLines = data.lyrics
               .split('\n')
@@ -2142,7 +2141,7 @@ export class SpotifyService {
         });
 
         if (res.ok) {
-          const data = await res.json();
+          const data = (await res.json()) as any;
           const items = data.tracks?.items;
           if (Array.isArray(items) && items.length > 0) {
             spotifyTracks = items
@@ -2168,7 +2167,7 @@ export class SpotifyService {
           const fbUrl = `https://api.spotify.com/v1/search?q=${encodeURIComponent(cleanArtist)}&type=track&limit=10`;
           const fbRes = await fetch(fbUrl, { headers: { Authorization: `Bearer ${appToken}` } });
           if (fbRes.ok) {
-            const fbData = await fbRes.json();
+            const fbData = (await fbRes.json()) as any;
             const fbItems = fbData.tracks?.items;
             if (Array.isArray(fbItems) && fbItems.length > 0) {
               spotifyTracks = fbItems
@@ -2270,7 +2269,7 @@ export class SpotifyService {
         const fbUrl = `https://api.spotify.com/v1/search?q=${encodeURIComponent(detectedStyle)}&type=track&limit=10`;
         const fbRes = await fetch(fbUrl, { headers: { Authorization: `Bearer ${appToken}` } });
         if (fbRes.ok) {
-          const fbData = await fbRes.json();
+          const fbData = (await fbRes.json()) as any;
           const fbItems = fbData.tracks?.items;
           if (Array.isArray(fbItems)) {
             for (const item of fbItems) {

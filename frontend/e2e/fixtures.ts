@@ -47,8 +47,8 @@ async function fulfillApi(route: Route, response: MockResponse = {}): Promise<vo
 }
 
 /**
- * Mocks `{API_BASE}${pathPattern}` (a Playwright glob; append `?**` to match
- * query strings). Routes registered later win over earlier ones.
+ * Mocks `{API_BASE}${pathPattern}`. Routes registered later win over earlier ones.
+ * Automatically handles query parameters and path variations.
  */
 async function mockApi(
   page: Page,
@@ -56,19 +56,30 @@ async function mockApi(
   response: MockResponse = {},
 ): Promise<void> {
   const handler = (route: Route) => fulfillApi(route, response);
-  await page.route(`${API_BASE}${pathPattern}`, handler);
-  if (!API_BASE.includes('localhost')) {
-    await page.route(`http://localhost:3000${pathPattern}`, handler);
-  }
-  if (!API_BASE.includes('127.0.0.1')) {
-    await page.route(`http://127.0.0.1:3000${pathPattern}`, handler);
+  const basePattern = pathPattern.replace(/\?\*\*$/, '').replace(/\?.*$/, '');
+  const patterns = Array.from(new Set([pathPattern, basePattern, `${basePattern}?**`]));
+
+  for (const p of patterns) {
+    await page.route(`${API_BASE}${p}`, handler);
+    if (!API_BASE.includes('localhost')) {
+      await page.route(`http://localhost:3000${p}`, handler);
+    }
+    if (!API_BASE.includes('127.0.0.1')) {
+      await page.route(`http://127.0.0.1:3000${p}`, handler);
+    }
   }
 }
 
 /**
- * Payload stored by zustand `persist` in localStorage under key `auth-session`.
- * Mirrors `useAuthStore` in src/shared/model/useAuthStore.ts.
+ * Default authenticated user and session tokens.
  */
+const DEFAULT_AUTH_USER = {
+  id: 'usr-me',
+  username: 'mockme',
+  displayName: 'Mock Me',
+  avatar: null,
+};
+
 const AUTH_SESSION_STORAGE = JSON.stringify({
   state: { userId: 'usr-me', isAuthenticated: true },
   version: 0,
@@ -85,22 +96,33 @@ export const test = base.extend<{
     await page.addInitScript(
       ([storageKey, storageValue]) => {
         window.localStorage.setItem(storageKey as string, storageValue as string);
+        window.localStorage.setItem('accessToken', 'mock-access-token');
+        window.localStorage.setItem('refreshToken', 'mock-refresh-token');
       },
       ['auth-session', AUTH_SESSION_STORAGE],
     );
-    // Catch-all: endpoints a spec does not explicitly mock fail like a downed
-    // backend (network error), which the app handles gracefully. Serving a
-    // generic `{}` 200 instead crashes consumers that expect typed payloads.
+
+    // Catch-all: block unmocked backend API endpoints so they fail gracefully like a downed backend,
+    // while ensuring Vite frontend dev-server chunks and assets are never blocked.
     const abortHandler = (route: Route) => {
       const url = route.request().url();
-      if (url.includes(':5173') || url.includes('/src/') || url.includes('/@')) {
+      if (url.includes(':5173') || (!url.includes(':3000') && !url.includes(API_BASE))) {
         return route.continue();
       }
       return route.abort('blockedbyclient');
     };
+
     await page.route(`${API_BASE}/**`, abortHandler);
     await page.route(`http://localhost:3000/**`, abortHandler);
     await page.route(`http://127.0.0.1:3000/**`, abortHandler);
+
+    // Base background API mocks so sidebar/auth polling doesn't trigger 401 logouts
+    await mockApi(page, '/auth/refresh', {
+      json: { accessToken: 'mock-access-token', refreshToken: 'mock-refresh-token' },
+    });
+    await mockApi(page, '/users/me', { json: DEFAULT_AUTH_USER });
+    await mockApi(page, '/notifications/unread-count', { json: { count: 0 } });
+
     await fixtureUse(page);
   },
 });

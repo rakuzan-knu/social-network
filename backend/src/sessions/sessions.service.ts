@@ -1,7 +1,7 @@
 import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { UAParser } from 'ua-parser-js';
 import geoip from 'geoip-lite';
-import { PrismaService } from '@common/prisma';
+import { RedisService } from '../redis/redis.service';
 import {
   SESSIONS_REPOSITORY,
   type CreateSessionData,
@@ -19,48 +19,42 @@ export class SessionsService {
   constructor(
     @Inject(SESSIONS_REPOSITORY)
     private readonly sessionsRepo: ISessionsRepository,
-    private readonly prisma: PrismaService,
+    private readonly redisService: RedisService,
   ) {}
 
   async create(userId: string, jti: string, meta: RequestMeta): Promise<void> {
-    const deviceName = this.parseDeviceName(meta.userAgent);
-    const normalizedIp = this.normalizeIp(meta.ip);
-    const geo = this.lookupGeo(meta.ip);
+    return this.redisService.withLock(`lock:session:create:${userId}`, async () => {
+      const deviceName = this.parseDeviceName(meta.userAgent);
+      const normalizedIp = this.normalizeIp(meta.ip);
+      const geo = this.lookupGeo(meta.ip);
 
-    // If user already has an active session from the same browser/device, update it
-    if (meta.userAgent) {
-      const existing = await this.prisma.session.findFirst({
-        where: {
-          userId,
-          userAgent: meta.userAgent,
-        },
-      });
+      // If user already has an active session from the same browser/device, update it
+      if (meta.userAgent) {
+        const existing = await this.sessionsRepo.findByUserAndAgent(userId, meta.userAgent);
 
-      if (existing) {
-        await this.prisma.session.update({
-          where: { id: existing.id },
-          data: {
+        if (existing) {
+          await this.sessionsRepo.updateSession(existing.id, {
             jti,
             deviceName: deviceName ?? existing.deviceName,
             ip: normalizedIp ?? existing.ip,
             city: geo.city ?? existing.city,
             country: geo.country ?? existing.country,
             lastActiveAt: new Date(),
-          },
-        });
-        return;
+          });
+          return;
+        }
       }
-    }
 
-    const data: CreateSessionData = {
-      userId,
-      jti,
-      deviceName,
-      userAgent: meta.userAgent ?? null,
-      ...geo,
-      ip: normalizedIp,
-    };
-    await this.sessionsRepo.create(data);
+      const data: CreateSessionData = {
+        userId,
+        jti,
+        deviceName,
+        userAgent: meta.userAgent ?? null,
+        ...geo,
+        ip: normalizedIp,
+      };
+      await this.sessionsRepo.create(data);
+    });
   }
 
   async touch(jti: string, meta?: RequestMeta): Promise<void> {
@@ -72,10 +66,7 @@ export class SessionsService {
       if (geo.city) data.city = geo.city;
       if (geo.country) data.country = geo.country;
     }
-    await this.prisma.session.updateMany({
-      where: { jti },
-      data,
-    });
+    await this.sessionsRepo.touchWithMeta(jti, data);
   }
 
   deleteByJti(jti: string): Promise<void> {

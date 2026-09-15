@@ -3,6 +3,11 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import TextWithSpoilers from '../TextWithSpoilers';
 
 describe('TextWithSpoilers', () => {
+  it('returns null when text is empty', () => {
+    const { container } = render(<TextWithSpoilers text="" />);
+    expect(container.firstChild).toBeNull();
+  });
+
   it('renders normal text without spoilers', () => {
     render(<TextWithSpoilers text="Hello world" />);
     expect(screen.getByText('Hello world')).toBeInTheDocument();

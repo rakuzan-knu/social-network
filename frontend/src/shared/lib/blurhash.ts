@@ -75,6 +75,10 @@ export function decodeBlurHash(
     const numY = Math.trunc(sizeFlag / 9) + 1;
     const numX = (sizeFlag % 9) + 1;
 
+    if (blurhash.length < 4 + 2 * numX * numY) {
+      return null;
+    }
+
     const quantisedMaximumValue = decode83(blurhash[1]);
     const maximumValue = ((quantisedMaximumValue + 1) / 166) * punch;
 

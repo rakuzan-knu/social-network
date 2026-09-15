@@ -5,6 +5,7 @@ import { LikesService } from './likes.service';
 import { AuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/interfaces/jwt-payload.interface';
+import { LowPriority } from '../common/resilience/request-priority.decorator';
 
 @ApiTags('Likes')
 @Controller('posts')
@@ -12,8 +13,9 @@ export class LikesController {
   constructor(private readonly likesService: LikesService) {}
 
   @Post(':id/like')
+  @LowPriority()
   @UseGuards(AuthGuard)
-  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @Throttle({ default: { limit: 30, ttl: 60_000 }, sensitive: { limit: 30, ttl: 60_000 } })
   @ApiOperation({ summary: 'Like a post' })
   @ApiResponse({
     status: 201,
@@ -28,7 +30,9 @@ export class LikesController {
   }
 
   @Delete(':id/like')
+  @LowPriority()
   @UseGuards(AuthGuard)
+  @Throttle({ default: { limit: 30, ttl: 60_000 }, sensitive: { limit: 30, ttl: 60_000 } })
   @ApiOperation({ summary: 'Unlike a post' })
   @ApiResponse({
     status: 200,
