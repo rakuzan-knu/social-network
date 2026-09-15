@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Pencil, Highlighter, Eraser, Undo2, Redo2, Trash2, Check, X, Sliders } from 'lucide-react';
 import type { DrawingStroke } from '../model/types';
 
@@ -37,46 +37,41 @@ export const StoryDrawingCanvas: React.FC<StoryDrawingCanvasProps> = ({
   const isDrawingRef = useRef<boolean>(false);
   const currentStrokeRef = useRef<DrawingStroke | null>(null);
 
-  // Draw single stroke segment directly to 2D context for instant 60fps response
-  const drawStrokeSegment = useCallback(
-    (
-      ctx: CanvasRenderingContext2D,
-      width: number,
-      height: number,
-      s: DrawingStroke,
-      fromPt: { x: number; y: number },
-      toPt: { x: number; y: number },
-    ) => {
-      ctx.save();
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.lineWidth = s.size;
+  const drawStrokeSegment = (
+    ctx: CanvasRenderingContext2D,
+    width: number,
+    height: number,
+    s: DrawingStroke,
+    fromPt: { x: number; y: number },
+    toPt: { x: number; y: number },
+  ) => {
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = s.size;
 
-      if (s.tool === 'marker') {
-        ctx.strokeStyle = s.color;
-        ctx.globalAlpha = 0.5;
-        ctx.globalCompositeOperation = 'source-over';
-      } else if (s.tool === 'eraser') {
-        ctx.globalCompositeOperation = 'destination-out';
-        ctx.strokeStyle = '#000000';
-        ctx.globalAlpha = 1;
-      } else {
-        ctx.strokeStyle = s.color;
-        ctx.globalAlpha = 1;
-        ctx.globalCompositeOperation = 'source-over';
-      }
+    if (s.tool === 'marker') {
+      ctx.strokeStyle = s.color;
+      ctx.globalAlpha = 0.5;
+      ctx.globalCompositeOperation = 'source-over';
+    } else if (s.tool === 'eraser') {
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.strokeStyle = '#000000';
+      ctx.globalAlpha = 1;
+    } else {
+      ctx.strokeStyle = s.color;
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'source-over';
+    }
 
-      ctx.beginPath();
-      ctx.moveTo((fromPt.x / 100) * width, (fromPt.y / 100) * height);
-      ctx.lineTo((toPt.x / 100) * width, (toPt.y / 100) * height);
-      ctx.stroke();
-      ctx.restore();
-    },
-    [],
-  );
+    ctx.beginPath();
+    ctx.moveTo((fromPt.x / 100) * width, (fromPt.y / 100) * height);
+    ctx.lineTo((toPt.x / 100) * width, (toPt.y / 100) * height);
+    ctx.stroke();
+    ctx.restore();
+  };
 
-  // Full redraw canvas from completed strokes
-  const redraw = useCallback(() => {
+  const redraw = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -135,7 +130,7 @@ export const StoryDrawingCanvas: React.FC<StoryDrawingCanvasProps> = ({
       ctx.stroke();
       ctx.restore();
     }
-  }, [strokes]);
+  };
 
   useEffect(() => {
     redraw();
@@ -274,19 +269,19 @@ export const StoryDrawingCanvas: React.FC<StoryDrawingCanvasProps> = ({
   }, []);
 
   // Undo & Redo
-  const handleUndo = useCallback(() => {
+  const handleUndo = () => {
     if (strokes.length === 0) return;
     const last = strokes[strokes.length - 1];
     setStrokes((prev) => prev.slice(0, -1));
     setRedoStack((prev) => [...prev, last]);
-  }, [strokes]);
+  };
 
-  const handleRedo = useCallback(() => {
+  const handleRedo = () => {
     if (redoStack.length === 0) return;
     const next = redoStack[redoStack.length - 1];
     setRedoStack((prev) => prev.slice(0, -1));
     setStrokes((prev) => [...prev, next]);
-  }, [redoStack]);
+  };
 
   const handleClear = () => {
     if (strokes.length === 0) return;

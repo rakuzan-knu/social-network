@@ -391,7 +391,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
     };
   }, [debouncedFamilySearch]);
 
-  const { openEditProfile } = useUIStore();
+  const openEditProfile = useUIStore((s) => s.openEditProfile);
   const { data: currentUser } = useCurrentUser();
   const queryClient = useQueryClient();
 

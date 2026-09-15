@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { registerSessionResetHandler } from '@/shared/model/resetSession';
 import { MessageView } from '../../../entities/chat/model/types';
 
 export interface ChatDraft {
@@ -77,3 +78,12 @@ export const useChatDraftsStore = create<ChatDraftsState>()(
     },
   ),
 );
+
+/**
+ * RESET_STORES: drafts are keyed by conversationId without a user namespace,
+ * so they MUST be cleared on logout/switch — otherwise account B would see
+ * account A's unsent text in a shared conversation (privacy leak).
+ */
+registerSessionResetHandler(() => {
+  useChatDraftsStore.setState({ drafts: {} });
+});

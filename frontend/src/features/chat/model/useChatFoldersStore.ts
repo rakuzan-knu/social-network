@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { registerSessionResetHandler } from '@/shared/model/resetSession';
 import { chatApi } from '../api/chatApi';
 
 export type SystemChatFolderId = 'all' | 'unread' | 'groups';
@@ -292,3 +293,26 @@ export const useChatFoldersStore = create<ChatFoldersState>((set) => ({
       return { folders };
     }),
 }));
+
+/**
+ * RESET_STORES: folder cache is manual-localStorage WITHOUT a user
+ * namespace (server rows ARE per-user). Wipe both RAM + keys on
+ * logout/switch — `syncWithServer` repopulates for the next account.
+ * NOTE (server/client boundary): TanStack Query `useChatFolders` owns the
+ * server truth; this store is the offline-capable UI mirror. Prefer the
+ * TQ hooks for new code.
+ */
+registerSessionResetHandler(() => {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(SYSTEM_STORAGE_KEY);
+    localStorage.removeItem(ORDER_STORAGE_KEY);
+  } catch {
+    // ignore storage failures
+  }
+  useChatFoldersStore.setState({
+    systemFolders: [...systemChatFolders],
+    folders: [],
+    folderOrders: {},
+  });
+});

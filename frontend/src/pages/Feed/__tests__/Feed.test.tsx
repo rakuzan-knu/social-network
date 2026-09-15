@@ -16,27 +16,6 @@ vi.mock('emoji-picker-react', () => ({
   SuggestionMode: {},
 }));
 
-vi.mock('react-virtuoso', () => ({
-  Virtuoso: ({ data, itemContent, components, endReached, rangeChanged }: any) => {
-    // Invoke callbacks for test coverage
-    if (rangeChanged) {
-      rangeChanged({ startIndex: 0, endIndex: 1 });
-    }
-    if (endReached) {
-      endReached();
-    }
-    const Footer = components?.Footer;
-    return (
-      <div data-testid="mock-virtuoso">
-        {data.map((item: any, index: number) => (
-          <div key={item.id || index}>{itemContent(index, item)}</div>
-        ))}
-        {Footer && <Footer />}
-      </div>
-    );
-  },
-}));
-
 describe('FeedPage', () => {
   beforeEach(() => {
     useAuthStore.getState().setAuth('user-1');

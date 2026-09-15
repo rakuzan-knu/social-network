@@ -20,7 +20,7 @@ function getActivityTime(conversation: ConversationView) {
 }
 
 export default function ArchivedChatsModal({ onClose }: ArchivedChatsModalProps) {
-  const { userId } = useAuthStore();
+  const userId = useAuthStore((s) => s.userId);
   const { data: conversations } = useConversations();
   const [unlocked, setUnlocked] = useState(false);
   const [isExpanded, setExpanded] = useState(false);

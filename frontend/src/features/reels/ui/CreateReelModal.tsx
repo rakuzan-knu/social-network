@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { X, UploadCloud, Film, Loader2, Music, Sparkles, Zap } from 'lucide-react';
 import { useCreateReel } from '../api/reelsApi';
 import { compressVideo } from '../lib/videoCompressor';
@@ -63,8 +63,15 @@ export const CreateReelModal: React.FC<CreateReelModalProps> = ({ isOpen, onClos
     setError(null);
     setFile(selected);
     setCompressionStats(null);
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(URL.createObjectURL(selected));
   };
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

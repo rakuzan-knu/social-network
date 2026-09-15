@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback, lazy, Suspense } from 'react';
+import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X,
@@ -189,6 +189,24 @@ export function StoryEditorModal() {
     centerX: number;
     centerY: number;
   } | null>(null);
+
+  const audioUrlRef = useRef<string | null>(null);
+
+  // Clean up blob URLs when editor closes or unmounts
+  useEffect(() => {
+    return () => {
+      if (mediaUrl && mediaUrl.startsWith('blob:')) URL.revokeObjectURL(mediaUrl);
+      if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+    };
+  }, [mediaUrl]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      if (mediaUrl && mediaUrl.startsWith('blob:')) URL.revokeObjectURL(mediaUrl);
+      if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+      audioUrlRef.current = null;
+    }
+  }, [isOpen]);
 
   // Preload custom fonts on open
   useEffect(() => {
@@ -449,6 +467,7 @@ export function StoryEditorModal() {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         const audioFile = new File([audioBlob], `voice_${Date.now()}.webm`, { type: 'audio/webm' });
         const url = URL.createObjectURL(audioBlob);
+        audioUrlRef.current = url;
         setMedia(audioFile, url, 'VOICE');
 
         const audioOverlay: AudioOverlay = {

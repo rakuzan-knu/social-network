@@ -1,57 +1,80 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useChatSocket } from './useChatSocket';
 import { useChatSocketEvent } from './useChatSocketEvent';
-import { CONVERSATION_MESSAGES_KEY, CONVERSATIONS_KEY } from '@/shared/api/queryKeys';
+import { queryKeys } from '@/shared/api/queryKeys';
 import {
-  ConversationView,
-  InfiniteMessagesData,
-  MessageView,
-  PaginatedMessages,
-} from '../../../entities/chat/model/types';
+  applyConversationPatch,
+  applyIncomingMessage,
+  applyMessageDelivered,
+  applyMessageRead,
+  applyMessagesCleared,
+  applyConversationDeleted,
+  applyReactionMessage,
+  mapCachedMessages,
+  updateCachedPages,
+} from './chatCacheSync';
+import type { ConversationView, MessageView } from '../../../entities/chat/model/types';
 import { useAuthStore } from '@/shared/model/useAuthStore';
 
+/**
+ * Per-conversation realtime binding (Socket.io → TanStack Query cache).
+ *
+ * - Joins the conversation room on mount / id change.
+ * - Applies every WS event via `chatCacheSync` (`setQueryData`, no REST).
+ * - Delivery lifecycle: own echo → SENT, peer events → DELIVERED → READ
+ *   (see `messageStatus` forward-only machine).
+ * - REST gap-fill on reconnect is owned by `useChatGapFill`; this hook only
+ *   keeps the live tail consistent.
+ */
 export function useConversationRealtime(conversationId: string | null) {
   const socket = useChatSocket();
   const queryClient = useQueryClient();
-  const { userId } = useAuthStore();
+  const userId = useAuthStore((s) => s.userId);
   const [typingUserIds, setTypingUserIds] = useState<Set<string>>(new Set());
+  const typingTimerRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
 
-  const [typingResetKey, setTypingResetKey] = useState(conversationId);
-  if (conversationId !== typingResetKey) {
-    setTypingResetKey(conversationId);
+  // Reset typing indicators when switching conversations (effect, not render).
+  useEffect(() => {
     setTypingUserIds(new Set());
-  }
+    typingTimerRef.current.forEach((t) => clearTimeout(t));
+    typingTimerRef.current.clear();
+  }, [conversationId]);
+
+  // Clear typing timers on unmount (prevents setState-after-unmount + leaks).
+  useEffect(() => {
+    const timers = typingTimerRef.current;
+    return () => {
+      timers.forEach((t) => clearTimeout(t));
+      timers.clear();
+    };
+  }, []);
 
   useEffect(() => {
     if (!conversationId) return;
     socket.emit('joinConversation', { conversationId });
+    // Rooms are server-side: re-join after every reconnect, otherwise the
+    // thread silently stops receiving events until remount.
+    const rejoin = () => {
+      socket.emit('joinConversation', { conversationId });
+    };
+    socket.on('connect', rejoin);
+    return () => {
+      socket.off('connect', rejoin);
+    };
   }, [conversationId, socket]);
-
-  const updatePages = (updater: (pages: PaginatedMessages[]) => PaginatedMessages[]) => {
-    if (!conversationId) return;
-    queryClient.setQueryData<InfiniteMessagesData>(
-      [CONVERSATION_MESSAGES_KEY, conversationId],
-      (prev: InfiniteMessagesData | undefined) =>
-        prev ? { ...prev, pages: updater(prev.pages) } : prev,
-    );
-  };
-
-  const mapMessages = (pages: PaginatedMessages[], fn: (m: MessageView) => MessageView) =>
-    pages.map((p) => ({ ...p, data: p.data.map(fn) }));
 
   const findLoadedMessage = (messageId: string): MessageView | undefined => {
     if (!conversationId) return undefined;
-    const data = queryClient.getQueryData<InfiniteMessagesData>([
-      CONVERSATION_MESSAGES_KEY,
-      conversationId,
-    ]);
+    const data = queryClient.getQueryData<{ pages: { data: MessageView[] }[] }>(
+      queryKeys.conversations.messages(conversationId),
+    );
     return data?.pages.flatMap((p) => p.data).find((m) => m.id === messageId);
   };
 
   const syncConversationPinned = (updater: (pinned: MessageView[]) => MessageView[]) => {
     queryClient.setQueryData<ConversationView[]>(
-      [CONVERSATIONS_KEY],
+      queryKeys.conversations.root,
       (prev: ConversationView[] | undefined) =>
         prev?.map((c: ConversationView) =>
           c.id === conversationId ? { ...c, pinnedMessages: updater(c.pinnedMessages) } : c,
@@ -62,36 +85,14 @@ export function useConversationRealtime(conversationId: string | null) {
   useChatSocketEvent<{ conversationId: string; message: MessageView; clientMessageId?: string }>(
     'newMessage',
     (payload) => {
-      if (payload.conversationId !== conversationId) return;
-      updatePages((pages) => {
-        const clientMid = payload.clientMessageId;
-        const exists = pages.some((p) =>
-          p.data.some(
-            (m) =>
-              m.id === payload.message.id ||
-              (clientMid && (m.id === clientMid || m.tempId === clientMid)),
-          ),
-        );
-
-        if (exists) {
-          return pages.map((p) => ({
-            ...p,
-            data: p.data.map((m) =>
-              m.id === payload.message.id ||
-              (clientMid && (m.id === clientMid || m.tempId === clientMid))
-                ? { ...payload.message, status: 'SENT' as const }
-                : m,
-            ),
-          }));
-        }
-
-        if (pages.length === 0)
-          return [{ data: [payload.message], hasMore: false, nextCursor: null }];
-        const next = [...pages];
-        next[0] = { ...next[0], data: [payload.message, ...next[0].data] };
-        return next;
+      if (payload.conversationId !== conversationId || !conversationId) return;
+      const isOwn = Boolean(
+        payload.message.sender?.id && userId && payload.message.sender.id === userId,
+      );
+      applyIncomingMessage(queryClient, conversationId, payload.message, {
+        status: isOwn ? 'sent' : 'sent',
       });
-      if (payload.message.sender?.id && payload.message.sender.id !== userId) {
+      if (!isOwn) {
         socket.emit('messageDelivered', { conversationId, messageId: payload.message.id });
         socket.emit('markRead', { conversationId });
       }
@@ -101,64 +102,43 @@ export function useConversationRealtime(conversationId: string | null) {
   useChatSocketEvent<{ conversationId: string; messageId: string; deliveredToUserId: string }>(
     'messageDelivered',
     (payload) => {
-      if (payload.conversationId !== conversationId) return;
-      updatePages((pages) =>
-        mapMessages(pages, (m) =>
-          m.id === payload.messageId && m.status !== 'READ'
-            ? { ...m, status: 'DELIVERED' as const }
-            : m,
-        ),
-      );
+      if (payload.conversationId !== conversationId || !conversationId) return;
+      applyMessageDelivered(queryClient, conversationId, payload.messageId);
     },
   );
 
   useChatSocketEvent<{ conversationId: string; message: MessageView }>(
     'messageEdited',
     (payload) => {
-      if (payload.conversationId !== conversationId) return;
-      updatePages((pages) =>
-        mapMessages(pages, (m) => (m.id === payload.message.id ? payload.message : m)),
+      if (payload.conversationId !== conversationId || !conversationId) return;
+      updateCachedPages(queryClient, conversationId, (pages) =>
+        mapCachedMessages(pages, (m) => (m.id === payload.message.id ? payload.message : m)),
       );
     },
   );
 
   useChatSocketEvent<{ conversationId: string; messageId: string }>('messageDeleted', (payload) => {
-    if (payload.conversationId !== conversationId) return;
-    updatePages((pages) =>
-      mapMessages(pages, (m) =>
+    if (payload.conversationId !== conversationId || !conversationId) return;
+    updateCachedPages(queryClient, conversationId, (pages) =>
+      mapCachedMessages(pages, (m) =>
         m.id === payload.messageId ? { ...m, isDeleted: true, body: null } : m,
       ),
     );
   });
 
   useChatSocketEvent<{ conversationId: string }>('messagesCleared', (payload) => {
-    if (payload.conversationId !== conversationId) return;
-    queryClient.setQueryData<InfiniteMessagesData>([CONVERSATION_MESSAGES_KEY, conversationId], {
-      pages: [{ data: [], hasMore: false, nextCursor: null }],
-      pageParams: [undefined],
-    });
-    queryClient.invalidateQueries({ queryKey: [CONVERSATION_MESSAGES_KEY, conversationId] });
+    if (payload.conversationId !== conversationId || !conversationId) return;
+    applyMessagesCleared(queryClient, conversationId);
   });
 
   useChatSocketEvent<{ conversationId: string }>('conversationDeleted', (payload) => {
-    if (payload.conversationId !== conversationId) return;
-    queryClient.removeQueries({ queryKey: [CONVERSATION_MESSAGES_KEY, conversationId] });
+    if (payload.conversationId !== conversationId || !conversationId) return;
+    applyConversationDeleted(queryClient, conversationId);
   });
 
   const handleReaction = (payload: { conversationId: string; message: MessageView }) => {
-    if (payload.conversationId !== conversationId) return;
-    const syncedMessage: MessageView = {
-      ...payload.message,
-      reactions: (payload.message.reactions || []).map((r) => ({
-        ...r,
-        selfReacted: userId
-          ? r.users?.some((u) => u.id === userId) || r.selfReacted
-          : r.selfReacted,
-      })),
-    };
-    updatePages((pages) =>
-      mapMessages(pages, (m) => (m.id === syncedMessage.id ? syncedMessage : m)),
-    );
+    if (payload.conversationId !== conversationId || !conversationId) return;
+    applyReactionMessage(queryClient, conversationId, payload.message, userId);
   };
 
   useChatSocketEvent<{ conversationId: string; message: MessageView }>(
@@ -171,9 +151,9 @@ export function useConversationRealtime(conversationId: string | null) {
   );
 
   useChatSocketEvent<{ conversationId: string; messageId: string }>('messagePinned', (p) => {
-    if (p.conversationId !== conversationId) return;
-    updatePages((pages) =>
-      mapMessages(pages, (m) => (m.id === p.messageId ? { ...m, isPinned: true } : m)),
+    if (p.conversationId !== conversationId || !conversationId) return;
+    updateCachedPages(queryClient, conversationId, (pages) =>
+      mapCachedMessages(pages, (m) => (m.id === p.messageId ? { ...m, isPinned: true } : m)),
     );
 
     const message = findLoadedMessage(p.messageId);
@@ -186,9 +166,9 @@ export function useConversationRealtime(conversationId: string | null) {
   });
 
   useChatSocketEvent<{ conversationId: string; messageId: string }>('messageUnpinned', (p) => {
-    if (p.conversationId !== conversationId) return;
-    updatePages((pages) =>
-      mapMessages(pages, (m) => (m.id === p.messageId ? { ...m, isPinned: false } : m)),
+    if (p.conversationId !== conversationId || !conversationId) return;
+    updateCachedPages(queryClient, conversationId, (pages) =>
+      mapCachedMessages(pages, (m) => (m.id === p.messageId ? { ...m, isPinned: false } : m)),
     );
     syncConversationPinned((pinned) => pinned.filter((m) => m.id !== p.messageId));
   });
@@ -199,35 +179,23 @@ export function useConversationRealtime(conversationId: string | null) {
     messageId?: string | null;
     readAt: string;
   }>('messageRead', (payload) => {
-    if (payload.conversationId !== conversationId) return;
-    const readTimestamp = payload.readAt ? new Date(payload.readAt).getTime() : Date.now();
-
-    updatePages((pages) =>
-      mapMessages(pages, (m) => {
-        const msgTime = new Date(m.createdAt).getTime();
-        const isUpToWatermark = payload.messageId
-          ? m.id === payload.messageId || msgTime <= readTimestamp
-          : true;
-
-        if (isUpToWatermark && !m.readBy.includes(payload.userId)) {
-          return { ...m, readBy: [...m.readBy, payload.userId] };
-        }
-        return m;
-      }),
-    );
+    if (payload.conversationId !== conversationId || !conversationId) return;
+    applyMessageRead(queryClient, conversationId, {
+      userId: payload.userId,
+      messageId: payload.messageId,
+      readAt: payload.readAt,
+    });
   });
-
-  const typingTimerRef = useState(() => new Map<string, NodeJS.Timeout>())[0];
 
   useChatSocketEvent<{ conversationId: string; userId: string; isTyping: boolean }>(
     'typing',
     (payload) => {
       if (payload.conversationId !== conversationId || payload.userId === userId) return;
 
-      const existing = typingTimerRef.get(payload.userId);
+      const existing = typingTimerRef.current.get(payload.userId);
       if (existing) {
         clearTimeout(existing);
-        typingTimerRef.delete(payload.userId);
+        typingTimerRef.current.delete(payload.userId);
       }
 
       setTypingUserIds((prev) => {
@@ -247,9 +215,9 @@ export function useConversationRealtime(conversationId: string | null) {
             next.delete(payload.userId);
             return next;
           });
-          typingTimerRef.delete(payload.userId);
+          typingTimerRef.current.delete(payload.userId);
         }, 3500);
-        typingTimerRef.set(payload.userId, timer);
+        typingTimerRef.current.set(payload.userId, timer);
       }
     },
   );
@@ -260,38 +228,22 @@ export function useConversationRealtime(conversationId: string | null) {
     sharedThemeUpdatedAt: string;
   }>('conversationSharedThemeUpdated', (payload) => {
     if (payload.conversationId !== conversationId) return;
-    queryClient.setQueryData<ConversationView[]>(
-      [CONVERSATIONS_KEY],
-      (prev: ConversationView[] | undefined) =>
-        prev?.map((c: ConversationView) =>
-          c.id === conversationId
-            ? {
-                ...c,
-                sharedTheme: payload.sharedTheme,
-                sharedThemeUpdatedAt: payload.sharedThemeUpdatedAt,
-              }
-            : c,
-        ),
-    );
+    applyConversationPatch(queryClient, {
+      id: payload.conversationId,
+      sharedTheme: payload.sharedTheme,
+      sharedThemeUpdatedAt: payload.sharedThemeUpdatedAt,
+    } as Partial<ConversationView> & { id: string });
   });
 
   useChatSocketEvent<{
     conversationId: string;
   }>('conversationSharedThemeUnlinked', (payload) => {
     if (payload.conversationId !== conversationId) return;
-    queryClient.setQueryData<ConversationView[]>(
-      [CONVERSATIONS_KEY],
-      (prev: ConversationView[] | undefined) =>
-        prev?.map((c: ConversationView) =>
-          c.id === conversationId
-            ? {
-                ...c,
-                sharedTheme: null,
-                sharedThemeUpdatedAt: null,
-              }
-            : c,
-        ),
-    );
+    applyConversationPatch(queryClient, {
+      id: payload.conversationId,
+      sharedTheme: null,
+      sharedThemeUpdatedAt: null,
+    } as unknown as Partial<ConversationView> & { id: string });
   });
 
   return { typingUserIds };

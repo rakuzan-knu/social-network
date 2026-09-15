@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { X, Loader2, AlertCircle, Eye, Edit3 } from 'lucide-react';
 import Avatar from '../../../shared/ui/Avatar';
 import { PollCreator } from './PollCreator';
@@ -93,7 +93,21 @@ export default function CreatePost({ onSubmitFormData, isPending = false }: Crea
     setActiveMenu(null);
   };
 
-  const removeMedia = (idx: number) => setMedia((prev) => prev.filter((_, i) => i !== idx));
+  const removeMedia = (idx: number) => {
+    setMedia((prev) => {
+      const removed = prev[idx];
+      if (removed?.previewUrl) URL.revokeObjectURL(removed.previewUrl);
+      return prev.filter((_, i) => i !== idx);
+    });
+  };
+
+  useEffect(() => {
+    return () => {
+      media.forEach((m) => {
+        if (m.previewUrl) URL.revokeObjectURL(m.previewUrl);
+      });
+    };
+  }, [media]);
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setText(e.target.value);

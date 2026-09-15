@@ -1,16 +1,18 @@
 import { useQuery } from '@tanstack/react-query';
 import { chatApi } from '../api/chatApi';
-import { BLOCKED_USERS_KEY } from '@/shared/api/queryKeys';
+import { queryKeys } from '@/shared/api/queryKeys';
+import { queryStaleTimes } from '@/shared/api/queryClient';
 import { useAuthStore } from '@/shared/model/useAuthStore';
 import type { UserSnapshot } from '../../../entities/chat/model/types';
 
+/** Server State: blocked users list (per-user, 30s freshness). */
 export function useBlockedUsers() {
-  const { isAuthenticated } = useAuthStore();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   return useQuery<UserSnapshot[]>({
-    queryKey: [BLOCKED_USERS_KEY],
+    queryKey: queryKeys.conversations.blocked,
     queryFn: chatApi.getBlockedUsers,
     enabled: isAuthenticated,
-    staleTime: 1000 * 30,
+    staleTime: queryStaleTimes.conversations,
   });
 }

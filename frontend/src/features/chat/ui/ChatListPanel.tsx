@@ -49,18 +49,20 @@ export default function ChatListPanel({
   onSelectConversation,
   activeConversationId,
 }: ChatListPanelProps) {
-  const { isChatListExpanded, toggleChatList, openEditProfile } = useUIStore();
-  const { userId } = useAuthStore();
+  // Atomic selectors: list must not rerender on unrelated UI store writes.
+  const isChatListExpanded = useUIStore((s) => s.isChatListExpanded);
+  const toggleChatList = useUIStore((s) => s.toggleChatList);
+  const openEditProfile = useUIStore((s) => s.openEditProfile);
+  const userId = useAuthStore((s) => s.userId);
   const { data: conversations, isLoading, isError } = useConversations();
-  const {
-    systemFolders,
-    folders,
-    folderOrders,
-    addFolder,
-    updateFolder,
-    deleteFolder,
-    reorderFolders,
-  } = useChatFoldersStore();
+  // Folder mirror slices: subscribe per-field to avoid full-store rerenders.
+  const systemFolders = useChatFoldersStore((s) => s.systemFolders);
+  const folders = useChatFoldersStore((s) => s.folders);
+  const folderOrders = useChatFoldersStore((s) => s.folderOrders);
+  const addFolder = useChatFoldersStore((s) => s.addFolder);
+  const updateFolder = useChatFoldersStore((s) => s.updateFolder);
+  const deleteFolder = useChatFoldersStore((s) => s.deleteFolder);
+  const reorderFolders = useChatFoldersStore((s) => s.reorderFolders);
   const folderOrderOwnerId = userId ?? 'guest';
   const allFolders = useMemo(() => {
     const baseFolders = [...systemFolders, ...folders];

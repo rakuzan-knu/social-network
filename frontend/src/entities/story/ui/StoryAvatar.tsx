@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import React, { useContext, useMemo } from 'react';
 import Avatar from '@/shared/ui/Avatar';
 import { useStoryViewerStore } from '../model/useStoryViewerStore';
 import { QueryClientContext } from '@tanstack/react-query';
@@ -39,25 +39,29 @@ export default function StoryAvatar({
   const openViewer = useStoryViewerStore((s) => s.openViewer);
   const storeGroups = useStoryViewerStore((s) => s.groups);
   const queryClient = useContext(QueryClientContext);
-  const feed = queryClient
-    ? queryClient.getQueryData<UserStoriesGroup[]>([STORIES_FEED_KEY])
-    : storeGroups;
 
-  // If userId or username provided, check live feed if not explicitly passed
-  let resolvedHasStory = hasStory;
-  let resolvedHasUnviewed = hasUnviewed;
-  let resolvedHasCloseFriends = hasCloseFriendsStory;
+  const resolvedData = useMemo(() => {
+    const feed = queryClient
+      ? queryClient.getQueryData<UserStoriesGroup[]>([STORIES_FEED_KEY])
+      : storeGroups;
 
-  if (feed && (userId || username)) {
-    const userGroup = feed.find(
-      (g) => (userId && g.user.id === userId) || (username && g.user.username === username),
-    );
-    if (userGroup && userGroup.stories.length > 0) {
-      resolvedHasStory = true;
-      resolvedHasUnviewed = userGroup.hasUnviewed;
-      resolvedHasCloseFriends = userGroup.hasCloseFriendsStory;
+    let resolvedHasStory = hasStory;
+    let resolvedHasUnviewed = hasUnviewed;
+    let resolvedHasCloseFriends = hasCloseFriendsStory;
+
+    if (feed && (userId || username)) {
+      const userGroup = feed.find(
+        (g) => (userId && g.user.id === userId) || (username && g.user.username === username),
+      );
+      if (userGroup && userGroup.stories.length > 0) {
+        resolvedHasStory = true;
+        resolvedHasUnviewed = userGroup.hasUnviewed;
+        resolvedHasCloseFriends = userGroup.hasCloseFriendsStory;
+      }
     }
-  }
+
+    return { resolvedHasStory, resolvedHasUnviewed, resolvedHasCloseFriends, feed };
+  }, [queryClient, storeGroups, hasStory, hasUnviewed, hasCloseFriendsStory, userId, username]);
 
   const handleClick = (e: React.MouseEvent) => {
     if (onClick) {
@@ -65,17 +69,16 @@ export default function StoryAvatar({
       return;
     }
 
-    if (interactive && resolvedHasStory && feed) {
+    if (interactive && resolvedData.resolvedHasStory && resolvedData.feed) {
       e.stopPropagation();
       e.preventDefault();
 
-      // Find user group in feed or open viewer with single group
-      const groupIndex = feed.findIndex(
+      const groupIndex = resolvedData.feed.findIndex(
         (g) => (userId && g.user.id === userId) || (username && g.user.username === username),
       );
 
       if (groupIndex !== -1) {
-        openViewer(feed, groupIndex);
+        openViewer(resolvedData.feed, groupIndex);
       }
     }
   };
@@ -90,13 +93,12 @@ export default function StoryAvatar({
     '2xl': 'p-[4px]',
   };
 
-  // Border & Glow styling
   let containerRingClasses = '';
   let containerStyle: React.CSSProperties = {};
 
-  if (resolvedHasStory) {
-    if (resolvedHasUnviewed) {
-      if (resolvedHasCloseFriends) {
+  if (resolvedData.resolvedHasStory) {
+    if (resolvedData.resolvedHasUnviewed) {
+      if (resolvedData.resolvedHasCloseFriends) {
         // Close friends neon green gradient
         containerStyle = {
           background: 'linear-gradient(135deg, #10b981 0%, #22c55e 50%, #14b8a6 100%)',
@@ -118,7 +120,7 @@ export default function StoryAvatar({
     }
   }
 
-  if (!resolvedHasStory) {
+  if (!resolvedData.resolvedHasStory) {
     return (
       <Avatar
         src={src}
@@ -138,8 +140,8 @@ export default function StoryAvatar({
         ringPaddingClasses[size] || 'p-[2.5px]'
       } ${containerRingClasses} ${interactive ? 'cursor-pointer' : ''} ${className}`}
       title={
-        resolvedHasStory
-          ? resolvedHasUnviewed
+        resolvedData.resolvedHasStory
+          ? resolvedData.resolvedHasUnviewed
             ? 'View active stories'
             : 'View watched stories'
           : undefined
@@ -150,7 +152,7 @@ export default function StoryAvatar({
       </div>
 
       {/* Optional Close Friends mini green star badge */}
-      {showBadge && resolvedHasCloseFriends && (
+      {showBadge && resolvedData.resolvedHasCloseFriends && (
         <div
           className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-emerald-500 text-[#09090b] rounded-full border-2 border-[#09090b] flex items-center justify-center text-[10px] font-black shadow-sm"
           title="Close Friends Story"

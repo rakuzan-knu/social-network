@@ -1,16 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { PRIVACY_KEY, USER_KEY } from '@/shared/api/queryKeys';
+import { queryKeys } from '@/shared/api/queryKeys';
+import { queryStaleTimes } from '@/shared/api/queryClient';
 import { useAuthStore } from '@/shared/model/useAuthStore';
 import { privacyApi } from '../api/privacyApi';
 import type { PrivacySettings, UpdatePrivacyPayload } from './privacyTypes';
 
+/** Server State: privacy settings (per-user, 60s freshness). */
 export function usePrivacy() {
-  const { isAuthenticated } = useAuthStore();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   return useQuery<PrivacySettings>({
-    queryKey: [PRIVACY_KEY],
+    queryKey: queryKeys.profile.privacy,
     queryFn: privacyApi.getPrivacy,
     enabled: isAuthenticated,
-    staleTime: 1000 * 60,
+    staleTime: queryStaleTimes.feed,
   });
 }
 
@@ -20,22 +22,25 @@ export function useUpdatePrivacy() {
   return useMutation({
     mutationFn: (payload: UpdatePrivacyPayload) => privacyApi.updatePrivacy(payload),
     onMutate: async (payload) => {
-      await queryClient.cancelQueries({ queryKey: [PRIVACY_KEY] });
-      const previous = queryClient.getQueryData<PrivacySettings>([PRIVACY_KEY]);
+      await queryClient.cancelQueries({ queryKey: queryKeys.profile.privacy });
+      const previous = queryClient.getQueryData<PrivacySettings>(queryKeys.profile.privacy);
       if (previous) {
-        queryClient.setQueryData<PrivacySettings>([PRIVACY_KEY], { ...previous, ...payload });
+        queryClient.setQueryData<PrivacySettings>(queryKeys.profile.privacy, {
+          ...previous,
+          ...payload,
+        });
       }
       return { previous };
     },
     onError: (_err, _payload, context) => {
-      if (context?.previous) queryClient.setQueryData([PRIVACY_KEY], context.previous);
+      if (context?.previous) queryClient.setQueryData(queryKeys.profile.privacy, context.previous);
     },
     onSuccess: (data) => {
-      queryClient.setQueryData([PRIVACY_KEY], data);
+      queryClient.setQueryData(queryKeys.profile.privacy, data);
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: [PRIVACY_KEY] });
-      queryClient.invalidateQueries({ queryKey: [USER_KEY] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.profile.privacy });
+      queryClient.invalidateQueries({ queryKey: queryKeys.user.root });
     },
   });
 }

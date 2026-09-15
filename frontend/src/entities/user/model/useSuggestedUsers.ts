@@ -8,8 +8,8 @@ export function useSuggestedUsers(limit = 5) {
 
   return useQuery<FollowUserSummary[]>({
     queryKey: ['suggestedUsers', limit],
-    queryFn: async (): Promise<FollowUserSummary[]> => {
-      const res = await api.get<FollowUserSummary[]>(`/users/suggested?limit=${limit}`);
+    queryFn: async ({ signal }): Promise<FollowUserSummary[]> => {
+      const res = await api.get<FollowUserSummary[]>(`/users/suggested?limit=${limit}`, { signal });
       const list = Array.isArray(res.data) ? res.data : [];
       return list.map((u) => ({
         id: u.id ?? '',

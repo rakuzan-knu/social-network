@@ -92,9 +92,6 @@ export default defineConfig({
             ) {
               return 'vendor-forms';
             }
-            if (normalizedId.includes('/react-virtuoso/')) {
-              return 'vendor-virtuoso';
-            }
             if (normalizedId.includes('/katex/')) {
               return 'vendor-katex';
             }

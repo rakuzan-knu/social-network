@@ -17,7 +17,7 @@ export function useUserSearch(rawQuery: string) {
 
   const query = useQuery({
     queryKey: ['user-search', clean],
-    queryFn: () => userSearchApi.search(clean),
+    queryFn: async ({ signal }) => userSearchApi.search(clean, signal),
     enabled: isValidQuery,
     staleTime: 1000 * 30,
   });

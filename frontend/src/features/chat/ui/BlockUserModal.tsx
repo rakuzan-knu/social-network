@@ -18,7 +18,7 @@ interface BlockUserModalProps {
 
 export default function BlockUserModal({ onClose }: BlockUserModalProps) {
   const [query, setQuery] = useState('');
-  const { userId } = useAuthStore();
+  const userId = useAuthStore((s) => s.userId);
   const { results, isSearching } = useUserSearch(query);
   const { data: conversations } = useConversations();
   const { data: blockedUsers } = useBlockedUsers();

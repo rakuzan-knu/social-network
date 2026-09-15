@@ -34,8 +34,8 @@ export function CommentThread({
   const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } =
     useInfiniteQuery<CommentListPage>({
       queryKey: [COMMENT_REPLIES_KEY, comment.id],
-      queryFn: ({ pageParam }) =>
-        commentsApi.getReplies(comment.id, pageParam as string | undefined, 20),
+      queryFn: async ({ pageParam, signal }) =>
+        commentsApi.getReplies(comment.id, pageParam as string | undefined, 20, signal),
       getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
       initialPageParam: undefined,
       enabled: isExpanded,

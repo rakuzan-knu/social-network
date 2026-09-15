@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { registerSessionResetHandler } from '@/shared/model/resetSession';
 import {
   derivePasswordVerifier,
   verifyPasswordVerifier,
@@ -276,3 +277,17 @@ export const useArchivePasswordStore = create<ArchivePasswordState>((set, get) =
     }
   },
 }));
+
+/**
+ * RESET_STORES: the archive gate is stored WITHOUT a user namespace, so the
+ * verifier MUST be dropped on logout/switch — otherwise account B could
+ * unlock account A's local archive with A's password still in RAM. The user
+ * re-enters the password next session (fail closed, never leak open).
+ */
+registerSessionResetHandler(() => {
+  try {
+    useArchivePasswordStore.getState().resetPassword();
+  } catch {
+    useArchivePasswordStore.setState({ passwordHash: null });
+  }
+});

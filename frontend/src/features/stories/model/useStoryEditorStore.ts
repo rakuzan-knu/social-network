@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { registerSessionResetHandler } from '@/shared/model/resetSession';
 import type { ImageOverlay, StoryMediaType, StoryOverlay, StoryPrivacy } from './types';
 import { GRADIENT_PRESETS } from '../lib/storyCanvasUtils';
 
@@ -254,3 +255,8 @@ export const useStoryEditorStore = create<StoryEditorState>((set) => ({
       musicVolume: 1,
     }),
 }));
+
+/** RESET_STORES: discard unsent story composition on logout/switch. */
+registerSessionResetHandler(() => {
+  useStoryEditorStore.getState().reset();
+});

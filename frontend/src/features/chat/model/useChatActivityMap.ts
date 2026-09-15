@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { chatApi } from '../api/chatApi';
+import { queryKeys } from '@/shared/api/queryKeys';
+import { queryStaleTimes, queryGcTimes } from '@/shared/api/queryClient';
 import type { ChatActivityMap } from '../../../entities/chat/model/types';
 
 export interface UseChatActivityMapParams {
@@ -15,14 +17,16 @@ export function useChatActivityMap(
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 
   const query = useQuery<ChatActivityMap>({
-    queryKey: ['chat-activity-map', conversationId, year, month, timezone],
+    queryKey: conversationId
+      ? queryKeys.conversations.activity(conversationId, year, month, timezone)
+      : ['chat-activity-map', 'none', year, month, timezone],
     queryFn: () => {
       if (!conversationId) return Promise.resolve({});
       return chatApi.getChatActivity(conversationId, year, month, timezone);
     },
     enabled: Boolean(conversationId && year && month),
-    staleTime: 1000 * 60 * 5, // 5 minutes cache
-    gcTime: 1000 * 60 * 30, // 30 minutes in memory
+    staleTime: queryStaleTimes.profile,
+    gcTime: queryGcTimes.profile,
   });
 
   return {

@@ -300,6 +300,11 @@ export class P2PFileManager {
       const blob = new Blob(tracker.chunks, { type: tracker.meta.mimeType });
       const blobUrl = URL.createObjectURL(blob);
 
+      const existingItem = this.activeTransfers.get(fileId);
+      if (existingItem?.blobUrl) {
+        URL.revokeObjectURL(existingItem.blobUrl);
+      }
+
       const item: FileTransferItem = {
         ...this.activeTransfers.get(fileId)!,
         progress: 100,
@@ -326,6 +331,10 @@ export class P2PFileManager {
 
     const item = this.activeTransfers.get(fileId);
     if (item) {
+      if (item.blobUrl) {
+        URL.revokeObjectURL(item.blobUrl);
+        item.blobUrl = undefined;
+      }
       const updated: FileTransferItem = { ...item, status: 'cancelled' };
       this.activeTransfers.set(fileId, updated);
       this.onUpdate(updated);
@@ -336,6 +345,10 @@ export class P2PFileManager {
     this.incomingBuffers.delete(fileId);
     const item = this.activeTransfers.get(fileId);
     if (item) {
+      if (item.blobUrl) {
+        URL.revokeObjectURL(item.blobUrl);
+        item.blobUrl = undefined;
+      }
       const updated: FileTransferItem = { ...item, status: 'cancelled' };
       this.activeTransfers.set(fileId, updated);
       this.onUpdate(updated);

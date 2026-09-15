@@ -29,7 +29,9 @@ import { getSocket } from '@/shared/api/socket';
 import Avatar from '@/shared/ui/Avatar';
 
 export function ShareModal() {
-  const { isShareModalOpen, activePostForShare, closeShareModal } = useUIStore();
+  const isShareModalOpen = useUIStore((s) => s.isShareModalOpen);
+  const activePostForShare = useUIStore((s) => s.activePostForShare);
+  const closeShareModal = useUIStore((s) => s.closeShareModal);
   const { data: currentUser } = useCurrentUser();
   const myUserId = currentUser?.id ?? '';
   const queryClient = useQueryClient();

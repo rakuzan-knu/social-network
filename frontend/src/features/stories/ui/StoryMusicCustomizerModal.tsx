@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Play, Pause, Disc, MinusCircle, Image, CreditCard, X, Check } from 'lucide-react';
 import Hls from 'hls.js';
 import { audioCoordinator } from '@/shared/lib/audioCoordinator';
@@ -49,30 +49,24 @@ export const StoryMusicCustomizerModal: React.FC<StoryMusicCustomizerModalProps>
   const [showDurationPicker, setShowDurationPicker] = useState(false);
 
   // Active color from palette
-  const activeColor = useMemo(() => {
-    if (selectedStyle === 'card') {
-      const cardPalette = [
-        '#FFFFFF', // Clean White default for card
-        '#18181B', // Dark
-        '#A855F7', // Vivid Purple
-        '#8B5CF6', // Violet
-        '#C084FC', // Light Orchid
-        '#6366F1', // Electric Indigo
-        '#38BDF8', // Sky Cyan
-        '#10B981', // Emerald Mint
-        '#EC4899', // Fuchsia
-        '#EF4444', // Crimson Red
-      ];
-      return cardPalette[colorIndex % cardPalette.length];
-    }
-    // For Cover: signature purple is default!
-    return STORY_STICKER_COLOR_PALETTES[colorIndex % STORY_STICKER_COLOR_PALETTES.length];
-  }, [colorIndex, selectedStyle]);
+  const activeColor =
+    selectedStyle === 'card'
+      ? [
+          '#FFFFFF',
+          '#18181B',
+          '#A855F7',
+          '#8B5CF6',
+          '#C084FC',
+          '#6366F1',
+          '#38BDF8',
+          '#10B981',
+          '#EC4899',
+          '#EF4444',
+        ][colorIndex % 10]
+      : STORY_STICKER_COLOR_PALETTES[colorIndex % STORY_STICKER_COLOR_PALETTES.length];
 
   // Deterministic 60-bar waveform
-  const waveform = useMemo(() => {
-    return generateSeededWaveform(track ? track.id || track.title : '', 60);
-  }, [track?.id, track?.title]);
+  const waveform = generateSeededWaveform(track ? track.id || track.title : '', 60);
 
   // Audio & HLS refs
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -225,12 +219,10 @@ export const StoryMusicCustomizerModal: React.FC<StoryMusicCustomizerModalProps>
   const maxStartMs = Math.max(0, totalDurationMs - clipDurationMs);
 
   // Snippet progress ratio (0 to 1) for the playhead indicator
-  const snippetProgress = useMemo(() => {
-    if (clipDurationMs <= 0) return 0;
-    const elapsed = currentPlayMs - startTimeMs;
-    const clamped = Math.max(0, Math.min(clipDurationMs, elapsed));
-    return clamped / clipDurationMs;
-  }, [currentPlayMs, startTimeMs, clipDurationMs]);
+  const snippetProgress =
+    clipDurationMs <= 0
+      ? 0
+      : Math.max(0, Math.min(1, (currentPlayMs - startTimeMs) / clipDurationMs));
 
   // Scrubber percentage calculations
   const windowWidthPercent = Math.min(100, Math.max(12, (clipDurationMs / totalDurationMs) * 100));
@@ -238,7 +230,7 @@ export const StoryMusicCustomizerModal: React.FC<StoryMusicCustomizerModalProps>
     maxStartMs > 0 ? (startTimeMs / maxStartMs) * (100 - windowWidthPercent) : 0;
 
   // Chorus dots (e.g. at 22%, 52%, 76% of song)
-  const chorusPoints = useMemo(() => [0.22, 0.52, 0.76], []);
+  const chorusPoints = [0.22, 0.52, 0.76];
 
   // Jump to chorus
   const handleJumpToChorus = (fraction: number) => {

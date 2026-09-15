@@ -11,6 +11,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { useInfiniteQuery, useMutation, useQueryClient, InfiniteData } from '@tanstack/react-query';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { Link } from 'react-router-dom';
 import { useUIStore } from '@/shared/model/useUIStore';
 import { useAuthStore } from '@/shared/model/useAuthStore';
@@ -53,8 +54,11 @@ import type { PostMedia as PostMediaType } from '@/entities/post/model/types';
 const QUICK_EMOJIS = ['🔥', '❤️', '👏', '😂', '😍', '✨', '🚀', '💯'];
 
 export function CommentModal() {
-  const { isCommentModalOpen, activePostForComments, closeCommentModal, openShareModal } =
-    useUIStore();
+  // Atomic selectors: rerender only when THESE fields change, not on any UI store update.
+  const isCommentModalOpen = useUIStore((s) => s.isCommentModalOpen);
+  const activePostForComments = useUIStore((s) => s.activePostForComments);
+  const closeCommentModal = useUIStore((s) => s.closeCommentModal);
+  const openShareModal = useUIStore((s) => s.openShareModal);
   const currentUserId = useAuthStore((s) => s.userId);
   const { data: currentUser } = useCurrentUser();
   const queryClient = useQueryClient();
@@ -111,6 +115,16 @@ export function CommentModal() {
     });
 
   const rootComments = data?.pages.flatMap((p) => p.comments) ?? [];
+
+  const commentVirtualizer = useVirtualizer({
+    count: rootComments.length,
+    getScrollElement: () => scrollContainerRef.current,
+    estimateSize: () => 80,
+    overscan: 6,
+    initialRect: { width: 500, height: 800 },
+  });
+
+  const virtualComments = commentVirtualizer.getVirtualItems();
 
   // Helper to increment post commentsCount across feed caches
   const incrementPostCommentsCount = (delta: number) => {
@@ -746,26 +760,51 @@ export function CommentModal() {
                 </div>
               ) : rootComments.length > 0 ? (
                 <>
-                  {rootComments.map((comment) => (
-                    <CommentThread
-                      key={comment.id}
-                      comment={comment}
-                      postAuthorId={activePostForComments.authorId}
-                      currentUserId={currentUser?.id}
-                      onReply={(target) =>
-                        setReplyingTo({
-                          commentId: target.id,
-                          username: target.handle,
-                          displayName: target.author,
-                          userId: target.userId,
-                        })
-                      }
-                      onDelete={(cId) => deleteCommentMutation.mutate(cId)}
-                      onPin={(cId) => togglePinMutation.mutate(cId)}
-                      onLike={(cId) => toggleLikeMutation.mutate(cId)}
-                      onReport={(c) => setReportingComment(c)}
-                    />
-                  ))}
+                  <div
+                    style={{
+                      height: `${commentVirtualizer.getTotalSize()}px`,
+                      width: '100%',
+                      position: 'relative',
+                    }}
+                  >
+                    {virtualComments.map((virtualItem) => {
+                      const comment = rootComments[virtualItem.index];
+                      if (!comment) return null;
+                      return (
+                        <div
+                          key={comment.id || virtualItem.key}
+                          ref={commentVirtualizer.measureElement}
+                          data-index={virtualItem.index}
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            transform: `translateY(${virtualItem.start}px)`,
+                            paddingBottom: '12px',
+                          }}
+                        >
+                          <CommentThread
+                            comment={comment}
+                            postAuthorId={activePostForComments.authorId}
+                            currentUserId={currentUser?.id}
+                            onReply={(target) =>
+                              setReplyingTo({
+                                commentId: target.id,
+                                username: target.handle,
+                                displayName: target.author,
+                                userId: target.userId,
+                              })
+                            }
+                            onDelete={(cId) => deleteCommentMutation.mutate(cId)}
+                            onPin={(cId) => togglePinMutation.mutate(cId)}
+                            onLike={(cId) => toggleLikeMutation.mutate(cId)}
+                            onReport={(c) => setReportingComment(c)}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
 
                   {/* Infinite Scroll Indicator */}
                   {isFetchingNextPage && (

@@ -4,19 +4,30 @@ import {
   CONVERSATIONS_KEY,
   CONVERSATION_MESSAGES_KEY,
   BLOCKED_USERS_KEY,
+  queryKeys,
 } from '@/shared/api/queryKeys';
 
 export { CONVERSATIONS_KEY, CONVERSATION_MESSAGES_KEY, BLOCKED_USERS_KEY };
 import { ConversationView, MuteLevel } from '../../../entities/chat/model/types';
+
+/**
+ * Server State mutations: every write goes through TanStack Query with an
+ * optimistic `setQueryData` patch keyed by the `queryKeys` factory, then a
+ * narrow `invalidateQueries` reconcile. No direct cache literals.
+ */
 
 function useOptimisticConversationUpdate() {
   const queryClient = useQueryClient();
 
   return (conversationId: string, patch: Partial<ConversationView>) => {
     queryClient.setQueryData<ConversationView[]>(
-      [CONVERSATIONS_KEY],
+      queryKeys.conversations.root,
       (prev: ConversationView[] | undefined) =>
         prev?.map((c: ConversationView) => (c.id === conversationId ? { ...c, ...patch } : c)),
+    );
+    queryClient.setQueryData<ConversationView>(
+      queryKeys.conversations.detail(conversationId),
+      (prev: ConversationView | undefined) => (prev ? { ...prev, ...patch } : prev),
     );
   };
 }
@@ -37,7 +48,7 @@ export function useMuteConversation() {
     }) => chatApi.mute(conversationId, muteLevel, mutedUntil),
     onMutate: ({ conversationId, muteLevel, mutedUntil }) =>
       applyOptimistic(conversationId, { myMuteLevel: muteLevel, myMutedUntil: mutedUntil ?? null }),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: [CONVERSATIONS_KEY] }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.conversations.root }),
   });
 }
 
@@ -48,16 +59,17 @@ export function useArchiveConversation() {
     mutationFn: ({ conversationId, archived }: { conversationId: string; archived: boolean }) =>
       archived ? chatApi.archive(conversationId) : chatApi.unarchive(conversationId),
     onMutate: async ({ conversationId, archived }) => {
-      await queryClient.cancelQueries({ queryKey: [CONVERSATIONS_KEY] });
-      await queryClient.cancelQueries({ queryKey: ['conversation', conversationId] });
-      const previous = queryClient.getQueryData<ConversationView[]>([CONVERSATIONS_KEY]);
-      const previousSingle = queryClient.getQueryData<ConversationView>([
-        'conversation',
-        conversationId,
-      ]);
+      await queryClient.cancelQueries({ queryKey: queryKeys.conversations.root });
+      await queryClient.cancelQueries({
+        queryKey: queryKeys.conversations.detail(conversationId),
+      });
+      const previous = queryClient.getQueryData<ConversationView[]>(queryKeys.conversations.root);
+      const previousSingle = queryClient.getQueryData<ConversationView>(
+        queryKeys.conversations.detail(conversationId),
+      );
 
       queryClient.setQueryData<ConversationView[]>(
-        [CONVERSATIONS_KEY],
+        queryKeys.conversations.root,
         (prev: ConversationView[] | undefined) =>
           prev?.map((c: ConversationView) =>
             c.id === conversationId ? { ...c, isArchived: archived } : c,
@@ -65,7 +77,7 @@ export function useArchiveConversation() {
       );
 
       queryClient.setQueryData<ConversationView>(
-        ['conversation', conversationId],
+        queryKeys.conversations.detail(conversationId),
         (prev: ConversationView | undefined) => (prev ? { ...prev, isArchived: archived } : prev),
       );
 
@@ -73,15 +85,18 @@ export function useArchiveConversation() {
     },
     onError: (_err, vars, context) => {
       if (context?.previous) {
-        queryClient.setQueryData([CONVERSATIONS_KEY], context.previous);
+        queryClient.setQueryData(queryKeys.conversations.root, context.previous);
       }
       if (context?.previousSingle) {
-        queryClient.setQueryData(['conversation', vars.conversationId], context.previousSingle);
+        queryClient.setQueryData(
+          queryKeys.conversations.detail(vars.conversationId),
+          context.previousSingle,
+        );
       }
     },
     onSuccess: (updatedConversation, { conversationId, archived }) => {
       queryClient.setQueryData<ConversationView[]>(
-        [CONVERSATIONS_KEY],
+        queryKeys.conversations.root,
         (prev: ConversationView[] | undefined) =>
           prev?.map((c: ConversationView) =>
             c.id === conversationId
@@ -90,14 +105,16 @@ export function useArchiveConversation() {
           ),
       );
       queryClient.setQueryData<ConversationView>(
-        ['conversation', conversationId],
+        queryKeys.conversations.detail(conversationId),
         (prev: ConversationView | undefined) =>
           prev ? { ...prev, ...(updatedConversation ?? {}), isArchived: archived } : prev,
       );
     },
     onSettled: (_data, _err, { conversationId }) => {
-      void queryClient.invalidateQueries({ queryKey: [CONVERSATIONS_KEY] });
-      void queryClient.invalidateQueries({ queryKey: ['conversation', conversationId] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.conversations.root });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.conversations.detail(conversationId),
+      });
     },
   });
 }
@@ -108,8 +125,8 @@ export function useBlockUser() {
   return useMutation({
     mutationFn: (userId: string) => chatApi.blockUser(userId),
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: [CONVERSATIONS_KEY] });
-      queryClient.invalidateQueries({ queryKey: [BLOCKED_USERS_KEY] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversations.root });
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversations.blocked });
     },
   });
 }
@@ -120,8 +137,8 @@ export function useUnblockUser() {
   return useMutation({
     mutationFn: (userId: string) => chatApi.unblockUser(userId),
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: [CONVERSATIONS_KEY] });
-      queryClient.invalidateQueries({ queryKey: [BLOCKED_USERS_KEY] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversations.root });
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversations.blocked });
     },
   });
 }
@@ -147,7 +164,7 @@ export function useMarkConversationRead() {
   return useMutation({
     mutationFn: (conversationId: string) => chatApi.markRead(conversationId),
     onMutate: (conversationId) => applyOptimistic(conversationId, { unreadCount: 0 }),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: [CONVERSATIONS_KEY] }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.conversations.root }),
   });
 }
 
@@ -166,7 +183,7 @@ export function useSetNickname() {
     }) => chatApi.setNickname(conversationId, targetUserId, nickname),
     onMutate: ({ conversationId, targetUserId, nickname }) => {
       queryClient.setQueryData<ConversationView[]>(
-        [CONVERSATIONS_KEY],
+        queryKeys.conversations.root,
         (prev: ConversationView[] | undefined) =>
           prev?.map((c: ConversationView) =>
             c.id === conversationId
@@ -180,7 +197,7 @@ export function useSetNickname() {
           ),
       );
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: [CONVERSATIONS_KEY] }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.conversations.root }),
   });
 }
 
@@ -188,7 +205,7 @@ export function useLeaveConversation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (conversationId: string) => chatApi.leaveConversation(conversationId),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [CONVERSATIONS_KEY] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.conversations.root }),
   });
 }
 
@@ -204,7 +221,7 @@ export function useUpdateGroup() {
       name?: string;
       description?: string;
     }) => chatApi.updateGroup(conversationId, { name, description }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [CONVERSATIONS_KEY] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.conversations.root }),
   });
 }
 
@@ -213,7 +230,7 @@ export function useAddMembers() {
   return useMutation({
     mutationFn: ({ conversationId, memberIds }: { conversationId: string; memberIds: string[] }) =>
       chatApi.addMembers(conversationId, memberIds),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [CONVERSATIONS_KEY] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.conversations.root }),
   });
 }
 
@@ -222,7 +239,7 @@ export function useRemoveMember() {
   return useMutation({
     mutationFn: ({ conversationId, userId }: { conversationId: string; userId: string }) =>
       chatApi.removeMember(conversationId, userId),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [CONVERSATIONS_KEY] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.conversations.root }),
   });
 }
 
@@ -231,7 +248,7 @@ export function usePromoteMember() {
   return useMutation({
     mutationFn: ({ conversationId, userId }: { conversationId: string; userId: string }) =>
       chatApi.promoteMember(conversationId, userId),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [CONVERSATIONS_KEY] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.conversations.root }),
   });
 }
 
@@ -240,7 +257,7 @@ export function useDemoteMember() {
   return useMutation({
     mutationFn: ({ conversationId, userId }: { conversationId: string; userId: string }) =>
       chatApi.demoteMember(conversationId, userId),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [CONVERSATIONS_KEY] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.conversations.root }),
   });
 }
 
@@ -256,13 +273,15 @@ export function useDeleteConversation() {
       forAll?: boolean;
     }) => chatApi.deleteConversation(conversationId, forAll),
     onMutate: ({ conversationId }) => {
-      queryClient.setQueryData<ConversationView[]>([CONVERSATIONS_KEY], (prev) =>
+      queryClient.setQueryData<ConversationView[]>(queryKeys.conversations.root, (prev) =>
         prev?.filter((c) => c.id !== conversationId),
       );
     },
     onSettled: (_data, _error, { conversationId }) => {
-      queryClient.invalidateQueries({ queryKey: [CONVERSATIONS_KEY] });
-      queryClient.removeQueries({ queryKey: [CONVERSATION_MESSAGES_KEY, conversationId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversations.root });
+      queryClient.removeQueries({
+        queryKey: queryKeys.conversations.messages(conversationId),
+      });
     },
   });
 }
@@ -279,19 +298,21 @@ export function useClearChatHistory() {
       forAll?: boolean;
     }) => chatApi.clearHistory(conversationId, forAll),
     onMutate: ({ conversationId }) => {
-      queryClient.setQueryData([CONVERSATION_MESSAGES_KEY, conversationId], {
+      queryClient.setQueryData(queryKeys.conversations.messages(conversationId), {
         pages: [{ data: [], hasMore: false, nextCursor: null }],
         pageParams: [undefined],
       });
-      queryClient.setQueryData<ConversationView[]>([CONVERSATIONS_KEY], (prev) =>
+      queryClient.setQueryData<ConversationView[]>(queryKeys.conversations.root, (prev) =>
         prev?.map((c) =>
           c.id === conversationId ? { ...c, lastMessage: null, unreadCount: 0 } : c,
         ),
       );
     },
     onSettled: (_data, _error, { conversationId }) => {
-      queryClient.invalidateQueries({ queryKey: [CONVERSATIONS_KEY] });
-      queryClient.invalidateQueries({ queryKey: [CONVERSATION_MESSAGES_KEY, conversationId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversations.root });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.conversations.messages(conversationId),
+      });
     },
   });
 }

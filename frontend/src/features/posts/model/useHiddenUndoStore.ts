@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { registerSessionResetHandler } from '@/shared/model/resetSession';
 
 interface HiddenUndoItem {
   postId: string | number;
@@ -26,3 +27,8 @@ export const useHiddenUndoStore = create<HiddenUndoState>((set, get) => ({
     }
   },
 }));
+
+/** RESET_STORES: ephemeral undo toast must not leak across accounts. */
+registerSessionResetHandler(() => {
+  useHiddenUndoStore.setState({ activeUndo: null });
+});

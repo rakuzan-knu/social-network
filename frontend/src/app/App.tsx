@@ -1,5 +1,5 @@
-import React, { lazy, Suspense } from 'react';
-import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
+import React, { lazy, Suspense, useMemo } from 'react';
+import { useLocation, useNavigate, Navigate, Routes, Route } from 'react-router-dom';
 
 import Sidebar from '../widgets/sidebar/ui/Sidebar';
 import DeviceLockGate from '../features/profile/ui/security/DeviceLockGate';
@@ -223,20 +223,27 @@ export default function App() {
     }
   }, [isGameModeOpen]);
 
-  const isOAuthCallback =
-    new URLSearchParams(location.search).has('code') ||
-    new URLSearchParams(location.search).has('error') ||
-    location.pathname.includes('/callback') ||
-    location.pathname.startsWith('/api/auth/') ||
-    location.pathname.startsWith('/integrations/') ||
-    location.pathname.startsWith('/auth/');
+  const isOAuthCallback = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return (
+      params.has('code') ||
+      params.has('error') ||
+      location.pathname.includes('/callback') ||
+      location.pathname.startsWith('/api/auth/') ||
+      location.pathname.startsWith('/integrations/') ||
+      location.pathname.startsWith('/auth/')
+    );
+  }, [location.search, location.pathname]);
 
-  if (
-    isOAuthCallback &&
-    (new URLSearchParams(location.search).has('code') ||
-      new URLSearchParams(location.search).has('error') ||
-      location.pathname.includes('/callback'))
-  ) {
+  const showOAuthCallback = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return (
+      isOAuthCallback &&
+      (params.has('code') || params.has('error') || location.pathname.includes('/callback'))
+    );
+  }, [isOAuthCallback, location.search, location.pathname]);
+
+  if (showOAuthCallback) {
     return (
       <div className="relative min-h-screen bg-[#070709] text-white flex items-center justify-center">
         <Suspense fallback={<PageFallback />}>
@@ -347,53 +354,62 @@ export default function App() {
     );
   }
 
-  const isStandaloneRoute =
-    location.pathname.startsWith('/music') ||
-    location.pathname.startsWith('/playlist') ||
-    location.pathname.startsWith('/track') ||
-    location.pathname.startsWith('/messages') ||
-    location.pathname.startsWith('/messenger') ||
-    location.pathname.startsWith('/privacy') ||
-    location.pathname.startsWith('/terms') ||
-    location.pathname.startsWith('/copyright') ||
-    location.pathname.startsWith('/dmca') ||
-    location.pathname.startsWith('/developers') ||
-    location.pathname.startsWith('/developer') ||
-    location.pathname.startsWith('/guidelines') ||
-    location.pathname.startsWith('/acknowledgements') ||
-    location.pathname.startsWith('/licenses') ||
-    location.pathname.startsWith('/licences') ||
-    location.pathname.startsWith('/company-information') ||
-    location.pathname.startsWith('/impressum') ||
-    location.pathname.startsWith('/company') ||
-    location.pathname.startsWith('/about') ||
-    location.pathname.startsWith('/careers') ||
-    location.pathname.startsWith('/jobs') ||
-    location.pathname.startsWith('/branding') ||
-    location.pathname.startsWith('/brand') ||
-    location.pathname.startsWith('/download') ||
-    location.pathname.startsWith('/newsroom') ||
-    location.pathname.startsWith('/blog') ||
-    location.pathname.startsWith('/category') ||
-    location.pathname.startsWith('/safety-family-center') ||
-    location.pathname.startsWith('/safety-library') ||
-    location.pathname.startsWith('/safety-privacy') ||
-    location.pathname.startsWith('/safety-law') ||
-    location.pathname.startsWith('/safety-law-enforcement') ||
-    location.pathname.startsWith('/law-enforcement') ||
-    location.pathname.startsWith('/policies') ||
-    location.pathname.startsWith('/teen-charter') ||
-    location.pathname.startsWith('/wellbeing') ||
-    location.pathname.startsWith('/404') ||
-    location.pathname.startsWith('/faq') ||
-    location.pathname.startsWith('/help-center') ||
-    location.pathname.startsWith('/safety');
+  const isStandaloneRoute = useMemo(() => {
+    return (
+      location.pathname.startsWith('/music') ||
+      location.pathname.startsWith('/playlist') ||
+      location.pathname.startsWith('/track') ||
+      location.pathname.startsWith('/messages') ||
+      location.pathname.startsWith('/messenger') ||
+      location.pathname.startsWith('/privacy') ||
+      location.pathname.startsWith('/terms') ||
+      location.pathname.startsWith('/copyright') ||
+      location.pathname.startsWith('/dmca') ||
+      location.pathname.startsWith('/developers') ||
+      location.pathname.startsWith('/developer') ||
+      location.pathname.startsWith('/guidelines') ||
+      location.pathname.startsWith('/acknowledgements') ||
+      location.pathname.startsWith('/licenses') ||
+      location.pathname.startsWith('/licences') ||
+      location.pathname.startsWith('/company-information') ||
+      location.pathname.startsWith('/impressum') ||
+      location.pathname.startsWith('/company') ||
+      location.pathname.startsWith('/about') ||
+      location.pathname.startsWith('/careers') ||
+      location.pathname.startsWith('/jobs') ||
+      location.pathname.startsWith('/branding') ||
+      location.pathname.startsWith('/brand') ||
+      location.pathname.startsWith('/download') ||
+      location.pathname.startsWith('/newsroom') ||
+      location.pathname.startsWith('/blog') ||
+      location.pathname.startsWith('/category') ||
+      location.pathname.startsWith('/safety-family-center') ||
+      location.pathname.startsWith('/safety-library') ||
+      location.pathname.startsWith('/safety-privacy') ||
+      location.pathname.startsWith('/safety-law') ||
+      location.pathname.startsWith('/safety-law-enforcement') ||
+      location.pathname.startsWith('/law-enforcement') ||
+      location.pathname.startsWith('/policies') ||
+      location.pathname.startsWith('/teen-charter') ||
+      location.pathname.startsWith('/wellbeing') ||
+      location.pathname.startsWith('/404') ||
+      location.pathname.startsWith('/faq') ||
+      location.pathname.startsWith('/help-center') ||
+      location.pathname.startsWith('/safety')
+    );
+  }, [location.pathname]);
 
-  const isMessengerRoute =
-    location.pathname.startsWith('/messages') ||
-    location.pathname.startsWith('/messenger') ||
-    location.pathname.startsWith('/chat/standalone');
-  const isReelsRoute = location.pathname.startsWith('/reels');
+  const isMessengerRoute = useMemo(() => {
+    return (
+      location.pathname.startsWith('/messages') ||
+      location.pathname.startsWith('/messenger') ||
+      location.pathname.startsWith('/chat/standalone')
+    );
+  }, [location.pathname]);
+
+  const isReelsRoute = useMemo(() => {
+    return location.pathname.startsWith('/reels');
+  }, [location.pathname]);
 
   return (
     <DeviceLockGate>

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { registerSessionResetHandler } from '@/shared/model/resetSession';
 import { NotificationFilter, NotificationUnreadCounts } from './types';
 
 interface NotificationState {
@@ -71,3 +72,16 @@ export const useNotificationStore = create<NotificationState>((set) => ({
       };
     }),
 }));
+
+/**
+ * RESET_STORES: unread counts/filter are session-scoped (source of truth is
+ * TanStack Query `unread-notifications-count`; this store is an optimistic
+ * projection). Cleared on logout/switch to prevent cross-account leakage.
+ */
+registerSessionResetHandler(() => {
+  useNotificationStore.setState({
+    unreadCounts: { ...initialCounts },
+    activeFilter: 'all',
+    optimisticFollows: {},
+  });
+});

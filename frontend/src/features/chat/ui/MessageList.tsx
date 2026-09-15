@@ -2,7 +2,7 @@ import Avatar from '@/shared/ui/Avatar';
 import TypingIndicatorBubble from './TypingIndicatorBubble';
 import { ChevronDown } from 'lucide-react';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { MessageView, UserSnapshot } from '../../../entities/chat/model/types';
 import { groupMessagesByDate } from '../lib/groupMessagesByDate';
 import { ChatThemeConfig } from '../model/chatTheme';
@@ -80,8 +80,6 @@ type Row =
       key: string;
       messages: MessageView[];
     };
-
-const START_INDEX = 100000;
 
 function isSameSenderAndMinute(msg1: MessageView, msg2: MessageView): boolean {
   if (!msg1.sender?.id || !msg2.sender?.id || msg1.sender.id !== msg2.sender.id) return false;
@@ -247,13 +245,36 @@ export default function MessageList({
   onLoadNewer,
   onRetry,
 }: MessageListProps) {
-  const virtuosoRef = useRef<VirtuosoHandle>(null);
-  const scrollerElementRef = useRef<HTMLElement | null>(null);
-  const prevRowsRef = useRef<Row[]>([]);
-  const [firstItemIndex, setFirstItemIndex] = useState(START_INDEX);
+  const scrollerElementRef = useRef<HTMLDivElement | null>(null);
+  const rows = useMemo(() => buildRows(messages), [messages]);
+
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => scrollerElementRef.current,
+    estimateSize: () => 64,
+    overscan: 6,
+    initialRect: { width: 500, height: 800 },
+  });
+
+  const virtualRows = virtualizer.getVirtualItems();
 
   const [showScrollBottom, setShowScrollBottom] = useState(false);
   const [unreadBelowCount, setUnreadBelowCount] = useState(0);
+
+  const handleStartReached = useCallback(() => {
+    if (isAnchoredInHistory && onLoadOlder) {
+      onLoadOlder();
+      return;
+    }
+    if (!hasMore || isFetchingMore) return;
+    onLoadMore();
+  }, [hasMore, isAnchoredInHistory, isFetchingMore, onLoadMore, onLoadOlder]);
+
+  const handleEndReached = useCallback(() => {
+    if (isAnchoredInHistory && onLoadNewer) {
+      onLoadNewer();
+    }
+  }, [isAnchoredInHistory, onLoadNewer]);
 
   const checkScrollPosition = useCallback(() => {
     const el = scrollerElementRef.current;
@@ -265,7 +286,13 @@ export default function MessageList({
     if (distanceFromBottom <= 20 && !isAnchoredInHistory) {
       setUnreadBelowCount(0);
     }
-  }, [isAnchoredInHistory]);
+    if (el.scrollTop < 100) {
+      handleStartReached();
+    }
+    if (distanceFromBottom < 100) {
+      handleEndReached();
+    }
+  }, [isAnchoredInHistory, handleStartReached, handleEndReached]);
 
   useEffect(() => {
     const el = scrollerElementRef.current;
@@ -274,7 +301,16 @@ export default function MessageList({
     return () => el.removeEventListener('scroll', checkScrollPosition);
   }, [checkScrollPosition]);
 
-  const rows = useMemo(() => buildRows(messages), [messages]);
+  const isInitialMount = useRef(true);
+  useEffect(() => {
+    if (
+      rows.length > 0 &&
+      (isInitialMount.current || (!showScrollBottom && !isAnchoredInHistory))
+    ) {
+      isInitialMount.current = false;
+      virtualizer.scrollToIndex(rows.length - 1, { align: 'end' });
+    }
+  }, [rows.length, showScrollBottom, isAnchoredInHistory, virtualizer]);
 
   const { dockOffset } = useSpotifyDockOffset();
 
@@ -283,27 +319,14 @@ export default function MessageList({
     // if the user is reading live messages at the bottom, maintain smooth pinning to bottom.
     if (!isAnchoredInHistory && !showScrollBottom && rows.length > 0) {
       const timer = setTimeout(() => {
-        virtuosoRef.current?.scrollToIndex({
-          index: firstItemIndex + rows.length - 1,
+        virtualizer.scrollToIndex(rows.length - 1, {
           align: 'end',
           behavior: 'smooth',
         });
       }, 60);
       return () => clearTimeout(timer);
     }
-  }, [dockOffset, firstItemIndex, isAnchoredInHistory, rows.length, showScrollBottom]);
-
-  useLayoutEffect(() => {
-    const prevRows = prevRowsRef.current;
-    if (prevRows.length > 0 && rows.length > prevRows.length) {
-      const prevFirstKey = prevRows[0].key;
-      const prependedCount = rows.findIndex((r) => r.key === prevFirstKey);
-      if (prependedCount > 0) {
-        setFirstItemIndex((idx) => idx - prependedCount);
-      }
-    }
-    prevRowsRef.current = rows;
-  }, [rows]);
+  }, [dockOffset, isAnchoredInHistory, rows.length, showScrollBottom, virtualizer]);
 
   useEffect(() => {
     if (!highlightMessageId) return;
@@ -311,8 +334,7 @@ export default function MessageList({
       (r) => r.type === 'message' && r.message.id === highlightMessageId,
     );
     if (relativeIndex !== -1) {
-      virtuosoRef.current?.scrollToIndex({
-        index: firstItemIndex + relativeIndex,
+      virtualizer.scrollToIndex(relativeIndex, {
         align: 'center',
         behavior: 'smooth',
       });
@@ -321,22 +343,25 @@ export default function MessageList({
     } else if (onLoadAround) {
       onLoadAround(highlightMessageId).catch(() => {});
     }
-  }, [highlightMessageId, rows, firstItemIndex, onHighlightHandled, onLoadAround]);
+  }, [highlightMessageId, rows, onHighlightHandled, onLoadAround, virtualizer]);
 
-  const handleStartReached = () => {
-    if (isAnchoredInHistory && onLoadOlder) {
-      onLoadOlder();
-      return;
+  useEffect(() => {
+    if (virtualRows.length === 0) return;
+    const lastVisibleItem = virtualRows[virtualRows.length - 1];
+    const visibleRows = rows.slice(virtualRows[0].index, lastVisibleItem.index + 1);
+    const lastMsgRow = [...visibleRows].reverse().find((r) => r.type === 'message');
+    if (
+      lastMsgRow &&
+      lastMsgRow.type === 'message' &&
+      lastMsgRow.message.sender?.id &&
+      lastMsgRow.message.sender.id !== currentUserId
+    ) {
+      onMarkRead?.(lastMsgRow.message.id);
     }
-    if (!hasMore || isFetchingMore) return;
-    onLoadMore();
-  };
 
-  const handleEndReached = () => {
-    if (isAnchoredInHistory && onLoadNewer) {
-      onLoadNewer();
-    }
-  };
+    const belowCount = Math.max(0, rows.length - 1 - lastVisibleItem.index);
+    setUnreadBelowCount(belowCount);
+  }, [virtualRows, rows, currentUserId, onMarkRead]);
 
   if (isLoading) {
     return (
@@ -381,178 +406,167 @@ export default function MessageList({
 
   return (
     <div className="relative flex-1 flex flex-col min-h-0 overflow-x-hidden">
-      <Virtuoso
-        ref={virtuosoRef}
-        context={{ contentMaxWidth }}
-        scrollerRef={(ref) => {
-          if (ref instanceof HTMLElement) {
-            scrollerElementRef.current = ref;
-            checkScrollPosition();
-          }
-        }}
-        firstItemIndex={firstItemIndex}
-        initialTopMostItemIndex={Math.max(0, rows.length - 1)}
-        data={rows}
-        increaseViewportBy={{ top: 300, bottom: 300 }}
-        startReached={handleStartReached}
-        endReached={handleEndReached}
-        atBottomStateChange={(atBottom) => {
-          if (atBottom && !isAnchoredInHistory) {
-            setShowScrollBottom(false);
-            setUnreadBelowCount(0);
-          } else {
-            checkScrollPosition();
-          }
-        }}
-        followOutput={(isAtBottom) => (isAtBottom && !isAnchoredInHistory ? 'smooth' : false)}
-        className="flex-1 custom-scrollbar py-2 overflow-x-hidden"
+      <div
+        ref={scrollerElementRef}
+        onScroll={checkScrollPosition}
+        className="flex-1 custom-scrollbar py-2 overflow-y-auto overflow-x-hidden"
         style={{ overflowAnchor: 'none', overflowX: 'hidden' }}
-        rangeChanged={(range) => {
-          checkScrollPosition();
-          const visibleRows = rows.slice(
-            Math.max(0, range.startIndex - firstItemIndex),
-            Math.max(0, range.endIndex - firstItemIndex + 1),
-          );
-          const lastMsgRow = [...visibleRows].reverse().find((r) => r.type === 'message');
-          if (
-            lastMsgRow &&
-            lastMsgRow.type === 'message' &&
-            lastMsgRow.message.sender?.id &&
-            lastMsgRow.message.sender.id !== currentUserId
-          ) {
-            onMarkRead?.(lastMsgRow.message.id);
-          }
+      >
+        {isFetchingMore && (
+          <div
+            className="w-full mx-auto px-1 sm:px-2.5 transition-[max-width] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
+            style={{
+              maxWidth: contentMaxWidth ? `${contentMaxWidth}px` : '880px',
+            }}
+          >
+            <OlderMessagesSkeleton />
+          </div>
+        )}
 
-          const bottomRowIndex = Math.max(0, range.endIndex - firstItemIndex);
-          const belowCount = Math.max(0, rows.length - 1 - bottomRowIndex);
-          setUnreadBelowCount(belowCount);
-        }}
-        components={{
-          Header: () =>
-            isFetchingMore ? (
+        <div
+          style={{
+            height: `${virtualizer.getTotalSize()}px`,
+            width: '100%',
+            position: 'relative',
+          }}
+        >
+          {virtualRows.map((virtualItem) => {
+            const row = rows[virtualItem.index];
+            if (!row) return null;
+
+            const rowWrapperClass =
+              'w-full mx-auto px-1 sm:px-2.5 transition-[max-width] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]';
+            const rowWrapperStyle: React.CSSProperties = {
+              maxWidth: contentMaxWidth ? `${contentMaxWidth}px` : '880px',
+            };
+
+            let rowContent: React.ReactNode = null;
+
+            if (row.type === 'separator') {
+              const isHighlighted = highlightDateLabel === row.label;
+              rowContent = (
+                <div
+                  className={`${rowWrapperClass} sticky top-2 z-20 flex justify-center py-2 pointer-events-none`}
+                  style={rowWrapperStyle}
+                >
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      onOpenDatePicker?.(row.date, rect);
+                    }}
+                    className={`px-3.5 py-1 rounded-full bg-[#18181b]/85 border border-white/10 backdrop-blur-md shadow-md text-[11px] font-medium text-gray-300 pointer-events-auto select-none transition-all duration-300 cursor-pointer hover:bg-[#252530] hover:border-purple-400/50 hover:text-purple-300 hover:shadow-[0_0_15px_rgba(168,85,247,0.35)] active:scale-95 group ${
+                      isHighlighted ? 'animate-dateJumpPulse ring-2 ring-purple-500/80' : ''
+                    }`}
+                    title="Click to open calendar date picker"
+                  >
+                    <span>{row.label}</span>
+                  </button>
+                </div>
+              );
+            } else if (row.type === 'system_cluster') {
+              rowContent = (
+                <div className={rowWrapperClass} style={rowWrapperStyle}>
+                  <SystemMessageCluster key={row.key} messages={row.messages} />
+                </div>
+              );
+            } else {
+              const { message, showAvatar, clusterPosition } = row;
+
+              if (message.messageType === 'THEME_PROPOSAL') {
+                rowContent = (
+                  <div className={rowWrapperClass} style={rowWrapperStyle}>
+                    <ThemeProposalMessage
+                      key={message.id}
+                      message={message}
+                      currentUserId={currentUserId || ''}
+                      conversationId={conversationId || message.conversationId}
+                      onThemeAccepted={onThemeAccepted}
+                    />
+                  </div>
+                );
+              } else if (message.messageType === 'CALL_LOG') {
+                rowContent = (
+                  <div className={rowWrapperClass} style={rowWrapperStyle}>
+                    <CallHistoryItem
+                      key={message.id}
+                      message={message}
+                      currentUserId={currentUserId}
+                    />
+                  </div>
+                );
+              } else {
+                const isOwnMessage = Boolean(
+                  message.sender?.id && message.sender.id === currentUserId,
+                );
+                const isReadByOther = otherParticipantId
+                  ? message.readBy.includes(otherParticipantId)
+                  : false;
+
+                rowContent = (
+                  <div className={rowWrapperClass} style={rowWrapperStyle}>
+                    <div
+                      className={`rounded-2xl transition-all ${
+                        highlightMessageId === message.id ? 'animate-jumpHighlight' : ''
+                      }`}
+                    >
+                      <MessageBubble
+                        message={message}
+                        isOwnMessage={isOwnMessage}
+                        showAvatar={showAvatar}
+                        isReadByOther={isReadByOther}
+                        clusterPosition={clusterPosition}
+                        currentUserId={currentUserId}
+                        isSelectionMode={isSelectionMode}
+                        isSelected={selectedMessageIds?.has(message.id)}
+                        chatTheme={chatTheme}
+                        onToggleSelect={onToggleSelectMessage}
+                        onReply={onReply}
+                        onEdit={onEdit}
+                        onDelete={onDelete}
+                        onForward={onForward}
+                        onTogglePin={onTogglePin}
+                        onReport={onReport}
+                        onReact={onReact}
+                        onUnreact={onUnreact}
+                        onJumpToMessage={onJumpToMessage}
+                        onRetry={onRetry}
+                        e2eePeerUserId={isGroup ? null : otherParticipantId}
+                      />
+                    </div>
+                  </div>
+                );
+              }
+            }
+
+            return (
               <div
-                className="w-full mx-auto px-1 sm:px-2.5 transition-[max-width] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
+                key={row.key || virtualItem.key}
+                ref={virtualizer.measureElement}
+                data-index={virtualItem.index}
                 style={{
-                  maxWidth: contentMaxWidth ? `${contentMaxWidth}px` : '880px',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  transform: `translateY(${virtualItem.start}px)`,
                 }}
               >
-                <OlderMessagesSkeleton />
+                {rowContent}
               </div>
-            ) : null,
-          Footer: () => (
-            <div
-              className="w-full mx-auto px-1 sm:px-2.5 transition-[max-width] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
-              style={{
-                maxWidth: contentMaxWidth ? `${contentMaxWidth}px` : '880px',
-              }}
-            >
-              <TypingIndicatorBubble typists={typingParticipants} isGroup={isGroup} />
-            </div>
-          ),
-        }}
-        itemContent={(_index: number, row: Row) => {
-          const rowWrapperClass =
-            'w-full mx-auto px-1 sm:px-2.5 transition-[max-width] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]';
-          const rowWrapperStyle: React.CSSProperties = {
+            );
+          })}
+        </div>
+
+        <div
+          className="w-full mx-auto px-1 sm:px-2.5 transition-[max-width] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
+          style={{
             maxWidth: contentMaxWidth ? `${contentMaxWidth}px` : '880px',
-          };
-
-          if (row.type === 'separator') {
-            const isHighlighted = highlightDateLabel === row.label;
-            return (
-              <div
-                className={`${rowWrapperClass} sticky top-2 z-20 flex justify-center py-2 pointer-events-none`}
-                style={rowWrapperStyle}
-              >
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    onOpenDatePicker?.(row.date, rect);
-                  }}
-                  className={`px-3.5 py-1 rounded-full bg-[#18181b]/85 border border-white/10 backdrop-blur-md shadow-md text-[11px] font-medium text-gray-300 pointer-events-auto select-none transition-all duration-300 cursor-pointer hover:bg-[#252530] hover:border-purple-400/50 hover:text-purple-300 hover:shadow-[0_0_15px_rgba(168,85,247,0.35)] active:scale-95 group ${
-                    isHighlighted ? 'animate-dateJumpPulse ring-2 ring-purple-500/80' : ''
-                  }`}
-                  title="Click to open calendar date picker"
-                >
-                  <span>{row.label}</span>
-                </button>
-              </div>
-            );
-          }
-
-          if (row.type === 'system_cluster') {
-            return (
-              <div className={rowWrapperClass} style={rowWrapperStyle}>
-                <SystemMessageCluster key={row.key} messages={row.messages} />
-              </div>
-            );
-          }
-
-          const { message, showAvatar, clusterPosition } = row;
-
-          if (message.messageType === 'THEME_PROPOSAL') {
-            return (
-              <div className={rowWrapperClass} style={rowWrapperStyle}>
-                <ThemeProposalMessage
-                  key={message.id}
-                  message={message}
-                  currentUserId={currentUserId || ''}
-                  conversationId={conversationId || message.conversationId}
-                  onThemeAccepted={onThemeAccepted}
-                />
-              </div>
-            );
-          }
-
-          if (message.messageType === 'CALL_LOG') {
-            return (
-              <div className={rowWrapperClass} style={rowWrapperStyle}>
-                <CallHistoryItem key={message.id} message={message} currentUserId={currentUserId} />
-              </div>
-            );
-          }
-
-          const isOwnMessage = Boolean(message.sender?.id && message.sender.id === currentUserId);
-          const isReadByOther = otherParticipantId
-            ? message.readBy.includes(otherParticipantId)
-            : false;
-
-          return (
-            <div className={rowWrapperClass} style={rowWrapperStyle}>
-              <div
-                className={`rounded-2xl transition-all ${
-                  highlightMessageId === message.id ? 'animate-jumpHighlight' : ''
-                }`}
-              >
-                <MessageBubble
-                  message={message}
-                  isOwnMessage={isOwnMessage}
-                  showAvatar={showAvatar}
-                  isReadByOther={isReadByOther}
-                  clusterPosition={clusterPosition}
-                  currentUserId={currentUserId}
-                  isSelectionMode={isSelectionMode}
-                  isSelected={selectedMessageIds?.has(message.id)}
-                  chatTheme={chatTheme}
-                  onToggleSelect={onToggleSelectMessage}
-                  onReply={onReply}
-                  onEdit={onEdit}
-                  onDelete={onDelete}
-                  onForward={onForward}
-                  onTogglePin={onTogglePin}
-                  onReport={onReport}
-                  onReact={onReact}
-                  onUnreact={onUnreact}
-                  onJumpToMessage={onJumpToMessage}
-                  onRetry={onRetry}
-                  e2eePeerUserId={isGroup ? null : otherParticipantId}
-                />
-              </div>
-            </div>
-          );
-        }}
-      />
+          }}
+        >
+          <TypingIndicatorBubble typists={typingParticipants} isGroup={isGroup} />
+        </div>
+      </div>
 
       {(showScrollBottom || isAnchoredInHistory) && (
         <div
@@ -567,8 +581,7 @@ export default function MessageList({
               if (isAnchoredInHistory) {
                 onResetToLive?.();
               }
-              virtuosoRef.current?.scrollToIndex({
-                index: firstItemIndex + rows.length - 1,
+              virtualizer.scrollToIndex(rows.length - 1, {
                 align: 'end',
                 behavior: 'smooth',
               });

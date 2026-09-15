@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useOptimistic, useTransition } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
+import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { useUIStore } from '../../shared/model/useUIStore';
 import { useUserByUsername } from '../../entities/profile/model/useUserByUsername';
 import { useCurrentUser } from '../../entities/profile/model/useCurrentUser';
@@ -45,7 +46,7 @@ function SkeletonProfileHeader() {
 export default function ProfilePage() {
   const { username: rawUsername } = useParams();
   const { data: currentUser } = useCurrentUser();
-  const { userId: myUserId } = useAuthStore();
+  const myUserId = useAuthStore((s) => s.userId);
   const [searchParams, setSearchParams] = useSearchParams();
 
   const isReserved = !!rawUsername && isReservedUsername(rawUsername);
@@ -63,15 +64,24 @@ export default function ProfilePage() {
   const tabParam = searchParams.get('tab') as ProfileTabType | null;
   const [localTab, setLocalTab] = useState<ProfileTabType>('posts');
 
-  const activeTab: ProfileTabType =
+  const baseTab: ProfileTabType =
     tabParam &&
     (tabParam === 'posts' || tabParam === 'reposts' || (tabParam === 'saved' && isOwnProfile))
       ? tabParam
       : localTab;
 
+  const [, startTabTransition] = useTransition();
+  const [activeTab, setOptimisticTab] = useOptimistic(
+    baseTab,
+    (_current, next: ProfileTabType) => next,
+  );
+
   const handleTabChange = (tab: ProfileTabType) => {
-    setLocalTab(tab);
-    setSearchParams(tab === 'posts' ? {} : { tab });
+    startTabTransition(() => {
+      setOptimisticTab(tab);
+      setLocalTab(tab);
+      setSearchParams(tab === 'posts' ? {} : { tab });
+    });
   };
 
   const openEditProfile = useUIStore((state) => state.openEditProfile);
@@ -140,6 +150,28 @@ export default function ProfilePage() {
       isMounted = false;
     };
   }, [storyParam, user?.id]);
+
+  const activeFeed = activeTab === 'posts' ? posts : reposts;
+  const activeQuery = activeTab === 'posts' ? postsQuery : repostsQuery;
+  const feedQueryKey =
+    activeTab === 'posts' ? [USER_POSTS_KEY, user?.id] : [USER_REPOSTS_KEY, user?.id];
+
+  const postVirtualizer = useWindowVirtualizer({
+    count: activeFeed.length,
+    estimateSize: () => 480,
+    overscan: 4,
+  });
+
+  const virtualItems = postVirtualizer.getVirtualItems();
+  const lastVirtualItem = virtualItems[virtualItems.length - 1];
+
+  const { hasNextPage, isFetchingNextPage, fetchNextPage } = activeQuery;
+  useEffect(() => {
+    if (!lastVirtualItem) return;
+    if (lastVirtualItem.index >= activeFeed.length - 2 && hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [lastVirtualItem, activeFeed.length, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   if (isReserved) {
     return (
@@ -214,11 +246,6 @@ export default function ProfilePage() {
       </div>
     );
   }
-
-  const activeFeed = activeTab === 'posts' ? posts : reposts;
-  const activeQuery = activeTab === 'posts' ? postsQuery : repostsQuery;
-  const feedQueryKey =
-    activeTab === 'posts' ? [USER_POSTS_KEY, user.id] : [USER_REPOSTS_KEY, user.id];
 
   const profileName = user.displayName || user.username;
   const profileDescription =
@@ -306,10 +333,34 @@ export default function ProfilePage() {
         ) : activeQuery.isLoading ? (
           <SkeletonFeed count={4} />
         ) : activeFeed.length > 0 ? (
-          <div className="flex flex-col gap-4">
-            {activeFeed.map((post) => (
-              <PostCard key={post.id} post={post} queryKey={feedQueryKey} />
-            ))}
+          <div
+            style={{
+              height: `${postVirtualizer.getTotalSize()}px`,
+              width: '100%',
+              position: 'relative',
+            }}
+          >
+            {virtualItems.map((virtualItem) => {
+              const post = activeFeed[virtualItem.index];
+              if (!post) return null;
+              return (
+                <div
+                  key={post.id || virtualItem.key}
+                  ref={postVirtualizer.measureElement}
+                  data-index={virtualItem.index}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    transform: `translateY(${virtualItem.start}px)`,
+                    paddingBottom: '16px',
+                  }}
+                >
+                  <PostCard post={post} queryKey={feedQueryKey} />
+                </div>
+              );
+            })}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-white/5 rounded-4xl bg-white/1">

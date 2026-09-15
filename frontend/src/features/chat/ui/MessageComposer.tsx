@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState, useTransition } from 'react';
 import { X, Mic, Video, Send, FileImage as FileIcon, EyeOff } from 'lucide-react';
 import { MessageView } from '../../../entities/chat/model/types';
 import { useMessageActions } from '../model/useMessageActions';
@@ -85,6 +85,8 @@ export default function MessageComposer({
   });
   const [openPopover, setOpenPopover] = useState<OpenPopover>(null);
   const [isSending, setIsSending] = useState(false);
+  const [isSendingTransition, startSendTransition] = useTransition();
+  const isSendingEffective = isSending || isSendingTransition;
   const [isShaking, setIsShaking] = useState(false);
   const [recordingError, setRecordingError] = useState<string | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
@@ -142,54 +144,57 @@ export default function MessageComposer({
 
   const hasContent = text.trim().length > 0 || stagedFiles.length > 0;
 
-  const handleSendRecordedMedia = async (payload: RecordedPayload) => {
-    try {
-      setIsSending(true);
-      let uploaded: Partial<OutgoingAttachment> = {};
-
+  const handleSendRecordedMedia = (payload: RecordedPayload) => {
+    startSendTransition(async () => {
       try {
-        uploaded = await actions.uploadAttachment(payload.file);
-      } catch (uploadErr) {
-        // Resilient fallback: convert recorded Blob to Data URL if server upload endpoint fails
+        setIsSending(true);
+        let uploaded: Partial<OutgoingAttachment> = {};
+
         try {
-          const reader = new FileReader();
-          const dataUrlPromise = new Promise<string>((resolve) => {
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = () => resolve(payload.previewUrl);
-          });
-          reader.readAsDataURL(payload.file);
-          const dataUrl = await dataUrlPromise;
-          uploaded = {
-            url: dataUrl,
-            type: payload.mode === 'voice' ? 'AUDIO' : 'VIDEO',
-            fileName: payload.file.name,
-            mimeType: payload.file.type || (payload.mode === 'voice' ? 'audio/webm' : 'video/webm'),
-            size: payload.file.size,
-          };
-        } catch {
-          throw uploadErr;
+          uploaded = await actions.uploadAttachment(payload.file);
+        } catch (uploadErr) {
+          // Resilient fallback: convert recorded Blob to Data URL if server upload endpoint fails
+          try {
+            const reader = new FileReader();
+            const dataUrlPromise = new Promise<string>((resolve) => {
+              reader.onload = () => resolve(reader.result as string);
+              reader.onerror = () => resolve(payload.previewUrl);
+            });
+            reader.readAsDataURL(payload.file);
+            const dataUrl = await dataUrlPromise;
+            uploaded = {
+              url: dataUrl,
+              type: payload.mode === 'voice' ? 'AUDIO' : 'VIDEO',
+              fileName: payload.file.name,
+              mimeType:
+                payload.file.type || (payload.mode === 'voice' ? 'audio/webm' : 'video/webm'),
+              size: payload.file.size,
+            };
+          } catch {
+            throw uploadErr;
+          }
         }
+
+        const outgoing: OutgoingAttachment = {
+          type: payload.mode === 'voice' ? 'AUDIO' : 'VIDEO',
+          url: uploaded.url || payload.previewUrl,
+          size: payload.file.size,
+          duration: payload.duration ? Math.round(payload.duration) : 0,
+          waveform: payload.waveform,
+          fileName: payload.file.name,
+          mimeType: payload.file.type || (payload.mode === 'voice' ? 'audio/webm' : 'video/webm'),
+        };
+
+        await actions.sendMessage('', replyingTo?.id, [outgoing]);
+        onCancelReply();
+        useChatDraftsStore.getState().clearDraft(conversationId);
+      } catch {
+        setRecordingError('Failed to send recording. Please try again.');
+        setTimeout(() => setRecordingError(null), 4000);
+      } finally {
+        setIsSending(false);
       }
-
-      const outgoing: OutgoingAttachment = {
-        type: payload.mode === 'voice' ? 'AUDIO' : 'VIDEO',
-        url: uploaded.url || payload.previewUrl,
-        size: payload.file.size,
-        duration: payload.duration ? Math.round(payload.duration) : 0,
-        waveform: payload.waveform,
-        fileName: payload.file.name,
-        mimeType: payload.file.type || (payload.mode === 'voice' ? 'audio/webm' : 'video/webm'),
-      };
-
-      await actions.sendMessage('', replyingTo?.id, [outgoing]);
-      onCancelReply();
-      useChatDraftsStore.getState().clearDraft(conversationId);
-    } catch {
-      setRecordingError('Failed to send recording. Please try again.');
-      setTimeout(() => setRecordingError(null), 4000);
-    } finally {
-      setIsSending(false);
-    }
+    });
   };
 
   const recorder = useMediaRecorderGesture({
@@ -304,7 +309,7 @@ export default function MessageComposer({
     onCancelReply();
   };
 
-  const handleSend = async () => {
+  const handleSend = () => {
     if (!hasContent) return;
 
     const textToSend = text;
@@ -323,62 +328,64 @@ export default function MessageComposer({
       textareaRef.current.focus();
     }
 
-    try {
-      setIsSending(true);
-      let attachments: OutgoingAttachment[] | undefined;
+    startSendTransition(async () => {
+      try {
+        setIsSending(true);
+        let attachments: OutgoingAttachment[] | undefined;
 
-      if (filesToSend.length > 0) {
-        attachments = await Promise.all(
-          filesToSend.map(async (staged) => {
-            try {
-              const uploaded = await actions.uploadAttachment(staged.file);
-              return {
-                ...uploaded,
-                isSpoiler: staged.isSpoiler,
-              };
-            } catch {
-              // Resilient data URL fallback if server upload endpoint encounters an issue
-              const reader = new FileReader();
-              const dataUrlPromise = new Promise<string>((resolve) => {
-                reader.onload = () => resolve(reader.result as string);
-                reader.onerror = () => resolve(staged.previewUrl);
-              });
-              reader.readAsDataURL(staged.file);
-              const dataUrl = await dataUrlPromise;
-              return {
-                url: dataUrl,
-                type: staged.file.type.startsWith('image/')
-                  ? ('IMAGE' as const)
-                  : staged.file.type.startsWith('video/')
-                    ? ('VIDEO' as const)
-                    : staged.file.type.startsWith('audio/')
-                      ? ('AUDIO' as const)
-                      : ('FILE' as const),
-                fileName: staged.file.name,
-                mimeType: staged.file.type,
-                size: staged.file.size,
-                isSpoiler: staged.isSpoiler,
-              };
-            }
-          }),
-        );
-      }
+        if (filesToSend.length > 0) {
+          attachments = await Promise.all(
+            filesToSend.map(async (staged) => {
+              try {
+                const uploaded = await actions.uploadAttachment(staged.file);
+                return {
+                  ...uploaded,
+                  isSpoiler: staged.isSpoiler,
+                };
+              } catch {
+                // Resilient data URL fallback if server upload endpoint encounters an issue
+                const reader = new FileReader();
+                const dataUrlPromise = new Promise<string>((resolve) => {
+                  reader.onload = () => resolve(reader.result as string);
+                  reader.onerror = () => resolve(staged.previewUrl);
+                });
+                reader.readAsDataURL(staged.file);
+                const dataUrl = await dataUrlPromise;
+                return {
+                  url: dataUrl,
+                  type: staged.file.type.startsWith('image/')
+                    ? ('IMAGE' as const)
+                    : staged.file.type.startsWith('video/')
+                      ? ('VIDEO' as const)
+                      : staged.file.type.startsWith('audio/')
+                        ? ('AUDIO' as const)
+                        : ('FILE' as const),
+                  fileName: staged.file.name,
+                  mimeType: staged.file.type,
+                  size: staged.file.size,
+                  isSpoiler: staged.isSpoiler,
+                };
+              }
+            }),
+          );
+        }
 
-      await actions.sendMessage(textToSend, replyToSend?.id, attachments);
-    } catch (err) {
-      if (err instanceof E2eePinChangedError) {
-        // Suspected key substitution: the message was NOT sent (fail closed).
-        // The optimistic bubble sits in ERROR; retry stays blocked until the
-        // new key is accepted. Explain instead of failing silently.
-        setSendError(
-          'This contact\u2019s security key changed. Sending is blocked to protect your messages.',
-        );
-        setTimeout(() => setSendError(null), 6000);
+        await actions.sendMessage(textToSend, replyToSend?.id, attachments);
+      } catch (err) {
+        if (err instanceof E2eePinChangedError) {
+          // Suspected key substitution: the message was NOT sent (fail closed).
+          // The optimistic bubble sits in ERROR; retry stays blocked until the
+          // new key is accepted. Explain instead of failing silently.
+          setSendError(
+            'This contact\u2019s security key changed. Sending is blocked to protect your messages.',
+          );
+          setTimeout(() => setSendError(null), 6000);
+        }
+        console.error('Failed to send message:', err);
+      } finally {
+        setIsSending(false);
       }
-      console.error('Failed to send message:', err);
-    } finally {
-      setIsSending(false);
-    }
+    });
   };
 
   const [detectedSnippet, setDetectedSnippet] = useState<DetectedCodeSnippet | null>(null);
@@ -761,7 +768,7 @@ export default function MessageComposer({
           <div className="relative shrink-0 flex items-center">
             <AttachMenu
               isGroup={isGroup}
-              disabled={isSending || stagedFiles.length >= MAX_ATTACHMENTS_PER_MESSAGE}
+              disabled={isSendingEffective || stagedFiles.length >= MAX_ATTACHMENTS_PER_MESSAGE}
               canSendMedia={canSendMedia}
               canSendPolls={canSendPolls}
               onPickMedia={onAddFiles}
@@ -900,11 +907,14 @@ export default function MessageComposer({
               <button
                 type="button"
                 onClick={handleSend}
-                disabled={isSending}
+                disabled={isSendingEffective}
                 className="w-8 h-8 shrink-0 flex items-center justify-center rounded-full bg-linear-to-r from-purple-500 to-indigo-500 hover:from-purple-400 hover:to-indigo-400 text-white shadow-[0_0_14px_rgba(168,85,247,0.6)] transition-all active:scale-95 disabled:opacity-50"
                 title="Send message"
               >
-                <Send size={14} className={isSending ? 'animate-pulse' : 'translate-x-[0.5px]'} />
+                <Send
+                  size={14}
+                  className={isSendingEffective ? 'animate-pulse' : 'translate-x-[0.5px]'}
+                />
               </button>
             ) : (
               <button
@@ -920,7 +930,7 @@ export default function MessageComposer({
                       ? 'Hold to record voice message, click to switch to video'
                       : 'Hold to record video note, click to switch to voice'
                 }
-                disabled={!canSendVoice || isSending}
+                disabled={!canSendVoice || isSendingEffective}
                 className={`w-8 h-8 shrink-0 flex items-center justify-center rounded-full transition-all duration-200 cursor-pointer ${
                   !canSendVoice
                     ? 'opacity-40 cursor-not-allowed text-gray-600'

@@ -31,7 +31,7 @@ export default function MusicHubPage() {
   );
 
   const { data: currentUser } = useCurrentUser();
-  const { isSidebarExpanded } = useUIStore();
+  const isSidebarExpanded = useUIStore((s) => s.isSidebarExpanded);
   const selectedPlaylistId = useMusicHubStore((s) => s.selectedPlaylistId);
   const setSelectedPlaylistId = useMusicHubStore((s) => s.setSelectedPlaylistId);
   const isLibraryFullWidth = useMusicHubStore((s) => s.isLibraryFullWidth);

@@ -9,17 +9,17 @@ import type {
 } from '../model/types';
 
 export const storiesApi = {
-  async getFeed(): Promise<UserStoriesGroup[]> {
-    const res = await apiClient.get<UserStoriesGroup[]>('/stories/feed');
+  async getFeed(signal?: AbortSignal): Promise<UserStoriesGroup[]> {
+    const res = await apiClient.get<UserStoriesGroup[]>('/stories/feed', { signal });
     return res.data;
   },
 
-  async getUserStories(userId: string): Promise<UserStoriesGroup | null> {
-    const res = await apiClient.get<UserStoriesGroup | null>(`/stories/user/${userId}`);
+  async getUserStories(userId: string, signal?: AbortSignal): Promise<UserStoriesGroup | null> {
+    const res = await apiClient.get<UserStoriesGroup | null>(`/stories/user/${userId}`, { signal });
     return res.data;
   },
 
-  async createStory(payload: CreateStoryPayload): Promise<StoryViewResponse> {
+  async createStory(payload: CreateStoryPayload, signal?: AbortSignal): Promise<StoryViewResponse> {
     const formData = new FormData();
     if (payload.file) {
       formData.append('file', payload.file);
@@ -47,51 +47,76 @@ export const storiesApi = {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+      signal,
     });
     return res.data;
   },
 
-  async viewStory(storyId: string): Promise<void> {
-    await apiClient.post(`/stories/${storyId}/view`);
+  async viewStory(storyId: string, signal?: AbortSignal): Promise<void> {
+    await apiClient.post(`/stories/${storyId}/view`, {}, { signal });
   },
 
-  async reactToStory(storyId: string, emoji: string): Promise<{ emoji: string }> {
-    const res = await apiClient.post<{ emoji: string }>(`/stories/${storyId}/react`, { emoji });
+  async reactToStory(
+    storyId: string,
+    emoji: string,
+    signal?: AbortSignal,
+  ): Promise<{ emoji: string }> {
+    const res = await apiClient.post<{ emoji: string }>(
+      `/stories/${storyId}/react`,
+      { emoji },
+      { signal },
+    );
     return res.data;
   },
 
-  async votePoll(storyId: string, optionIndex: number): Promise<StoryPollResult> {
-    const res = await apiClient.post<StoryPollResult>(`/stories/${storyId}/poll-vote`, {
-      optionIndex,
-    });
+  async votePoll(
+    storyId: string,
+    optionIndex: number,
+    signal?: AbortSignal,
+  ): Promise<StoryPollResult> {
+    const res = await apiClient.post<StoryPollResult>(
+      `/stories/${storyId}/poll-vote`,
+      {
+        optionIndex,
+      },
+      { signal },
+    );
     return res.data;
   },
 
   async replyToStory(
     storyId: string,
     text: string,
+    signal?: AbortSignal,
   ): Promise<{ conversationId: string; message: any }> {
-    const res = await apiClient.post(`/stories/${storyId}/reply`, { text });
+    const res = await apiClient.post(`/stories/${storyId}/reply`, { text }, { signal });
     return res.data;
   },
 
-  async getStoryViewers(storyId: string): Promise<StoryViewersListResponse> {
-    const res = await apiClient.get<StoryViewersListResponse>(`/stories/${storyId}/viewers`);
+  async getStoryViewers(storyId: string, signal?: AbortSignal): Promise<StoryViewersListResponse> {
+    const res = await apiClient.get<StoryViewersListResponse>(`/stories/${storyId}/viewers`, {
+      signal,
+    });
     return res.data;
   },
 
-  async deleteStory(storyId: string): Promise<void> {
-    await apiClient.delete(`/stories/${storyId}`);
+  async deleteStory(storyId: string, signal?: AbortSignal): Promise<void> {
+    await apiClient.delete(`/stories/${storyId}`, { signal });
   },
 
-  async getCloseFriends(): Promise<StoryViewerUser[]> {
-    const res = await apiClient.get<StoryViewerUser[]>('/stories/close-friends/list');
+  async getCloseFriends(signal?: AbortSignal): Promise<StoryViewerUser[]> {
+    const res = await apiClient.get<StoryViewerUser[]>('/stories/close-friends/list', { signal });
     return res.data;
   },
 
-  async toggleCloseFriend(friendId: string): Promise<{ isCloseFriend: boolean }> {
+  async toggleCloseFriend(
+    friendId: string,
+    signal?: AbortSignal,
+  ): Promise<{ isCloseFriend: boolean }> {
     const res = await apiClient.post<{ isCloseFriend: boolean }>(
       `/stories/close-friends/${friendId}`,
+      {},
+      { signal },
     );
     return res.data;
   },

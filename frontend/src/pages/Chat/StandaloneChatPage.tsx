@@ -24,6 +24,7 @@ import { useConversations } from '@/features/chat/model/useConversations';
 import { useMessages } from '@/features/chat/model/useMessages';
 import { useMessageActions } from '@/features/chat/model/useMessageActions';
 import { useConversationRealtime } from '@/features/chat/model/useConversationRealtime';
+import { useChatGapFill } from '@/features/chat/model/useChatGapFill';
 import { useQueryOnlineStatus } from '@/features/chat/model/usePresence';
 import { getConversationDisplay } from '@/features/chat/lib/getConversationDisplay';
 import { promptEditMessage } from '@/features/chat/lib/promptEditMessage';
@@ -46,7 +47,8 @@ export default function StandaloneChatPage() {
   const { dockOffset } = useSpotifyDockOffset();
   const { conversationId } = useParams<{ conversationId: string }>();
   const navigate = useNavigate();
-  const { userId, isAuthenticated } = useAuthStore();
+  const userId = useAuthStore((s) => s.userId);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const { data: conversations, isLoading: isLoadingConversations } = useConversations();
 
   useEffect(() => {
@@ -80,6 +82,7 @@ export default function StandaloneChatPage() {
     isLoading: isLoadingMessages,
   } = useMessages(conversationId ?? '');
   const { typingUserIds } = useConversationRealtime(conversationId ?? null);
+  useChatGapFill(conversationId ? [conversationId] : []);
   const actions = useMessageActions(conversationId ?? '');
 
   const [text, setText] = useState(() => {

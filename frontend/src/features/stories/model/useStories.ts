@@ -14,7 +14,7 @@ export function useStoriesFeed() {
   const isGameModeOpen = useSpotifyPlayerStore((s) => s.isGameModeOpen);
   return useQuery({
     queryKey: [STORIES_FEED_KEY],
-    queryFn: () => storiesApi.getFeed(),
+    queryFn: async ({ signal }) => storiesApi.getFeed(signal),
     staleTime: 30 * 1000,
     refetchInterval: isGameModeOpen ? false : 60 * 1000,
     enabled: !isGameModeOpen,
@@ -24,7 +24,7 @@ export function useStoriesFeed() {
 export function useUserStories(userId?: string | null) {
   return useQuery({
     queryKey: [USER_STORIES_KEY, userId],
-    queryFn: () => (userId ? storiesApi.getUserStories(userId) : null),
+    queryFn: async ({ signal }) => (userId ? storiesApi.getUserStories(userId, signal) : null),
     enabled: Boolean(userId),
     staleTime: 30 * 1000,
   });
@@ -143,7 +143,7 @@ export function useDeleteStory() {
 export function useCloseFriends() {
   return useQuery({
     queryKey: [CLOSE_FRIENDS_KEY],
-    queryFn: () => storiesApi.getCloseFriends(),
+    queryFn: async ({ signal }) => storiesApi.getCloseFriends(signal),
   });
 }
 

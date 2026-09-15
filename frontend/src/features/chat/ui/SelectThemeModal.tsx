@@ -245,6 +245,7 @@ export default function SelectThemeModal({
   const [isProposing, setIsProposing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const textColorInputRef = useRef<HTMLInputElement | null>(null);
+  const blobUrlRef = useRef<string | null>(null);
   const [hoveredFont, setHoveredFont] = useState<string | null>(null);
   const previewScrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -270,6 +271,15 @@ export default function SelectThemeModal({
     });
     return () => {
       isMounted = false;
+    };
+  }, []);
+
+  // Clean up blob URL on unmount
+  useEffect(() => {
+    return () => {
+      if (blobUrlRef.current && blobUrlRef.current.startsWith('blob:')) {
+        URL.revokeObjectURL(blobUrlRef.current);
+      }
     };
   }, []);
 
@@ -679,7 +689,11 @@ export default function SelectThemeModal({
           durableUrl = await readFileAsDataUrl(file);
           finalUrl = durableUrl;
         } catch {
+          if (blobUrlRef.current && blobUrlRef.current.startsWith('blob:')) {
+            URL.revokeObjectURL(blobUrlRef.current);
+          }
           finalUrl = URL.createObjectURL(file);
+          blobUrlRef.current = finalUrl;
         }
       }
 
@@ -714,7 +728,11 @@ export default function SelectThemeModal({
       });
       setRecentWallpapers(updatedRecents);
     } catch {
+      if (blobUrlRef.current && blobUrlRef.current.startsWith('blob:')) {
+        URL.revokeObjectURL(blobUrlRef.current);
+      }
       const localBlobUrl = URL.createObjectURL(file);
+      blobUrlRef.current = localBlobUrl;
       setDraftTheme((prev) => ({
         ...prev,
         backgroundType: 'image',

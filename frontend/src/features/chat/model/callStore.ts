@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { registerSessionResetHandler } from '@/shared/model/resetSession';
 import type { CallSessionView, UserSnapshot, ZkpCallProof } from '@common/contracts';
 import type { FileTransferItem } from '../lib/webrtc/p2pFileTransfer';
 import type { VoiceFXMode } from '../lib/webrtc/voiceFX';
@@ -638,3 +639,16 @@ export const useCallStore = create<CallStoreState>((set) => ({
 if (typeof window !== 'undefined') {
   (window as unknown as { __CALL_STORE__?: typeof useCallStore }).__CALL_STORE__ = useCallStore;
 }
+
+/**
+ * RESET_STORES: end any live call on logout/switch. `resetCall` stops all
+ * media tracks (mic/camera must never stay live across accounts) and
+ * returns the slice to idle. Device prefs (codecs, FX, toggles) are kept.
+ */
+registerSessionResetHandler(() => {
+  try {
+    useCallStore.getState().resetCall();
+  } catch {
+    // ignore in tests
+  }
+});

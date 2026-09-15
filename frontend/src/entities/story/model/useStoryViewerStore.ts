@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { registerSessionResetHandler } from '@/shared/model/resetSession';
 import type { UserStoriesGroup } from './types';
 
 interface StoryViewerState {
@@ -280,3 +281,22 @@ export const useStoryViewerStore = create<StoryViewerState>((set, get) => ({
     set({ groups: updated });
   },
 }));
+
+/**
+ * RESET_STORES: close viewer + drop cached groups on logout/switch.
+ * Device prefs (muted/volume) are preserved.
+ */
+registerSessionResetHandler(() => {
+  useStoryViewerStore.setState({
+    isOpen: false,
+    activeGroupIndex: 0,
+    activeStoryIndex: 0,
+    groups: [],
+    isPaused: false,
+    isBuffering: false,
+    isInputFocused: false,
+    isMenuOpen: false,
+    isVolumeHovered: false,
+    videoProgress: 0,
+  });
+});

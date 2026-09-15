@@ -4,7 +4,7 @@ import { parseChatTheme, serializeChatTheme, dispatchThemeSync } from '../lib/th
 import { idbGet, idbSet, idbDelete } from '../../../shared/lib/indexedDbStorage';
 import { chatApi } from '../api/chatApi';
 import { queryClient } from '@/shared/api/queryClient';
-import { CONVERSATIONS_KEY } from '@/shared/api/queryKeys';
+import { queryKeys } from '@/shared/api/queryKeys';
 import type { ConversationView } from '../../../entities/chat/model/types';
 
 const LOCAL_CHAT_PREFIX = 'eternal_chat_theme_';
@@ -231,7 +231,7 @@ export function useChatTheme(
       // 3. Update React Query conversations cache so conversation.myTheme stays in sync
       try {
         const serialized = serializeChatTheme(newConfig);
-        queryClient.setQueryData<ConversationView[]>([CONVERSATIONS_KEY], (old) => {
+        queryClient.setQueryData<ConversationView[]>(queryKeys.conversations.root, (old) => {
           if (!old) return old;
           return old.map((conv) => {
             if (applyToAll || conv.id === conversationId) {
@@ -240,7 +240,7 @@ export function useChatTheme(
             return conv;
           });
         });
-        queryClient.invalidateQueries({ queryKey: [CONVERSATIONS_KEY] });
+        queryClient.invalidateQueries({ queryKey: queryKeys.conversations.root });
       } catch {
         // Safe fallback
       }
@@ -297,7 +297,7 @@ export function useChatTheme(
 
       // 4. Update React Query conversations cache
       try {
-        queryClient.setQueryData<ConversationView[]>([CONVERSATIONS_KEY], (old) => {
+        queryClient.setQueryData<ConversationView[]>(queryKeys.conversations.root, (old) => {
           if (!old) return old;
           return old.map((conv) => {
             if (applyToAll || conv.id === conversationId) {
@@ -306,7 +306,7 @@ export function useChatTheme(
             return conv;
           });
         });
-        queryClient.invalidateQueries({ queryKey: [CONVERSATIONS_KEY] });
+        queryClient.invalidateQueries({ queryKey: queryKeys.conversations.root });
       } catch {
         // Safe fallback
       }

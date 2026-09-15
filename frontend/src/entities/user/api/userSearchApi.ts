@@ -8,6 +8,6 @@ export interface UserSearchResult {
 }
 
 export const userSearchApi = {
-  search: (q: string) =>
-    api.get<UserSearchResult[]>('/users/search', { params: { q } }).then((r) => r.data),
+  search: (q: string, signal?: AbortSignal) =>
+    api.get<UserSearchResult[]>('/users/search', { params: { q }, signal }).then((r) => r.data),
 };

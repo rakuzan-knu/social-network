@@ -89,7 +89,7 @@ export default function ConversationDetailsPanel({
   onJumpToMessage,
 }: ConversationDetailsPanelProps) {
   const navigate = useNavigate();
-  const { userId: currentUserId } = useAuthStore();
+  const currentUserId = useAuthStore((s) => s.userId);
   const isGroup = conversation.type === 'GROUP';
 
   useQueryOnlineStatus(otherUserId ? [otherUserId] : []);

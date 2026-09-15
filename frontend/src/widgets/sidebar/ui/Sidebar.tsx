@@ -31,7 +31,8 @@ const menuItems = [
 ];
 
 export default function Sidebar() {
-  const { isSidebarExpanded, setSidebarExpanded } = useUIStore();
+  const isSidebarExpanded = useUIStore((s) => s.isSidebarExpanded);
+  const setSidebarExpanded = useUIStore((s) => s.setSidebarExpanded);
   const { data: currentUser } = useCurrentUser();
   const openStoryEditor = useStoryEditorStore((s) => s.openEditor);
   const location = useLocation();

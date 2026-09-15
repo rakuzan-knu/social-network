@@ -1,37 +1,17 @@
 import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { CONVERSATION_MESSAGES_KEY } from '@/shared/api/queryKeys';
-import { InfiniteMessagesData, PaginatedMessages } from '../../../entities/chat/model/types';
+import { queryKeys } from '@/shared/api/queryKeys';
+import { PaginatedMessages } from '../../../entities/chat/model/types';
 import { useChatSocket } from './useChatSocket';
-import { AckResponse } from './chatSocketTypes';
+import { emitWithAck } from './socketAck';
+import { updateCachedPages } from './chatCacheSync';
 import { useAuthStore } from '@/shared/model/useAuthStore';
 
-function emitWithAck<T = unknown>(
-  socket: ReturnType<typeof useChatSocket>,
-  event: string,
-  payload: object,
-  timeoutMs = 6000,
-): Promise<AckResponse<T>> {
-  return new Promise((resolve, reject) => {
-    let timeoutId: ReturnType<typeof setTimeout> | null = setTimeout(() => {
-      timeoutId = null;
-      resolve({ status: 'ok' });
-    }, timeoutMs);
-
-    socket.emit(event, payload, (res: AckResponse<T>) => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-        timeoutId = null;
-      }
-      if (!res || res.status === 'error') {
-        reject(new Error(res?.error ?? `${event} failed`));
-        return;
-      }
-      resolve(res);
-    });
-  });
-}
-
+/**
+ * Server State mutation: toggling a reaction. Optimistic `setQueryData`
+ * patch first (instant UI), WS emit in background. Failures only log —
+ * the next `messageReactionAdded/Removed` event reconciles the cache.
+ */
 export function useMessageReactionMutation(conversationId: string | null) {
   const socket = useChatSocket();
   const queryClient = useQueryClient();
@@ -39,11 +19,7 @@ export function useMessageReactionMutation(conversationId: string | null) {
   const updatePages = useCallback(
     (updater: (pages: PaginatedMessages[]) => PaginatedMessages[]) => {
       if (!conversationId) return;
-      queryClient.setQueryData<InfiniteMessagesData>(
-        [CONVERSATION_MESSAGES_KEY, conversationId],
-        (prev: InfiniteMessagesData | undefined) =>
-          prev ? { ...prev, pages: updater(prev.pages) } : prev,
-      );
+      updateCachedPages(queryClient, conversationId, updater);
     },
     [conversationId, queryClient],
   );
@@ -138,9 +114,13 @@ export function useMessageReactionMutation(conversationId: string | null) {
         }
       } catch (err) {
         console.error('Reaction mutation failed:', err);
+        // Reconcile against server truth in background.
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.conversations.messages(conversationId),
+        });
       }
     },
-    [conversationId, socket, updatePages],
+    [conversationId, socket, updatePages, queryClient],
   );
 
   return { toggleReaction };

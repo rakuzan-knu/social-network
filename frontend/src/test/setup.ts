@@ -83,6 +83,21 @@ global.ResizeObserver = class ResizeObserver {
   disconnect() {}
 };
 
+Object.defineProperties(window.HTMLElement.prototype, {
+  offsetHeight: {
+    get() {
+      return parseFloat(this.style?.height) || 800;
+    },
+    configurable: true,
+  },
+  offsetWidth: {
+    get() {
+      return parseFloat(this.style?.width) || 800;
+    },
+    configurable: true,
+  },
+});
+
 global.IntersectionObserver = class IntersectionObserver {
   observe() {}
   unobserve() {}
@@ -94,6 +109,8 @@ global.IntersectionObserver = class IntersectionObserver {
 
 window.HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined);
 window.HTMLMediaElement.prototype.pause = vi.fn();
+window.scrollTo = vi.fn();
+window.HTMLElement.prototype.scrollTo = vi.fn();
 
 vi.mock('socket.io-client', () => ({
   io: vi.fn(() => ({

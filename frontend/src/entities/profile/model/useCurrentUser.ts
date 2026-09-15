@@ -1,18 +1,21 @@
 import { useQuery } from '@tanstack/react-query';
 import { userApi } from '../api/userApi';
 import { useAuthStore } from '@/shared/model/useAuthStore';
-import { USER_KEY } from '@/shared/api/queryKeys';
+import { queryKeys } from '@/shared/api/queryKeys';
+import { queryStaleTimes, queryGcTimes } from '@/shared/api/queryClient';
 
 export function useCurrentUser() {
-  const { userId, isAuthenticated } = useAuthStore();
+  const userId = useAuthStore((s) => s.userId);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   return useQuery({
-    queryKey: [USER_KEY, userId],
+    queryKey: queryKeys.user.current(userId),
     queryFn: () => {
       if (!userId) throw new Error('User not identified');
       return userApi.getProfile(userId);
     },
     enabled: isAuthenticated && !!userId,
-    staleTime: 1000 * 60 * 5,
+    staleTime: queryStaleTimes.profile,
+    gcTime: queryGcTimes.profile,
   });
 }

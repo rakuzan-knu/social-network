@@ -26,7 +26,7 @@ export default function ArchivedThreadPane({
   conversation,
   onUnarchived,
 }: ArchivedThreadPaneProps) {
-  const { userId } = useAuthStore();
+  const userId = useAuthStore((s) => s.userId);
   const display = getConversationDisplay(conversation, userId);
   const isGroup = conversation.type === 'GROUP';
   const otherParticipant = isGroup

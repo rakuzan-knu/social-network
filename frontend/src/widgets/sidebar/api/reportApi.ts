@@ -1,18 +1,13 @@
-import axios from 'axios';
+import { apiClient } from '@/shared/api/httpClient';
 
-const api = axios.create({
-  baseURL: (import.meta.env.VITE_API_URL || 'http://localhost:3000')
-    .replace(/\/api\/?$/, '')
-    .replace(/\/+$/, ''),
-  withCredentials: true,
-});
-
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('accessToken');
-  if (token && config.headers) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
-
+/**
+ * Report-problem API.
+ *
+ * Enterprise boundary: ALL HTTP goes through the shared `apiClient`
+ * (auth refresh, X-Idempotency-Key, /v1 baseURL, 429/401 handling).
+ * The previous standalone axios instance bypassed all of that — token
+ * expiry during a report silently 401'd, and retries could double-submit.
+ */
 export interface SubmitReportPayload {
   description: string;
   area: string;
@@ -26,6 +21,6 @@ export const reportApi = {
     formData.append('area', area);
     if (screenshot) formData.append('screenshot', screenshot);
 
-    return api.post('/reports', formData).then((r) => r.data);
+    return apiClient.post('/reports', formData).then((r) => r.data);
   },
 };

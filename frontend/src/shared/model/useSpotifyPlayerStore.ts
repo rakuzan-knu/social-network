@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import Hls from 'hls.js';
+import { registerSessionResetHandler } from './resetSession';
 import { audioCoordinator } from '@/shared/lib/audioCoordinator';
 import {
   extractSpotifyTrackId,
@@ -1697,3 +1698,37 @@ if (typeof window !== 'undefined') {
     useSpotifyPlayerStore.getState().playTrack(track, queue, contextName);
   });
 }
+
+/**
+ * RESET_STORES: pause + drop session playback (track/queue/history/dock) on
+ * logout/switch. Device prefs (volume/mute/repeat/shuffle) are preserved.
+ * The persisted snapshot is overwritten with the cleared session so a
+ * relogin never resumes another account's queue.
+ */
+registerSessionResetHandler(() => {
+  try {
+    useSpotifyPlayerStore.getState().pause();
+  } catch {
+    // ignore in tests
+  }
+  useSpotifyPlayerStore.setState({
+    currentTrack: null,
+    isPlaying: false,
+    progressMs: 0,
+    queue: [],
+    unshuffledQueue: [],
+    history: [],
+    isLiked: false,
+    isLyricsOpen: false,
+    isQueueOpen: false,
+    isVolumeOpen: false,
+    isDockVisible: false,
+    isDockMinimized: false,
+    isMobileExpanded: false,
+    isGameModeOpen: false,
+    isLoadingQueue: false,
+    queueSource: 'infinite-audio',
+    queueOffset: 0,
+    needsSpotifyPermissions: false,
+  });
+});

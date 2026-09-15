@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { registerSessionResetHandler } from '@/shared/model/resetSession';
 import {
   muteNotificationAuthor,
   unmuteNotificationAuthor,
@@ -226,3 +227,38 @@ export const useNotificationSettingsStore = create<NotificationSettingsState>()(
     },
   ),
 );
+
+const NOTIFICATION_SETTINGS_DEFAULTS = {
+  enableNotifications: true,
+  allowSound: true,
+  volume: 100,
+  showName: true,
+  showText: true,
+  privateChats: true,
+  groups: true,
+  reactions: true,
+  likes: true,
+  comments: true,
+  reposts: true,
+  followers: true,
+  mentions: true,
+  system: true,
+  toastPosition: 'bottom-right',
+  maxToasts: 3,
+  dndUntil: null,
+  mutedActorIds: [],
+  mutedActors: [],
+} as const;
+
+/**
+ * RESET_STORES: notification prefs sync per-user to the backend — the local
+ * persisted copy MUST revert to defaults on logout/switch, otherwise account
+ * B inherits account A's mutes/DND. The next login rehydrates from server.
+ */
+registerSessionResetHandler(() => {
+  useNotificationSettingsStore.setState({
+    ...NOTIFICATION_SETTINGS_DEFAULTS,
+    mutedActorIds: [],
+    mutedActors: [],
+  });
+});

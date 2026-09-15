@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { FOLLOW_REQUESTS_KEY, USER_KEY } from '@/shared/api/queryKeys';
+import { queryKeys } from '@/shared/api/queryKeys';
 import { useAuthStore } from '@/shared/model/useAuthStore';
 import { useSpotifyPlayerStore } from '@/shared/model/useSpotifyPlayerStore';
 import { followRequestsApi } from '../api/followRequestsApi';
@@ -11,11 +11,12 @@ export interface FollowRequestsResponse {
   meta: { nextCursor: string | null; hasNextPage: boolean };
 }
 
+/** Server State: follow requests (short freshness — security data). */
 export function useFollowRequests(enabled = true) {
-  const { isAuthenticated } = useAuthStore();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const isGameModeOpen = useSpotifyPlayerStore((s) => s.isGameModeOpen);
   return useQuery<FollowRequestsResponse>({
-    queryKey: [FOLLOW_REQUESTS_KEY, 'list'],
+    queryKey: queryKeys.profile.followRequests.list,
     queryFn: () => followRequestsApi.list(),
     enabled: isAuthenticated && enabled && !isGameModeOpen,
     staleTime: 1000 * 15,
@@ -23,10 +24,10 @@ export function useFollowRequests(enabled = true) {
 }
 
 export function useFollowRequestsCount() {
-  const { isAuthenticated } = useAuthStore();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const isGameModeOpen = useSpotifyPlayerStore((s) => s.isGameModeOpen);
   return useQuery({
-    queryKey: [FOLLOW_REQUESTS_KEY, 'count'],
+    queryKey: queryKeys.profile.followRequests.count,
     queryFn: () => followRequestsApi.count(),
     enabled: isAuthenticated && !isGameModeOpen,
     staleTime: 1000 * 30,
@@ -38,8 +39,8 @@ export function useRespondToFollowRequest() {
   const queryClient = useQueryClient();
 
   const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: [FOLLOW_REQUESTS_KEY] });
-    queryClient.invalidateQueries({ queryKey: [USER_KEY] });
+    queryClient.invalidateQueries({ queryKey: queryKeys.profile.followRequests.root });
+    queryClient.invalidateQueries({ queryKey: queryKeys.user.root });
   };
 
   const accept = useMutation({

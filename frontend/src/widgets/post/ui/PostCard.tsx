@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useOptimistic, useTransition } from 'react';
 import { Link } from 'react-router-dom';
 import { MessageSquare, Repeat, Heart, Share, Bookmark, ChevronDown, Pin } from 'lucide-react';
 
@@ -89,6 +89,15 @@ export function PostCard({ post, queryKey }: PostCardProps) {
   const pinMutation = usePinPostMutation(post.id, !!post.isPinned, queryKey);
   const blockUserMutation = useBlockUser();
 
+  const [, startLikeTransition] = useTransition();
+  const [optimisticLikes, setOptimisticLikes] = useOptimistic(
+    { isLiked: !!post.isLiked, count: post.likes ?? 0 },
+    (state, _update: 'toggle') => ({
+      isLiked: !state.isLiked,
+      count: state.isLiked ? Math.max(0, state.count - 1) : state.count + 1,
+    }),
+  );
+
   const isHidden = hiddenIds.has(post.id);
   if (isHidden && !isCollapsing) {
     return null;
@@ -102,7 +111,14 @@ export function PostCard({ post, queryKey }: PostCardProps) {
     setIsLikePopping(true);
     if (likeTimerRef.current) clearTimeout(likeTimerRef.current);
     likeTimerRef.current = setTimeout(() => setIsLikePopping(false), 400);
-    likeMutation.mutate();
+    startLikeTransition(async () => {
+      setOptimisticLikes('toggle');
+      try {
+        await likeMutation.mutateAsync();
+      } catch {
+        // useOptimistic automatically rolls back when transition settles
+      }
+    });
   };
 
   const handleRepost = () => {
@@ -366,20 +382,20 @@ export function PostCard({ post, queryKey }: PostCardProps) {
                 type="button"
                 onClick={handleLike}
                 className={`flex items-center gap-1.5 cursor-pointer hover:text-pink-500 transition-colors group relative ${
-                  post.isLiked ? 'text-pink-500' : ''
+                  optimisticLikes.isLiked ? 'text-pink-500' : ''
                 }`}
-                title={post.isLiked ? 'Unlike' : 'Like'}
+                title={optimisticLikes.isLiked ? 'Unlike' : 'Like'}
               >
                 <Heart
                   size={16}
-                  fill={post.isLiked ? 'currentColor' : 'none'}
+                  fill={optimisticLikes.isLiked ? 'currentColor' : 'none'}
                   className={`transition-all duration-300 ${
                     isLikePopping
                       ? 'scale-150 text-pink-500 animate-pulse'
                       : 'group-hover:scale-110'
-                  } ${post.isLiked ? 'scale-105' : ''}`}
+                  } ${optimisticLikes.isLiked ? 'scale-105' : ''}`}
                 />
-                {!hideLikesCount && <span>{post.likes ?? 0}</span>}
+                {!hideLikesCount && <span>{optimisticLikes.count}</span>}
               </button>
 
               {/* Share Button with Shares Count */}

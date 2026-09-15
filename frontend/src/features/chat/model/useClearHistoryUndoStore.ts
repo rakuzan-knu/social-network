@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { registerSessionResetHandler } from '@/shared/model/resetSession';
 
 export interface ClearHistoryUndoItem {
   conversationId: string;
@@ -95,3 +96,13 @@ export const useClearHistoryUndoStore = create<ClearHistoryUndoState>((set, get)
     }
   },
 }));
+
+/**
+ * RESET_STORES: a pending clear-history undo must not survive logout — its
+ * rollback/execute closures capture the previous session's queryClient.
+ * Dropping is safe (no network as logged out); the orphaned interval
+ * self-clears via the `!current` branch above.
+ */
+registerSessionResetHandler(() => {
+  useClearHistoryUndoStore.setState({ activeUndo: null });
+});

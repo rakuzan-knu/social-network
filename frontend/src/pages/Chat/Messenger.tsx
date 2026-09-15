@@ -6,6 +6,8 @@ import MessengerSidebar from '../../widgets/sidebar/ui/RailwaySidebar';
 import ChatListPanel from '../../features/chat/ui/ChatListPanel';
 import ChatThread from '../../features/chat/ui/ChatThread';
 import { useUIStore } from '../../shared/model/useUIStore';
+import { queryKeys } from '../../shared/api/queryKeys';
+import { queryStaleTimes } from '../../shared/api/queryClient';
 import { useConversations } from '../../features/chat/model/useConversations';
 import { usePresenceSync } from '../../features/chat/model/usePresence';
 import { chatApi } from '../../features/chat/api/chatApi';
@@ -16,7 +18,7 @@ import { SEOHead } from '../../shared/seo';
 export default function MessengerPage() {
   const { conversationId } = useParams<{ conversationId?: string }>();
   const navigate = useNavigate();
-  const { isSidebarExpanded } = useUIStore();
+  const isSidebarExpanded = useUIStore((s) => s.isSidebarExpanded);
   const { data: conversations, isLoading: isLoadingConversations } = useConversations();
   usePresenceSync();
 
@@ -24,10 +26,12 @@ export default function MessengerPage() {
     conversations?.find((c: ConversationView) => c.id === conversationId) ?? null;
 
   const { data: fetchedConversation, isLoading: isLoadingSingle } = useQuery({
-    queryKey: ['conversation', conversationId],
+    queryKey: conversationId
+      ? queryKeys.conversations.detail(conversationId)
+      : ['conversation', 'none'],
     queryFn: () => chatApi.getConversation(conversationId!),
     enabled: Boolean(conversationId && !conversationInList),
-    staleTime: 1000 * 30,
+    staleTime: queryStaleTimes.conversations,
     retry: 1,
   });
 

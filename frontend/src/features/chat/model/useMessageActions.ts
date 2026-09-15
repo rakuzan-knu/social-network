@@ -2,8 +2,11 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useChatSocket } from './useChatSocket';
 import { useAuthStore } from '@/shared/model/useAuthStore';
-import { CONVERSATION_MESSAGES_KEY, CONVERSATIONS_KEY } from '@/shared/api/queryKeys';
+import { queryKeys } from '@/shared/api/queryKeys';
 import { chatApi } from '../api/chatApi';
+import { emitWithAck } from './socketAck';
+import { updateCachedPages } from './chatCacheSync';
+import { nextMessageStatus } from './messageStatus';
 import {
   decryptMessageForDisplay,
   encryptMessageForPeer,
@@ -21,7 +24,6 @@ import {
   OutgoingAttachment,
   PaginatedMessages,
 } from '../../../entities/chat/model/types';
-import { AckResponse } from './chatSocketTypes';
 
 const clientSeqMap = new Map<string, number>();
 
@@ -32,45 +34,15 @@ function getNextClientSeq(convId: string): number {
   return next;
 }
 
-function emitWithAck<T = unknown>(
-  socket: ReturnType<typeof useChatSocket>,
-  event: string,
-  payload: object,
-  timeoutMs = 6000,
-): Promise<AckResponse<T>> {
-  return new Promise((resolve, reject) => {
-    let timeoutId: ReturnType<typeof setTimeout> | null = setTimeout(() => {
-      timeoutId = null;
-      resolve({ status: 'ok' });
-    }, timeoutMs);
-
-    socket.emit(event, payload, (res: AckResponse<T>) => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-        timeoutId = null;
-      }
-      if (!res || res.status === 'error') {
-        reject(new Error(res?.error ?? `${event} failed`));
-        return;
-      }
-      resolve(res);
-    });
-  });
-}
-
 export function useMessageActions(conversationId: string | null) {
   const socket = useChatSocket();
   const queryClient = useQueryClient();
-  const { userId } = useAuthStore();
+  const userId = useAuthStore((s) => s.userId);
 
   const updatePages = useCallback(
     (updater: (pages: PaginatedMessages[]) => PaginatedMessages[]) => {
       if (!conversationId) return;
-      queryClient.setQueryData<InfiniteMessagesData>(
-        [CONVERSATION_MESSAGES_KEY, conversationId],
-        (prev: InfiniteMessagesData | undefined) =>
-          prev ? { ...prev, pages: updater(prev.pages) } : prev,
-      );
+      updateCachedPages(queryClient, conversationId, updater);
     },
     [conversationId, queryClient],
   );
@@ -167,7 +139,7 @@ export function useMessageActions(conversationId: string | null) {
       let outgoingText = text;
       if (text.trim() && userId) {
         const peerId = resolveDirectPeerUserId(
-          queryClient.getQueryData<ConversationPeerView[]>([CONVERSATIONS_KEY]),
+          queryClient.getQueryData<ConversationPeerView[]>(queryKeys.conversations.root),
           conversationId,
           userId,
         );
@@ -181,6 +153,10 @@ export function useMessageActions(conversationId: string | null) {
         }
       }
 
+      // Lifecycle: optimistic row is `pending` (SENDING). WS ack advances it
+      // to `sent`; delivery/read receipts arrive later via realtime events.
+      // Timeout now REJECTS (see socketAck) so we always fall through to the
+      // REST fallback instead of stranding the row in `pending`.
       try {
         const res = await emitWithAck<MessageView>(socket, 'sendMessage', {
           conversationId,
@@ -192,12 +168,27 @@ export function useMessageActions(conversationId: string | null) {
           clientSeq,
         });
         if (res.message) {
-          const real = { ...res.message, status: 'SENT' as const };
+          const real = {
+            ...res.message,
+            status: nextMessageStatus(res.message.status, 'sent'),
+          } as MessageView;
           updatePages((pages) =>
             pages.map((p) => ({
               ...p,
               data: p.data.map((m) =>
                 m.id === optimisticId || m.tempId === optimisticId ? real : m,
+              ),
+            })),
+          );
+        } else {
+          // Ack without echo: server accepted, echo arrives via `newMessage`.
+          updatePages((pages) =>
+            pages.map((p) => ({
+              ...p,
+              data: p.data.map((m) =>
+                m.id === optimisticId || m.tempId === optimisticId
+                  ? { ...m, status: nextMessageStatus(m.status, 'sent') as MessageView['status'] }
+                  : m,
               ),
             })),
           );
@@ -244,10 +235,9 @@ export function useMessageActions(conversationId: string | null) {
   const retrySendMessage = useCallback(
     async (failedMessageId: string) => {
       if (!conversationId) return;
-      const data = queryClient.getQueryData<InfiniteMessagesData>([
-        CONVERSATION_MESSAGES_KEY,
-        conversationId,
-      ]);
+      const data = queryClient.getQueryData<InfiniteMessagesData>(
+        queryKeys.conversations.messages(conversationId),
+      );
       const targetMessage = data?.pages
         .flatMap((p) => p.data)
         .find(
@@ -260,6 +250,9 @@ export function useMessageActions(conversationId: string | null) {
       if (!targetMessage) return;
 
       const optimisticId = targetMessage.clientMessageId || targetMessage.id;
+      // Preserve the original clientSeq for idempotent dedupe; mint a fresh
+      // one only when the failed row never had it (legacy rows).
+      const retryClientSeq = targetMessage.clientSeq ?? getNextClientSeq(conversationId);
       const text = targetMessage.body || '';
       const replyToId = targetMessage.replyTo?.id;
       const attachments = (targetMessage.attachments || []).map((a) => ({
@@ -290,10 +283,11 @@ export function useMessageActions(conversationId: string | null) {
       // Same E2EE rule as sendMessage: retry re-encrypts the plaintext body.
       // Fresh seq (the original seq is not stored): a jump reads as a benign
       // gap on the peer, never as a replay — retries are rare by design.
+      // Lifecycle: failed → pending on retry, then pending → sent on ack.
       let outgoingText = text;
       if (text.trim() && userId) {
         const peerId = resolveDirectPeerUserId(
-          queryClient.getQueryData<ConversationPeerView[]>([CONVERSATIONS_KEY]),
+          queryClient.getQueryData<ConversationPeerView[]>(queryKeys.conversations.root),
           conversationId,
           userId,
         );
@@ -315,9 +309,13 @@ export function useMessageActions(conversationId: string | null) {
           replyToId,
           attachments: attachments.length > 0 ? attachments : undefined,
           clientMessageId: optimisticId,
+          clientSeq: retryClientSeq,
         });
         if (res.message) {
-          const real = { ...res.message, status: 'SENT' as const };
+          const real = {
+            ...res.message,
+            status: nextMessageStatus(res.message.status, 'sent'),
+          } as MessageView;
           updatePages((pages) =>
             pages.map((p) => ({
               ...p,
@@ -381,7 +379,7 @@ export function useMessageActions(conversationId: string | null) {
       let outgoing = body;
       if (originalBody && conversationId && userId && e2eeManager.isEncrypted(originalBody)) {
         const peerId = resolveDirectPeerUserId(
-          queryClient.getQueryData<ConversationPeerView[]>([CONVERSATIONS_KEY]),
+          queryClient.getQueryData<ConversationPeerView[]>(queryKeys.conversations.root),
           conversationId,
           userId,
         );
@@ -455,7 +453,9 @@ export function useMessageActions(conversationId: string | null) {
       // ciphertext in the target dialog. Decrypt with the SOURCE peer, then
       // re-encrypt per TARGET (explicit user-chosen targets without E2EE go
       // plaintext — same rule as the send path).
-      const conversations = queryClient.getQueryData<ConversationPeerView[]>([CONVERSATIONS_KEY]);
+      const conversations = queryClient.getQueryData<ConversationPeerView[]>(
+        queryKeys.conversations.root,
+      );
       const sourcePeer = resolveDirectPeerUserId(conversations, message.conversationId, userId);
       const plain = await decryptMessageForDisplay(message.body, {
         peerUserId: sourcePeer,
@@ -646,7 +646,7 @@ export function useMessageActions(conversationId: string | null) {
 
       markReadTimeoutRef.current = setTimeout(() => {
         queryClient.setQueryData<ConversationView[]>(
-          [CONVERSATIONS_KEY],
+          queryKeys.conversations.root,
           (prev: ConversationView[] | undefined) =>
             prev?.map((conversation: ConversationView) =>
               conversation.id === conversationId
@@ -686,10 +686,9 @@ export function useMessageActions(conversationId: string | null) {
       if (!conversationId || messageIds.length === 0 || conversationIds.length === 0) return;
       // Envelopes must never take the server batch path (it copies bodies
       // verbatim): fan out client-side per message when any id is encrypted.
-      const data = queryClient.getQueryData<InfiniteMessagesData>([
-        CONVERSATION_MESSAGES_KEY,
-        conversationId,
-      ]);
+      const data = queryClient.getQueryData<InfiniteMessagesData>(
+        queryKeys.conversations.messages(conversationId),
+      );
       const byId = new Map(
         (data?.pages ?? []).flatMap((p) => p.data).map((m) => [m.id, m] as const),
       );
@@ -805,7 +804,7 @@ export function useMessageActions(conversationId: string | null) {
   const resetToLive = useCallback(async () => {
     if (!conversationId) return;
     await queryClient.invalidateQueries({
-      queryKey: [CONVERSATION_MESSAGES_KEY, conversationId],
+      queryKey: queryKeys.conversations.messages(conversationId),
     });
   }, [conversationId, queryClient]);
 

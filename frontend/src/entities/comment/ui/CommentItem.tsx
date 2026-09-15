@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useOptimistic, useTransition } from 'react';
 import { Link } from 'react-router-dom';
 import { Heart, MoreHorizontal, Pin, Trash2, Copy, Check, Flag } from 'lucide-react';
 import Avatar from '../../../shared/ui/Avatar';
@@ -44,9 +44,19 @@ export function CommentItem({
   const heartPoppingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const [, startLikeTransition] = useTransition();
+  const [optimisticLike, setOptimisticLike] = useOptimistic(
+    { isLiked: !!comment.isLiked, likesCount: comment.likesCount ?? 0 },
+    (state, _update: 'toggle') => ({
+      isLiked: !state.isLiked,
+      likesCount: state.isLiked ? Math.max(0, state.likesCount - 1) : state.likesCount + 1,
+    }),
+  );
+
   const isAuthor = postAuthorId && comment.userId === postAuthorId;
   const isCommentOwner = currentUserId && comment.userId === currentUserId;
   const isPostOwner = postAuthorId && currentUserId === postAuthorId;
+
   const canDelete = !comment.isDeleted && (isCommentOwner || isPostOwner);
   const canPin = !isReply && !comment.isDeleted && isPostOwner;
   const canReport = !comment.isDeleted && !isCommentOwner;
@@ -66,11 +76,18 @@ export function CommentItem({
     const now = Date.now();
     const DOUBLE_TAP_DELAY = 300;
     if (now - lastTapRef.current < DOUBLE_TAP_DELAY) {
-      if (!comment.isLiked && onLike) {
+      if (!optimisticLike.isLiked && onLike) {
         setIsLikePending(true);
-        onLike(comment.id);
         if (likePendingTimerRef.current) clearTimeout(likePendingTimerRef.current);
         likePendingTimerRef.current = setTimeout(() => setIsLikePending(false), 500);
+        startLikeTransition(async () => {
+          setOptimisticLike('toggle');
+          try {
+            await onLike(comment.id);
+          } catch {
+            // rollback handled by useOptimistic
+          }
+        });
       }
       setShowHeartBurst(true);
       if (heartBurstTimerRef.current) clearTimeout(heartBurstTimerRef.current);
@@ -88,9 +105,16 @@ export function CommentItem({
     setIsHeartPopping(true);
     if (heartPoppingTimerRef.current) clearTimeout(heartPoppingTimerRef.current);
     heartPoppingTimerRef.current = setTimeout(() => setIsHeartPopping(false), 400);
-    onLike?.(comment.id);
     if (likePendingTimerRef.current) clearTimeout(likePendingTimerRef.current);
     likePendingTimerRef.current = setTimeout(() => setIsLikePending(false), 500);
+    startLikeTransition(async () => {
+      setOptimisticLike('toggle');
+      try {
+        await onLike?.(comment.id);
+      } catch {
+        // rollback handled by useOptimistic
+      }
+    });
   };
 
   const handleCopyText = (e: React.MouseEvent) => {
@@ -325,24 +349,28 @@ export function CommentItem({
               </span>
             )}
 
-            {/* Like Button with Double-Click Protection */}
+            {/* Like Button */}
             <button
               type="button"
               disabled={isLikePending}
               onClick={handleLikeClick}
               className={`flex items-center gap-1.5 font-medium transition-all duration-200 cursor-pointer ml-auto disabled:opacity-50 ${
-                comment.isLiked ? 'text-[#ec4899]' : 'text-gray-500 hover:text-gray-300'
+                optimisticLike.isLiked ? 'text-[#ec4899]' : 'text-gray-500 hover:text-gray-300'
               }`}
-              title={comment.isLiked ? 'Unlike' : 'Like'}
+              title={optimisticLike.isLiked ? 'Unlike' : 'Like'}
             >
               <Heart
                 size={14}
                 className={`transition-transform duration-200 ${
-                  comment.isLiked ? 'fill-[#ec4899] drop-shadow-[0_0_8px_rgba(236,72,153,0.6)]' : ''
+                  optimisticLike.isLiked
+                    ? 'fill-[#ec4899] drop-shadow-[0_0_8px_rgba(236,72,153,0.6)]'
+                    : ''
                 } ${isHeartPopping ? 'scale-125' : 'scale-100'}`}
               />
-              {(comment.likesCount ?? 0) > 0 && (
-                <span className="text-[11px] tabular-nums font-semibold">{comment.likesCount}</span>
+              {(optimisticLike.likesCount ?? 0) > 0 && (
+                <span className="text-[11px] tabular-nums font-semibold">
+                  {optimisticLike.likesCount}
+                </span>
               )}
             </button>
           </div>

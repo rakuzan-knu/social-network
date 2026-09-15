@@ -132,7 +132,9 @@ const TABS_CONFIG: MainTab[] = [
 ];
 
 export default function EditProfileModal() {
-  const { isEditProfileOpen, closeEditProfile, editProfileInitialTab } = useUIStore();
+  const isEditProfileOpen = useUIStore((s) => s.isEditProfileOpen);
+  const closeEditProfile = useUIStore((s) => s.closeEditProfile);
+  const editProfileInitialTab = useUIStore((s) => s.editProfileInitialTab);
   const clearAuth = useAuthStore((state) => state.clearAuth);
   const targetTab =
     typeof editProfileInitialTab === 'string' &&

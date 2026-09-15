@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
@@ -176,10 +176,6 @@ function StorySegmentProgressBar({
   const progressRef = useRef<number>(0);
   const lastTimeRef = useRef<number | null>(null);
   const rafRef = useRef<number | null>(null);
-
-  const onCompleteRef = useRef(onComplete);
-  onCompleteRef.current = onComplete;
-
   const isPausedRef = useRef(isPaused);
   isPausedRef.current = isPaused;
 
@@ -224,7 +220,7 @@ function StorySegmentProgressBar({
 
           if (progressRef.current >= 100) {
             setTimeout(() => {
-              onCompleteRef.current();
+              onComplete();
             }, 0);
             return;
           }
@@ -327,7 +323,7 @@ export function StoryViewerModal() {
   const wasHoldingRef = useRef(false);
   const volumeHoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const handleGoNext = useCallback(() => {
+  const handleGoNext = () => {
     if (videoRef.current) {
       try {
         videoRef.current.pause();
@@ -335,9 +331,9 @@ export function StoryViewerModal() {
     }
     setDirection(1);
     nextStory();
-  }, [nextStory]);
+  };
 
-  const handleGoPrev = useCallback(() => {
+  const handleGoPrev = () => {
     if (videoRef.current) {
       try {
         videoRef.current.pause();
@@ -345,7 +341,7 @@ export function StoryViewerModal() {
     }
     setDirection(-1);
     prevStory();
-  }, [prevStory]);
+  };
 
   // Computed effective pause flag (locks timer on input, menu, sound slider or hold)
   const isEffectivelyPaused =
@@ -527,25 +523,28 @@ export function StoryViewerModal() {
   useEffect(() => {
     if (!activeAudioOverlay?.audioUrl) return;
     const url = activeAudioOverlay.audioUrl;
-    if (url.includes('/integrations/soundcloud/stream/')) {
-      const match = url.match(/stream\/([^/?#]+)/);
-      if (match && match[1]) {
-        integrationsApi
-          .getSoundCloudStream(match[1])
-          .then((res) => {
-            if (res?.streamUrl) {
-              activeAudioOverlay.audioUrl = res.streamUrl;
-              if (audioRef.current && !audioRef.current.src.includes(res.streamUrl)) {
-                audioRef.current.src = res.streamUrl;
-                if (!isEffectivelyPaused) {
-                  audioRef.current.play().catch(() => {});
-                }
-              }
-            }
-          })
-          .catch(() => {});
+    if (!url.includes('/integrations/soundcloud/stream/')) return;
+    const match = url.match(/stream\/([^/?#]+)/);
+    if (!match || !match[1]) return;
+
+    let cancelled = false;
+    (async () => {
+      const streamUrl = await integrationsApi.getSoundCloudStream(match[1]).catch(() => null);
+      if (cancelled) return;
+      if (
+        streamUrl?.streamUrl &&
+        audioRef.current &&
+        !audioRef.current.src.includes(streamUrl.streamUrl)
+      ) {
+        audioRef.current.src = streamUrl.streamUrl;
+        if (!isEffectivelyPaused) {
+          audioRef.current.play().catch(() => {});
+        }
       }
-    }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [activeAudioOverlay?.audioUrl, isEffectivelyPaused]);
 
   // Set initial start time and loop snippet when audio overlay loads

@@ -5,22 +5,6 @@ import { MessageView } from '@/entities/chat/model/types';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 
-vi.mock('react-virtuoso', () => ({
-  Virtuoso: ({
-    data,
-    itemContent,
-  }: {
-    data: Array<{ key: string; [key: string]: unknown }>;
-    itemContent: (i: number, d: unknown) => React.ReactNode;
-  }) => (
-    <div data-testid="virtuoso-mock">
-      {data.map((item, idx) => (
-        <div key={item.key || idx}>{itemContent(idx, item)}</div>
-      ))}
-    </div>
-  ),
-}));
-
 describe('MessageList', () => {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 

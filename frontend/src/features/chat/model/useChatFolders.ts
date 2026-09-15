@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { chatApi } from '../api/chatApi';
+import { queryKeys } from '@/shared/api/queryKeys';
+import { queryStaleTimes } from '@/shared/api/queryClient';
 import type {
   ChatFolderView,
   ConversationView,
@@ -7,13 +9,13 @@ import type {
   UpdateFolderPayload,
 } from '../../../entities/chat/model/types';
 
-export const CHAT_FOLDERS_QUERY_KEY = ['chat-folders'] as const;
+export const CHAT_FOLDERS_QUERY_KEY = queryKeys.conversations.folders;
 
 export function useChatFolders() {
   return useQuery({
-    queryKey: CHAT_FOLDERS_QUERY_KEY,
+    queryKey: queryKeys.conversations.folders,
     queryFn: () => chatApi.getFolders(),
-    staleTime: 60 * 1000,
+    staleTime: queryStaleTimes.feed,
   });
 }
 

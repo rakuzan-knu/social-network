@@ -14,6 +14,7 @@ import { formatMessageTime } from '../lib/groupMessagesByDate';
 import { promptEditMessage } from '../lib/promptEditMessage';
 import { getChatBackgroundStyle, parseChatTheme, updateMetaThemeColor } from '../lib/themeUtils';
 import { useCall } from '../model/CallContext';
+import { useChatGapFill } from '../model/useChatGapFill';
 import { useChatTheme } from '../model/useChatTheme';
 import { useArchiveConversation } from '../model/useConversationMutations';
 import { useConversationRealtime } from '../model/useConversationRealtime';
@@ -42,7 +43,7 @@ interface ChatThreadProps {
 type RightPanel = 'details' | 'search' | null;
 
 export default function ChatThread({ conversation }: ChatThreadProps) {
-  const { userId } = useAuthStore();
+  const userId = useAuthStore((s) => s.userId);
   const [searchParams] = useSearchParams();
   const initialMessageId = searchParams.get('messageId');
   const display = getConversationDisplay(conversation, userId);
@@ -74,6 +75,9 @@ export default function ChatThread({ conversation }: ChatThreadProps) {
     isLoading: isLoadingMessages,
   } = useMessages(conversation.id);
   const { typingUserIds } = useConversationRealtime(conversation.id);
+  // Offline-first: on reconnect, fetch the REST `after`-delta for this
+  // thread (Snowflake cursor) to fill anything the WS buffer missed.
+  useChatGapFill([conversation.id]);
   const actions = useMessageActions(conversation.id);
   const archiveConversation = useArchiveConversation();
   const { initiateCall } = useCall();

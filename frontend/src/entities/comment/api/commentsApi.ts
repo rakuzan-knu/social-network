@@ -70,9 +70,11 @@ export const commentsApi = {
     postId: string | number,
     cursor?: string,
     limit = 20,
+    signal?: AbortSignal,
   ): Promise<CommentListPage> => {
     const res = await api.get<Record<string, unknown>>(`/posts/${postId}/comments`, {
       params: { after: cursor, limit },
+      signal,
     });
     const raw = res.data;
     const rawList = Array.isArray(raw?.data)
@@ -94,9 +96,11 @@ export const commentsApi = {
     rootCommentId: string,
     cursor?: string,
     limit = 20,
+    signal?: AbortSignal,
   ): Promise<CommentListPage> => {
     const res = await api.get<Record<string, unknown>>(`/comments/${rootCommentId}/replies`, {
       params: { after: cursor, limit },
+      signal,
     });
     const raw = res.data;
     const rawList = Array.isArray(raw?.data)
@@ -121,39 +125,50 @@ export const commentsApi = {
     mediaUrl?: string,
     replyToUserId?: string,
     clientMutationId?: string,
+    signal?: AbortSignal,
   ): Promise<CommentType> => {
-    const res = await api.post<Record<string, unknown>>(`/posts/${postId}/comments`, {
-      text,
-      parentId,
-      mediaUrl,
-      replyToUserId,
-      clientMutationId,
-    });
+    const res = await api.post<Record<string, unknown>>(
+      `/posts/${postId}/comments`,
+      {
+        text,
+        parentId,
+        mediaUrl,
+        replyToUserId,
+        clientMutationId,
+      },
+      { signal },
+    );
     return normalizeComment(res.data);
   },
 
-  toggleLike: async (commentId: string): Promise<{ isLiked: boolean; likesCount: number }> => {
+  toggleLike: async (
+    commentId: string,
+    signal?: AbortSignal,
+  ): Promise<{ isLiked: boolean; likesCount: number }> => {
     const res = await api.post<{ isLiked: boolean; likesCount: number }>(
       `/comments/${commentId}/like`,
+      {},
+      { signal },
     );
     return res.data;
   },
 
-  togglePin: async (commentId: string): Promise<{ isPinned: boolean }> => {
-    const res = await api.post<{ isPinned: boolean }>(`/comments/${commentId}/pin`);
+  togglePin: async (commentId: string, signal?: AbortSignal): Promise<{ isPinned: boolean }> => {
+    const res = await api.post<{ isPinned: boolean }>(`/comments/${commentId}/pin`, {}, { signal });
     return res.data;
   },
 
-  uploadMedia: async (file: File): Promise<{ url: string }> => {
+  uploadMedia: async (file: File, signal?: AbortSignal): Promise<{ url: string }> => {
     const formData = new FormData();
     formData.append('file', file);
     const res = await api.post<{ url: string }>('/comments/media', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
+      signal,
     });
     return res.data;
   },
 
-  deleteComment: async (commentId: string | number): Promise<void> => {
-    await api.delete(`/comments/${commentId}`);
+  deleteComment: async (commentId: string | number, signal?: AbortSignal): Promise<void> => {
+    await api.delete(`/comments/${commentId}`, { signal });
   },
 };

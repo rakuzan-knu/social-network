@@ -25,10 +25,11 @@ export interface PaginatedReels {
 export function useReelsFeed(limit = 10) {
   return useInfiniteQuery<PaginatedReels>({
     queryKey: [REELS_FEED_KEY],
-    queryFn: async ({ pageParam }) => {
+    queryFn: async ({ pageParam, signal }) => {
       try {
         const { data } = await apiClient.get<PaginatedReels>('/reels/feed', {
           params: { limit, after: pageParam },
+          signal,
         });
         if (!data || !data.data || data.data.length === 0) {
           return {
@@ -63,9 +64,10 @@ export function useReelsFeed(limit = 10) {
 export function useUserReels(userId: string, limit = 12) {
   return useInfiniteQuery<PaginatedReels>({
     queryKey: [USER_REELS_KEY, userId],
-    queryFn: async ({ pageParam }) => {
+    queryFn: async ({ pageParam, signal }) => {
       const { data } = await apiClient.get<PaginatedReels>(`/reels/user/${userId}`, {
         params: { limit, after: pageParam },
+        signal,
       });
       return data;
     },
@@ -80,8 +82,8 @@ export function useUserReels(userId: string, limit = 12) {
 export function useReel(id: string) {
   return useQuery<ReelItem>({
     queryKey: ['reel', id],
-    queryFn: async () => {
-      const { data } = await apiClient.get<ReelItem>(`/reels/${id}`);
+    queryFn: async ({ signal }) => {
+      const { data } = await apiClient.get<ReelItem>(`/reels/${id}`, { signal });
       return data;
     },
     enabled: Boolean(id),
@@ -225,8 +227,8 @@ export function useToggleSaveReel() {
 export function useReelComments(reelId: string) {
   return useQuery<ReelComment[]>({
     queryKey: [REEL_COMMENTS_KEY, reelId],
-    queryFn: async () => {
-      const { data } = await apiClient.get<ReelComment[]>(`/reels/${reelId}/comments`);
+    queryFn: async ({ signal }) => {
+      const { data } = await apiClient.get<ReelComment[]>(`/reels/${reelId}/comments`, { signal });
       return data;
     },
     enabled: Boolean(reelId),

@@ -31,12 +31,30 @@ export const SyncPlayModal: React.FC<SyncPlayModalProps> = ({
 }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const blobUrlRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (blobUrlRef.current && blobUrlRef.current.startsWith('blob:')) {
+        URL.revokeObjectURL(blobUrlRef.current);
+      }
+    };
+  }, []);
 
   // Default sample video for quick testing
   const DEFAULT_SAMPLE_URL =
     'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
 
   const [videoSrc, setVideoSrc] = useState<string>(DEFAULT_SAMPLE_URL);
+
+  useEffect(() => {
+    if (videoSrc.startsWith('blob:')) {
+      if (blobUrlRef.current && blobUrlRef.current !== videoSrc) {
+        URL.revokeObjectURL(blobUrlRef.current);
+      }
+      blobUrlRef.current = videoSrc;
+    }
+  }, [videoSrc]);
   const [videoTitle, setVideoTitle] = useState<string>('Big Buck Bunny (Sample)');
   const [urlInput, setUrlInput] = useState<string>('');
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
@@ -135,7 +153,11 @@ export const SyncPlayModal: React.FC<SyncPlayModalProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (blobUrlRef.current && blobUrlRef.current.startsWith('blob:')) {
+      URL.revokeObjectURL(blobUrlRef.current);
+    }
     const localBlobUrl = URL.createObjectURL(file);
+    blobUrlRef.current = localBlobUrl;
     setVideoSrc(localBlobUrl);
     setVideoTitle(file.name);
     engine?.notifySourceChange('', file.name);

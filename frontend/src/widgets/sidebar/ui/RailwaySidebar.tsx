@@ -34,7 +34,8 @@ const menuItems = [
 ];
 
 export default function MessengerSidebar() {
-  const { isSidebarExpanded, toggleSidebar } = useUIStore();
+  const isSidebarExpanded = useUIStore((s) => s.isSidebarExpanded);
+  const toggleSidebar = useUIStore((s) => s.toggleSidebar);
   const { data: currentUser } = useCurrentUser();
   const openStoryEditor = useStoryEditorStore((s) => s.openEditor);
   const location = useLocation();

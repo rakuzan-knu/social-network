@@ -1,5 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { NOTIFICATIONS_KEY, UNREAD_NOTIFICATIONS_COUNT_KEY } from '@/shared/api/queryKeys';
+import { queryKeys } from '@/shared/api/queryKeys';
+import { queryStaleTimes } from '@/shared/api/queryClient';
 import { useAuthStore } from '@/shared/model/useAuthStore';
 import {
   deleteNotification,
@@ -26,7 +27,7 @@ export function useNotifications(filter: NotificationFilter = 'all') {
     !isGameModeOpen;
 
   const query = useInfiniteQuery({
-    queryKey: [NOTIFICATIONS_KEY, filter],
+    queryKey: queryKeys.notifications.list(filter),
     queryFn: ({ pageParam }) =>
       fetchNotifications({
         type: filter,
@@ -60,7 +61,7 @@ export function useUnreadCountsQuery() {
     !isGameModeOpen;
 
   return useQuery({
-    queryKey: [UNREAD_NOTIFICATIONS_COUNT_KEY],
+    queryKey: queryKeys.notifications.unreadCount,
     queryFn: async () => {
       const counts = await fetchUnreadNotificationCounts();
       setUnreadCounts(counts);
@@ -68,7 +69,7 @@ export function useUnreadCountsQuery() {
     },
     enabled: isEnabled,
     retry: 1,
-    staleTime: 30000,
+    staleTime: queryStaleTimes.notifications,
     refetchOnWindowFocus: !isGameModeOpen,
   });
 }
@@ -79,12 +80,12 @@ export function useMarkNotificationAsRead() {
   return useMutation({
     mutationFn: (id: string) => markNotificationAsRead(id),
     onMutate: async (id: string) => {
-      await queryClient.cancelQueries({ queryKey: [NOTIFICATIONS_KEY] });
+      await queryClient.cancelQueries({ queryKey: queryKeys.notifications.root });
 
       queryClient.setQueriesData<{
         pages: PaginatedNotificationsResponse[];
         pageParams: (string | undefined)[];
-      }>({ queryKey: [NOTIFICATIONS_KEY] }, (old) => {
+      }>({ queryKey: queryKeys.notifications.root }, (old) => {
         if (!old) return old;
         return {
           ...old,
@@ -96,7 +97,7 @@ export function useMarkNotificationAsRead() {
       });
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: [UNREAD_NOTIFICATIONS_COUNT_KEY] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount });
     },
   });
 }
@@ -111,12 +112,12 @@ export function useMarkAllNotificationsAsRead() {
     mutationFn: (filter?: NotificationFilter) => markAllNotificationsAsRead(filter),
     onMutate: async (filter = 'all') => {
       resetUnreadCountForFilter(filter);
-      await queryClient.cancelQueries({ queryKey: [NOTIFICATIONS_KEY] });
+      await queryClient.cancelQueries({ queryKey: queryKeys.notifications.root });
 
       queryClient.setQueriesData<{
         pages: PaginatedNotificationsResponse[];
         pageParams: (string | undefined)[];
-      }>({ queryKey: [NOTIFICATIONS_KEY] }, (old) => {
+      }>({ queryKey: queryKeys.notifications.root }, (old) => {
         if (!old) return old;
         return {
           ...old,
@@ -146,7 +147,7 @@ export function useMarkAllNotificationsAsRead() {
     },
     onSuccess: (data) => {
       useNotificationStore.getState().setUnreadCounts(data.unreadCounts);
-      queryClient.invalidateQueries({ queryKey: [UNREAD_NOTIFICATIONS_COUNT_KEY] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount });
     },
   });
 }
@@ -157,12 +158,12 @@ export function useDeleteNotification() {
   return useMutation({
     mutationFn: (id: string) => deleteNotification(id),
     onMutate: async (id: string) => {
-      await queryClient.cancelQueries({ queryKey: [NOTIFICATIONS_KEY] });
+      await queryClient.cancelQueries({ queryKey: queryKeys.notifications.root });
 
       queryClient.setQueriesData<{
         pages: PaginatedNotificationsResponse[];
         pageParams: (string | undefined)[];
-      }>({ queryKey: [NOTIFICATIONS_KEY] }, (old) => {
+      }>({ queryKey: queryKeys.notifications.root }, (old) => {
         if (!old) return old;
         return {
           ...old,
@@ -177,7 +178,7 @@ export function useDeleteNotification() {
       if (data?.unreadCounts) {
         useNotificationStore.getState().setUnreadCounts(data.unreadCounts);
       }
-      queryClient.invalidateQueries({ queryKey: [UNREAD_NOTIFICATIONS_COUNT_KEY] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount });
     },
   });
 }
@@ -188,12 +189,12 @@ export function useMuteNotificationAuthor() {
   return useMutation({
     mutationFn: (actorId: string) => muteNotificationAuthor(actorId),
     onMutate: async (actorId: string) => {
-      await queryClient.cancelQueries({ queryKey: [NOTIFICATIONS_KEY] });
+      await queryClient.cancelQueries({ queryKey: queryKeys.notifications.root });
 
       queryClient.setQueriesData<{
         pages: PaginatedNotificationsResponse[];
         pageParams: (string | undefined)[];
-      }>({ queryKey: [NOTIFICATIONS_KEY] }, (old) => {
+      }>({ queryKey: queryKeys.notifications.root }, (old) => {
         if (!old) return old;
         return {
           ...old,
@@ -205,7 +206,7 @@ export function useMuteNotificationAuthor() {
       });
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: [NOTIFICATIONS_KEY] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.root });
     },
   });
 }
