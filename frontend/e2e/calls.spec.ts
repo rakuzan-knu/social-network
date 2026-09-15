@@ -191,7 +191,7 @@ test.describe('WebRTC E2E Video & Audio Calls (Playwright Fake Media)', () => {
 
     // Verify Bob sees Incoming Call screen with Alice's name and Accept button
     await expect(pageB.getByText(/Incoming video call/i).first()).toBeVisible({ timeout: 10000 });
-    const acceptBtn = pageB.locator('button[title="Accept"]');
+    const acceptBtn = pageB.locator('button[title="Accept"]').first();
     await expect(acceptBtn).toBeVisible();
 
     // 5. Bob clicks Accept
@@ -210,8 +210,8 @@ test.describe('WebRTC E2E Video & Audio Calls (Playwright Fake Media)', () => {
     });
 
     // 6. Verify connected screen and call controls
-    const leaveBtnA = pageA.locator('button[aria-label="Leave call"]');
-    const leaveBtnB = pageB.locator('button[aria-label="Leave call"]');
+    const leaveBtnA = pageA.locator('button[aria-label="Leave call"]').first();
+    const leaveBtnB = pageB.locator('button[aria-label="Leave call"]').first();
 
     await expect(leaveBtnA).toBeVisible({ timeout: 10000 });
     await expect(leaveBtnB).toBeVisible({ timeout: 10000 });
