@@ -142,7 +142,7 @@ jobs:
       - name: Generate Cache Key
         id: cache-key-gen
         run: |
-          echo "key=${{ runner.os }}-monorepo-pnpm-${{ hashFiles('pnpm-lock.yaml', 'backend/prisma/schema.prisma') }}" >> $GITHUB_OUTPUT
+          echo "key=${{ runner.os }}-monorepo-pnpm-v2-${{ hashFiles('pnpm-lock.yaml', 'backend/prisma/schema.prisma') }}" >> $GITHUB_OUTPUT
 
       - name: Cache Node Modules & Prisma
         id: monorepo-cache
@@ -156,10 +156,12 @@ jobs:
             ~/.cache/prisma
           key: ${{ steps.cache-key-gen.outputs.key }}
 
-      - name: Install & Generate (On Cache Miss)
+      - name: Install Dependencies (On Cache Miss)
         if: steps.monorepo-cache.outputs.cache-hit != 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Native Packages & Generate Prisma
         run: |
-          pnpm install --frozen-lockfile
           pnpm build:native
           pnpm --filter backend exec prisma generate
 

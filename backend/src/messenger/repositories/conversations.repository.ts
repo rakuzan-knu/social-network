@@ -29,7 +29,10 @@ export class ConversationsRepository implements IConversationsRepository {
       data: {
         type: 'DIRECT',
         participants: {
-          create: [{ userId: userAId }, { userId: userBId }],
+          create: [
+            { userId: userAId, permissions: DEFAULT_MEMBER_PERMISSIONS },
+            { userId: userBId, permissions: DEFAULT_MEMBER_PERMISSIONS },
+          ],
         },
       },
       include: conversationInclude,

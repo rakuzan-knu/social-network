@@ -520,22 +520,17 @@ export class MessengerGateway
     const isTypingLimited = await this.isTypingRateLimited(client.userId).catch(() => false);
     if (isTypingLimited) return;
 
-    const event = typingEventPool.acquire();
-    event.conversationId = payload.conversationId;
-    event.userId = client.userId;
-    event.isTyping = true;
-
-    try {
-      await this.emitToConversationExceptBlocked(
-        payload.conversationId,
-        client.userId,
-        WS_EVENTS.TYPING,
-        event,
-        { includeActor: false, priority: 'ephemeral' },
-      );
-    } finally {
-      typingEventPool.release(event);
-    }
+    await this.emitToConversationExceptBlocked(
+      payload.conversationId,
+      client.userId,
+      WS_EVENTS.TYPING,
+      {
+        conversationId: payload.conversationId,
+        userId: client.userId,
+        isTyping: true,
+      },
+      { includeActor: false, priority: 'ephemeral' },
+    );
   }
 
   @SubscribeMessage(WS_EVENTS.HEARTBEAT)
@@ -554,22 +549,17 @@ export class MessengerGateway
     @ConnectedSocket() client: AuthenticatedSocket,
     @MessageBody(new ZodValidationPipe(conversationIdSchema)) payload: ConversationIdDto,
   ) {
-    const event = typingEventPool.acquire();
-    event.conversationId = payload.conversationId;
-    event.userId = client.userId;
-    event.isTyping = false;
-
-    try {
-      await this.emitToConversationExceptBlocked(
-        payload.conversationId,
-        client.userId,
-        WS_EVENTS.TYPING,
-        event,
-        { includeActor: false, priority: 'ephemeral' },
-      );
-    } finally {
-      typingEventPool.release(event);
-    }
+    await this.emitToConversationExceptBlocked(
+      payload.conversationId,
+      client.userId,
+      WS_EVENTS.TYPING,
+      {
+        conversationId: payload.conversationId,
+        userId: client.userId,
+        isTyping: false,
+      },
+      { includeActor: false, priority: 'ephemeral' },
+    );
   }
 
   @SubscribeMessage(WS_EVENTS.MARK_READ)

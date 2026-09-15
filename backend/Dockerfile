@@ -67,9 +67,9 @@ COPY scripts ./scripts/
 ENV CI=true
 
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile --prod
+    pnpm install --frozen-lockfile --prod --ignore-scripts
 
-RUN pnpm --filter backend exec prisma generate
+COPY --from=build-deps /app/node_modules/.prisma ./node_modules/.prisma
 
 # Stage 4: Production Runtime
 FROM node:24-alpine AS production

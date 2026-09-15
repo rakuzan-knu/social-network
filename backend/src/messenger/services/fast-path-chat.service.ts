@@ -63,7 +63,7 @@ export class FastPathChatService implements OnModuleInit, OnModuleDestroy {
   }
 
   computeMask(role: string, customPermissions?: number | null): number {
-    if (customPermissions !== undefined && customPermissions !== null) {
+    if (customPermissions !== undefined && customPermissions !== null && customPermissions !== 0) {
       return customPermissions | 0;
     }
     if (role === 'OWNER') return DEFAULT_OWNER_PERMISSIONS;

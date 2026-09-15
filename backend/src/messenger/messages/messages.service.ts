@@ -214,13 +214,15 @@ export class MessagesService implements OnModuleDestroy {
 
       const senderParticipant = await this.convsRepo.findParticipant(conversationId, senderId);
       if (senderParticipant) {
+        const rawPerms = (senderParticipant as unknown as { permissions?: number }).permissions;
         const pFlags =
-          (senderParticipant as unknown as { permissions?: number }).permissions ??
-          (senderParticipant.role === 'OWNER'
-            ? DEFAULT_OWNER_PERMISSIONS
-            : senderParticipant.role === 'ADMIN'
-              ? DEFAULT_ADMIN_PERMISSIONS
-              : DEFAULT_MEMBER_PERMISSIONS);
+          rawPerms !== undefined && rawPerms !== null && rawPerms !== 0
+            ? rawPerms
+            : senderParticipant.role === 'OWNER'
+              ? DEFAULT_OWNER_PERMISSIONS
+              : senderParticipant.role === 'ADMIN'
+                ? DEFAULT_ADMIN_PERMISSIONS
+                : DEFAULT_MEMBER_PERMISSIONS;
 
         this.fastPath?.setPermissions(conversationId, senderId, pFlags);
 
