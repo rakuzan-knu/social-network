@@ -114,6 +114,8 @@ function tick() {
 }
 
 self.onmessage = (event: MessageEvent) => {
+  const trustedOrigin = self.location?.origin ?? 'null';
+  if (event.origin && event.origin !== trustedOrigin) return;
   const msg = event.data;
   if (!msg || typeof msg !== 'object') return;
 

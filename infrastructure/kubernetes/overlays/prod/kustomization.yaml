@@ -5,3 +5,9 @@ namespace: production
 
 resources:
   - ../../base
+
+labels:
+  - pairs:
+      Environment: Prod
+    includeSelectors: false
+    includeTemplates: true

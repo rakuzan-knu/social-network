@@ -174,6 +174,7 @@ import type { MiddlewareConsumer, NestModule } from '@nestjs/common';
 
     ConfigModule.forRoot({
       isGlobal: true,
+      envFilePath: ['.env', '../../.env', '../.env'],
       validate: validateEnv,
     }),
     ThrottlerModule.forRootAsync({

@@ -63,7 +63,7 @@ function writeJson(key: string, value: unknown): void {
 
 let memHighest: Record<string, number> | null = null;
 let memSeen: string[] | null = null;
-let memSeq: Record<string, number> | null = null;
+let memSeq: Map<string, number> | null = null;
 let replaysDetected = 0;
 let gapsDetected = 0;
 
@@ -145,23 +145,29 @@ export function nextMessageSeq(conversationId: string): number {
   if (!memSeq) {
     const disk = readJson(SEQ_KEY);
     const counters = disk?.counters;
-    memSeq =
-      counters && typeof counters === 'object' && !Array.isArray(counters)
-        ? (counters as Record<string, number>)
-        : {};
+    memSeq = new Map<string, number>();
+    if (counters && typeof counters === 'object' && !Array.isArray(counters)) {
+      for (const [k, v] of Object.entries(counters)) {
+        if (typeof v === 'number' && Number.isFinite(v)) {
+          memSeq.set(k, v);
+        }
+      }
+    }
   }
-  const next = (memSeq[conversationId] ?? 0) + 1;
+  const next = (memSeq.get(conversationId) ?? 0) + 1;
   if (next > MAX_SEQ) {
     // Unreachable in practice (2B messages per dialog); fail closed loudly
     // rather than wrap and collide with the replay window.
     throw new Error('E2EE message sequence exhausted for this conversation');
   }
-  memSeq[conversationId] = next;
-  const names = Object.keys(memSeq);
-  if (names.length > MAX_SEQ_CONVS) {
-    for (const name of names.slice(0, names.length - MAX_SEQ_CONVS)) delete memSeq[name];
+  memSeq.set(conversationId, next);
+  if (memSeq.size > MAX_SEQ_CONVS) {
+    const keys = Array.from(memSeq.keys());
+    for (const name of keys.slice(0, keys.length - MAX_SEQ_CONVS)) {
+      memSeq.delete(name);
+    }
   }
-  writeJson(SEQ_KEY, { counters: memSeq });
+  writeJson(SEQ_KEY, { counters: Object.fromEntries(memSeq) });
   return next;
 }
 

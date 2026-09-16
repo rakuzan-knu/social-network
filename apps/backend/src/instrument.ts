@@ -8,11 +8,16 @@ if (typeof process.setMaxListeners === 'function') {
   process.setMaxListeners(50);
 }
 
-const envPath =
-  typeof __dirname !== 'undefined'
-    ? path.resolve(__dirname, '../.env')
-    : path.resolve(process.cwd(), '.env');
-dotenv.config({ path: envPath });
+const envPaths = [
+  path.resolve(process.cwd(), '.env'),
+  path.resolve(process.cwd(), '../../.env'),
+  typeof __dirname !== 'undefined' ? path.resolve(__dirname, '../.env') : undefined,
+  typeof __dirname !== 'undefined' ? path.resolve(__dirname, '../../../.env') : undefined,
+].filter((p): p is string => Boolean(p));
+
+for (const p of envPaths) {
+  dotenv.config({ path: p });
+}
 
 const isProduction = process.env.NODE_ENV === 'production';
 

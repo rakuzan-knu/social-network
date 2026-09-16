@@ -1,5 +1,17 @@
 const path = require('path');
-const { chromium } = require(path.resolve(__dirname, '../frontend/node_modules/@playwright/test'));
+const playwrightPath =
+  [
+    path.resolve(__dirname, '../apps/web/node_modules/@playwright/test'),
+    path.resolve(__dirname, '../frontend/node_modules/@playwright/test'),
+    '@playwright/test',
+  ].find((p) => {
+    try {
+      return require.resolve(p);
+    } catch {
+      return false;
+    }
+  }) || '@playwright/test';
+const { chromium } = require(playwrightPath);
 
 const API_URL = 'http://localhost:3000/v1';
 const HEALTH_URL = 'http://localhost:3000/health';

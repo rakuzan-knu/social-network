@@ -13,6 +13,7 @@ import {
   Radio,
 } from 'lucide-react';
 import type { SyncPlayEngine } from '../../lib/webrtc/syncPlayEngine';
+import { sanitizeMediaUrl } from '@/shared/lib/urlSecurity';
 
 interface SyncPlayModalProps {
   engine: SyncPlayEngine | null;
@@ -140,12 +141,16 @@ export const SyncPlayModal: React.FC<SyncPlayModalProps> = ({
 
   const handleLoadUrl = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!urlInput.trim()) return;
+    const raw = urlInput.trim();
+    if (!raw) return;
 
-    setVideoSrc(urlInput.trim());
-    setVideoTitle(urlInput.trim().split('/').pop() || 'Remote Stream');
+    const sanitized = sanitizeMediaUrl(raw);
+    if (!sanitized) return;
+
+    setVideoSrc(sanitized);
+    setVideoTitle(sanitized.split('/').pop() || 'Remote Stream');
     setShowUrlPrompt(false);
-    engine?.notifySourceChange(urlInput.trim(), urlInput.trim().split('/').pop());
+    engine?.notifySourceChange(sanitized, sanitized.split('/').pop());
     setUrlInput('');
   };
 
@@ -271,7 +276,7 @@ export const SyncPlayModal: React.FC<SyncPlayModalProps> = ({
         <div className="relative flex-1 bg-black flex items-center justify-center min-h-90 overflow-hidden group">
           <video
             ref={videoRef}
-            src={videoSrc || undefined}
+            src={sanitizeMediaUrl(videoSrc) || undefined}
             playsInline
             muted={isMuted}
             className="w-full h-full object-contain max-h-[60vh]"

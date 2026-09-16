@@ -2,7 +2,19 @@ process.env.PW_TEST_SCREENSHOT_NO_FONTS_READY = '1';
 
 const fs = require('fs');
 const path = require('path');
-const { chromium } = require(path.resolve(__dirname, '../frontend/node_modules/@playwright/test'));
+const playwrightPath =
+  [
+    path.resolve(__dirname, '../apps/web/node_modules/@playwright/test'),
+    path.resolve(__dirname, '../frontend/node_modules/@playwright/test'),
+    '@playwright/test',
+  ].find((p) => {
+    try {
+      return require.resolve(p);
+    } catch {
+      return false;
+    }
+  }) || '@playwright/test';
+const { chromium } = require(playwrightPath);
 
 const API_URL = 'http://localhost:3000/v1';
 const CONVERSATION_ID = '0a1de6ca-ef62-4045-837f-bf236d627416';
@@ -13,41 +25,6 @@ const RESULTS_DIR = path.resolve(__dirname, '../test-results');
 if (!fs.existsSync(RESULTS_DIR)) {
   fs.mkdirSync(RESULTS_DIR, { recursive: true });
 }
-
-const LOG_FILE = path.join(RESULTS_DIR, 'execution.log');
-fs.writeFileSync(LOG_FILE, '', 'utf8');
-
-const origLog = console.log;
-const origError = console.error;
-const origWarn = console.warn;
-
-function formatMsg(...args) {
-  return args.map((a) => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
-}
-
-console.log = (...args) => {
-  const line = formatMsg(...args);
-  origLog.apply(console, args);
-  try {
-    fs.appendFileSync(LOG_FILE, line + '\n', 'utf8');
-  } catch {}
-};
-
-console.error = (...args) => {
-  const line = formatMsg(...args);
-  origError.apply(console, args);
-  try {
-    fs.appendFileSync(LOG_FILE, line + '\n', 'utf8');
-  } catch {}
-};
-
-console.warn = (...args) => {
-  const line = formatMsg(...args);
-  origWarn.apply(console, args);
-  try {
-    fs.appendFileSync(LOG_FILE, line + '\n', 'utf8');
-  } catch {}
-};
 
 // Strict tracking for console errors and uncaught exceptions
 const capturedErrors = [];

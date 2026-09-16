@@ -113,6 +113,10 @@ import { JamService } from '../integrations/jam.service';
     K8sPodMigrationService,
     OffHeapBufferPoolService,
     MessengerGateway,
+    {
+      provide: 'MessengerGateway',
+      useExisting: MessengerGateway,
+    },
     JamService,
     AutoDeleteService,
     autoDeleteS3Provider,
@@ -134,6 +138,7 @@ import { JamService } from '../integrations/jam.service';
     CallsStepUpService,
     FastPathChatService,
     MessengerGateway,
+    'MessengerGateway',
     PresenceEngineService,
     WsDrainingService,
     WsBackpressureService,

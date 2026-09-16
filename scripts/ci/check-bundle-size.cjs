@@ -3,7 +3,11 @@
 const fs = require('fs');
 const path = require('path');
 
-const distDir = path.resolve(__dirname, '../../frontend/dist');
+const distDir =
+  [
+    path.resolve(__dirname, '../../apps/web/dist'),
+    path.resolve(__dirname, '../../frontend/dist'),
+  ].find((d) => fs.existsSync(d)) || path.resolve(__dirname, '../../apps/web/dist');
 
 // Budgets in Bytes
 const MAX_SINGLE_JS_BYTES = 600 * 1024; // 600 KB

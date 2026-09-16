@@ -2,7 +2,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: social-network-backend
-  namespace: production
   labels:
     app.kubernetes.io/name: social-network-backend
     Service: social-network-backend
@@ -79,7 +78,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: social-network-frontend
-  namespace: production
   labels:
     app.kubernetes.io/name: social-network-frontend
     Service: social-network-frontend

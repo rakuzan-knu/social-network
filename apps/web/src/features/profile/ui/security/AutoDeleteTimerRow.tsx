@@ -93,10 +93,7 @@ export default function AutoDeleteTimerRow() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    confirm();
-                    requestClose();
-                  }}
+                  onClick={confirm}
                   className="flex-1 h-11 rounded-full text-sm font-semibold bg-red-500 text-white hover:bg-red-600 transition"
                 >
                   Enable

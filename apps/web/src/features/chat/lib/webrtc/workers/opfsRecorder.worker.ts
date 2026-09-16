@@ -76,6 +76,14 @@ let activeFileName = '';
 let currentOffset = 0;
 
 self.onmessage = async (event: MessageEvent<WorkerInMessage>) => {
+  const trustedOrigins = new Set(['', self.location.origin]);
+  if (!trustedOrigins.has(event.origin)) {
+    self.postMessage({
+      type: 'ERROR',
+      error: `Untrusted message origin: ${event.origin}`,
+    } satisfies WorkerOutMessage);
+    return;
+  }
   const message = event.data;
 
   try {

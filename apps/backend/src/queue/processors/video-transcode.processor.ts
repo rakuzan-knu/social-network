@@ -181,8 +181,7 @@ export class VideoTranscodeProcessor implements OnModuleInit, OnModuleDestroy {
     thumbnailUrl?: string;
     blurhash?: string;
   }> {
-    const tempDir = path.join(os.tmpdir(), `hls-${Date.now()}`);
-    await fs.mkdir(tempDir, { recursive: true });
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'hls-'));
 
     const inputPath = path.join(tempDir, 'input.mp4');
     await fs.writeFile(inputPath, Buffer.from(data.sourceBufferBase64 || '', 'base64'));

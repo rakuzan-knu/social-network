@@ -8,6 +8,7 @@ import {
   parseSpotifyUrl,
   sanitizeExternalUrl,
   sanitizePlatformUrl,
+  sanitizeMediaUrl,
 } from '../urlSecurity';
 import { unescapeHtml } from '../spotifyUrl';
 
@@ -179,6 +180,30 @@ describe('urlSecurity', () => {
       expect(
         sanitizePlatformUrl('https://phishing.com', ['youtube.com'], 'https://fallback.com'),
       ).toBe('https://fallback.com');
+    });
+  });
+
+  describe('sanitizeMediaUrl', () => {
+    it('allows valid blob, http, and https media URLs', () => {
+      expect(
+        sanitizeMediaUrl('blob:http://localhost:5173/550e8400-e29b-41d4-a716-446655440000'),
+      ).toBe('blob:http://localhost:5173/550e8400-e29b-41d4-a716-446655440000');
+      expect(sanitizeMediaUrl('https://cdn.example.com/video.mp4')).toBe(
+        'https://cdn.example.com/video.mp4',
+      );
+      expect(sanitizeMediaUrl('http://commondatastorage.googleapis.com/sample.mp4')).toBe(
+        'http://commondatastorage.googleapis.com/sample.mp4',
+      );
+      expect(sanitizeMediaUrl('/media/demo.mp4')).toBe('/media/demo.mp4');
+    });
+
+    it('rejects dangerous and non-media schemes', () => {
+      expect(sanitizeMediaUrl('javascript:alert(document.cookie)')).toBe('');
+      expect(sanitizeMediaUrl('data:text/html,<script>alert(1)</script>')).toBe('');
+      expect(sanitizeMediaUrl('vbscript:msgbox(1)')).toBe('');
+      expect(sanitizeMediaUrl('')).toBe('');
+      expect(sanitizeMediaUrl(null)).toBe('');
+      expect(sanitizeMediaUrl(undefined)).toBe('');
     });
   });
 

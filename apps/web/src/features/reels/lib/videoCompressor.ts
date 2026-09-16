@@ -6,6 +6,8 @@
  * and extract crisp WebP poster thumbnails before uploading to Cloudflare R2 / S3.
  */
 
+import { sanitizeMediaUrl } from '@/shared/lib/urlSecurity';
+
 export interface VideoCompressionOptions {
   maxDimension?: number;
   targetBitrate?: number; // in bps, e.g. 2_800_000 for 2.8 Mbps
@@ -62,11 +64,17 @@ export async function extractVideoThumbnail(
     video.preload = 'metadata';
     video.muted = true;
     video.playsInline = true;
-    const url = URL.createObjectURL(videoFile);
+    const rawUrl = URL.createObjectURL(videoFile);
+    const url = sanitizeMediaUrl(rawUrl);
+    if (!url) {
+      URL.revokeObjectURL(rawUrl);
+      reject(new Error('Failed to create safe blob URL for video'));
+      return;
+    }
     video.src = url;
 
     const cleanup = () => {
-      URL.revokeObjectURL(url);
+      URL.revokeObjectURL(rawUrl);
       video.remove();
     };
 
@@ -188,7 +196,22 @@ export async function compressVideo(
     const video = document.createElement('video');
     video.muted = true;
     video.playsInline = true;
-    const videoUrl = URL.createObjectURL(file);
+    const rawVideoUrl = URL.createObjectURL(file);
+    const videoUrl = sanitizeMediaUrl(rawVideoUrl);
+    if (!videoUrl) {
+      URL.revokeObjectURL(rawVideoUrl);
+      resolve({
+        file,
+        thumbnailBlob,
+        originalSize,
+        compressedSize: originalSize,
+        savingsPercent: 0,
+        duration,
+        width: origWidth,
+        height: origHeight,
+      });
+      return;
+    }
     video.src = videoUrl;
 
     const { mimeType, extension } = getSupportedMimeType();
@@ -200,7 +223,7 @@ export async function compressVideo(
 
     if (!ctx || typeof MediaRecorder === 'undefined') {
       // Fallback if MediaRecorder or Canvas not available
-      URL.revokeObjectURL(videoUrl);
+      URL.revokeObjectURL(rawVideoUrl);
       resolve({
         file,
         thumbnailBlob,

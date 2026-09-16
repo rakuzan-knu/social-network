@@ -5,7 +5,11 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const distDir = path.resolve(__dirname, '../../frontend/dist');
+const distDir =
+  [
+    path.resolve(__dirname, '../../apps/web/dist'),
+    path.resolve(__dirname, '../../frontend/dist'),
+  ].find((d) => fs.existsSync(d)) || path.resolve(__dirname, '../../apps/web/dist');
 
 // Budgets in Bytes
 const MAX_SINGLE_JS_BYTES = 600 * 1024; // 600 KB

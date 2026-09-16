@@ -234,3 +234,40 @@ export function sanitizePlatformUrl(
     return fallback;
   }
 }
+
+/**
+ * Sanitizes media URLs (video, audio, blob, http/https) preventing DOM XSS.
+ * Allows strictly blob:, http:, https:, or root-relative URLs, rejecting
+ * dangerous schemes like javascript:, data:, and vbscript:.
+ */
+export function sanitizeMediaUrl(url?: string | null, fallback: string = ''): string {
+  if (!url || typeof url !== 'string') return fallback;
+  const trimmed = url.trim();
+  if (/^(?:javascript|vbscript|data):/i.test(trimmed)) {
+    return fallback;
+  }
+  if (trimmed.startsWith('blob:')) {
+    try {
+      const parsed = new URL(trimmed);
+      if (parsed.protocol === 'blob:') {
+        return trimmed;
+      }
+    } catch {
+      return fallback;
+    }
+  }
+  if (/^https?:\/\//i.test(trimmed)) {
+    try {
+      const parsed = new URL(trimmed);
+      if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+        return formatParsedUrl(parsed, trimmed);
+      }
+    } catch {
+      return fallback;
+    }
+  }
+  if (trimmed.startsWith('/') && !trimmed.startsWith('//')) {
+    return encodeURI(trimmed);
+  }
+  return fallback;
+}

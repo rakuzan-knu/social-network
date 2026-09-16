@@ -298,7 +298,7 @@ export class CallsService {
     // 15 minutes TTL
     const expiryTimestamp = Math.floor(Date.now() / 1000) + 15 * 60;
     const username = `${expiryTimestamp}:${userId || 'ephemeral_peer'}`;
-    const credential = crypto.createHmac('sha1', turnSecret).update(username).digest('base64');
+    const credential = crypto.createHmac('sha256', turnSecret).update(username).digest('base64');
 
     return {
       urls: [

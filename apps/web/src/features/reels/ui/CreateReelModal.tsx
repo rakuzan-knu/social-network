@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { X, UploadCloud, Film, Loader2, Music, Sparkles, Zap } from 'lucide-react';
 import { useCreateReel } from '../api/reelsApi';
 import { compressVideo } from '../lib/videoCompressor';
+import { sanitizeMediaUrl } from '@/shared/lib/urlSecurity';
 
 interface CreateReelModalProps {
   isOpen: boolean;
@@ -70,7 +71,8 @@ export const CreateReelModal: React.FC<CreateReelModalProps> = ({ isOpen, onClos
     setFile(selected);
     setCompressionStats(null);
     if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setPreviewUrl(URL.createObjectURL(selected));
+    const rawUrl = URL.createObjectURL(selected);
+    setPreviewUrl(sanitizeMediaUrl(rawUrl));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -202,7 +204,11 @@ export const CreateReelModal: React.FC<CreateReelModalProps> = ({ isOpen, onClos
             </div>
           ) : (
             <div className="relative rounded-2xl overflow-hidden bg-black aspect-9/16 max-h-[min(280px,35dvh)] mx-auto flex items-center justify-center">
-              <video src={previewUrl} controls className="w-full h-full object-contain" />
+              <video
+                src={sanitizeMediaUrl(previewUrl) || undefined}
+                controls
+                className="w-full h-full object-contain"
+              />
               <button
                 type="button"
                 onClick={() => {

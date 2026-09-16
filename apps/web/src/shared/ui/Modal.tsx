@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 
 interface ModalProps {
@@ -15,12 +15,21 @@ export default function Modal({
   exitDurationMs = 180,
 }: ModalProps) {
   const [isClosing, setIsClosing] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const requestClose = useCallback(() => {
     if (isClosing) return;
     setIsClosing(true);
-    setTimeout(onClose, exitDurationMs);
+    timerRef.current = setTimeout(onClose, exitDurationMs);
   }, [isClosing, onClose, exitDurationMs]);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

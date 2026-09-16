@@ -65,7 +65,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Install Playwright Chromium with system dependencies
-        working-directory: frontend
+        working-directory: apps/web
         run: pnpm exec playwright install --with-deps chromium
 
       - name: Run Playwright WebRTC Dual-Client Call E2E
@@ -91,5 +91,5 @@ jobs:
         if: failure()
         with:
           name: playwright-webrtc-report
-          path: frontend/playwright-report/
+          path: apps/web/playwright-report/
           retention-days: 7
