@@ -26,6 +26,9 @@ import {
 import {
   CreateStoryDto,
   PollOverlay,
+  ImageOverlay,
+  MentionOverlay,
+  AudioOverlay,
   ReactToStoryDto,
   ReplyToStoryDto,
   StoryOverlay,
@@ -207,7 +210,7 @@ export class StoriesService implements OnModuleDestroy {
     const rawOverlays = Array.isArray(story.overlays)
       ? (story.overlays as unknown as StoryOverlay[])
       : [];
-    const overlays = rawOverlays.map((o: any) => {
+    const overlays: StoryOverlay[] = rawOverlays.map((o) => {
       if (o.type === 'image' && (o.isMainMedia || !o.url || String(o.url).startsWith('blob:'))) {
         return {
           ...o,
@@ -296,7 +299,7 @@ export class StoriesService implements OnModuleDestroy {
 
     let finalOverlays = dto.overlays || [];
     if (file && Array.isArray(finalOverlays)) {
-      finalOverlays = finalOverlays.map((o: any) => {
+      finalOverlays = finalOverlays.map((o) => {
         if (o.type === 'image' && (o.isMainMedia || !o.url || String(o.url).startsWith('blob:'))) {
           return {
             ...o,
@@ -336,10 +339,12 @@ export class StoriesService implements OnModuleDestroy {
     });
 
     // Notify mentioned users in real-time
-    const mentions = (finalOverlays || []).filter((o: any) => o.type === 'mention' && o.username);
+    const mentions = (finalOverlays || []).filter(
+      (o): o is MentionOverlay => o.type === 'mention' && !!o.username,
+    );
     if (mentions.length > 0) {
       const usernames = Array.from(
-        new Set(mentions.map((m: any) => String(m.username).toLowerCase().replace(/^@/, ''))),
+        new Set(mentions.map((m) => m.username.toLowerCase().replace(/^@/, ''))),
       );
       void this.storiesRepo
         .findUsersByUsernames(usernames)
@@ -369,16 +374,22 @@ export class StoriesService implements OnModuleDestroy {
                   participantId: target.id,
                 });
 
-                const overlays = Array.isArray(story.overlays) ? (story.overlays as any[]) : [];
-                const audioOverlay = overlays.find((o) => o?.type === 'audio');
-                const imageOverlay = overlays.find((o) => o?.type === 'image');
+                const overlays = Array.isArray(story.overlays)
+                  ? (story.overlays as unknown as StoryOverlay[])
+                  : [];
+                type StoryAudioOverlay = AudioOverlay & { trackCover?: string };
+                const audioOverlay = overlays.find(
+                  (o): o is StoryAudioOverlay => o?.type === 'audio',
+                );
+                const imageOverlay = overlays.find((o): o is ImageOverlay => o?.type === 'image');
                 let storyMediaPreview = story.mediaUrl;
                 let storyThumbnail = author?.avatar || undefined;
 
                 if (!storyMediaPreview || storyMediaPreview.startsWith('color:')) {
-                  if (audioOverlay?.trackCover) {
-                    storyMediaPreview = audioOverlay.trackCover;
-                    storyThumbnail = audioOverlay.trackCover;
+                  const audioCover = audioOverlay?.trackCover || audioOverlay?.albumArt;
+                  if (audioCover) {
+                    storyMediaPreview = audioCover;
+                    storyThumbnail = audioCover;
                   } else if (imageOverlay?.url) {
                     storyMediaPreview = imageOverlay.url;
                     storyThumbnail = imageOverlay.url;
@@ -637,16 +648,18 @@ export class StoriesService implements OnModuleDestroy {
 
     // 2. Prepare rich message text with story embed preview
     const overlays = Array.isArray(story.overlays) ? (story.overlays as StoryOverlay[]) : [];
-    const audioOverlay = overlays.find((o) => o.type === 'audio') as any;
-    const imageOverlay = overlays.find((o) => o.type === 'image') as any;
+    type StoryAudioOverlay = AudioOverlay & { trackCover?: string };
+    const audioOverlay = overlays.find((o): o is StoryAudioOverlay => o.type === 'audio');
+    const imageOverlay = overlays.find((o): o is ImageOverlay => o.type === 'image');
 
     let storyMediaPreview = story.mediaUrl;
-    let storyThumbnail = (story.author as any)?.avatar;
+    let storyThumbnail = story.author.avatar ?? undefined;
 
     if (!storyMediaPreview || storyMediaPreview.startsWith('color:')) {
-      if (audioOverlay?.trackCover) {
-        storyMediaPreview = audioOverlay.trackCover;
-        storyThumbnail = audioOverlay.trackCover;
+      const audioCover = audioOverlay?.trackCover || audioOverlay?.albumArt;
+      if (audioCover) {
+        storyMediaPreview = audioCover;
+        storyThumbnail = audioCover;
       } else if (imageOverlay?.url) {
         storyMediaPreview = imageOverlay.url;
         storyThumbnail = imageOverlay.url;

@@ -134,11 +134,12 @@ async function bootstrap() {
       forwarder.listen(5000, '0.0.0.0', () => {
         logger.log(`OAuth fallback forwarder listening on port 5000 -> ${port}`);
       });
-      forwarder.on('error', (err: any) => {
+      forwarder.on('error', (err: Error) => {
         logger.warn(`Port 5000 forwarder skipped: ${err.message}`);
       });
     } catch (err) {
-      logger.warn(`Port 5000 forwarder setup failed: ${err}`);
+      const msg = err instanceof Error ? err.message : String(err);
+      logger.warn(`Port 5000 forwarder setup failed: ${msg}`);
     }
   }
 }

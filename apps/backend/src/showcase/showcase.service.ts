@@ -10,7 +10,6 @@ import {
 import { RedisService } from '../redis/redis.service';
 import { FollowStatus, ShowcasePrivacy, type ShowcaseMedia } from '@prisma/client';
 import {
-  ShowcaseMediaType,
   type UpdateShowcaseDto,
   type ProfileShowcaseDto,
   type ShowcaseMediaItemDto,
@@ -128,14 +127,21 @@ export class ShowcaseService {
     const showcaseAllowed = canView(rawShowcase.privacyShowcase, relationship);
     const linksAllowed = canView(rawShowcase.privacyLinks, relationship);
 
-    const rawConnected = (rawShowcase.connectedAccounts as Record<string, any> | null) || {};
+    type ConnectedAccountsRecord = Record<string, unknown> & {
+      _personalInfo?: PersonalInfoDto;
+      twitch?: Record<string, unknown>;
+      roblox?: Record<string, unknown>;
+      github?: unknown;
+    };
+
+    const rawConnected = (rawShowcase.connectedAccounts as ConnectedAccountsRecord | null) || {};
     let personalInfo: PersonalInfoDto | null = metaAllowed
       ? (rawConnected._personalInfo as PersonalInfoDto) || null
       : null;
 
     const toggles = (personalInfo?.toggles as PersonalInfoTogglesDto) || {};
     const isZodiacEnabled = Boolean(
-      (rawShowcase as any).showZodiac === true || toggles.showZodiac === true,
+      (rawShowcase as { showZodiac?: boolean }).showZodiac === true || toggles.showZodiac === true,
     );
 
     let birthDateStr: string | null = null;
@@ -256,7 +262,9 @@ export class ShowcaseService {
       this.integrationsService
     ) {
       try {
-        const liveInfo = await this.integrationsService.getTwitchLiveStatus(cleanConnected.twitch);
+        const liveInfo = (await this.integrationsService.getTwitchLiveStatus(
+          cleanConnected.twitch as Record<string, any>,
+        )) as Record<string, unknown> | null;
         if (liveInfo) {
           cleanConnected.twitch = {
             ...cleanConnected.twitch,
@@ -264,8 +272,17 @@ export class ShowcaseService {
           };
         }
       } catch (e) {
-        this.logger.warn(`Failed to refresh Twitch live status in getShowcase: ${e}`);
+        const msg = e instanceof Error ? e.message : String(e);
+        this.logger.warn(`Failed to refresh Twitch live status in getShowcase: ${msg}`);
       }
+    }
+
+    interface ConnectedRobloxData {
+      username?: string;
+      userId?: string;
+      items?: Array<{ iconUrl?: string; [key: string]: unknown }>;
+      places?: Array<{ iconUrl?: string; [key: string]: unknown }>;
+      [key: string]: unknown;
     }
 
     if (
@@ -273,20 +290,18 @@ export class ShowcaseService {
       typeof cleanConnected.roblox === 'object' &&
       this.integrationsService
     ) {
-      const robloxData = cleanConnected.roblox;
+      const robloxData = cleanConnected.roblox as ConnectedRobloxData;
       const hasMockData =
-        robloxData.items?.some((it: any) => it.iconUrl?.includes('unsplash')) ||
-        robloxData.places?.some((p: any) => p.iconUrl?.includes('unsplash'));
-      if (hasMockData && (robloxData.username || robloxData.userId)) {
+        robloxData.items?.some((it) => it.iconUrl?.includes('unsplash')) ||
+        robloxData.places?.some((p) => p.iconUrl?.includes('unsplash'));
+      const robloxTarget = robloxData.username || robloxData.userId;
+      if (hasMockData && robloxTarget) {
         try {
-          const freshRoblox = await this.integrationsService.fetchPlatformData(
+          const freshRoblox = (await this.integrationsService.fetchPlatformData(
             'roblox',
-            robloxData.username || robloxData.userId,
-          );
-          if (
-            freshRoblox &&
-            !freshRoblox.items?.some((it: any) => it.iconUrl?.includes('unsplash'))
-          ) {
+            String(robloxTarget),
+          )) as ConnectedRobloxData | null;
+          if (freshRoblox && !freshRoblox.items?.some((it) => it.iconUrl?.includes('unsplash'))) {
             cleanConnected.roblox = {
               ...robloxData,
               ...freshRoblox,
@@ -299,7 +314,8 @@ export class ShowcaseService {
               .catch(() => {});
           }
         } catch (e) {
-          this.logger.warn(`Failed to auto-refresh Roblox data in getShowcase: ${e}`);
+          const msg = e instanceof Error ? e.message : String(e);
+          this.logger.warn(`Failed to auto-refresh Roblox data in getShowcase: ${msg}`);
         }
       }
     }
@@ -309,9 +325,12 @@ export class ShowcaseService {
           ...cleanConnected,
           github: user.githubUsername
             ? typeof cleanConnected.github === 'object' && cleanConnected.github !== null
-              ? { ...cleanConnected.github, username: user.githubUsername }
+              ? {
+                  ...(cleanConnected.github as Record<string, unknown>),
+                  username: user.githubUsername,
+                }
               : user.githubUsername
-            : cleanConnected.github || null,
+            : (cleanConnected.github as string | null) || null,
         }
       : null;
 
@@ -407,9 +426,11 @@ export class ShowcaseService {
       spotlightMedia,
       anthemTrack,
       mediaItems,
-      widgetOrder: Array.isArray((rawShowcase as any).widgetOrder)
-        ? ((rawShowcase as any).widgetOrder as string[])
-        : ['spotlight', 'media', 'meta'],
+      widgetOrder: (rawShowcase as { widgetOrder?: string[] }).widgetOrder || [
+        'spotlight',
+        'media',
+        'meta',
+      ],
       personalInfo,
     };
   }

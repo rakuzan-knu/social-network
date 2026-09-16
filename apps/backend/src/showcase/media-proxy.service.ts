@@ -29,6 +29,66 @@ interface AniListMedia {
   siteUrl?: string;
 }
 
+interface SpotifyTokenResponse {
+  access_token: string;
+  expires_in?: number;
+}
+
+interface SpotifyArtist {
+  name: string;
+}
+
+interface SpotifyTrack {
+  id: string;
+  name: string;
+  artists?: SpotifyArtist[];
+  album?: {
+    images?: Array<{ url: string }>;
+  };
+  preview_url?: string | null;
+  external_urls?: {
+    spotify?: string;
+  };
+  duration_ms?: number;
+}
+
+interface SpotifySearchResponse {
+  tracks?: {
+    items?: SpotifyTrack[];
+  };
+}
+
+export interface ShowcaseTrackItem {
+  id?: string;
+  trackId?: string;
+  title: string;
+  artist: string;
+  albumArt: string;
+  previewUrl: string | null;
+  spotifyUrl: string;
+  durationMs: number | null;
+  source?: string;
+}
+
+interface SteamAppDetailsData {
+  name?: string;
+  short_description?: string;
+  about_the_game?: string;
+  header_image?: string;
+  genres?: Array<{ description?: string }>;
+  publishers?: string[];
+  developers?: string[];
+  release_date?: { date?: string };
+  metacritic?: { score?: number };
+  screenshots?: Array<{ path_full?: string }>;
+  movies?: Array<{
+    id?: number | string;
+    thumbnail?: string;
+    mp4?: { max?: string; [k: string]: unknown };
+    webm?: { max?: string; [k: string]: unknown };
+  }>;
+}
+
 const POPULAR_GAMES_DATABASE: MediaSearchResultDto[] = [
   // --- Esports & Competitive ---
   {
@@ -3280,7 +3340,7 @@ export class MediaProxyService {
 
     try {
       const creds = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
-      const res = await axios.post(
+      const res = await axios.post<SpotifyTokenResponse>(
         'https://accounts.spotify.com/api/token',
         'grant_type=client_credentials',
         {
@@ -3303,7 +3363,7 @@ export class MediaProxyService {
     return null;
   }
 
-  private async searchSpotifyCatalog(query: string): Promise<any[]> {
+  private async searchSpotifyCatalog(query: string): Promise<ShowcaseTrackItem[]> {
     try {
       const token = await this.getSpotifyAppToken();
       if (!token) return [];
@@ -3312,12 +3372,12 @@ export class MediaProxyService {
         query.match(/spotify\.com\/track\/([a-zA-Z0-9]{22})/) || query.match(/^([a-zA-Z0-9]{22})$/);
       if (trackUrlMatch) {
         const rawTrackId = trackUrlMatch[1];
-        if (/^[a-zA-Z0-9]{22}$/.test(rawTrackId)) {
+        if (rawTrackId && /^[a-zA-Z0-9]{22}$/.test(rawTrackId)) {
           const safeTrackId = encodeURIComponent(rawTrackId);
           const trackApiUrl = new URL(`https://api.spotify.com/v1/tracks/${safeTrackId}`);
           if (trackApiUrl.origin === 'https://api.spotify.com') {
             try {
-              const directRes = await axios.get(trackApiUrl.toString(), {
+              const directRes = await axios.get<SpotifyTrack>(trackApiUrl.toString(), {
                 headers: { Authorization: `Bearer ${token}` },
                 timeout: 5000,
               });
@@ -3328,7 +3388,7 @@ export class MediaProxyService {
                     id: t.id,
                     trackId: t.id,
                     title: t.name,
-                    artist: t.artists?.map((a: any) => a.name).join(', ') || 'Unknown Artist',
+                    artist: t.artists?.map((a) => a.name).join(', ') || 'Unknown Artist',
                     albumArt:
                       t.album?.images?.[0]?.url ||
                       'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=80',
@@ -3346,7 +3406,7 @@ export class MediaProxyService {
         }
       }
 
-      const res = await axios.get(
+      const res = await axios.get<SpotifySearchResponse>(
         `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=10`,
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -3358,12 +3418,14 @@ export class MediaProxyService {
       if (!Array.isArray(items) || items.length === 0) return [];
 
       return items
-        .filter((t: any) => t && t.id && t.name)
-        .map((t: any) => ({
+        .filter((t): t is SpotifyTrack & { id: string; name: string } =>
+          Boolean(t && t.id && t.name),
+        )
+        .map((t) => ({
           id: t.id,
           trackId: t.id,
           title: t.name,
-          artist: t.artists?.map((a: any) => a.name).join(', ') || 'Unknown Artist',
+          artist: t.artists?.map((a) => a.name).join(', ') || 'Unknown Artist',
           albumArt:
             t.album?.images?.[0]?.url ||
             'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=80',
@@ -3552,16 +3614,18 @@ export class MediaProxyService {
                   },
                 ];
 
-      const mappedSpotify = baseSpotify.map((t: any) => ({
+      const mappedSpotify = baseSpotify.map((t) => ({
         ...t,
         source: 'spotify',
       }));
 
-      const combined: any[] = [];
+      const combined: ShowcaseTrackItem[] = [];
       const maxLen = Math.max(mappedSpotify.length, scResults.length);
       for (let i = 0; i < maxLen; i++) {
-        if (i < mappedSpotify.length) combined.push(mappedSpotify[i]);
-        if (i < scResults.length) combined.push(scResults[i]);
+        const s = mappedSpotify[i];
+        if (s) combined.push(s);
+        const sc = scResults[i];
+        if (sc) combined.push(sc);
       }
 
       return combined.slice(0, 20);
@@ -3831,17 +3895,18 @@ export class MediaProxyService {
     if (!appId) return null;
 
     try {
-      const detailsRes = await axios.get<Record<string, { success: boolean; data?: any }>>(
-        `https://store.steampowered.com/api/appdetails?appids=${appId}&l=russian`,
-        { timeout: 5000 },
-      );
+      const detailsRes = await axios.get<
+        Record<string, { success: boolean; data?: SteamAppDetailsData }>
+      >(`https://store.steampowered.com/api/appdetails?appids=${appId}&l=russian`, {
+        timeout: 5000,
+      });
 
       const d = detailsRes.data?.[appId.toString()]?.data;
       if (!d) return null;
 
       const screenshots: string[] = (d.screenshots || [])
-        .map((s: { path_full?: string }) => s.path_full)
-        .filter(Boolean);
+        .map((s) => s.path_full)
+        .filter((p): p is string => Boolean(p));
 
       const steamMovieUrl = d.movies?.[0]?.id
         ? `https://cdn.cloudflare.steamstatic.com/steam/apps/${d.movies[0].id}/movie480.mp4`
@@ -3853,25 +3918,37 @@ export class MediaProxyService {
         'https://cdn.cloudflare.steamstatic.com/steam/apps/256692021/movie480.mp4';
 
       const stripHtml = (html: string) => (sanitizePlainText(html || '') as string).trim();
+      const thumb = d.movies?.[0]?.thumbnail || d.header_image;
 
       return {
         title: d.name || cleanTitle,
-        subtitle: (d.genres || []).map((g: any) => g.description).join(', ') || 'Game',
+        subtitle:
+          (d.genres || [])
+            .map((g) => g.description || '')
+            .filter(Boolean)
+            .join(', ') || 'Game',
         description: stripHtml(d.short_description || d.about_the_game || ''),
         videoUrl:
           trailerUrl ||
           (steamMovieUrl && !steamMovieUrl.endsWith('.jpg') ? steamMovieUrl : undefined) ||
           fallbackTrailer,
-        videoThumbnail: d.movies?.[0]?.thumbnail || d.header_image,
         videoDuration: '1:45',
         screenshots: screenshots.slice(0, 8),
-        bannerUrl: d.header_image,
-        genres: (d.genres || []).map((g: any) => g.description).join(', '),
-        publisher: (d.publishers || []).join(', '),
-        developer: (d.developers || []).join(', '),
-        releaseDate: d.release_date?.date,
-        metacritic: d.metacritic?.score,
         externalUrl: `https://store.steampowered.com/app/${appId}/`,
+        ...(thumb ? { videoThumbnail: thumb } : {}),
+        ...(d.header_image ? { bannerUrl: d.header_image } : {}),
+        ...(d.genres?.length
+          ? {
+              genres: (d.genres || [])
+                .map((g) => g.description || '')
+                .filter(Boolean)
+                .join(', '),
+            }
+          : {}),
+        ...(d.publishers?.length ? { publisher: (d.publishers || []).join(', ') } : {}),
+        ...(d.developers?.length ? { developer: (d.developers || []).join(', ') } : {}),
+        ...(d.release_date?.date ? { releaseDate: d.release_date.date } : {}),
+        ...(d.metacritic?.score !== undefined ? { metacritic: d.metacritic.score } : {}),
       };
     } catch {
       return null;
@@ -3879,6 +3956,7 @@ export class MediaProxyService {
   }
 
   private async fetchAnimeDetails(cleanTitle: string): Promise<MediaDetailsResponseDto | null> {
+    await Promise.resolve();
     const CURATED_ANIME: Record<string, Partial<MediaDetailsResponseDto>> = {
       'sword art online': {
         title: 'Sword Art Online',
@@ -4192,6 +4270,7 @@ export class MediaProxyService {
     cleanTitle: string,
     type: ShowcaseMediaType,
   ): Promise<MediaDetailsResponseDto | null> {
+    await Promise.resolve();
     const CURATED_CINEMA: Record<string, Partial<MediaDetailsResponseDto>> = {
       interstellar: {
         title: 'Interstellar',

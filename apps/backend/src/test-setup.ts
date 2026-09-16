@@ -3,8 +3,15 @@ import { vi } from 'vitest';
 import * as dotenv from 'dotenv';
 import path from 'path';
 
+interface ViWithConfig {
+  setConfig?: (opts: { testTimeout?: number; retry?: number }) => void;
+  [key: string]: unknown;
+}
+
+const viTarget = vi as unknown as ViWithConfig;
+
 // Expose vi as jest globally with comprehensive Jest API polyfills for legacy tests
-const jestProxy = new Proxy(vi as any, {
+const jestProxy = new Proxy(viTarget, {
   get(target, prop, receiver) {
     if (prop === 'setTimeout') {
       return (ms: number) => {
@@ -21,61 +28,95 @@ const jestProxy = new Proxy(vi as any, {
     if (prop === 'retryTimes') {
       return (num: number) => {
         try {
-          (vi as any).setConfig({ retry: num });
+          if (typeof target.setConfig === 'function') {
+            target.setConfig({ retry: num });
+          }
         } catch {
           // ignore
         }
       };
     }
-    return Reflect.get(target, prop, receiver);
+    return Reflect.get(target, prop, receiver) as unknown;
   },
 });
-(globalThis as any).jest = jestProxy;
+
+const globalObj = globalThis as unknown as Record<string, unknown>;
+globalObj.jest = jestProxy;
+
+type DoneFn = (err?: unknown) => void;
+type TestCallback = (done?: DoneFn) => void | Promise<unknown>;
+type AnyFn = (...args: unknown[]) => unknown;
 
 // Legacy Jest (done) callback compatibility wrapper for Vitest 3.x
-const wrapTestFn = (fn: any) => {
+const wrapTestFn = (fn: unknown): unknown => {
   if (typeof fn === 'function' && fn.length > 0) {
+    const callbackFn = fn as TestCallback;
     return () =>
       new Promise<void>((resolve, reject) => {
-        const done = (err?: any) => {
-          if (err) reject(err instanceof Error ? err : new Error(String(err)));
-          else resolve();
+        const done = (err?: unknown) => {
+          if (err) {
+            const message =
+              typeof err === 'string' ? err : err instanceof Error ? err.message : 'Unknown error';
+            reject(err instanceof Error ? err : new Error(message));
+          } else {
+            resolve();
+          }
         };
         try {
-          const result = fn(done);
-          if (result && typeof result.then === 'function') {
-            result.then(
+          const result = callbackFn(done);
+          if (
+            result &&
+            typeof result === 'object' &&
+            'then' in result &&
+            typeof (result as { then?: unknown }).then === 'function'
+          ) {
+            void Promise.resolve(result).then(
               () => resolve(),
-              (reason) => reject(reason instanceof Error ? reason : new Error(String(reason))),
+              (reason: unknown) => {
+                const message =
+                  typeof reason === 'string'
+                    ? reason
+                    : reason instanceof Error
+                      ? reason.message
+                      : 'Unknown rejection';
+                reject(reason instanceof Error ? reason : new Error(message));
+              },
             );
           }
         } catch (e) {
-          reject(e instanceof Error ? e : new Error(String(e)));
+          const message =
+            typeof e === 'string' ? e : e instanceof Error ? e.message : 'Unknown error';
+          reject(e instanceof Error ? e : new Error(message));
         }
       });
   }
   return fn;
 };
 
-const createTestWrapper = (orig: any) => {
+const createTestWrapper = <T extends AnyFn>(orig: T): T => {
   if (!orig) return orig;
-  const wrapped = (name: string, fn: any, timeout?: number) => orig(name, wrapTestFn(fn), timeout);
+  const wrapped = ((name: string, fn: unknown, timeout?: number) =>
+    orig(name, wrapTestFn(fn), timeout)) as unknown as T;
   Object.assign(wrapped, orig);
-  if (orig.only)
-    wrapped.only = (name: string, fn: any, timeout?: number) =>
-      orig.only(name, wrapTestFn(fn), timeout);
-  if (orig.skip) wrapped.skip = orig.skip;
-  if (orig.concurrent)
-    wrapped.concurrent = (name: string, fn: any, timeout?: number) =>
-      orig.concurrent(name, wrapTestFn(fn), timeout);
+  const origAny = orig as unknown as Record<string, unknown>;
+  const wrappedAny = wrapped as unknown as Record<string, unknown>;
+  if (typeof origAny.only === 'function') {
+    wrappedAny.only = (name: string, fn: unknown, timeout?: number) =>
+      (origAny.only as AnyFn)(name, wrapTestFn(fn), timeout);
+  }
+  if (origAny.skip) wrappedAny.skip = origAny.skip;
+  if (typeof origAny.concurrent === 'function') {
+    wrappedAny.concurrent = (name: string, fn: unknown, timeout?: number) =>
+      (origAny.concurrent as AnyFn)(name, wrapTestFn(fn), timeout);
+  }
   return wrapped;
 };
 
-if ((globalThis as any).it) {
-  (globalThis as any).it = createTestWrapper((globalThis as any).it);
+if (typeof globalObj.it === 'function') {
+  globalObj.it = createTestWrapper(globalObj.it as AnyFn);
 }
-if ((globalThis as any).test) {
-  (globalThis as any).test = createTestWrapper((globalThis as any).test);
+if (typeof globalObj.test === 'function') {
+  globalObj.test = createTestWrapper(globalObj.test as AnyFn);
 }
 
 // Load backend/.env if present

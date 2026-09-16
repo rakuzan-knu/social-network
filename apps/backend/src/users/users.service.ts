@@ -40,6 +40,8 @@ import {
   rankCandidates,
   topVocabulary,
   type FeedPresetName,
+  type ScoredCandidate,
+  type ReasonType,
 } from '@social-network/feed-score';
 import { levenshtein } from '@social-network/text-pipeline';
 import { TextPipelineService } from '../common/text-pipeline/text-pipeline.service';
@@ -677,36 +679,46 @@ export class UsersService {
       },
     );
     const usersById = new Map(candidateUsers.map((user) => [user.id, user] as const));
-    const topCandidates = ranked
-      .slice(0, limit)
-      .map((c: { id: string; score: number; reason: any }) => {
-        const user = usersById.get(c.id);
-        // Invariant: ranked ids always come from candidateUsers above.
-        if (!user) throw new Error(`feed-score returned unknown candidate ${c.id}`);
-        // Copy into the mutable DTO shape (core reasons are readonly).
-        const reason = c.reason;
-        return {
-          user,
-          finalScore: c.score,
-          recommendationReason: {
-            type: reason.type,
-            text: reason.text,
-            ...(reason.mutualFriends !== undefined
-              ? { mutualFriends: reason.mutualFriends.map((m: any) => ({ ...m })) }
-              : {}),
-            ...(reason.totalMutualCount !== undefined
-              ? { totalMutualCount: reason.totalMutualCount }
-              : {}),
-          },
-        };
-      });
+    type CandidateUser = (typeof candidateUsers)[number];
+    interface TopCandidate {
+      user: CandidateUser;
+      finalScore: number;
+      recommendationReason: {
+        type: ReasonType;
+        text: string;
+        mutualFriends?: Array<{ id: string; username: string; avatar: string | null }>;
+        totalMutualCount?: number;
+      };
+    }
 
-    const ids = topCandidates.map((c: { user: { id: string } }) => c.user.id);
+    const topCandidates: TopCandidate[] = ranked.slice(0, limit).map((c: ScoredCandidate) => {
+      const user = usersById.get(c.id);
+      // Invariant: ranked ids always come from candidateUsers above.
+      if (!user) throw new Error(`feed-score returned unknown candidate ${c.id}`);
+      // Copy into the mutable DTO shape (core reasons are readonly).
+      const reason = c.reason;
+      return {
+        user,
+        finalScore: c.score,
+        recommendationReason: {
+          type: reason.type,
+          text: reason.text,
+          ...(reason.mutualFriends !== undefined
+            ? { mutualFriends: reason.mutualFriends.map((m) => ({ ...m })) }
+            : {}),
+          ...(reason.totalMutualCount !== undefined
+            ? { totalMutualCount: reason.totalMutualCount }
+            : {}),
+        },
+      };
+    });
+
+    const ids = topCandidates.map((c) => c.user.id);
     const ctx = await this.visibility.loadContext(ids, viewerId ?? null);
 
-    return topCandidates.map((c: any) => {
+    return topCandidates.map((c) => {
       const ownedBadges = Array.isArray(c.user.badges)
-        ? c.user.badges.map((b: { badgeId: string }) => b.badgeId)
+        ? (c.user.badges as Array<{ badgeId: string }>).map((b) => b.badgeId)
         : [];
       const raw = this.toRawProfile(c.user, ownedBadges);
       const dto = this.applyPrivacy(raw, viewerId ?? null, ctx);

@@ -73,7 +73,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['**/*.spec.ts', '**/__tests__/**/*.ts', '**/test/**/*.ts'],
+    files: ['**/*.spec.ts', '**/__tests__/**/*.ts', '**/test/**/*.ts', '**/test-setup.ts'],
     rules: {
       '@typescript-eslint/unbound-method': 'off',
       '@typescript-eslint/require-await': 'off',
