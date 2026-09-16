@@ -95,11 +95,11 @@ docs/
 ```mermaid
 graph LR
     subgraph Frontend["Frontend Client"]
-        SPA["React 19 SPA (Vite 8)<br/>- Feature-Sliced Design<br/>- TanStack Query + Zustand<br/>- Tailwind CSS 4"]
+        SPA["React 19 SPA (Vite 8)<br/>- Feature-Sliced Design<br/>- TanStack Query + Zustand<br/>- Offline Outbox (IndexedDB)<br/>- Web Worker Image Compressor"]
     end
 
     subgraph Backend["API Server"]
-        API["NestJS 11 + Fastify<br/>- ZodValidationPipe<br/>- Strict Controller->Service->Repo<br/>- Pino Logger + OTEL"]
+        API["NestJS 11 + Fastify<br/>- BFF Aggregator (/feed/compact)<br/>- Feature Flags Engine<br/>- ZodValidationPipe<br/>- Strict Controller->Service->Repo<br/>- Pino Logger + OTEL"]
     end
 
     subgraph StateTier["Data & Queue Tier"]
@@ -109,7 +109,7 @@ graph LR
     end
 
     SPA -->|REST API + Contracts| API
-    SPA <-->|WSS Socket.IO (/messenger)| API
+    SPA <-->|WSS Socket.IO + WebRTC Mesh| API
     API --> PG
     API --> Redis
     API --> S3

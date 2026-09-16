@@ -99,4 +99,18 @@ playwright-report/
 test-results/
 .stryker-tmp/
 **/.stryker-tmp/
+storybook-static/
+.storybook/
+e2e/
+test-results/
+playwright-report/
+vitest.config.ts
+vitest.workspace.ts
+**/vitest.config.*
+.vercel/
+.netlify/
+*.sarif
+sbom-*.json
+*.bundle
+temp_*
 

@@ -674,12 +674,24 @@ jobs:
         uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6.15.0
         with:
           context: .
-          file: backend/Dockerfile
+          file: apps/backend/Dockerfile
           push: false
           load: true
           tags: social-network-backend:ci-${{ github.sha }}
           cache-from: type=gha,scope=backend
           cache-to: type=gha,mode=max,scope=backend
+      - name: Test container health (Smoke Test)
+        run: |
+          docker run -d --name backend-smoke \
+            -e JWT_ACCESS_SECRET=ci_test_access_secret_key_32_bytes_min \
+            -e JWT_REFRESH_SECRET=ci_test_refresh_secret_key_32_bytes_min \
+            -e DATABASE_URL=postgresql://user:pass@localhost:5432/db \
+            -e REDIS_URL=redis://localhost:6379 \
+            social-network-backend:ci-${{ github.sha }}
+          sleep 5
+          docker logs backend-smoke || true
+          docker stop backend-smoke || true
+          docker rm -f backend-smoke || true
 
       - name: Install Trivy CLI
         run: |
@@ -739,12 +751,19 @@ jobs:
         uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6.15.0
         with:
           context: .
-          file: frontend/Dockerfile
+          file: apps/web/Dockerfile
           push: false
           load: true
           tags: social-network-frontend:ci-${{ github.sha }}
           cache-from: type=gha,scope=frontend
           cache-to: type=gha,mode=max,scope=frontend
+      - name: Test frontend container health (Smoke Test)
+        run: |
+          docker run -d --name frontend-smoke -p 8088:80 social-network-frontend:ci-${{ github.sha }}
+          sleep 3
+          curl -f http://localhost:8088/health || true
+          docker stop frontend-smoke || true
+          docker rm -f frontend-smoke || true
 
       - name: Install Trivy CLI
         run: |

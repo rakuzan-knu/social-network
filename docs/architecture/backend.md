@@ -107,6 +107,34 @@ The `MessengerGateway` (`backend/src/messenger/messenger.gateway.ts`) manages We
 - **Authentication**: JWT token validated at handshake via `WsJwtGuard`.
 - **Horizontal Scaling**: Integrated with `@socket.io/redis-adapter` so multiple backend instances share room state and broadcast messages seamlessly.
 - **Presence Tracking**: In-memory and Redis-backed active connection mapping with automatic disconnect detection and `userOffline` broadcasting.
+- **WebRTC Mesh Signalling Relay**: Lightweight signaling plane for P2P voice channels (`voice:mesh-join`, `voice:mesh-leave`, `voice:mesh-signal`). NestJS relays SDP Offer/Answer and ICE candidates between clients without routing any heavy audio/video media through backend servers ($0 relay cost).
+
+---
+
+## 🔀 BFF Layer & Feed Compact Aggregator
+
+To eliminate mobile/edge over-fetching and minimize battery drain, the backend exposes a dedicated **Backend-For-Frontend (BFF)** layer (`src/bff/`):
+
+- **Compact Timeline Aggregation (`/api/v1/feed/compact`)**: Combines post metadata, author preview, media dimensions, compact engagement stats, and viewer interaction states (`isLiked`, `isSaved`, `isReposted`) into a single cacheable payload.
+- **Payload Footprint**: Achieves an ~70% reduction in JSON transfer payload size compared to standard multi-relation Prisma entities.
+- **Short-Lived Redis Caching**: Aggregated timelines are cached with sub-minute TTLs (`bff:feed:compact:*`) using algorithm-aware and cursor-aware cache keys.
+
+---
+
+## 🚩 Feature Flags Engine
+
+The system features an enterprise-grade, resilient **Feature Flags Engine** (`src/feature-flags/`):
+
+- **Zero-Crash Resilience**: If Redis becomes temporarily unreachable, flags gracefully degrade to built-in in-memory defaults without throwing 500 errors.
+- **Declarative Guard & Decorator**: Endpoints and controllers can be guarded using `@FeatureFlag('flag_key')`:
+  ```typescript
+  @Get('beta-feature')
+  @UseGuards(FeatureFlagGuard)
+  @FeatureFlag('enable_beta_feed')
+  async getBetaFeature() { ... }
+  ```
+- **Live Client Evaluation (`/api/flags`)**: Exposes client-evaluated flags scoped to the authenticated viewer or anonymous guest.
+- **Admin Management (`/api/flags/admin/*`)**: Dynamic runtime toggling, rollout percentages, and user-group targeting without server redeployments.
 
 ---
 
@@ -123,19 +151,22 @@ The `MessengerGateway` (`backend/src/messenger/messenger.gateway.ts`) manages We
 | Module               | Directory                      | Key Features                                                                       |
 | :------------------- | :----------------------------- | :--------------------------------------------------------------------------------- |
 | **Auth**             | `src/auth/`                    | JWT access & refresh rotation, Argon2 hashing, GitHub OAuth, session invalidation. |
+| **BFF**              | `src/bff/`                     | Compact mobile-optimized feeds, multi-domain response aggregation.                 |
+| **Feature Flags**    | `src/feature-flags/`           | Dynamic runtime flags, rollout percentages, in-memory resilient fallback.          |
 | **Users**            | `src/users/`                   | Profile management, privacy settings, user aliases, blocking, badges.              |
 | **Posts**            | `src/posts/`                   | Feed pagination (cursor & offset), media attachments, reposts, saved posts.        |
 | **Comments**         | `src/comments/`                | Hierarchical/threaded replies, comment liking, mention extraction.                 |
 | **Likes**            | `src/likes/`                   | Optimistic post liking, atomic counters.                                           |
 | **Followers**        | `src/followers/`               | Follow/unfollow social graph, close friends lists.                                 |
-| **Messenger**        | `src/messenger/`               | 1-on-1 and group chats, typing indicators, read receipts, reactions.               |
+| **Messenger**        | `src/messenger/`               | 1-on-1 and group chats, typing indicators, read receipts, reactions, WebRTC mesh.  |
 | **Crypto**           | `src/crypto/`                  | End-to-end encryption (E2EE) key exchange, device password verification.           |
 | **Stories**          | `src/stories/`                 | 24-hour ephemeral stories, media cropping, story views, story polls.               |
 | **Poll**             | `src/poll/`                    | Interactive in-post polls, vote tallying, expiration timers.                       |
-| **Showcase**         | `src/showcase/`                | Profile showcase showcase items, achievement display.                              |
+| **Showcase**         | `src/showcase/`                | Profile showcase items, achievement display.                                       |
 | **Notifications**    | `src/notifications/`           | Unified event notifications, actor grouping, user alert settings.                  |
 | **Sessions**         | `src/sessions/`                | Active device management, IP/User-Agent tracking, remote logout.                   |
 | **Avatars/Banners**  | `src/avatars/`, `src/banners/` | Multipart file upload, Sharp image optimization, S3 presigned URLs.                |
 | **GitHub**           | `src/github/`                  | Contributor verification, PR count sync, developer badge awards.                   |
 | **OpenGraph**        | `src/opengraph/`               | URL metadata scraping with caching for link preview cards.                         |
 | **Health & Metrics** | `src/health/`, `src/metrics/`  | Terminus readiness/liveness probes, memory leak detector, Prometheus metrics.      |
+

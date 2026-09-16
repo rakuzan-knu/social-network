@@ -8,6 +8,7 @@
     "postinstall": "node scripts/utils/postinstall.js && node scripts/utils/ensure-native.js",
     "dev:backend": "pnpm --filter backend start:dev",
     "dev:frontend": "pnpm --filter frontend dev",
+    "dev:mobile": "pnpm --filter @social-network/mobile start",
     "dev": "concurrently -n backend,frontend -c blue,green \"pnpm dev:backend\" \"pnpm dev:frontend\"",
     "build": "pnpm -r --parallel build",
     "build:native": "pnpm build:codec && pnpm build:text && pnpm build:blind && pnpm build:feed && pnpm --filter @social-network/native build",
@@ -26,10 +27,10 @@
     "bench:feed": "pnpm --filter @social-network/feed-score bench",
     "lint": "pnpm -r --parallel lint",
     "lint:fix": "pnpm -r --parallel lint:fix",
-    "test": "pnpm --filter backend test && pnpm --filter frontend test",
-    "test:backend": "pnpm --filter backend test",
-    "test:frontend": "pnpm --filter frontend test",
-    "test:cov": "pnpm --filter backend test:cov && pnpm --filter frontend test:cov",
+    "test": "vitest run",
+    "test:backend": "vitest run --project=backend",
+    "test:frontend": "vitest run --project=frontend",
+    "test:cov": "vitest run --coverage",
     "test:e2e": "pnpm --filter backend test:e2e",
     "format": "prettier --write . --ignore-unknown --no-error-on-unmatched-pattern",
     "typecheck": "pnpm -r --parallel typecheck",
@@ -95,7 +96,8 @@
     "nx": "^23.1.1",
     "prettier": "^3.5.3",
     "semantic-release": "^25.0.9",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.7"
   },
   "allowScripts": {
     "esbuild": true,

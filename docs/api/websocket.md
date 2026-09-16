@@ -201,6 +201,46 @@ socket.emit('clientWake');
 
 ---
 
+### 5. 🎙️ P2P WebRTC Voice Mesh Signalling
+
+Coordinates browser-to-browser WebRTC full-mesh voice rooms ($0 server media bandwidth).
+
+#### `voice:mesh-join`
+
+Join a voice channel room. Returns current active peer IDs.
+
+```typescript
+socket.emit('voice:mesh-join', { roomId: 'uuid' }, (response) => {
+  // response: { success: boolean, peers: Array<{ peerId: string, userId: string }> }
+});
+```
+
+#### `voice:mesh-leave`
+
+Leave an active voice room and close peer connections.
+
+```typescript
+socket.emit('voice:mesh-leave', { roomId: 'uuid' });
+```
+
+#### `voice:mesh-signal`
+
+Relay SDP Offer/Answer or ICE Candidate directly to target peer.
+
+```typescript
+socket.emit('voice:mesh-signal', {
+  roomId: 'uuid',
+  targetPeerId: 'uuid',
+  signal: {
+    type: 'offer' | 'answer' | 'candidate',
+    candidate?: RTCIceCandidateInit,
+    sdp?: RTCSessionDescriptionInit,
+  },
+});
+```
+
+---
+
 ## 📥 Server-to-Client Events (Broadcasted to Client)
 
 | Event Name                   | Scope               | Payload Description                                |
@@ -216,6 +256,9 @@ socket.emit('clientWake');
 | `messagePinned`              | `conversation:<id>` | Pinned message metadata                            |
 | `userOnline` / `userOffline` | Global / Followers  | Live presence state updates                        |
 | `presence:batch`             | Client on join      | Batch status map `{ [userId]: boolean }`           |
+| `voice:mesh-peer-joined`     | `voice:<roomId>`    | `{ peerId: string, userId: string }`               |
+| `voice:mesh-peer-left`       | `voice:<roomId>`    | `{ peerId: string, userId: string }`               |
+| `voice:mesh-signal`          | Calling client      | `{ fromPeerId: string, signal: any }`              |
 | `socialNotification`         | `user:<userId>`     | New like, follow, mention, or repost notification  |
 | `rateLimitExceeded`          | Calling client      | Error with retry-after cooldown period             |
 

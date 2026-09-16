@@ -23,6 +23,7 @@ const TARGETS = [
       'backend/.eslintcache',
       'frontend/.eslintcache',
       '.cache',
+      '.nx/cache',
       'backend/node_modules/.cache',
       'frontend/node_modules/.cache',
     ],

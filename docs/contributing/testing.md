@@ -6,17 +6,19 @@ Our testing philosophy emphasizes high-confidence integration and end-to-end ver
 
 ## 🎯 Testing Strategy Overview
 
-| Tier                     | Target                                  | Tooling                              | Execution Scope           |
-| :----------------------- | :-------------------------------------- | :----------------------------------- | :------------------------ |
-| **Backend E2E**          | API endpoints, DB, Auth & Middleware    | Jest + Supertest                     | `backend/test/`           |
-| **Frontend Integration** | React components, FSD slices, Hooks     | Vitest + React Testing Library + MSW | `frontend/src/`           |
-| **Mutation Testing**     | Code resiliency & test suite robustness | Stryker Mutator                      | Backend & Frontend        |
-| **Performance / Load**   | Throughput, latency, memory bottlenecks | k6, Autocannon, Clinic.js            | `benchmarks/`, `scripts/` |
-| **Web Vitals & SEO**     | LCP, FID, CLS, Accessibility            | Lighthouse CI (`lhci`)               | Frontend bundle           |
+| Tier                     | Target                                  | Tooling                                  | Execution Scope           |
+| :----------------------- | :-------------------------------------- | :--------------------------------------- | :------------------------ |
+| **Monorepo Unified**     | Full test matrix (Backend + Frontend)   | Vitest 3 Workspace (`vitest.config.ts`)  | Entire Monorepo           |
+| **Backend Service/Unit** | Mappers, contracts, processors, utility | Vitest 3 + `unplugin-swc` (SWC Rust)     | `backend/src/`            |
+| **Backend E2E**          | API endpoints, DB, Auth & Middleware    | Vitest 3 (`singleFork`) + Supertest      | `backend/test/`           |
+| **Frontend Integration** | React components, FSD slices, Hooks     | Vitest 3 + React Testing Library + MSW   | `frontend/src/`           |
+| **Mutation Testing**     | Code resiliency & test suite robustness | Stryker Mutator                          | Backend & Frontend        |
+| **Performance / Load**   | Throughput, latency, memory bottlenecks | k6, Autocannon, Clinic.js                | `benchmarks/`, `scripts/` |
+| **Web Vitals & SEO**     | LCP, FID, CLS, Accessibility            | Lighthouse CI (`lhci`)                   | Frontend bundle           |
 
-> [!IMPORTANT]
-> **Backend Unit Tests Rule**:
-> In accordance with our architecture rules, backend unit tests (`*.spec.ts`) in `backend/src/` are omitted in favor of comprehensive End-to-End tests in `backend/test/`. Do not create unit tests that mock repositories or services; test full HTTP request-response lifecycles against the test database.
+> [!TIP]
+> **Vitest 3 + SWC Acceleration**:
+> The monorepo uses **Vitest 3 + `unplugin-swc`** instead of legacy Jest + `ts-jest`. TypeScript files are compiled via the native Rust SWC compiler with legacy decorator and reflection metadata enabled, executing test suites in **~100–300ms** (a 10–15x speedup compared to ts-jest runtime transpilation).
 
 ---
 
@@ -25,30 +27,34 @@ Our testing philosophy emphasizes high-confidence integration and end-to-end ver
 ### Standard Test Commands
 
 ```bash
-# Run all workspace tests (backend E2E + frontend Vitest)
+# Run all workspace tests (concurrent multi-core workspace runner)
 pnpm test
 
-# Run backend E2E test suite exclusively
+# Run backend test suite exclusively
+pnpm test:backend
+
+# Run backend isolated database E2E test suite
 pnpm test:e2e
 
-# Run frontend tests
+# Run frontend tests exclusively
 pnpm test:frontend
 
 # Run frontend tests with interactive UI
 pnpm --filter frontend test:ui
 
-# Run frontend tests in watch mode
+# Run tests in watch mode
+pnpm --filter backend test:watch
 pnpm --filter frontend test:watch
 
-# Generate coverage reports
+# Generate coverage reports (v8 provider)
 pnpm test:cov
 ```
 
 ---
 
-## 🟦 Backend End-to-End Testing (Jest + Supertest)
+## 🟦 Backend Testing (Vitest 3 + unplugin-swc + Supertest)
 
-Backend tests live in `backend/test/` and run against an isolated PostgreSQL instance or transaction rollback harness:
+Backend tests run under Vitest with `unplugin-swc` preserving NestJS dependency injection metadata. End-to-End tests live in `backend/test/` and run against an isolated PostgreSQL instance or transaction rollback harness via `vitest.config.e2e.ts` (`singleFork: true`, `fileParallelism: false` to prevent race conditions):
 
 ```typescript
 // backend/test/posts.e2e-spec.ts

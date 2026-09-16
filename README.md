@@ -8,33 +8,37 @@ A modern, high-performance **Social Network Application** built as a monorepo us
 
 ### 🟦 Back-End (NestJS)
 
-- **Framework:** NestJS (Modular Architecture)
+- **Framework:** NestJS (Modular Architecture, Fastify adapter)
 - **Validation & Contracts:** Single-Source-of-Truth Zod Contracts (`@common/contracts`), Custom `ZodValidationPipe` (zero `class-validator`)
 - **API Documentation:** Swagger OpenAPI
-- **Database & Caching:** PostgreSQL, Redis, Prisma ORM (`@common/prisma`)
-- **Real-time Communication:** Socket.io
+- **BFF & Feature Management:** Dedicated BFF Aggregators (`/api/v1/feed/compact`), Dynamic Redis + In-Memory Feature Flags engine (`@FeatureFlag()` guard)
+- **Database & Caching:** PostgreSQL 16, Redis 7, Prisma ORM (`@common/prisma`), `waveform Int[]` voice visualization
+- **Real-time Communication:** Socket.io `/messenger` gateway & WebRTC P2P Mesh signalling relay (`voice:mesh-*`)
 - **Auth & Security:** Passport.js + JWT, Argon2 hashing, Helmet, Strict CORS, NestJS Throttler
-- **File Processing & Storage:** MINIO / S3
+- **File Processing & Storage:** MINIO / S3, OffscreenCanvas client pre-compression
 - **Asynchronous Jobs & Queues:** BullMQ
 - **Observability & Tracing:** Correlation ID middleware (`x-correlation-id`), Prometheus Metrics (`prom-client`), Sentry error tracking, Pino structured logging
 
 ### 🟩 Front-End (React + Vite)
 
-- **Core & Build Tools:** React 19, Vite, React Compiler
+- **Core & Build Tools:** React 19, Vite 6, React Compiler
 - **Architecture:** Feature-Sliced Design (FSD)
-- **Styling & UI:** Tailwind CSS
-- **State Management:** TanStack Query (Server State), Zustand (Client State)
+- **Styling & UI:** Tailwind CSS 4
+- **State Management & Local-First:** TanStack Query 5 with IndexedDB persistence (`idb-keyval`), Zustand (Client State), Persistent Mutation Outbox Queue (offline-first sync with idempotency keys)
+- **Voice & Media Engines:** Web Worker image compressor (`OffscreenCanvas`), Real-time interactive waveform voice analyser & scrub physics, P2P WebRTC Mesh voice channels (Discord-style $0 server media bandwidth)
+- **Privacy & Encryption:** Pure WebCrypto API (ECDH P-256 + AES-GCM-256) E2EE, TOFU key pinning, Secret Chat verification modal with SAS safety emojis
 - **Routing:** React Router 7
 - **Form Handling & Validation:** React Hook Form + Zod
-- **Real-time Client:** Socket.io Client
+- **Real-time Client:** Socket.io Client + WebRTC Peer Connections
 - **Type Integration:** Direct backend contract consumption (`@backend/common/contracts`)
 
 ### 🟨 Infrastructure & DevOps
 
 - **Monorepo Management:** pnpm Workspaces + **Nx** (`nx.json`, task graph & affected execution)
+- **Test Suite:** **Vitest 3 + `unplugin-swc`** unified monorepo workspace (Rust compiler, ~10-15x faster than Jest + `ts-jest`), isolated single-fork database E2E runner
 - **Supply Chain Security:** Cosign keyless artifact signing, CycloneDX SBOM generation, Trivy container scanning, strict `allowScripts` lockdown
-- **Containerization:** Docker (multi-stage non-root images)
-- **CI/CD & Release:** GitHub Actions, `@commitlint`, `lint-staged`, `husky`, `semantic-release`
+- **Containerization:** Docker (multi-stage non-root images with BuildKit cache mounts and parallel package builds)
+- **CI/CD & Release:** GitHub Actions (matrix sharded, PR build de-duplication, zero-overhead container smoke test), `@commitlint`, `lint-staged`, `husky`, `semantic-release`
 
 ---
 
@@ -96,7 +100,7 @@ Detailed documentation, architecture deep dives, API specs, and runbooks are ava
 - 🔐 **[Security & Privacy Architecture](./docs/architecture/security.md)** — Auth, Argon2, E2EE, rate limiting & Cosign
 - 📡 **[REST API Reference](./docs/api/http-api.md)** & **[Zod Contracts](./docs/api/contracts.md)**
 - 🤝 **[Contributor Guide](./docs/contributing/README.md)** & **[Contribution Workflow](./docs/contributing/workflow.md)**
-- 🧪 **[Testing Handbook](./docs/contributing/testing.md)** — Backend Jest E2E, Vitest, Stryker & k6
+- 🧪 **[Testing Handbook](./docs/contributing/testing.md)** — Vitest 3 (Backend & Frontend), E2E runner, Stryker & k6
 - 🚀 **[Deployment Guides](./docs/deployment/README.md)** — Multi-stage Docker & Cloud environments
 - ⚙️ **[Operations & SRE Handbook](./docs/operations/README.md)** — Resilience, zero-downtime migrations & SLAs
 - 📖 **[Operational Runbooks](./docs/runbooks/README.md)** — SRE emergency playbooks & incident triage
@@ -185,9 +189,11 @@ All root commands execute across both `backend` and `frontend` workspaces:
 | `pnpm lint:fix`        | Fixes ESLint errors automatically across workspaces              |
 | `pnpm format`          | Formats codebase using Prettier                                  |
 | `pnpm typecheck`       | Validates TypeScript types without emitting files                |
-| `pnpm test`            | Runs unit tests for backend and frontend                         |
-| `pnpm test:cov`        | Generates unit test coverage reports                             |
-| `pnpm test:e2e`        | Runs E2E tests for the backend workspace                         |
+| `pnpm test`            | Runs all tests in monorepo via unified Vitest 3 workspace runner |
+| `pnpm test:backend`    | Runs backend test suite via Vitest project runner                |
+| `pnpm test:frontend`   | Runs frontend test suite via Vitest project runner               |
+| `pnpm test:cov`        | Generates unit & integration test coverage via v8                |
+| `pnpm test:e2e`        | Runs isolated single-fork database E2E tests for backend         |
 
 ---
 

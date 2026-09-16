@@ -175,6 +175,7 @@ frontend/storybook-static/
 .agents/
 .antigravityignore
 GEMINI.md
+AGENTS.md
 
 # SVG
 *.svg

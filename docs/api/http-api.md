@@ -59,20 +59,21 @@ When an access token expires (`401 Unauthorized`), the client automatically requ
 
 ---
 
-### 3. 📝 Posts & Feed (`/api/posts`)
+### 3. 📝 Posts & Feed (`/api/posts`, `/api/v1/feed`)
 
-| Method   | Endpoint            | Description                                        | Auth Required |
-| :------- | :------------------ | :------------------------------------------------- | :------------ |
-| `GET`    | `/posts`            | Paginated timeline feed (cursor-based pagination). | Optional      |
-| `POST`   | `/posts`            | Create new post (text, media attachments, poll).   | Yes           |
-| `GET`    | `/posts/:id`        | Retrieve single post by ID with comments.          | Optional      |
-| `PATCH`  | `/posts/:id`        | Edit post content (owner only).                    | Yes           |
-| `DELETE` | `/posts/:id`        | Delete post (owner or moderator only).             | Yes           |
-| `POST`   | `/posts/:id/like`   | Like a post.                                       | Yes           |
-| `DELETE` | `/posts/:id/like`   | Unlike a post.                                     | Yes           |
-| `POST`   | `/posts/:id/repost` | Share/repost to follower feed.                     | Yes           |
-| `POST`   | `/posts/:id/save`   | Bookmark post to saved items.                      | Yes           |
-| `DELETE` | `/posts/:id/save`   | Remove bookmark.                                   | Yes           |
+| Method   | Endpoint              | Description                                                | Auth Required |
+| :------- | :-------------------- | :--------------------------------------------------------- | :------------ |
+| `GET`    | `/posts`              | Paginated timeline feed (cursor-based pagination).         | Optional      |
+| `GET`    | `/feed/compact`       | BFF lightweight feed (author, media preview, precomputed). | Optional      |
+| `POST`   | `/posts`              | Create new post (text, media attachments, poll).           | Yes           |
+| `GET`    | `/posts/:id`          | Retrieve single post by ID with comments.                  | Optional      |
+| `PATCH`  | `/posts/:id`          | Edit post content (owner only).                            | Yes           |
+| `DELETE` | `/posts/:id`          | Delete post (owner or moderator only).                     | Yes           |
+| `POST`   | `/posts/:id/like`     | Like a post.                                               | Yes           |
+| `DELETE` | `/posts/:id/like`     | Unlike a post.                                             | Yes           |
+| `POST`   | `/posts/:id/repost`   | Share/repost to follower feed.                             | Yes           |
+| `POST`   | `/posts/:id/save`     | Bookmark post to saved items.                              | Yes           |
+| `DELETE` | `/posts/:id/save`     | Remove bookmark.                                           | Yes           |
 
 ---
 
@@ -185,3 +186,17 @@ When an access token expires (`401 Unauthorized`), the client automatically requ
 | `GET`  | `/health`          | Terminus overall readiness probe (DB, Redis, S3). | No                  |
 | `GET`  | `/health/liveness` | Minimal liveness ping for container orchestrator. | No                  |
 | `GET`  | `/metrics`         | Prometheus metrics scrape endpoint.               | Internal / IP Gated |
+
+---
+
+### 14. 🚩 Feature Flags (`/api/flags`)
+
+| Method   | Endpoint             | Description                                                   | Auth Required |
+| :------- | :------------------- | :------------------------------------------------------------ | :------------ |
+| `GET`    | `/flags`             | Evaluate all active feature flags for the current viewer.     | Optional      |
+| `GET`    | `/flags/:key`        | Evaluate a specific feature flag by key.                      | Optional      |
+| `GET`    | `/flags/admin/list`  | List all feature flag configurations (Admin).                 | Yes           |
+| `POST`   | `/flags/admin`       | Create a new feature flag definition (Admin).                 | Yes           |
+| `PATCH`  | `/flags/admin/:key`  | Update rollout percentage or enabled state for a flag (Admin).| Yes           |
+| `DELETE` | `/flags/admin/:key`  | Remove a feature flag definition (Admin).                     | Yes           |
+

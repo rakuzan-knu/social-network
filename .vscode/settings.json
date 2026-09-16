@@ -51,7 +51,8 @@
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
   "[markdown]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.defaultFormatter": null,
+    "editor.formatOnSave": false,
     "files.trimTrailingWhitespace": false
   },
   "[yaml]": {
@@ -74,7 +75,8 @@
     "**/Thumbs.db": true,
     "**/.eslintcache": true,
     "**/.stryker-tmp": true,
-    "**/*.tsbuildinfo": true
+    "**/*.tsbuildinfo": true,
+    "**/.nx": true
   },
   "files.watcherExclude": {
     "**/.git/objects/**": true,
@@ -83,7 +85,8 @@
     "**/dist/**": true,
     "**/coverage/**": true,
     "**/.stryker-tmp/**": true,
-    "**/storybook-static/**": true
+    "**/storybook-static/**": true,
+    "**/.nx/**": true
   },
   "search.exclude": {
     "**/node_modules": true,
@@ -93,6 +96,7 @@
     "**/storybook-static": true,
     "**/.eslintcache": true,
     "**/*.tsbuildinfo": true,
-    "**/pnpm-lock.yaml": true
+    "**/pnpm-lock.yaml": true,
+    "**/.nx": true
   }
 }

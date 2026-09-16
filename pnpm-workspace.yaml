@@ -1,11 +1,7 @@
 packages:
-  - 'backend'
-  - 'frontend'
-  - 'packages/msg-codec'
-  - 'packages/native'
-  - 'packages/text-pipeline'
-  - 'packages/blinded-crypto'
-  - 'packages/feed-score'
+  - 'apps/*'
+  - 'packages/*'
+  - 'packages/shared/*'
 
 onlyBuiltDependencies:
   - '@prisma/client'

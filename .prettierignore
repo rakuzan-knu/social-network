@@ -28,7 +28,8 @@ graphify-out/
 .agents/
 .git
 .github
-CHANGELOG.md
+*.md
+**/*.md
 .husky
 .vscode
 .DS_Store

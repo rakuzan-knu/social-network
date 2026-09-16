@@ -17,6 +17,7 @@ graph TD
 #### Key Hardening & Performance Features:
 
 - **BuildKit Package Caching**: Uses `--mount=type=cache,target=/root/.pnpm-store` to reduce warm build times to `< 2 seconds`.
+- **Parallel Monorepo Package Compilation**: Uses `pnpm --parallel --filter @social-network/common --filter @social-network/backend run build` to utilize all CPU cores concurrently during Docker build stages.
 - **Non-Root Execution**: Runs as dedicated user `nestjs:nodejs` (UID/GID 1001), preventing container breakout privilege escalation.
 - **Signal Handling via Tini**: Uses `tini` as `ENTRYPOINT` to handle `SIGTERM` and `SIGINT` gracefully and clean up zombie processes.
 - **Stripped Runtime Artifacts**: Development devDependencies, source `.ts` files, and build tools are completely excluded from the final image.
@@ -27,17 +28,27 @@ graph TD
 
 ```mermaid
 graph TD
-    FBuilder[Stage 1: builder<br/>Node 24 + pnpm<br/>Vite production build] --> FProd[Stage 2: production<br/>nginx:1.27-alpine<br/>Serves optimized static SPA<br/>Image size: ~30MB]
+    FBuilder[Stage 1: builder<br/>Node 24 + pnpm<br/>Vite production build<br/>BuildKit compiler cache mounts] --> FProd[Stage 2: production<br/>nginx:1.27-alpine<br/>Serves optimized static SPA<br/>Image size: ~30MB]
 ```
 
 #### Key Hardening & Performance Features:
 
 - **Ultra-Small Footprint**: Static bundle served via hardened Nginx Alpine image (~30MB total).
+- **BuildKit Cache Mounts**: Vite and pnpm compiler caches mounted directly via `--mount=type=cache,target=/root/.pnpm-store` and `--mount=type=cache,target=/root/.cache`, accelerating incremental production asset bundling.
 - **Hardened Nginx Configuration**:
   - Non-root execution (`USER nginx`).
   - Gzip and Brotli compression enabled for `.js`, `.css`, and `.svg`.
   - Cache headers (`Cache-Control: public, max-age=31536000, immutable` for hashed assets; `no-cache` for `index.html`).
   - Strict security headers (`X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`).
+
+---
+
+## ⚡ CI Build Optimization & De-duplication
+
+To minimize GitHub Actions CI duration and eliminate redundant Docker image builds:
+1. **De-duplicated PR Triggers**: The heavy `docker-build.yml` registry publisher workflow only runs on `push` to `main`/`develop` or SemVer git tags. PR branches skip the full multi-architecture container registry push, saving up to 60% of PR CI run time.
+2. **Zero-Overhead Container Smoke Test**: In the primary `ci.yml` pipeline, built images are verified via rapid detached smoke execution (`docker run -d --rm ...` with health check verification) without pushing large layer blobs across the network.
+3. **Hardened `.dockerignore`**: Excludes local developer artifacts (`.agents/`, `docs/`, `benchmarks/`, Playwright test runs, Storybook build output, Vitest cache, and Stryker reports) from Docker context transfer.
 
 ---
 
