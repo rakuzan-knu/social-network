@@ -1,10 +1,9 @@
 import { useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useLanguageStore, SupportedLanguage } from '../lib/language/languageStore';
-import { getCdnUrl, toAbsoluteAppUrl } from '../lib/cdn';
+import { getCdnUrl } from '../lib/cdn';
 import { SEOProps, OpenGraphType } from './types';
 import {
-  SEO_BASE_URL,
   SEO_SITE_NAME,
   SEO_DEFAULT_DESCRIPTION,
   SEO_DEFAULT_OG_IMAGE,

@@ -14,7 +14,6 @@ import {
   CheckSquare,
   Square,
   Clock,
-  Sparkles,
   CheckCircle2,
 } from 'lucide-react';
 import { useLanguageStore } from '../../../shared/lib/language/languageStore';
@@ -23,7 +22,7 @@ export const DataPackageVisualGuide: React.FC = () => {
   const { currentLanguage } = useLanguageStore();
   const isUkrainian = currentLanguage === 'Українська';
 
-  const [activeTab, setActiveTab] = useState<'account' | 'privacy' | 'security'>('privacy');
+  const [_activeTab, setActiveTab] = useState<'account' | 'privacy' | 'security'>('privacy');
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([
     'account',

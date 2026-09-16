@@ -1,5 +1,5 @@
 import React from 'react';
-import { Shield, BookOpen, Sliders, MessageSquare, Volume2, Sparkles } from 'lucide-react';
+import { Volume2 } from 'lucide-react';
 
 export const HourglassIllustration: React.FC<{ className?: string }> = ({
   className = 'w-64 h-64 sm:w-72 sm:h-72',

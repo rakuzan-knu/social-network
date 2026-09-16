@@ -1,7 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Users2,
   X,
   Copy,
   Check,
@@ -9,11 +8,9 @@ import {
   Radio,
   Disc3,
   PartyPopper,
-  Shield,
   LogOut,
   Sparkles,
   Link,
-  Wifi,
   WifiOff,
 } from 'lucide-react';
 import { useJamStore } from '@/features/music/model/useJamStore';

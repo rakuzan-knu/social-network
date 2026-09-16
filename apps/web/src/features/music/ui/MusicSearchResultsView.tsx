@@ -6,8 +6,6 @@ import {
   Heart,
   Loader2,
   Music,
-  Plus,
-  Check,
   ChevronDown,
   Clock,
   MoreHorizontal,
@@ -20,9 +18,6 @@ import { SpotifyBrandIcon, SoundCloudBrandIcon } from '@/shared/ui/BrandIcons';
 import type { MusicCatalogSource, MusicPlaylist } from '../model/types';
 import { isPlaylistSearchDiscoverable } from '../model/types';
 import { useCurrentUser } from '@/entities/profile/model/useCurrentUser';
-import Tooltip from '@/shared/ui/Tooltip';
-import { TrackActionMenu } from './TrackActionMenu';
-import { PlaylistActionMenu } from './PlaylistActionMenu';
 import { isSoundCloudUrl } from '@/shared/lib/urlSecurity';
 
 export type SearchCategory = 'all' | 'tracks' | 'playlists';
@@ -48,14 +43,8 @@ export const MusicSearchResultsView: React.FC<MusicSearchResultsViewProps> = ({
 }) => {
   const navigate = useNavigate();
 
-  const {
-    isTrackLiked,
-    toggleLikeTrack,
-    playlists,
-    catalogPlaylists,
-    addTrackToPlaylist,
-    setSelectedPlaylistId,
-  } = useMusicHubStore();
+  const { isTrackLiked, toggleLikeTrack, playlists, catalogPlaylists, setSelectedPlaylistId } =
+    useMusicHubStore();
 
   const handleOpenPlaylist = (playlistId: string) => {
     onClearSearch?.();
@@ -102,14 +91,14 @@ export const MusicSearchResultsView: React.FC<MusicSearchResultsViewProps> = ({
   const { data: currentUser } = useCurrentUser();
   const { dockOffset } = useSpotifyDockOffset(32);
 
-  const [activePlaylistMenuTrackId, setActivePlaylistMenuTrackId] = useState<string | null>(null);
+  const [_activePlaylistMenuTrackId, _setActivePlaylistMenuTrackId] = useState<string | null>(null);
   const [activeTrackMenu, setActiveTrackMenu] = useState<{
     track: SpotifyTrack;
     rect: DOMRect;
     triggerRef?: React.RefObject<HTMLElement | null>;
   } | null>(null);
 
-  const [activePlaylistMenu, setActivePlaylistMenu] = useState<{
+  const [_activePlaylistMenu, setActivePlaylistMenu] = useState<{
     playlist: MusicPlaylist;
     rect: DOMRect;
   } | null>(null);

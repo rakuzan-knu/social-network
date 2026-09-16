@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Plus, ChevronLeft, ChevronRight, Eye, Sparkles } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCurrentUser } from '@/entities/profile/model/useCurrentUser';
 import { useStoriesFeed } from '@/features/stories/model/useStories';
 import { useStoryEditorStore } from '@/features/stories/model/useStoryEditorStore';

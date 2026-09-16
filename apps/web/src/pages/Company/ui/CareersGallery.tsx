@@ -5,18 +5,14 @@ import {
   Heart,
   MessageSquare,
   Repeat,
-  Share,
   Bookmark,
   Music,
-  Send,
   Phone,
   Video,
   Play,
   Search,
-  Bell,
   Sparkles,
   Users,
-  CheckCircle2,
   Volume2,
 } from 'lucide-react';
 import { VerifiedCheckmark } from '../../../entities/profile/ui/VerifiedCheckmark';
@@ -344,6 +340,8 @@ export const CareersGallery: React.FC = () => {
   const dragStartX = useRef<number | null>(null);
   const dragStartY = useRef<number | null>(null);
   const isMouseDownRef = useRef(false);
+  const progressRef = useRef(progress);
+  progressRef.current = progress;
 
   const goToSlide = useCallback((index: number) => {
     setCurrentIndex(index);
@@ -364,7 +362,7 @@ export const CareersGallery: React.FC = () => {
   useEffect(() => {
     if (isPaused || isDragging) return;
 
-    const startTime = Date.now() - (progress / 100) * AUTO_SLIDE_DURATION;
+    const startTime = Date.now() - (progressRef.current / 100) * AUTO_SLIDE_DURATION;
 
     const interval = setInterval(() => {
       const elapsed = Date.now() - startTime;

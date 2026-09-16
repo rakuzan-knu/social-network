@@ -4,7 +4,6 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { DeletePlaylistConfirmModal } from '../ui/DeletePlaylistConfirmModal';
 import { EditPlaylistDetailsModal } from '../ui/EditPlaylistDetailsModal';
-import { useMusicHubStore } from '../model/useMusicHubStore';
 import {
   isPlaylistSearchDiscoverable,
   isDefaultPlaylistTitle,

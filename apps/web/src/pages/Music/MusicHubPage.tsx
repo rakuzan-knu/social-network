@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import MessengerSidebar from '@/widgets/sidebar/ui/RailwaySidebar';
 import { useUIStore } from '@/shared/model/useUIStore';
@@ -13,7 +13,6 @@ import { MusicSectionDetailView } from '@/features/music/ui/MusicSectionDetailVi
 import { MusicContentFeedView } from '@/features/music/ui/MusicContentFeedView';
 import { MusicNowPlayingSidebar } from '@/features/music/ui/MusicNowPlayingSidebar';
 import { useMusicHubStore } from '@/features/music/model/useMusicHubStore';
-import { useSpotifyPlayerStore } from '@/shared/model/useSpotifyPlayerStore';
 import { useCurrentUser } from '@/entities/profile/model/useCurrentUser';
 import type { MusicCatalogSource } from '@/features/music/model/types';
 

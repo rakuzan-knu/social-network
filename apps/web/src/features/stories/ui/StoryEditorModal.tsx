@@ -4,8 +4,6 @@ import {
   X,
   Type,
   Smile,
-  Mic,
-  MicOff,
   Image as ImageIcon,
   Sparkles,
   Link as LinkIcon,
@@ -13,9 +11,7 @@ import {
   AtSign,
   Palette,
   Trash2,
-  Check,
   Music,
-  Star,
   Loader2,
   ArrowRight,
   RotateCcw,
@@ -23,13 +19,9 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
-  Layers,
-  Sliders,
   ChevronDown,
-  ChevronUp,
   Pencil,
   BarChart2,
-  SlidersHorizontal,
 } from 'lucide-react';
 import { useStoryEditorStore } from '../model/useStoryEditorStore';
 import { useCreateStory } from '../model/useStories';
@@ -38,10 +30,8 @@ import { useBodyScrollLock } from '@/shared/lib/useBodyScrollLock';
 import Avatar from '@/shared/ui/Avatar';
 import { uid } from 'uid';
 import type {
-  StoryOverlay,
   TextOverlay,
   ImageOverlay,
-  CaptionOverlay,
   PollOverlay,
   LinkOverlay,
   MentionOverlay,
@@ -51,7 +41,8 @@ import type {
 } from '../model/types';
 import { StoryDrawingCanvas } from './StoryDrawingCanvas';
 import { StoryDrawingOverlayView } from './StoryDrawingOverlayView';
-import { StoryFiltersCarousel, getStoryFilterCss } from './StoryFiltersCarousel';
+import { StoryFiltersCarousel } from './StoryFiltersCarousel';
+import { getStoryFilterCss } from '../lib/storyFilterUtils';
 import { StoryMusicSearchModal } from './StoryMusicSearchModal';
 import { StoryMusicStickerView } from './StoryMusicStickerView';
 import type { Theme as EmojiTheme } from 'emoji-picker-react';
@@ -120,7 +111,6 @@ export function StoryEditorModal() {
   const [gradientIndex, setGradientIndex] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showStickerSheet, setShowStickerSheet] = useState(false);
-  const [showColorPicker, setShowColorPicker] = useState(false);
   const [colorTarget, setColorTarget] = useState<'text' | 'background'>('text');
   const [isMoreToolsOpen, setIsMoreToolsOpen] = useState(false);
 
@@ -206,7 +196,7 @@ export function StoryEditorModal() {
       if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
       audioUrlRef.current = null;
     }
-  }, [isOpen]);
+  }, [isOpen, mediaUrl]);
 
   // Preload custom fonts on open
   useEffect(() => {
@@ -215,7 +205,6 @@ export function StoryEditorModal() {
     } else {
       setErrorMessage(null);
       setShowStickerSheet(false);
-      setShowColorPicker(false);
       if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
     }
   }, [isOpen]);
@@ -452,7 +441,7 @@ export function StoryEditorModal() {
   };
 
   // Start / Stop Voice Recording
-  const startRecording = async () => {
+  const _startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioChunksRef.current = [];
@@ -757,8 +746,6 @@ export function StoryEditorModal() {
       setErrorMessage('Error publishing story. Please try again.');
     }
   };
-
-  const selectedOverlay = overlays.find((o) => o.id === selectedOverlayId);
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/92 backdrop-blur-2xl p-2 sm:p-4 select-none animate-fadeIn">

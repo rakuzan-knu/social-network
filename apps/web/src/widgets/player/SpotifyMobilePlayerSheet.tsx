@@ -13,7 +13,6 @@ import {
   VolumeX,
   Mic2,
   ListMusic,
-  ExternalLink,
 } from 'lucide-react';
 import { useSpotifyPlayerStore } from '@/shared/model/useSpotifyPlayerStore';
 import { SpotifyBrandIcon, SoundCloudBrandIcon } from '@/shared/ui/BrandIcons';
@@ -56,7 +55,6 @@ export const SpotifyMobilePlayerSheet: React.FC = () => {
   const externalTrackLink = isSoundCloud
     ? currentTrack?.spotifyUrl || 'https://soundcloud.com'
     : getSafeSpotifyTrackUrl(currentTrack);
-  const spotifyLink = externalTrackLink;
 
   const formatTime = (ms: number) => {
     const totalSec = Math.max(0, Math.floor(ms / 1000));

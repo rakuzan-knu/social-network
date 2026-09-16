@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { PrivacyNavbar } from '../Privacy/ui/PrivacyNavbar';
 import { EternalFooter } from '@/widgets/footer';
 import { useLanguageStore } from '../../shared/lib/language/languageStore';
@@ -16,7 +15,6 @@ import {
 } from './ui/SafetyLibraryIllustrations';
 
 export const SafetyLibraryPage: React.FC = () => {
-  const navigate = useNavigate();
   const { currentLanguage } = useLanguageStore();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedTopic, setSelectedTopic] = useState<string>('all');

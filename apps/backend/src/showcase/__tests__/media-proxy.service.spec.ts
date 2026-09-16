@@ -1,5 +1,5 @@
 import { Logger } from '@nestjs/common';
-import { MediaProxyService } from '../media-proxy.service';
+import { MediaProxyService, type ShowcaseTrackItem } from '../media-proxy.service';
 import type { RedisService } from '../../redis/redis.service';
 import type { SoundCloudService } from '../../integrations/soundcloud.service';
 import { ShowcaseMediaType } from '@common/contracts';
@@ -191,10 +191,11 @@ describe('MediaProxyService', () => {
         },
       });
 
-      const tracks = await service.searchTracks('linkin park');
+      const tracks: ShowcaseTrackItem[] = await service.searchTracks('linkin park');
       expect(tracks).toHaveLength(1);
-      expect(tracks[0].title).toBe('In the End');
-      expect(tracks[0].albumArt).toContain('600x600bb');
+      const firstTrack = tracks[0];
+      expect(firstTrack?.title).toBe('In the End');
+      expect(firstTrack?.albumArt).toContain('600x600bb');
     });
 
     it('falls back to popular tracks if query is empty or iTunes search fails', async () => {
@@ -208,8 +209,9 @@ describe('MediaProxyService', () => {
 
     it('returns custom synthesized track on unfound query', async () => {
       mockedAxios.get.mockRejectedValueOnce(new Error('iTunes error'));
-      const tracks = await service.searchTracks('unknownindiebandxyz');
-      expect(tracks[0].title).toBe('Unknownindiebandxyz');
+      const tracks: ShowcaseTrackItem[] = await service.searchTracks('unknownindiebandxyz');
+      const firstTrack = tracks[0];
+      expect(firstTrack?.title).toBe('Unknownindiebandxyz');
     });
   });
 });

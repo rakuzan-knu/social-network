@@ -152,3 +152,76 @@ export interface RecommendationContext {
 }
 
 export type MusicHomeCategory = 'all' | 'music' | 'podcasts';
+
+export type SortKey =
+  'default' | 'title' | 'artist' | 'album' | 'dateAdded' | 'releaseDate' | 'duration';
+
+export type ViewMode = 'list' | 'compact';
+
+export const SORT_LABELS: Record<SortKey, string> = {
+  default: 'Custom order',
+  title: 'Title',
+  artist: 'Artist',
+  album: 'Album',
+  dateAdded: 'Date added',
+  releaseDate: 'Release date',
+  duration: 'Duration',
+};
+
+export const formatSpotifyTrackAddedDate = (track: SpotifyTrack): string => {
+  let targetMs: number | null = null;
+  if (track.addedAt) {
+    const t = new Date(track.addedAt).getTime();
+    if (!isNaN(t)) targetMs = t;
+  }
+
+  if (!targetMs) return 'just now';
+
+  const now = new Date();
+  const date = new Date(targetMs);
+  const diffMs = now.getTime() - targetMs;
+
+  if (diffMs < 60 * 1000) {
+    return 'just now';
+  }
+
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHours = Math.floor(diffMin / 60);
+
+  if (diffMin < 60) {
+    return diffMin === 1 ? '1 minute ago' : `${diffMin} minutes ago`;
+  }
+
+  const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+  const isYesterday =
+    date.getFullYear() === yesterday.getFullYear() &&
+    date.getMonth() === yesterday.getMonth() &&
+    date.getDate() === yesterday.getDate();
+
+  const isToday =
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate();
+
+  if (isToday || (diffHours < 24 && !isYesterday)) {
+    return diffHours === 1 ? '1 hour ago' : `${diffHours} hours ago`;
+  }
+
+  if (isYesterday) {
+    const hh = String(date.getHours()).padStart(2, '0');
+    const mm = String(date.getMinutes()).padStart(2, '0');
+    return `Yesterday at ${hh}:${mm}`;
+  }
+
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays < 7) {
+    return diffDays === 1 ? '1 day ago' : `${diffDays} days ago`;
+  }
+
+  return date.toLocaleDateString('en-US', {
+    day: 'numeric',
+    month: 'short',
+    year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
+  });
+};

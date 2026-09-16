@@ -1,1 +1,4 @@
-export { default, PremiumBadgeModal } from '@/entities/profile/ui/PremiumBadgeModal';
+import { PremiumBadgeModal } from '@/entities/profile/ui/PremiumBadgeModal';
+
+export { PremiumBadgeModal };
+export default PremiumBadgeModal;

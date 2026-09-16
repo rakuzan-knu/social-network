@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sparkles, Cloud, Music, Radio, Heart } from 'lucide-react';
+import { X, Sparkles, Heart } from 'lucide-react';
 import { SpotifyBrandIcon, SoundCloudBrandIcon } from '@/shared/ui/BrandIcons';
 
 interface MusicWhatsNewModalProps {

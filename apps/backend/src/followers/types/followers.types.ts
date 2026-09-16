@@ -1,7 +1,7 @@
 import type { FollowStatus, Prisma } from '@prisma/client';
 import type { publicUserSelect } from '../../users/users.select';
 import type { Paginated } from '../../common/pagination';
-import type { UserProfileDto } from '@common/contracts';
+import type { LiveActivityStatusDto, UserProfileDto } from '@common/contracts';
 
 export type PublicUserEntity = Prisma.UserGetPayload<{ select: typeof publicUserSelect }>;
 
@@ -24,9 +24,23 @@ export type PublicUserSummary = {
   isFriend?: boolean;
 };
 
+export type FollowShowcaseSummary = {
+  activityStatus?: LiveActivityStatusDto | null | undefined;
+  connectedAccounts?:
+    | {
+        steam?: { displayOnProfile?: boolean };
+        [key: string]: unknown;
+      }
+    | null
+    | undefined;
+  privacyActivity?: string | null | undefined;
+};
+
 export type FollowUserRow = {
   id: string;
-  user: PublicUserSummary | PublicUserEntity;
+  user: (PublicUserSummary | PublicUserEntity) & {
+    showcase?: FollowShowcaseSummary | null | undefined;
+  };
 };
 
 export type GetFollowersResult = Paginated<UserProfileDto | PublicUserSummary>;

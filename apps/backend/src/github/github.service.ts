@@ -232,7 +232,14 @@ export class GithubService {
       }
 
       // Fetch user repos and stars
-      let repos: any[] = [];
+      let repos: {
+        name: string;
+        description: string;
+        stars: number;
+        forks: number;
+        language: string;
+        url: string;
+      }[] = [];
       let starsCount = 0;
       let forksCount = 0;
       try {
@@ -246,26 +253,34 @@ export class GithubService {
           },
         );
         if (reposRes.ok) {
-          const reposData = await reposRes.json();
+          const reposData = (await reposRes.json()) as {
+            name?: string;
+            description?: string | null;
+            stargazers_count?: number;
+            forks_count?: number;
+            language?: string | null;
+            html_url?: string;
+          }[];
           if (Array.isArray(reposData)) {
-            repos = reposData.map((r: any) => {
+            repos = reposData.map((r) => {
               const stars = r.stargazers_count ?? 0;
               const forks = r.forks_count ?? 0;
               starsCount += stars;
               forksCount += forks;
               return {
-                name: r.name,
+                name: r.name ?? '',
                 description: r.description || 'No description provided.',
                 stars,
                 forks,
                 language: r.language || 'TypeScript',
-                url: r.html_url,
+                url: r.html_url ?? '',
               };
             });
           }
         }
-      } catch (err) {
-        this.logger.warn(`Could not fetch GitHub repos for ${githubUsername}: ${err}`);
+      } catch (err: unknown) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        this.logger.warn(`Could not fetch GitHub repos for ${githubUsername}: ${errMsg}`);
       }
 
       const pinnedRepo = repos[0] || null;

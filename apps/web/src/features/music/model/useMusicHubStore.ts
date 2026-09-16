@@ -2107,7 +2107,6 @@ export const useMusicHubStore = create<MusicHubState>()((set, get) => ({
   },
 
   respondToPlaylistInvite: (inviteId, accept, user) => {
-    const { customPlaylists, savedPlaylistIds } = get();
     const globalInvites = loadGlobalInvites();
     const invite = globalInvites.find((i) => i.id === inviteId);
     if (!invite) return;

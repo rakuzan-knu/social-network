@@ -14,16 +14,7 @@ import {
   ServerBadgeIllustration,
   WellbeingIllustration,
 } from './ui/SafetyNewsIllustrations';
-import {
-  ChevronDown,
-  Search,
-  ArrowRight,
-  Filter,
-  X,
-  Sparkles,
-  Calendar,
-  Clock,
-} from 'lucide-react';
+import { ChevronDown, Search, ArrowRight, Filter, X, Calendar, Clock } from 'lucide-react';
 import { useLanguageStore } from '../../shared/lib/language/languageStore';
 import { SAFETY_NEWS_DATA, SafetyNewsArticle } from './data/safetyNewsData';
 

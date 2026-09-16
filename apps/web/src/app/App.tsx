@@ -1,37 +1,38 @@
 import React, { lazy, Suspense, useMemo } from 'react';
-import { useLocation, useNavigate, Navigate, Routes, Route } from 'react-router-dom';
+import { useLocation, Navigate, Routes, Route } from 'react-router-dom';
 
 import Sidebar from '../widgets/sidebar/ui/Sidebar';
 import DeviceLockGate from '../features/profile/ui/security/DeviceLockGate';
 import MessageToastViewport from '../features/chat/ui/MessageToastViewport';
 import { CallProvider } from '../features/chat/model/CallProvider';
 import { OfflineBanner } from '../shared/ui/OfflineBanner';
+import { lazyWithRetry } from '../shared/lib/lazyWithRetry';
 
 import { useUIStore } from '../shared/model/useUIStore';
 import { useAuthStore } from '../shared/model/useAuthStore';
 import { useSpotifyPlayerStore } from '../shared/model/useSpotifyPlayerStore';
-const SpotifyBottomDock = lazy(() =>
+const SpotifyBottomDock = lazyWithRetry(() =>
   import('../widgets/player/SpotifyBottomDock').then((m) => ({ default: m.SpotifyBottomDock })),
 );
-const SpotifyLyricsModal = lazy(() =>
+const SpotifyLyricsModal = lazyWithRetry(() =>
   import('../widgets/player/SpotifyLyricsModal').then((m) => ({ default: m.SpotifyLyricsModal })),
 );
-const SpotifyMobilePlayerSheet = lazy(() =>
+const SpotifyMobilePlayerSheet = lazyWithRetry(() =>
   import('../widgets/player/SpotifyMobilePlayerSheet').then((m) => ({
     default: m.SpotifyMobilePlayerSheet,
   })),
 );
-const SpotifyGameModePlayer = lazy(() =>
+const SpotifyGameModePlayer = lazyWithRetry(() =>
   import('../widgets/player/SpotifyGameModePlayer').then((m) => ({
     default: m.SpotifyGameModePlayer,
   })),
 );
 
-const EditProfileModal = lazy(() => import('../features/profile/ui/EditProfileModal'));
-const ShareModal = lazy(() =>
+const EditProfileModal = lazyWithRetry(() => import('../features/profile/ui/EditProfileModal'));
+const ShareModal = lazyWithRetry(() =>
   import('../features/posts/ui/ShareModal').then((m) => ({ default: m.ShareModal })),
 );
-const CommentModal = lazy(() =>
+const CommentModal = lazyWithRetry(() =>
   import('@/widgets/comment').then((m) => ({ default: m.CommentModal })),
 );
 const StoryViewerModal = lazy(() =>
@@ -188,6 +189,9 @@ function FeedLayout({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   const isSidebarExpanded = useUIStore((state) => state.isSidebarExpanded);
+  const isEditProfileOpen = useUIStore((state) => state.isEditProfileOpen);
+  const isShareModalOpen = useUIStore((state) => state.isShareModalOpen);
+  const isCommentModalOpen = useUIStore((state) => state.isCommentModalOpen);
   const location = useLocation();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
@@ -243,6 +247,63 @@ export default function App() {
       (params.has('code') || params.has('error') || location.pathname.includes('/callback'))
     );
   }, [isOAuthCallback, location.search, location.pathname]);
+
+  const isStandaloneRoute = useMemo(() => {
+    return (
+      location.pathname.startsWith('/music') ||
+      location.pathname.startsWith('/playlist') ||
+      location.pathname.startsWith('/track') ||
+      location.pathname.startsWith('/messages') ||
+      location.pathname.startsWith('/messenger') ||
+      location.pathname.startsWith('/privacy') ||
+      location.pathname.startsWith('/terms') ||
+      location.pathname.startsWith('/copyright') ||
+      location.pathname.startsWith('/dmca') ||
+      location.pathname.startsWith('/developers') ||
+      location.pathname.startsWith('/developer') ||
+      location.pathname.startsWith('/guidelines') ||
+      location.pathname.startsWith('/acknowledgements') ||
+      location.pathname.startsWith('/licenses') ||
+      location.pathname.startsWith('/licences') ||
+      location.pathname.startsWith('/company-information') ||
+      location.pathname.startsWith('/impressum') ||
+      location.pathname.startsWith('/company') ||
+      location.pathname.startsWith('/about') ||
+      location.pathname.startsWith('/careers') ||
+      location.pathname.startsWith('/jobs') ||
+      location.pathname.startsWith('/branding') ||
+      location.pathname.startsWith('/brand') ||
+      location.pathname.startsWith('/download') ||
+      location.pathname.startsWith('/newsroom') ||
+      location.pathname.startsWith('/blog') ||
+      location.pathname.startsWith('/category') ||
+      location.pathname.startsWith('/safety-family-center') ||
+      location.pathname.startsWith('/safety-library') ||
+      location.pathname.startsWith('/safety-privacy') ||
+      location.pathname.startsWith('/safety-law') ||
+      location.pathname.startsWith('/safety-law-enforcement') ||
+      location.pathname.startsWith('/law-enforcement') ||
+      location.pathname.startsWith('/policies') ||
+      location.pathname.startsWith('/teen-charter') ||
+      location.pathname.startsWith('/wellbeing') ||
+      location.pathname.startsWith('/404') ||
+      location.pathname.startsWith('/faq') ||
+      location.pathname.startsWith('/help-center') ||
+      location.pathname.startsWith('/safety')
+    );
+  }, [location.pathname]);
+
+  const isMessengerRoute = useMemo(() => {
+    return (
+      location.pathname.startsWith('/messages') ||
+      location.pathname.startsWith('/messenger') ||
+      location.pathname.startsWith('/chat/standalone')
+    );
+  }, [location.pathname]);
+
+  const isReelsRoute = useMemo(() => {
+    return location.pathname.startsWith('/reels');
+  }, [location.pathname]);
 
   if (showOAuthCallback) {
     return (
@@ -355,63 +416,6 @@ export default function App() {
     );
   }
 
-  const isStandaloneRoute = useMemo(() => {
-    return (
-      location.pathname.startsWith('/music') ||
-      location.pathname.startsWith('/playlist') ||
-      location.pathname.startsWith('/track') ||
-      location.pathname.startsWith('/messages') ||
-      location.pathname.startsWith('/messenger') ||
-      location.pathname.startsWith('/privacy') ||
-      location.pathname.startsWith('/terms') ||
-      location.pathname.startsWith('/copyright') ||
-      location.pathname.startsWith('/dmca') ||
-      location.pathname.startsWith('/developers') ||
-      location.pathname.startsWith('/developer') ||
-      location.pathname.startsWith('/guidelines') ||
-      location.pathname.startsWith('/acknowledgements') ||
-      location.pathname.startsWith('/licenses') ||
-      location.pathname.startsWith('/licences') ||
-      location.pathname.startsWith('/company-information') ||
-      location.pathname.startsWith('/impressum') ||
-      location.pathname.startsWith('/company') ||
-      location.pathname.startsWith('/about') ||
-      location.pathname.startsWith('/careers') ||
-      location.pathname.startsWith('/jobs') ||
-      location.pathname.startsWith('/branding') ||
-      location.pathname.startsWith('/brand') ||
-      location.pathname.startsWith('/download') ||
-      location.pathname.startsWith('/newsroom') ||
-      location.pathname.startsWith('/blog') ||
-      location.pathname.startsWith('/category') ||
-      location.pathname.startsWith('/safety-family-center') ||
-      location.pathname.startsWith('/safety-library') ||
-      location.pathname.startsWith('/safety-privacy') ||
-      location.pathname.startsWith('/safety-law') ||
-      location.pathname.startsWith('/safety-law-enforcement') ||
-      location.pathname.startsWith('/law-enforcement') ||
-      location.pathname.startsWith('/policies') ||
-      location.pathname.startsWith('/teen-charter') ||
-      location.pathname.startsWith('/wellbeing') ||
-      location.pathname.startsWith('/404') ||
-      location.pathname.startsWith('/faq') ||
-      location.pathname.startsWith('/help-center') ||
-      location.pathname.startsWith('/safety')
-    );
-  }, [location.pathname]);
-
-  const isMessengerRoute = useMemo(() => {
-    return (
-      location.pathname.startsWith('/messages') ||
-      location.pathname.startsWith('/messenger') ||
-      location.pathname.startsWith('/chat/standalone')
-    );
-  }, [location.pathname]);
-
-  const isReelsRoute = useMemo(() => {
-    return location.pathname.startsWith('/reels');
-  }, [location.pathname]);
-
   return (
     <DeviceLockGate>
       <CallProvider>
@@ -428,9 +432,9 @@ export default function App() {
             <>
               {!isStandaloneRoute && <Sidebar />}
               <Suspense fallback={null}>
-                <EditProfileModal />
-                <ShareModal />
-                <CommentModal />
+                {isEditProfileOpen && <EditProfileModal />}
+                {isShareModalOpen && <ShareModal />}
+                {isCommentModalOpen && <CommentModal />}
                 <StoryViewerModal />
                 <StoryEditorModal />
                 <CallModal />

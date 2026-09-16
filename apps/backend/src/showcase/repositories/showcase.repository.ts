@@ -80,11 +80,11 @@ export class ShowcaseRepository implements IShowcaseRepository {
     await this.prisma.$transaction(async (tx) => {
       const existingShowcase = await tx.profileShowcase.findUnique({ where: { userId } });
       const existingConnected =
-        (existingShowcase?.connectedAccounts as Record<string, any> | null) || {};
-      const newConnectedAccounts =
+        (existingShowcase?.connectedAccounts as Record<string, unknown> | null) || {};
+      const newConnectedAccounts: Record<string, unknown> | undefined =
         dto.connectedAccounts !== undefined
           ? {
-              ...(dto.connectedAccounts as any),
+              ...(dto.connectedAccounts || {}),
               ...(dto.personalInfo !== undefined
                 ? { _personalInfo: dto.personalInfo }
                 : existingConnected._personalInfo
@@ -103,7 +103,7 @@ export class ShowcaseRepository implements IShowcaseRepository {
             : undefined;
 
       if (dto.showZodiac !== undefined && newConnectedAccounts) {
-        const pInfo = (newConnectedAccounts._personalInfo as Record<string, any>) || {};
+        const pInfo = (newConnectedAccounts._personalInfo as Record<string, unknown>) || {};
         pInfo.toggles = {
           ...(pInfo.toggles || {}),
           showZodiac: dto.showZodiac,
@@ -134,9 +134,9 @@ export class ShowcaseRepository implements IShowcaseRepository {
           timezone: dto.timezone || 'UTC',
           accentColor: dto.accentColor || '#6366f1',
           ...(newConnectedAccounts !== undefined
-            ? { connectedAccounts: newConnectedAccounts }
+            ? { connectedAccounts: newConnectedAccounts as unknown as Prisma.InputJsonValue }
             : dto.connectedAccounts !== undefined
-              ? { connectedAccounts: dto.connectedAccounts }
+              ? { connectedAccounts: dto.connectedAccounts as unknown as Prisma.InputJsonValue }
               : {}),
           ...(dto.activityStatus !== undefined
             ? { activityStatus: dto.activityStatus as unknown as Prisma.InputJsonValue }
@@ -164,7 +164,7 @@ export class ShowcaseRepository implements IShowcaseRepository {
           ...(dto.timezone !== undefined && { timezone: dto.timezone }),
           ...(dto.accentColor !== undefined && { accentColor: dto.accentColor }),
           ...(newConnectedAccounts !== undefined && {
-            connectedAccounts: newConnectedAccounts,
+            connectedAccounts: newConnectedAccounts as unknown as Prisma.InputJsonValue,
           }),
           ...(dto.activityStatus !== undefined && {
             activityStatus: dto.activityStatus as unknown as Prisma.InputJsonValue,

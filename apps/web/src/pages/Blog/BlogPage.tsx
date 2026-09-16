@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { PrivacyNavbar } from '../Privacy/ui/PrivacyNavbar';
 import { EternalFooter } from '@/widgets/footer';
@@ -66,42 +66,45 @@ export const BlogPage: React.FC = () => {
   };
 
   // Helper filter function
-  const filterPosts = (posts: BlogPost[]) => {
-    return posts.filter((post) => {
-      // Category check
-      const matchesCategory =
-        selectedCategory === 'featured' ||
-        (selectedCategory === 'product' && post.category.toLowerCase().includes('product')) ||
-        (selectedCategory === 'engineering' &&
-          post.category.toLowerCase().includes('engineering')) ||
-        (selectedCategory === 'company' && post.category.toLowerCase().includes('company')) ||
-        (selectedCategory === 'policy' &&
-          (post.category.toLowerCase().includes('policy') ||
-            post.category.toLowerCase().includes('safety'))) ||
-        (selectedCategory === 'community' && post.category.toLowerCase().includes('community'));
+  const filterPosts = useCallback(
+    (posts: BlogPost[]) => {
+      return posts.filter((post) => {
+        // Category check
+        const matchesCategory =
+          selectedCategory === 'featured' ||
+          (selectedCategory === 'product' && post.category.toLowerCase().includes('product')) ||
+          (selectedCategory === 'engineering' &&
+            post.category.toLowerCase().includes('engineering')) ||
+          (selectedCategory === 'company' && post.category.toLowerCase().includes('company')) ||
+          (selectedCategory === 'policy' &&
+            (post.category.toLowerCase().includes('policy') ||
+              post.category.toLowerCase().includes('safety'))) ||
+          (selectedCategory === 'community' && post.category.toLowerCase().includes('community'));
 
-      if (!matchesCategory) return false;
+        if (!matchesCategory) return false;
 
-      // Query check
-      if (!searchQuery.trim()) return true;
-      const q = searchQuery.toLowerCase();
-      return (
-        post.title.toLowerCase().includes(q) ||
-        post.description.toLowerCase().includes(q) ||
-        post.category.toLowerCase().includes(q)
-      );
-    });
-  };
+        // Query check
+        if (!searchQuery.trim()) return true;
+        const q = searchQuery.toLowerCase();
+        return (
+          post.title.toLowerCase().includes(q) ||
+          post.description.toLowerCase().includes(q) ||
+          post.category.toLowerCase().includes(q)
+        );
+      });
+    },
+    [selectedCategory, searchQuery],
+  );
 
   const filteredFeatured = useMemo(() => {
     if (selectedCategory !== 'featured' && selectedCategory !== 'all') return [];
     if (!searchQuery.trim()) return t.featuredPosts;
     return filterPosts(t.featuredPosts);
-  }, [t.featuredPosts, selectedCategory, searchQuery]);
+  }, [t.featuredPosts, selectedCategory, searchQuery, filterPosts]);
 
   const filteredExplore = useMemo(() => {
     return filterPosts(t.explorePosts);
-  }, [t.explorePosts, selectedCategory, searchQuery]);
+  }, [t.explorePosts, filterPosts]);
 
   // Synchronize bottom offset so the bar stays fixed at the bottom of the viewport
   // and smoothly locks above the footer when the footer enters view

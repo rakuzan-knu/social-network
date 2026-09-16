@@ -9,7 +9,6 @@ import {
   Crown,
   Terminal,
   Shield,
-  FileText,
   Sparkles,
   Globe,
 } from 'lucide-react';

@@ -63,7 +63,7 @@ describe('EditProfileModal (Comprehensive Suite)', () => {
 
   it('submits updated profile data successfully on save', async () => {
     const user = userEvent.setup({ delay: null });
-    const { container } = renderWithProviders(<EditProfileModal />);
+    renderWithProviders(<EditProfileModal />);
 
     const nameInput = screen.getByDisplayValue('Alan Turing');
     await user.clear(nameInput);

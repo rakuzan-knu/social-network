@@ -2,8 +2,31 @@ import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/commo
 import { PrismaService } from '@common/prisma';
 import { MessengerGateway } from '../messenger/gateway/messenger.gateway';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { SpotifyService } from './spotify.service';
+import {
+  SpotifyService,
+  type SpotifyConnectedAccount,
+  type SpotifyLiveActivity,
+} from './spotify.service';
 import { Prisma } from '@prisma/client';
+
+interface GameLiveActivity {
+  type?: string;
+  title?: string;
+  isPaused?: boolean;
+  trackId?: string;
+  [key: string]: unknown;
+}
+
+interface ConnectedAccountsWithSpotify {
+  spotify?: SpotifyConnectedAccount;
+  steam?: {
+    currentActivity?: GameLiveActivity | null;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+}
+
+type PrimaryActivitySummary = GameLiveActivity | SpotifyLiveActivity;
 
 @Injectable()
 export class SpotifyPresenceService implements OnModuleInit, OnModuleDestroy {
@@ -61,7 +84,7 @@ export class SpotifyPresenceService implements OnModuleInit, OnModuleDestroy {
 
       // 3. Filter down to users with linked & verified Spotify accounts
       for (const sc of showcases) {
-        const connected = (sc.connectedAccounts as Record<string, any>) || {};
+        const connected = (sc.connectedAccounts as ConnectedAccountsWithSpotify | null) || {};
         const spotify = connected.spotify;
 
         if (!spotify || !spotify.verified || !spotify.accessToken) {
@@ -81,7 +104,7 @@ export class SpotifyPresenceService implements OnModuleInit, OnModuleDestroy {
 
         if (!liveTrack) {
           if (prevSpotifyActivity !== null) {
-            spotify.currentActivity = null;
+            delete spotify.currentActivity;
             hasSpotifyChanged = true;
           }
         } else {
@@ -110,10 +133,11 @@ export class SpotifyPresenceService implements OnModuleInit, OnModuleDestroy {
         const activeGame = steamActivity && steamActivity.title ? steamActivity : null;
         const activeMusic = spotify.currentActivity;
 
-        const effectivePrimaryActivity = activeGame ? activeGame : activeMusic;
+        const effectivePrimaryActivity: PrimaryActivitySummary | null =
+          activeGame ?? activeMusic ?? null;
 
         // Check if primary activityStatus changed
-        const prevPrimary = sc.activityStatus as any;
+        const prevPrimary = sc.activityStatus as PrimaryActivitySummary | null;
         const isPauseChangedInPrimary =
           Boolean(prevPrimary?.isPaused) !== Boolean(effectivePrimaryActivity?.isPaused);
 
@@ -132,8 +156,10 @@ export class SpotifyPresenceService implements OnModuleInit, OnModuleDestroy {
           await this.prisma.profileShowcase.update({
             where: { userId: sc.userId },
             data: {
-              connectedAccounts: connected,
-              activityStatus: effectivePrimaryActivity ? effectivePrimaryActivity : Prisma.DbNull,
+              connectedAccounts: connected as unknown as Prisma.InputJsonValue,
+              activityStatus: effectivePrimaryActivity
+                ? (effectivePrimaryActivity as unknown as Prisma.InputJsonValue)
+                : Prisma.DbNull,
             },
           });
 

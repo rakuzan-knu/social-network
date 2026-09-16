@@ -172,22 +172,40 @@ export class NotificationResponseDto {
     // Parse Story Payload if present in text
     let storyData: {
       storyId: string;
-      mediaUrl?: string;
-      mediaType?: string;
-      authorUsername?: string;
-      kind?: string;
-      emoji?: string;
+      mediaUrl?: string | undefined;
+      mediaType?: string | undefined;
+      authorUsername?: string | undefined;
+      kind?: string | undefined;
+      emoji?: string | undefined;
     } | null = null;
 
     if (n.text && n.text.startsWith('{')) {
       try {
-        const parsed = JSON.parse(n.text);
-        if (parsed && (parsed.kind === 'story_like' || parsed.kind === 'story_mention')) {
-          storyData = parsed;
+        const parsed = JSON.parse(n.text) as Record<string, unknown>;
+        if (
+          parsed &&
+          (parsed.kind === 'story_like' || parsed.kind === 'story_mention') &&
+          typeof parsed.storyId === 'string'
+        ) {
+          const mediaUrl = typeof parsed.mediaUrl === 'string' ? parsed.mediaUrl : null;
+          const mediaType = typeof parsed.mediaType === 'string' ? parsed.mediaType : null;
+          const authorUsername =
+            typeof parsed.authorUsername === 'string' ? parsed.authorUsername : undefined;
+          const kind = typeof parsed.kind === 'string' ? parsed.kind : undefined;
+          const emoji = typeof parsed.emoji === 'string' ? parsed.emoji : undefined;
+
+          storyData = {
+            storyId: parsed.storyId,
+            mediaUrl: mediaUrl ?? undefined,
+            mediaType: mediaType ?? undefined,
+            authorUsername,
+            kind,
+            emoji,
+          };
           dto.story = {
             id: parsed.storyId,
-            mediaUrl: parsed.mediaUrl ?? null,
-            mediaType: parsed.mediaType ?? null,
+            mediaUrl,
+            mediaType,
           };
         }
       } catch {}

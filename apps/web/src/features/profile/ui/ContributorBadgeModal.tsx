@@ -1,1 +1,4 @@
-export { default, ContributorBadgeModal } from '@/entities/profile/ui/ContributorBadgeModal';
+import { ContributorBadgeModal } from '@/entities/profile/ui/ContributorBadgeModal';
+
+export { ContributorBadgeModal };
+export default ContributorBadgeModal;

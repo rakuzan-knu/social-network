@@ -76,6 +76,8 @@ export const StoryMusicCustomizerModal: React.FC<StoryMusicCustomizerModalProps>
   const wasPlayingBeforeDragRef = useRef(false);
   const pendingStartTimeMsRef = useRef(startTimeMs);
 
+  pendingStartTimeMsRef.current = startTimeMs;
+
   // Cleanup audio
   const stopAudio = () => {
     if (hlsRef.current) {
@@ -109,8 +111,9 @@ export const StoryMusicCustomizerModal: React.FC<StoryMusicCustomizerModalProps>
     const isHls = track.isHls || playUrl.includes('.m3u8');
 
     const startAudioPlayback = () => {
-      audio.currentTime = startTimeMs / 1000;
-      setCurrentPlayMs(startTimeMs);
+      const startMs = pendingStartTimeMsRef.current;
+      audio.currentTime = startMs / 1000;
+      setCurrentPlayMs(startMs);
       audioCoordinator.play(audio, 'story-music-customizer');
       audio
         .play()
@@ -139,7 +142,7 @@ export const StoryMusicCustomizerModal: React.FC<StoryMusicCustomizerModalProps>
     return () => {
       stopAudio();
     };
-  }, [isOpen, track?.id, track?.streamUrl, track?.audioUrl]);
+  }, [isOpen, track]);
 
   // Real-time smooth playhead animation loop (60fps)
   useEffect(() => {

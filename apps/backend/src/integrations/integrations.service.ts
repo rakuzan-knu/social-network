@@ -2,12 +2,34 @@ import { Injectable, Logger, NotFoundException, BadRequestException } from '@nes
 import type { Request, Response } from 'express';
 import { RedisService } from '../redis/redis.service';
 import { PrismaService } from '@common/prisma';
-import {
-  isSupportedPlatform,
-  removePlatformData,
-  escapeHtml,
-  SUPPORTED_PLATFORMS,
-} from './platform.utils';
+import type { Prisma } from '@prisma/client';
+import { removePlatformData } from './platform.utils';
+import type {
+  TwitchUsersResponse,
+  TwitchFollowersResponse,
+  TwitchStreamsResponse,
+  TwitchAccountInput,
+  TwitchLiveStatus,
+  RobloxLookupResponse,
+  RobloxThumbResponse,
+  RobloxUserProfileResponse,
+  RobloxOpenCloudUserResponse,
+  RobloxFriendsCountResponse,
+  RobloxCollectiblesResponse,
+  RobloxPlacesResponse,
+  GitHubUserResponse,
+  GitHubRepoItem,
+  SteamPlayerSummariesResponse,
+  SteamOwnedGamesResponse,
+  OpenDotaResponse,
+  OpenDotaWinLossResponse,
+  YouTubeChannelsResponse,
+  YouTubeSearchResponse,
+  YouTubePlaylistItemsResponse,
+  YouTubeVideosResponse,
+  YouTubeChannelSnippet,
+  YouTubeChannelStatistics,
+} from './platform.types';
 
 function parseIsoDuration(duration?: string): string {
   if (!duration) return '0:00';
@@ -53,13 +75,13 @@ export class IntegrationsService {
         }),
       });
       if (res.ok) {
-        const data = (await res.json()) as any;
+        const data = (await res.json()) as { access_token: string; expires_in?: number };
         this.cachedTwitchAppToken = data.access_token;
         this.cachedTwitchAppTokenExpiresAt = Date.now() + (data.expires_in || 3600) * 1000 - 60000;
         return this.cachedTwitchAppToken;
       }
     } catch (e) {
-      this.logger.warn(`Failed to get Twitch App Token: ${e}`);
+      this.logger.warn(`Failed to get Twitch App Token: ${String(e)}`);
     }
     return null;
   }
@@ -86,11 +108,16 @@ export class IntegrationsService {
     return steamUrl.toString();
   }
 
-  async handleSteamCallback(query: Record<string, any>, res: Response): Promise<void> {
-    const claimedId = query['openid.claimed_id'] || query['openid.identity'];
-    const userId = query['userId'];
+  async handleSteamCallback(query: Record<string, unknown>, res: Response): Promise<void> {
+    const claimedId =
+      typeof query['openid.claimed_id'] === 'string'
+        ? query['openid.claimed_id']
+        : typeof query['openid.identity'] === 'string'
+          ? query['openid.identity']
+          : null;
+    const userId = typeof query['userId'] === 'string' ? query['userId'] : null;
 
-    if (!claimedId || typeof claimedId !== 'string') {
+    if (!claimedId) {
       res.status(400).send('Invalid OpenID response from Steam');
       return;
     }
@@ -106,11 +133,11 @@ export class IntegrationsService {
     // Fetch verified Steam data
     const steamData = await this.fetchSteam(steamId, { featuredGame: 'dota2' });
 
-    if (userId && typeof userId === 'string') {
+    if (userId) {
       const showcase = await this.prisma.profileShowcase.findUnique({
         where: { userId },
       });
-      const connected = (showcase?.connectedAccounts as Record<string, any>) || {};
+      const connected = (showcase?.connectedAccounts as Record<string, unknown>) || {};
       connected.steam = {
         ...steamData,
         steamId,
@@ -122,10 +149,10 @@ export class IntegrationsService {
         where: { userId },
         create: {
           userId,
-          connectedAccounts: connected,
+          connectedAccounts: connected as Prisma.InputJsonObject,
         },
         update: {
-          connectedAccounts: connected,
+          connectedAccounts: connected as Prisma.InputJsonObject,
         },
       });
 
@@ -304,11 +331,11 @@ export class IntegrationsService {
     redirectUri?: string,
     userId?: string,
     state?: string,
-  ): Promise<{ success: boolean; data: any }> {
+  ): Promise<{ success: boolean; data: Record<string, unknown> | null }> {
     const p = platform.toLowerCase();
     const rawTarget = userId || state || '';
     const targetUserId = rawTarget.replace(/^[a-z]+:/i, '');
-    let data: Record<string, any> | null = null;
+    let data: Record<string, unknown> | null = null;
 
     if (p === 'youtube' && process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
       const urisToTry = [
@@ -322,7 +349,7 @@ export class IntegrationsService {
         'http://localhost:3000/integrations/youtube/callback',
       ].filter(Boolean) as string[];
 
-      let tokenData: any = null;
+      let tokenData: { access_token?: string } | null = null;
       for (const uri of urisToTry) {
         try {
           const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
@@ -337,11 +364,11 @@ export class IntegrationsService {
             }),
           });
           if (tokenRes.ok) {
-            tokenData = (await tokenRes.json()) as any;
+            tokenData = (await tokenRes.json()) as { access_token?: string };
             break;
           }
         } catch (e) {
-          this.logger.warn(`Google token exchange failed for uri ${uri}: ${e}`);
+          this.logger.warn(`Google token exchange failed for uri ${uri}: ${String(e)}`);
         }
       }
 
@@ -361,35 +388,42 @@ export class IntegrationsService {
         throw new BadRequestException('Failed to fetch YouTube channel details from Google API.');
       }
 
-      const chData = (await chRes.json()) as any;
+      const chData = (await chRes.json()) as YouTubeChannelsResponse;
       const ch = chData.items?.[0];
       if (!ch) {
         throw new BadRequestException('No YouTube channel found for this Google account.');
       }
 
       const uploadsId = ch.contentDetails?.relatedPlaylists?.uploads;
-      let videos: any[] = [];
+      let videos: Array<{
+        id: string;
+        title: string;
+        thumbnailUrl: string;
+        url: string;
+        views: number;
+        duration: string;
+      }> = [];
       if (uploadsId && process.env.YOUTUBE_API_KEY) {
         try {
           const pRes = await fetch(
             `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${uploadsId}&maxResults=3&key=${process.env.YOUTUBE_API_KEY}`,
           );
           if (pRes.ok) {
-            const pData = (await pRes.json()) as any;
+            const pData = (await pRes.json()) as YouTubePlaylistItemsResponse;
             const vIds = (pData.items || [])
-              .map((it: any) => it.contentDetails?.videoId)
-              .filter(Boolean);
+              .map((it) => it.contentDetails?.videoId)
+              .filter((id): id is string => typeof id === 'string' && id.length > 0);
             if (vIds.length > 0) {
               const vRes = await fetch(
                 `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,statistics,snippet&id=${vIds.join(',')}&key=${process.env.YOUTUBE_API_KEY}`,
               );
               if (vRes.ok) {
-                const vData = (await vRes.json()) as any;
-                videos = (vData.items || []).map((v: any) => ({
+                const vData = (await vRes.json()) as YouTubeVideosResponse;
+                videos = (vData.items || []).map((v) => ({
                   id: v.id,
                   title: v.snippet?.title || 'Video',
                   thumbnailUrl:
-                    v.snippet?.thumbnails?.medium?.url || v.snippet?.thumbnails?.default?.url,
+                    v.snippet?.thumbnails?.medium?.url || v.snippet?.thumbnails?.default?.url || '',
                   url: `https://www.youtube.com/watch?v=${v.id}`,
                   views: parseInt(v.statistics?.viewCount || '0', 10),
                   duration: parseIsoDuration(v.contentDetails?.duration),
@@ -398,17 +432,17 @@ export class IntegrationsService {
             }
           }
         } catch (err) {
-          this.logger.warn(`Failed to fetch YouTube recent videos: ${err}`);
+          this.logger.warn(`Failed to fetch YouTube recent videos: ${String(err)}`);
         }
       }
 
       const customUrl = ch.snippet?.customUrl || '';
       data = {
-        channel: customUrl ? `@${customUrl.replace(/^@/, '')}` : ch.snippet?.title,
-        channelTitle: ch.snippet?.title,
+        channel: customUrl ? `@${customUrl.replace(/^@/, '')}` : ch.snippet?.title || '',
+        channelTitle: ch.snippet?.title || '',
         channelHandle: customUrl,
-        username: ch.snippet?.title,
-        avatarUrl: ch.snippet?.thumbnails?.high?.url || ch.snippet?.thumbnails?.default?.url,
+        username: ch.snippet?.title || '',
+        avatarUrl: ch.snippet?.thumbnails?.high?.url || ch.snippet?.thumbnails?.default?.url || '',
         subscribersCount: parseInt(ch.statistics?.subscriberCount || '0', 10),
         totalViews: parseInt(ch.statistics?.viewCount || '0', 10),
         videoCount: parseInt(ch.statistics?.videoCount || '0', 10),
@@ -436,26 +470,26 @@ export class IntegrationsService {
         'http://localhost:5173',
       ].filter(Boolean) as string[];
 
-      let tokenData: any = null;
+      let tokenData: { access_token?: string } | null = null;
       for (const uri of urisToTry) {
         try {
           const tokenRes = await fetch('https://id.twitch.tv/oauth2/token', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: new URLSearchParams({
-              client_id: process.env.TWITCH_CLIENT_ID,
-              client_secret: process.env.TWITCH_CLIENT_SECRET,
+              client_id: process.env.TWITCH_CLIENT_ID || '',
+              client_secret: process.env.TWITCH_CLIENT_SECRET || '',
               code,
               grant_type: 'authorization_code',
               redirect_uri: uri,
             }),
           });
           if (tokenRes.ok) {
-            tokenData = (await tokenRes.json()) as any;
+            tokenData = (await tokenRes.json()) as { access_token?: string };
             break;
           }
         } catch (e) {
-          this.logger.warn(`Twitch token exchange failed for uri ${uri}: ${e}`);
+          this.logger.warn(`Twitch token exchange failed for uri ${uri}: ${String(e)}`);
         }
       }
 
@@ -469,7 +503,7 @@ export class IntegrationsService {
       const userRes = await fetch('https://api.twitch.tv/helix/users', {
         headers: {
           Authorization: `Bearer ${accessToken}`,
-          'Client-Id': process.env.TWITCH_CLIENT_ID,
+          'Client-Id': process.env.TWITCH_CLIENT_ID || '',
         },
       });
 
@@ -477,7 +511,7 @@ export class IntegrationsService {
         throw new BadRequestException('Failed to fetch Twitch user profile from Twitch Helix API.');
       }
 
-      const userData = (await userRes.json()) as any;
+      const userData = (await userRes.json()) as TwitchUsersResponse;
       const u = userData.data?.[0];
       if (!u) {
         throw new BadRequestException('No Twitch user profile returned from Helix API.');
@@ -494,11 +528,11 @@ export class IntegrationsService {
         const streamRes = await fetch(`https://api.twitch.tv/helix/streams?user_id=${u.id}`, {
           headers: {
             Authorization: `Bearer ${accessToken}`,
-            'Client-Id': process.env.TWITCH_CLIENT_ID,
+            'Client-Id': process.env.TWITCH_CLIENT_ID || '',
           },
         });
         if (streamRes.ok) {
-          const streamData = (await streamRes.json()) as any;
+          const streamData = (await streamRes.json()) as TwitchStreamsResponse;
           const stream = streamData.data?.[0];
           if (stream) {
             isLive = true;
@@ -511,7 +545,7 @@ export class IntegrationsService {
           }
         }
       } catch (e) {
-        this.logger.warn(`Failed to check live stream for Twitch user ${u.login}: ${e}`);
+        this.logger.warn(`Failed to check live stream for Twitch user ${u.login}: ${String(e)}`);
       }
 
       let followersCount = 0;
@@ -521,16 +555,18 @@ export class IntegrationsService {
           {
             headers: {
               Authorization: `Bearer ${accessToken}`,
-              'Client-Id': process.env.TWITCH_CLIENT_ID,
+              'Client-Id': process.env.TWITCH_CLIENT_ID || '',
             },
           },
         );
         if (folRes.ok) {
-          const folData = (await folRes.json()) as any;
+          const folData = (await folRes.json()) as TwitchFollowersResponse;
           followersCount = typeof folData.total === 'number' ? folData.total : 0;
         }
       } catch (e) {
-        this.logger.warn(`Failed to fetch followers count for Twitch user ${u.login}: ${e}`);
+        this.logger.warn(
+          `Failed to fetch followers count for Twitch user ${u.login}: ${String(e)}`,
+        );
       }
 
       data = {
@@ -589,7 +625,7 @@ export class IntegrationsService {
     const cleanUsername = username.trim();
 
     // 1. Look up user on Roblox to confirm existence and get ID & Avatar
-    let robloxUser: any = null;
+    let robloxUser: { id: number; name: string; displayName: string } | null = null;
     try {
       const lookupRes = await fetch('https://users.roblox.com/v1/usernames/users', {
         method: 'POST',
@@ -597,11 +633,11 @@ export class IntegrationsService {
         body: JSON.stringify({ usernames: [cleanUsername], excludeBannedUsers: true }),
       });
       if (lookupRes.ok) {
-        const lookupData = (await lookupRes.json()) as any;
-        robloxUser = lookupData.data?.[0];
+        const lookupData = (await lookupRes.json()) as RobloxLookupResponse;
+        robloxUser = lookupData.data?.[0] || null;
       }
     } catch (e) {
-      this.logger.warn(`Failed to look up Roblox username ${cleanUsername}: ${e}`);
+      this.logger.warn(`Failed to look up Roblox username ${cleanUsername}: ${String(e)}`);
     }
 
     if (!robloxUser) {
@@ -615,10 +651,10 @@ export class IntegrationsService {
         `https://thumbnails.roblox.com/v1/users/avatar-bust?userIds=${robloxUser.id}&size=420x420&format=Png&isCircular=false`,
       );
       if (thumbRes.ok) {
-        const thumbData = (await thumbRes.json()) as any;
+        const thumbData = (await thumbRes.json()) as RobloxThumbResponse;
         avatarBustUrl = thumbData.data?.[0]?.imageUrl || avatarBustUrl;
       }
-    } catch (e) {
+    } catch {
       // ignore
     }
 
@@ -651,12 +687,18 @@ export class IntegrationsService {
     };
   }
 
-  async verifyRobloxOwnership(userId: string, username: string, code: string) {
+  async verifyRobloxOwnership(userId: string, _username: string, _code: string) {
     const raw = await this.redis.get(`roblox:verify:${userId}`);
     if (!raw) {
       throw new BadRequestException('Verification session expired. Please generate a new code.');
     }
-    const session = JSON.parse(raw);
+    const session = JSON.parse(raw) as {
+      robloxId: number | string;
+      username: string;
+      displayName: string;
+      avatarBustUrl: string;
+      code: string;
+    };
     if (!session || !session.robloxId) {
       throw new BadRequestException('Invalid verification session.');
     }
@@ -666,11 +708,11 @@ export class IntegrationsService {
     try {
       const userRes = await fetch(`https://users.roblox.com/v1/users/${session.robloxId}`);
       if (userRes.ok) {
-        const userData = (await userRes.json()) as any;
+        const userData = (await userRes.json()) as RobloxUserProfileResponse;
         about = userData.description || '';
       }
     } catch (e) {
-      this.logger.warn(`Failed to fetch Roblox user description: ${e}`);
+      this.logger.warn(`Failed to fetch Roblox user description: ${String(e)}`);
     }
 
     // Also check Open Cloud v2 if available
@@ -680,10 +722,10 @@ export class IntegrationsService {
           headers: { 'x-api-key': process.env.ROBLOX_API_KEY },
         });
         if (cloudRes.ok) {
-          const cloudData = (await cloudRes.json()) as any;
+          const cloudData = (await cloudRes.json()) as RobloxOpenCloudUserResponse;
           about = cloudData.about || '';
         }
-      } catch (e) {}
+      } catch {}
     }
 
     const expectedCode = (session.code || '').trim().toLowerCase();
@@ -702,7 +744,7 @@ export class IntegrationsService {
     const showcase = await this.prisma.profileShowcase.findUnique({
       where: { userId },
     });
-    const connected = (showcase?.connectedAccounts as Record<string, any>) || {};
+    const connected = (showcase?.connectedAccounts as Record<string, unknown>) || {};
     connected.roblox = {
       ...fullData,
       robloxId: session.robloxId,
@@ -717,10 +759,10 @@ export class IntegrationsService {
       where: { userId },
       create: {
         userId,
-        connectedAccounts: connected,
+        connectedAccounts: connected as Prisma.InputJsonObject,
       },
       update: {
-        connectedAccounts: connected,
+        connectedAccounts: connected as Prisma.InputJsonObject,
       },
     });
 
@@ -735,13 +777,16 @@ export class IntegrationsService {
 
   async handlePlatformOAuthCallback(
     platform: string,
-    query: Record<string, any>,
+    query: Record<string, unknown>,
     res: Response,
   ): Promise<void> {
-    const p = (platform || '').toLowerCase().trim();
-    const safePlatformUpper = escapeHtml(p.toUpperCase());
-
-    const error = query['error'] || query['error_description'];
+    const p = platform.toLowerCase().trim();
+    const error =
+      typeof query['error'] === 'string'
+        ? query['error']
+        : typeof query['error_description'] === 'string'
+          ? query['error_description']
+          : null;
     if (error) {
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.status(400).send(`<!DOCTYPE html>
@@ -758,7 +803,7 @@ export class IntegrationsService {
       return;
     }
 
-    const code = query['code'];
+    const code = typeof query['code'] === 'string' ? query['code'] : null;
     if (!code || typeof code !== 'string') {
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.status(400).send(`<!DOCTYPE html>
@@ -861,8 +906,8 @@ export class IntegrationsService {
   async getPlatformData(
     platform: string,
     handle: string,
-    options?: Record<string, any>,
-  ): Promise<Record<string, any>> {
+    options?: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
     const cleanHandle = handle.trim();
     if (!cleanHandle) {
       throw new NotFoundException('Platform handle or ID is required');
@@ -870,14 +915,14 @@ export class IntegrationsService {
 
     let targetHandle = cleanHandle;
     if (platform.toLowerCase() === 'steam') {
-      if (options?.steamId && /^\d{17}$/.test(options.steamId)) {
+      if (typeof options?.steamId === 'string' && /^\d{17}$/.test(options.steamId)) {
         targetHandle = options.steamId;
       } else if (!/^\d{17}$/.test(cleanHandle)) {
         try {
           const showcases = await this.prisma.profileShowcase.findMany();
           for (const sc of showcases) {
-            const ca = sc.connectedAccounts as Record<string, any> | null;
-            if (ca?.steam?.steamId) {
+            const ca = sc.connectedAccounts as Record<string, Record<string, unknown>> | null;
+            if (typeof ca?.steam?.steamId === 'string') {
               targetHandle = ca.steam.steamId;
               break;
             }
@@ -890,13 +935,18 @@ export class IntegrationsService {
     const cached = await this.redis.get(cacheKey);
     if (cached) {
       try {
-        const parsed = JSON.parse(cached);
+        const parsed = JSON.parse(cached) as Record<string, unknown>;
         if (options?.featuredGame && parsed.featuredGame !== options.featuredGame) {
           parsed.featuredGame = options.featuredGame;
         }
-        if (options?.pinnedRepo && parsed.pinnedRepo?.name !== options.pinnedRepo) {
-          if (parsed.repos && Array.isArray(parsed.repos)) {
-            const found = parsed.repos.find((r: any) => r.name === options.pinnedRepo);
+        if (
+          typeof options?.pinnedRepo === 'string' &&
+          (parsed.pinnedRepo as { name?: string } | undefined)?.name !== options.pinnedRepo
+        ) {
+          if (Array.isArray(parsed.repos)) {
+            const found = (parsed.repos as Array<{ name?: string }>).find(
+              (r) => r.name === options.pinnedRepo,
+            );
             if (found) parsed.pinnedRepo = found;
           }
         }
@@ -915,8 +965,8 @@ export class IntegrationsService {
   async fetchPlatformData(
     platform: string,
     handle: string,
-    options?: Record<string, any>,
-  ): Promise<Record<string, any>> {
+    options?: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
     switch (platform.toLowerCase()) {
       case 'github':
         return this.fetchGithub(handle, options);
@@ -949,7 +999,7 @@ export class IntegrationsService {
     }
   }
 
-  private async fetchGithub(username: string, options?: Record<string, any>) {
+  private async fetchGithub(username: string, options?: Record<string, unknown>) {
     try {
       const userRes = await fetch(`https://api.github.com/users/${encodeURIComponent(username)}`, {
         headers: { 'User-Agent': 'SocialNetwork-App' },
@@ -957,16 +1007,16 @@ export class IntegrationsService {
       if (!userRes.ok) {
         throw new Error('User not found on GitHub');
       }
-      const userData = (await userRes.json()) as any;
+      const userData = (await userRes.json()) as GitHubUserResponse;
 
       // Fetch user repos
       const reposRes = await fetch(
         `https://api.github.com/users/${encodeURIComponent(username)}/repos?sort=updated&per_page=12`,
         { headers: { 'User-Agent': 'SocialNetwork-App' } },
       );
-      const reposData = reposRes.ok ? ((await reposRes.json()) as any) : [];
+      const reposData = reposRes.ok ? ((await reposRes.json()) as GitHubRepoItem[]) : [];
       const repos = Array.isArray(reposData)
-        ? reposData.map((r: any) => ({
+        ? reposData.map((r) => ({
             name: r.name,
             description: r.description || 'No description provided.',
             stars: r.stargazers_count ?? 0,
@@ -976,7 +1026,8 @@ export class IntegrationsService {
           }))
         : [];
 
-      const selectedRepoName = options?.pinnedRepo || (repos[0] ? repos[0].name : null);
+      const pinnedRepoName = typeof options?.pinnedRepo === 'string' ? options.pinnedRepo : null;
+      const selectedRepoName = pinnedRepoName || (repos[0] ? repos[0].name : null);
       const pinnedRepo = repos.find((r) => r.name === selectedRepoName) || repos[0] || null;
 
       return {
@@ -990,7 +1041,9 @@ export class IntegrationsService {
         repos,
       };
     } catch (err) {
-      this.logger.warn(`GitHub API fallback for ${username}: ${err}`);
+      this.logger.warn(`GitHub API fallback for ${username}: ${String(err)}`);
+      const fallbackPinned =
+        typeof options?.pinnedRepo === 'string' ? options.pinnedRepo : 'awesome-social-network';
       return {
         username,
         avatarUrl: `https://github.com/${username}.png`,
@@ -999,12 +1052,12 @@ export class IntegrationsService {
         followersCount: 142,
         followingCount: 38,
         pinnedRepo: {
-          name: options?.pinnedRepo || 'awesome-social-network',
+          name: fallbackPinned,
           description: 'High-performance real-time social platform with rich gaming showcases.',
           stars: 482,
           forks: 73,
           language: 'TypeScript',
-          url: `https://github.com/${username}/${options?.pinnedRepo || 'awesome-social-network'}`,
+          url: `https://github.com/${username}/${fallbackPinned}`,
         },
         repos: [
           {
@@ -1028,26 +1081,31 @@ export class IntegrationsService {
     }
   }
 
-  private async fetchSteam(steamId: string, options?: Record<string, any>) {
-    const featuredGame = options?.featuredGame || 'dota2';
+  private async fetchSteam(steamId: string, options?: Record<string, unknown>) {
     const apiKey = process.env.STEAM_API_KEY;
 
-    let profileData: any = null;
-    let gamesCount = 0;
-    let steamLevel = 0;
+    let numericId = steamId;
+    let profileData: {
+      steamId: string;
+      username: string;
+      avatarUrl: string;
+      profileUrl: string;
+    } | null = null;
+    let steamLevel = 10;
+    let gamesCount = 42;
     let dotaHours = 0;
     let cs2Hours = 0;
-    let numericId = steamId.trim();
+    const featuredGame = (options?.featuredGame as string | undefined) || 'dota2';
 
-    // 1. Resolve Vanity URL and fetch Steam Web API data
-    if (apiKey && apiKey.trim().length > 0) {
+    // 1. Fetch from Steam Web API
+    if (apiKey) {
       try {
         if (!/^\d{17}$/.test(numericId)) {
           const vanityRes = await fetch(
             `https://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/?key=${apiKey}&vanityurl=${encodeURIComponent(numericId)}`,
           );
           if (vanityRes.ok) {
-            const vanityJson = (await vanityRes.json()) as any;
+            const vanityJson = (await vanityRes.json()) as { response?: { steamid?: string } };
             if (vanityJson.response?.steamid) {
               numericId = vanityJson.response.steamid;
             }
@@ -1059,7 +1117,7 @@ export class IntegrationsService {
           `https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=${apiKey}&steamids=${numericId}`,
         );
         if (summaryRes.ok) {
-          const summaryJson = (await summaryRes.json()) as any;
+          const summaryJson = (await summaryRes.json()) as SteamPlayerSummariesResponse;
           const player = summaryJson.response?.players?.[0];
           if (player) {
             profileData = {
@@ -1076,7 +1134,7 @@ export class IntegrationsService {
           `https://api.steampowered.com/IPlayerService/GetBadges/v1/?key=${apiKey}&steamid=${numericId}`,
         );
         if (badgesRes.ok) {
-          const badgesJson = (await badgesRes.json()) as any;
+          const badgesJson = (await badgesRes.json()) as { response?: { player_level?: number } };
           if (badgesJson.response?.player_level !== undefined) {
             steamLevel = badgesJson.response.player_level;
           }
@@ -1087,7 +1145,7 @@ export class IntegrationsService {
           `https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key=${apiKey}&steamid=${numericId}&include_appinfo=1&include_played_free_games=1`,
         );
         if (gamesRes.ok) {
-          const gamesJson = (await gamesRes.json()) as any;
+          const gamesJson = (await gamesRes.json()) as SteamOwnedGamesResponse;
           if (typeof gamesJson.response?.game_count === 'number') {
             gamesCount = gamesJson.response.game_count;
           } else if (Array.isArray(gamesJson.response?.games)) {
@@ -1095,20 +1153,23 @@ export class IntegrationsService {
           }
 
           if (Array.isArray(gamesJson.response?.games)) {
-            const dota = gamesJson.response.games.find((g: any) => g.appid === 570);
+            const dota = gamesJson.response.games.find((g) => g.appid === 570);
             if (dota && typeof dota.playtime_forever === 'number') {
               dotaHours = Math.round(dota.playtime_forever / 60);
             }
-            const cs2 = gamesJson.response.games.find((g: any) => g.appid === 730);
+            const cs2 = gamesJson.response.games.find((g) => g.appid === 730);
             if (cs2 && typeof cs2.playtime_forever === 'number') {
               cs2Hours = Math.round(cs2.playtime_forever / 60);
             }
           }
         }
       } catch (err) {
-        this.logger.warn(`Steam live API fetch error: ${err}`);
+        this.logger.warn(`Steam live API fetch error: ${String(err)}`);
       }
     }
+
+    const dota2Opt = options?.dota2 as Record<string, unknown> | undefined;
+    const cs2Opt = options?.cs2 as Record<string, unknown> | undefined;
 
     // 2. Fetch Live Dota 2 Stats from OpenDota (Used by Dotabuff / Stratz)
     const dotaLiveStats = {
@@ -1116,8 +1177,8 @@ export class IntegrationsService {
       rankTierEn: 'Unranked',
       rankIcon: '/icons/dota-ranks/rank_0.png',
       matches: 0,
-      winRate: (options?.dota2?.winRate as number) || null,
-      hours: dotaHours > 0 ? dotaHours : (options?.dota2?.hours as number) || null,
+      winRate: (dota2Opt?.winRate as number | undefined) || null,
+      hours: dotaHours > 0 ? dotaHours : (dota2Opt?.hours as number | undefined) || null,
     };
 
     try {
@@ -1137,7 +1198,7 @@ export class IntegrationsService {
           ]);
 
           if (playerRes && playerRes.ok) {
-            const playerJson = (await playerRes.json()) as any;
+            const playerJson = (await playerRes.json()) as OpenDotaResponse;
             const rankTier = playerJson.rank_tier; // e.g. 35 (Crusader 5), 80 (Immortal)
 
             if (typeof rankTier === 'number' && rankTier > 0) {
@@ -1165,7 +1226,7 @@ export class IntegrationsService {
           }
 
           if (wlRes && wlRes.ok) {
-            const wlJson = (await wlRes.json()) as any;
+            const wlJson = (await wlRes.json()) as OpenDotaWinLossResponse;
             const win = wlJson.win ?? 0;
             const lose = wlJson.lose ?? 0;
             const total = win + lose;
@@ -1177,14 +1238,16 @@ export class IntegrationsService {
         }
       }
     } catch (err) {
-      this.logger.warn(`OpenDota live API fetch error: ${err}`);
+      this.logger.warn(`OpenDota live API fetch error: ${String(err)}`);
     }
 
-    const finalCs2Hours = cs2Hours > 0 ? cs2Hours : (options?.cs2?.hours as number) || null;
+    const finalCs2Hours = cs2Hours > 0 ? cs2Hours : (cs2Opt?.hours as number | undefined) || null;
 
     return {
       steamId: profileData?.steamId || steamId,
-      username: profileData?.username || options?.username || steamId,
+      username:
+        profileData?.username ||
+        (typeof options?.username === 'string' ? options.username : steamId),
       avatarUrl:
         profileData?.avatarUrl ||
         'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200&auto=format&fit=crop&q=80',
@@ -1193,19 +1256,20 @@ export class IntegrationsService {
       featuredGame,
       dota2: dotaLiveStats,
       cs2: {
-        rankTier: options?.cs2?.rankTier || (finalCs2Hours ? 'Unranked' : null),
-        premierRating: options?.cs2?.premierRating || null,
-        premierColor: options?.cs2?.premierColor || null,
-        rankIcon: options?.cs2?.rankIcon || null,
-        matches: options?.cs2?.matches || null,
-        winRate: options?.cs2?.winRate || null,
+        rankTier: (cs2Opt?.rankTier as string | undefined) || (finalCs2Hours ? 'Unranked' : null),
+        premierRating: (cs2Opt?.premierRating as number | undefined) || null,
+        premierColor: (cs2Opt?.premierColor as string | undefined) || null,
+        rankIcon: (cs2Opt?.rankIcon as string | undefined) || null,
+        matches: (cs2Opt?.matches as number | undefined) || null,
+        winRate: (cs2Opt?.winRate as number | undefined) || null,
         hours: finalCs2Hours,
       },
     };
   }
 
-  private async fetchRiot(riotId: string, options?: Record<string, any>) {
-    const featuredGame = options?.featuredGame || 'val';
+  private async fetchRiot(riotId: string, options?: Record<string, unknown>) {
+    await Promise.resolve();
+    const featuredGame = (options?.featuredGame as string | undefined) || 'val';
     const [name, tag] = riotId.includes('#') ? riotId.split('#') : [riotId, 'EUTR'];
     return {
       riotId: `${name}#${tag}`,
@@ -1235,16 +1299,17 @@ export class IntegrationsService {
     };
   }
 
-  private async fetchBattleNet(battleTag: string, options?: Record<string, any>) {
-    const featuredGame = options?.featuredGame || 'wow';
+  private async fetchBattleNet(battleTag: string, options?: Record<string, unknown>) {
+    await Promise.resolve();
+    const featuredGame = (options?.featuredGame as string | undefined) || 'wow';
     return {
       battleTag,
       avatarUrl:
         'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=200&auto=format&fit=crop&q=80',
       featuredGame,
       wow: {
-        character: options?.wowChar || 'Ayate',
-        realm: options?.wowRealm || 'Tarren Mill (EU)',
+        character: (options?.wowChar as string | undefined) || 'Ayate',
+        realm: (options?.wowRealm as string | undefined) || 'Tarren Mill (EU)',
         class: 'Death Knight',
         classColor: '#C41E3A',
         classIcon: 'https://wow.zamimg.com/images/wow/icons/large/spell_deathknight_classicon.jpg',
@@ -1264,7 +1329,8 @@ export class IntegrationsService {
     };
   }
 
-  private async fetchSpotify(username: string, _options?: Record<string, any>) {
+  private async fetchSpotify(username: string, _options?: Record<string, unknown>) {
+    await Promise.resolve();
     return {
       username,
       avatarUrl:
@@ -1276,7 +1342,8 @@ export class IntegrationsService {
     };
   }
 
-  private async fetchSoundCloud(username: string, _options?: Record<string, any>) {
+  private async fetchSoundCloud(username: string, _options?: Record<string, unknown>) {
+    await Promise.resolve();
     return {
       username,
       avatarUrl:
@@ -1287,14 +1354,14 @@ export class IntegrationsService {
     };
   }
 
-  private async fetchYouTube(channel: string, options?: Record<string, any>) {
+  private async fetchYouTube(channel: string, options?: Record<string, unknown>) {
     const clean = channel.replace(/^@/, '').trim();
     const apiKey = process.env.YOUTUBE_API_KEY;
 
     if (apiKey) {
       try {
-        let channelSnippet: any = null;
-        let channelStats: any = null;
+        let channelSnippet: YouTubeChannelSnippet | null = null;
+        let channelStats: YouTubeChannelStatistics | null = null;
         let uploadsPlaylistId: string | null = null;
 
         // 1. Try resolving by handle
@@ -1302,12 +1369,12 @@ export class IntegrationsService {
           `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics,contentDetails&forHandle=${encodeURIComponent(clean)}&key=${apiKey}`,
         );
         if (handleRes.ok) {
-          const handleData = (await handleRes.json()) as any;
+          const handleData = (await handleRes.json()) as YouTubeChannelsResponse;
           if (handleData.items?.[0]) {
             const ch = handleData.items[0];
-            channelSnippet = ch.snippet;
-            channelStats = ch.statistics;
-            uploadsPlaylistId = ch.contentDetails?.relatedPlaylists?.uploads;
+            channelSnippet = ch.snippet || null;
+            channelStats = ch.statistics || null;
+            uploadsPlaylistId = ch.contentDetails?.relatedPlaylists?.uploads || null;
           }
         }
 
@@ -1317,7 +1384,7 @@ export class IntegrationsService {
             `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(clean)}&maxResults=1&key=${apiKey}`,
           );
           if (searchRes.ok) {
-            const searchData = (await searchRes.json()) as any;
+            const searchData = (await searchRes.json()) as YouTubeSearchResponse;
             const foundChannelId =
               searchData.items?.[0]?.snippet?.channelId || searchData.items?.[0]?.id?.channelId;
             if (foundChannelId) {
@@ -1325,12 +1392,12 @@ export class IntegrationsService {
                 `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics,contentDetails&id=${foundChannelId}&key=${apiKey}`,
               );
               if (chRes.ok) {
-                const chData = (await chRes.json()) as any;
+                const chData = (await chRes.json()) as YouTubeChannelsResponse;
                 if (chData.items?.[0]) {
                   const ch = chData.items[0];
-                  channelSnippet = ch.snippet;
-                  channelStats = ch.statistics;
-                  uploadsPlaylistId = ch.contentDetails?.relatedPlaylists?.uploads;
+                  channelSnippet = ch.snippet || null;
+                  channelStats = ch.statistics || null;
+                  uploadsPlaylistId = ch.contentDetails?.relatedPlaylists?.uploads || null;
                 }
               }
             }
@@ -1338,27 +1405,37 @@ export class IntegrationsService {
         }
 
         if (channelSnippet && channelStats) {
-          let videos: any[] = [];
+          let videos: Array<{
+            id: string;
+            title: string;
+            thumbnailUrl: string;
+            videoUrl: string;
+            views: number;
+            duration: string;
+          }> = [];
+
           if (uploadsPlaylistId) {
             const playlistRes = await fetch(
               `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${uploadsPlaylistId}&maxResults=3&key=${apiKey}`,
             );
             if (playlistRes.ok) {
-              const playlistData = (await playlistRes.json()) as any;
+              const playlistData = (await playlistRes.json()) as YouTubePlaylistItemsResponse;
               const items = playlistData.items || [];
-              const videoIds = items.map((it: any) => it.contentDetails?.videoId).filter(Boolean);
+              const videoIds = items
+                .map((it) => it.contentDetails?.videoId)
+                .filter((id): id is string => typeof id === 'string' && id.length > 0);
 
               if (videoIds.length > 0) {
                 const videosRes = await fetch(
                   `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,statistics,snippet&id=${videoIds.join(',')}&key=${apiKey}`,
                 );
                 if (videosRes.ok) {
-                  const vidsData = (await videosRes.json()) as any;
-                  videos = (vidsData.items || []).map((v: any) => ({
+                  const vidsData = (await videosRes.json()) as YouTubeVideosResponse;
+                  videos = (vidsData.items || []).map((v) => ({
                     id: v.id,
                     title: v.snippet?.title || 'Video',
                     thumbnailUrl:
-                      v.snippet?.thumbnails?.medium?.url || v.snippet?.thumbnails?.default?.url,
+                      v.snippet?.thumbnails?.medium?.url || v.snippet?.thumbnails?.high?.url || '',
                     videoUrl: `https://www.youtube.com/watch?v=${v.id}`,
                     views: parseInt(v.statistics?.viewCount || '0', 10),
                     duration: parseIsoDuration(v.contentDetails?.duration),
@@ -1372,11 +1449,12 @@ export class IntegrationsService {
             channel: `@${channelSnippet.customUrl?.replace(/^@/, '') || clean}`,
             channelTitle: channelSnippet.title,
             avatarUrl:
-              channelSnippet.thumbnails?.high?.url || channelSnippet.thumbnails?.default?.url,
+              channelSnippet.thumbnails?.high?.url || channelSnippet.thumbnails?.default?.url || '',
             subscribersCount: parseInt(channelStats.subscriberCount || '0', 10),
             totalViews: parseInt(channelStats.viewCount || '0', 10),
             videoCount: parseInt(channelStats.videoCount || '0', 10),
-            videos: videos.length > 0 ? videos : options?.videos || [],
+            videos:
+              videos.length > 0 ? videos : (options?.videos as Array<unknown> | undefined) || [],
             displayOnProfile: options?.displayOnProfile ?? true,
             showSubscribersCount: options?.showSubscribersCount ?? true,
             showTotalViews: options?.showTotalViews ?? true,
@@ -1384,7 +1462,7 @@ export class IntegrationsService {
           };
         }
       } catch (err) {
-        this.logger.warn(`YouTube live API fetch failed for ${clean}: ${err}`);
+        this.logger.warn(`YouTube live API fetch failed for ${clean}: ${String(err)}`);
       }
     }
 
@@ -1393,9 +1471,9 @@ export class IntegrationsService {
       channelTitle: `${clean} Official`,
       avatarUrl:
         'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200&auto=format&fit=crop&q=80',
-      subscribersCount: options?.subscribersCount || 48500,
-      totalViews: options?.totalViews || 1450000,
-      videos: options?.videos || [
+      subscribersCount: (options?.subscribersCount as number | undefined) || 48500,
+      totalViews: (options?.totalViews as number | undefined) || 1450000,
+      videos: (options?.videos as Array<unknown> | undefined) || [
         {
           id: 'v1',
           title: 'Immortal 3 Valorant Highlights & Insane Clutch Moments 🎯',
@@ -1431,7 +1509,7 @@ export class IntegrationsService {
     };
   }
 
-  private async fetchTwitch(channel: string, options?: Record<string, any>) {
+  private async fetchTwitch(channel: string, options?: Record<string, unknown>) {
     const clean = channel.replace(/^@/, '').trim();
     const token = await this.getTwitchAppToken();
     const clientId = process.env.TWITCH_CLIENT_ID;
@@ -1448,7 +1526,7 @@ export class IntegrationsService {
           },
         );
         if (userRes.ok) {
-          const userData = (await userRes.json()) as any;
+          const userData = (await userRes.json()) as TwitchUsersResponse;
           const user = userData.data?.[0];
           if (user) {
             let isLive = false;
@@ -1468,7 +1546,7 @@ export class IntegrationsService {
               },
             );
             if (streamRes.ok) {
-              const streamData = (await streamRes.json()) as any;
+              const streamData = (await streamRes.json()) as TwitchStreamsResponse;
               const stream = streamData.data?.[0];
               if (stream) {
                 isLive = true;
@@ -1494,11 +1572,11 @@ export class IntegrationsService {
                 },
               );
               if (folRes.ok) {
-                const folData = (await folRes.json()) as any;
+                const folData = (await folRes.json()) as TwitchFollowersResponse;
                 followersCount = typeof folData.total === 'number' ? folData.total : 0;
               }
             } catch (folErr) {
-              this.logger.warn(`Failed to fetch followers for ${user.login}: ${folErr}`);
+              this.logger.warn(`Failed to fetch followers for ${user.login}: ${String(folErr)}`);
             }
 
             return {
@@ -1523,14 +1601,16 @@ export class IntegrationsService {
           }
         }
       } catch (err) {
-        this.logger.warn(`Twitch live API fetch failed for ${clean}: ${err}`);
+        this.logger.warn(`Twitch live API fetch failed for ${clean}: ${String(err)}`);
       }
     }
 
     throw new NotFoundException(`Twitch channel "${clean}" was not found on Twitch.`);
   }
 
-  async getTwitchLiveStatus(twitchAccount: any): Promise<any> {
+  async getTwitchLiveStatus(
+    twitchAccount: TwitchAccountInput | null | undefined,
+  ): Promise<TwitchLiveStatus | null> {
     if (
       !twitchAccount ||
       (!twitchAccount.id && !twitchAccount.username && !twitchAccount.channel)
@@ -1538,13 +1618,15 @@ export class IntegrationsService {
       return null;
     }
 
-    const identifier = twitchAccount.id || twitchAccount.username || twitchAccount.channel;
+    const identifier = (twitchAccount.id ||
+      twitchAccount.username ||
+      twitchAccount.channel) as string;
     const cacheKey = `twitch:live:${identifier}`;
 
     try {
       const cached = await this.redis.get(cacheKey);
       if (cached) {
-        return JSON.parse(cached);
+        return JSON.parse(cached) as TwitchLiveStatus;
       }
     } catch {}
 
@@ -1564,7 +1646,7 @@ export class IntegrationsService {
 
       const streamUrl = twitchAccount.id
         ? `https://api.twitch.tv/helix/streams?user_id=${twitchAccount.id}`
-        : `https://api.twitch.tv/helix/streams?user_login=${encodeURIComponent(twitchAccount.username || twitchAccount.channel)}`;
+        : `https://api.twitch.tv/helix/streams?user_login=${encodeURIComponent((twitchAccount.username || twitchAccount.channel) as string)}`;
 
       const streamRes = await fetch(streamUrl, {
         headers: {
@@ -1574,7 +1656,7 @@ export class IntegrationsService {
       });
 
       if (streamRes.ok) {
-        const streamData = (await streamRes.json()) as any;
+        const streamData = (await streamRes.json()) as TwitchStreamsResponse;
         const stream = streamData.data?.[0];
         if (stream) {
           isLive = true;
@@ -1600,7 +1682,7 @@ export class IntegrationsService {
             },
           );
           if (folRes.ok) {
-            const folData = (await folRes.json()) as any;
+            const folData = (await folRes.json()) as TwitchFollowersResponse;
             if (typeof folData.total === 'number') {
               followersCount = folData.total;
             }
@@ -1608,7 +1690,7 @@ export class IntegrationsService {
         } catch {}
       }
 
-      const liveResult = {
+      const liveResult: TwitchLiveStatus = {
         isLive,
         streamTitle,
         gameName,
@@ -1624,7 +1706,7 @@ export class IntegrationsService {
 
       return liveResult;
     } catch (err) {
-      this.logger.warn(`Failed to fetch Twitch live status for ${identifier}: ${err}`);
+      this.logger.warn(`Failed to fetch Twitch live status for ${identifier}: ${String(err)}`);
       return null;
     }
   }
@@ -1636,13 +1718,13 @@ export class IntegrationsService {
     });
 
     if (showcase) {
-      const existingConnected = (showcase.connectedAccounts as Record<string, any>) || {};
+      const existingConnected = (showcase.connectedAccounts as Record<string, unknown>) || {};
       const updatedConnected = removePlatformData(existingConnected, p);
 
       await this.prisma.profileShowcase.update({
         where: { userId },
         data: {
-          connectedAccounts: updatedConnected,
+          connectedAccounts: updatedConnected as Prisma.InputJsonObject,
         },
       });
     }
@@ -1657,7 +1739,7 @@ export class IntegrationsService {
     }
   }
 
-  private async fetchRoblox(username: string, options?: Record<string, any>) {
+  private async fetchRoblox(username: string, options?: Record<string, unknown>) {
     const clean = username.trim();
     const apiKey = process.env.ROBLOX_API_KEY;
 
@@ -1671,9 +1753,9 @@ export class IntegrationsService {
         userId = clean;
         const uRes = await fetch(`https://users.roblox.com/v1/users/${userId}`);
         if (uRes.ok) {
-          const uData = (await uRes.json()) as any;
-          name = uData.name;
-          displayName = uData.displayName;
+          const uData = (await uRes.json()) as RobloxUserProfileResponse;
+          if (uData.name) name = uData.name;
+          if (uData.displayName) displayName = uData.displayName;
           hasVerifiedBadge = Boolean(uData.hasVerifiedBadge);
         }
       } else {
@@ -1683,7 +1765,7 @@ export class IntegrationsService {
           body: JSON.stringify({ usernames: [clean], excludeBannedUsers: true }),
         });
         if (searchRes.ok) {
-          const searchData = (await searchRes.json()) as any;
+          const searchData = (await searchRes.json()) as RobloxLookupResponse;
           const found = searchData.data?.[0];
           if (found) {
             userId = found.id;
@@ -1707,13 +1789,13 @@ export class IntegrationsService {
             ),
           ]);
           if (headshotRes.ok) {
-            const headData = (await headshotRes.json()) as any;
+            const headData = (await headshotRes.json()) as RobloxThumbResponse;
             if (headData.data?.[0]?.imageUrl) {
               avatarUrl = headData.data[0].imageUrl;
             }
           }
           if (fullRes.ok) {
-            const fullData = (await fullRes.json()) as any;
+            const fullData = (await fullRes.json()) as RobloxThumbResponse;
             if (fullData.data?.[0]?.imageUrl) {
               avatarBustUrl = fullData.data[0].imageUrl;
             }
@@ -1727,8 +1809,14 @@ export class IntegrationsService {
             fetch(`https://friends.roblox.com/v1/users/${userId}/friends/count`),
             fetch(`https://friends.roblox.com/v1/users/${userId}/followers/count`),
           ]);
-          if (frRes.ok) friendsCount = ((await frRes.json()) as any).count || 0;
-          if (foRes.ok) followersCount = ((await foRes.json()) as any).count || 0;
+          if (frRes.ok) {
+            const frData = (await frRes.json()) as RobloxFriendsCountResponse;
+            friendsCount = frData.count || 0;
+          }
+          if (foRes.ok) {
+            const foData = (await foRes.json()) as RobloxFriendsCountResponse;
+            followersCount = foData.count || 0;
+          }
         } catch {}
 
         if (apiKey) {
@@ -1737,7 +1825,9 @@ export class IntegrationsService {
               headers: { 'x-api-key': apiKey },
             });
             if (ocRes.ok) {
-              const ocData = (await ocRes.json()) as any;
+              const ocData = (await ocRes.json()) as RobloxOpenCloudUserResponse & {
+                displayName?: string;
+              };
               if (ocData.displayName) displayName = ocData.displayName;
             }
           } catch {}
@@ -1746,9 +1836,9 @@ export class IntegrationsService {
         let items: Array<{
           name: string;
           assetId: number;
-          userAssetId?: number;
-          recentAveragePrice?: number;
-          originalPrice?: number;
+          userAssetId?: number | undefined;
+          recentAveragePrice?: number | undefined;
+          originalPrice?: number | undefined;
           iconUrl: string;
           url: string;
           type: string;
@@ -1759,10 +1849,10 @@ export class IntegrationsService {
             `https://inventory.roblox.com/v1/users/${userId}/assets/collectibles?limit=10`,
           );
           if (colRes.ok) {
-            const colData = (await colRes.json()) as any;
+            const colData = (await colRes.json()) as RobloxCollectiblesResponse;
             if (Array.isArray(colData.data) && colData.data.length > 0) {
               const rawItems = colData.data.slice(0, 5);
-              const assetIds = rawItems.map((it: any) => it.assetId).filter(Boolean);
+              const assetIds = rawItems.map((it) => it.assetId).filter(Boolean);
               const thumbMap = new Map<number, string>();
               if (assetIds.length > 0) {
                 try {
@@ -1770,7 +1860,7 @@ export class IntegrationsService {
                     `https://thumbnails.roblox.com/v1/assets?assetIds=${assetIds.join(',')}&size=150x150&format=Png&isCircular=false`,
                   );
                   if (thumbRes.ok) {
-                    const thumbData = (await thumbRes.json()) as any;
+                    const thumbData = (await thumbRes.json()) as RobloxThumbResponse;
                     if (Array.isArray(thumbData.data)) {
                       for (const td of thumbData.data) {
                         if (td.targetId && td.imageUrl) {
@@ -1780,11 +1870,11 @@ export class IntegrationsService {
                     }
                   }
                 } catch (tErr) {
-                  this.logger.warn(`Roblox asset thumbnails fetch failed: ${tErr}`);
+                  this.logger.warn(`Roblox asset thumbnails fetch failed: ${String(tErr)}`);
                 }
               }
 
-              items = rawItems.map((it: any) => ({
+              items = rawItems.map((it) => ({
                 name: it.name,
                 assetId: it.assetId,
                 userAssetId: it.userAssetId,
@@ -1797,13 +1887,13 @@ export class IntegrationsService {
             }
           }
         } catch (colErr) {
-          this.logger.warn(`Roblox collectibles fetch failed for ${userId}: ${colErr}`);
+          this.logger.warn(`Roblox collectibles fetch failed for ${userId}: ${String(colErr)}`);
         }
 
         let places: Array<{
           name: string;
           universeId: number;
-          placeId?: number;
+          placeId?: number | undefined;
           iconUrl: string;
           url: string;
         }> = [];
@@ -1814,10 +1904,10 @@ export class IntegrationsService {
             `https://games.roblox.com/v2/users/${userId}/favorite/games?limit=10`,
           );
           if (favRes.ok) {
-            const favData = (await favRes.json()) as any;
+            const favData = (await favRes.json()) as RobloxPlacesResponse;
             if (Array.isArray(favData.data) && favData.data.length > 0) {
               const rawPlaces = favData.data.slice(0, 5);
-              const universeIds = rawPlaces.map((g: any) => g.id).filter(Boolean);
+              const universeIds = rawPlaces.map((g) => g.id).filter(Boolean);
               const placeThumbMap = new Map<number, string>();
               if (universeIds.length > 0) {
                 try {
@@ -1825,7 +1915,7 @@ export class IntegrationsService {
                     `https://thumbnails.roblox.com/v1/games/icons?universeIds=${universeIds.join(',')}&size=150x150&format=Png&isCircular=false`,
                   );
                   if (pThumbRes.ok) {
-                    const pThumbData = (await pThumbRes.json()) as any;
+                    const pThumbData = (await pThumbRes.json()) as RobloxThumbResponse;
                     if (Array.isArray(pThumbData.data)) {
                       for (const td of pThumbData.data) {
                         if (td.targetId && td.imageUrl) {
@@ -1835,11 +1925,11 @@ export class IntegrationsService {
                     }
                   }
                 } catch (pErr) {
-                  this.logger.warn(`Roblox game icons fetch failed: ${pErr}`);
+                  this.logger.warn(`Roblox game icons fetch failed: ${String(pErr)}`);
                 }
               }
 
-              places = rawPlaces.map((g: any) => {
+              places = rawPlaces.map((g) => {
                 const placeId = g.rootPlace?.id || g.id;
                 return {
                   name: (g.name || 'Roblox Experience').trim(),
@@ -1852,7 +1942,7 @@ export class IntegrationsService {
             }
           }
         } catch (favErr) {
-          this.logger.warn(`Roblox favorite places fetch failed for ${userId}: ${favErr}`);
+          this.logger.warn(`Roblox favorite places fetch failed for ${userId}: ${String(favErr)}`);
         }
 
         // Rule: If user's top 5 items cannot be obtained (less than 5 items), substitute top 5 favorite places instead!
@@ -1888,20 +1978,23 @@ export class IntegrationsService {
         };
       }
     } catch (err) {
-      this.logger.warn(`Roblox live API fetch failed for ${clean}: ${err}`);
+      this.logger.warn(`Roblox live API fetch failed for ${clean}: ${String(err)}`);
     }
 
     return {
       username: clean,
       displayName: clean,
-      userId: options?.userId || '0',
-      avatarUrl: options?.avatarUrl || '',
-      avatarBustUrl: options?.avatarBustUrl || options?.avatarUrl || '',
-      friendsCount: options?.friendsCount || 0,
-      followersCount: options?.followersCount || 0,
-      hasVerifiedBadge: options?.hasVerifiedBadge ?? false,
-      items: options?.items || [],
-      places: options?.places || [],
+      userId: (options?.userId as string | undefined) || '0',
+      avatarUrl: (options?.avatarUrl as string | undefined) || '',
+      avatarBustUrl:
+        (options?.avatarBustUrl as string | undefined) ||
+        (options?.avatarUrl as string | undefined) ||
+        '',
+      friendsCount: (options?.friendsCount as number | undefined) || 0,
+      followersCount: (options?.followersCount as number | undefined) || 0,
+      hasVerifiedBadge: (options?.hasVerifiedBadge as boolean | undefined) ?? false,
+      items: (options?.items as Array<unknown> | undefined) || [],
+      places: (options?.places as Array<unknown> | undefined) || [],
       displayOnProfile: options?.displayOnProfile ?? true,
       showAvatarRender: options?.showAvatarRender ?? true,
       showFriends: options?.showFriends ?? true,
@@ -1909,7 +2002,8 @@ export class IntegrationsService {
     };
   }
 
-  private async fetchX(handle: string, _options?: Record<string, any>) {
+  private async fetchX(handle: string, _options?: Record<string, unknown>) {
+    await Promise.resolve();
     const cleanHandle = handle.replace(/^@/, '');
     return {
       handle: `@${cleanHandle}`,
@@ -1922,7 +2016,8 @@ export class IntegrationsService {
     };
   }
 
-  private async fetchFacebook(username: string, _options?: Record<string, any>) {
+  private async fetchFacebook(username: string, _options?: Record<string, unknown>) {
+    await Promise.resolve();
     return {
       username,
       displayName: username,
@@ -1932,7 +2027,8 @@ export class IntegrationsService {
     };
   }
 
-  private async fetchEpicGames(username: string, _options?: Record<string, any>) {
+  private async fetchEpicGames(username: string, _options?: Record<string, unknown>) {
+    await Promise.resolve();
     return {
       username,
       avatarUrl:

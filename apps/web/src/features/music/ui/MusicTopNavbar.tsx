@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, Search, X, Bell, Clock, Music, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, X, Bell, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCurrentUser } from '@/entities/profile/model/useCurrentUser';
 import Avatar from '@/shared/ui/Avatar';
 import Tooltip from '@/shared/ui/Tooltip';

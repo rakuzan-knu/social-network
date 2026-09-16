@@ -6,18 +6,7 @@ import { NotFoundMilkyWayMascot } from './ui/NotFoundMilkyWayMascot';
 import { SEOHead } from '../../shared/seo';
 import { useLanguageStore } from '../../shared/lib/language/languageStore';
 import { useAuthStore } from '../../shared/model/useAuthStore';
-import {
-  ArrowLeft,
-  Home,
-  MessageSquare,
-  ShieldCheck,
-  FileText,
-  Download,
-  Newspaper,
-  Briefcase,
-  ExternalLink,
-  Sparkles,
-} from 'lucide-react';
+import { ArrowLeft, Home, MessageSquare, Download, Sparkles } from 'lucide-react';
 
 export const NotFoundPage: React.FC = () => {
   const navigate = useNavigate();

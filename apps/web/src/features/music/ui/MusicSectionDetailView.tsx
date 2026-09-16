@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Play, Pause, Music2, Clock, Sparkles } from 'lucide-react';
+import { ArrowLeft, Play, Pause, Music2, Clock } from 'lucide-react';
 import { useMusicHubStore } from '../model/useMusicHubStore';
 import { useSpotifyPlayerStore } from '@/shared/model/useSpotifyPlayerStore';
 import type { SpotifyTrack } from '@/shared/model/useSpotifyPlayerStore';
@@ -13,7 +13,9 @@ interface MusicSectionDetailViewProps {
   sectionId: string;
 }
 
-export const MusicSectionDetailView: React.FC<MusicSectionDetailViewProps> = ({ sectionId }) => {
+export const MusicSectionDetailView: React.FC<MusicSectionDetailViewProps> = ({
+  sectionId: _sectionId,
+}) => {
   const navigate = useNavigate();
   const { dockOffset } = useSpotifyDockOffset(24);
 

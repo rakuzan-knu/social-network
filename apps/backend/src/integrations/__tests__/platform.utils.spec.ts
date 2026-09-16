@@ -1,5 +1,4 @@
 import {
-  SUPPORTED_PLATFORMS,
   isSupportedPlatform,
   assignPlatformData,
   removePlatformData,
@@ -38,7 +37,7 @@ describe('platform.utils', () => {
       const existing = { steam: { id: '1' } };
       const result = assignPlatformData(existing, '__proto__', { polluted: true });
       expect(result).toEqual({ steam: { id: '1' } });
-      expect(({} as any).polluted).toBeUndefined();
+      expect(Object.prototype.hasOwnProperty.call(Object.prototype, 'polluted')).toBe(false);
     });
   });
 

@@ -38,7 +38,7 @@ import { WsValidationFilter } from '../filters/ws-validation.filter';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import { safeJsonParse } from '../../common/utils/json.util';
 import { z } from 'zod';
-import { JamService } from '../../integrations/jam.service';
+import { JamService, type JamTrack } from '../../integrations/jam.service';
 import {
   type SendMessageDto,
   type EditMessageDto,
@@ -104,7 +104,7 @@ import { MetricsService } from '../../metrics/metrics.service';
 import { PresenceEngineService } from '../presence/presence-engine.service';
 import { WsDrainingService, type DrainOptions } from './ws-draining.service';
 import { WsBackpressureService, type EventPriority } from './ws-backpressure.service';
-import { typingEventPool, readReceiptPool } from './ws-event-pools';
+import { readReceiptPool } from './ws-event-pools';
 import { buildWsFrameString } from '../../common/v8/zero-alloc-parser';
 import { makeWsEvent } from '../../common/v8/shape-stable';
 
@@ -484,7 +484,7 @@ export class MessengerGateway
             }
           }
         } catch (err) {
-          this.logger.warn(`Failed to fetch activities in handleGetOnlineStatus: ${err}`);
+          this.logger.warn(`Failed to fetch activities in handleGetOnlineStatus: ${String(err)}`);
         }
       }
 
@@ -1934,7 +1934,8 @@ export class MessengerGateway
   @SubscribeMessage('jam:create')
   async handleJamCreate(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() payload: { initialTrack?: any; queuePolicy?: 'dj_only' | 'open_queue' },
+    @MessageBody()
+    payload: { initialTrack?: JamTrack | null; queuePolicy?: 'dj_only' | 'open_queue' },
   ) {
     const userId = client.userId;
     if (!userId || !this.jamService) return;
@@ -2084,7 +2085,7 @@ export class MessengerGateway
   @SubscribeMessage('jam:queue_add')
   async handleJamQueueAdd(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() payload: { roomId: string; track: any },
+    @MessageBody() payload: { roomId: string; track: JamTrack },
   ) {
     const userId = client.userId;
     if (!userId || !payload?.roomId || !payload?.track || !this.jamService) return;
@@ -2122,7 +2123,7 @@ export class MessengerGateway
     @ConnectedSocket() client: AuthenticatedSocket,
     @MessageBody()
     payload: {
-      track: any;
+      track: JamTrack | null;
       isPlaying: boolean;
       progressMs: number;
       durationMs: number;
@@ -2146,7 +2147,7 @@ export class MessengerGateway
    */
   private async broadcastPlatformMusicActivity(
     userId: string,
-    track: any | null,
+    track: JamTrack | null,
     isPlaying: boolean,
     progressMs: number = 0,
     jamRoomId?: string,
@@ -2197,7 +2198,7 @@ export class MessengerGateway
       if (this.prisma) {
         await this.prisma.profileShowcase.update({
           where: { userId },
-          data: { activityStatus: activityStatus as any },
+          data: { activityStatus: activityStatus },
         });
       }
 
@@ -2256,7 +2257,7 @@ export class MessengerGateway
   }
 
   @SubscribeMessage(WS_EVENTS.VOICE_MESH_SIGNAL)
-  async handleVoiceMeshSignal(
+  handleVoiceMeshSignal(
     @ConnectedSocket() client: AuthenticatedSocket,
     @MessageBody()
     payload: {

@@ -15,7 +15,6 @@ export const NotFoundScene: React.FC<NotFoundSceneProps> = ({
   const [cameraFlash, setCameraFlash] = useState(false);
   const [lanternSwing, setLanternSwing] = useState(false);
   const [mouseOffset, setMouseOffset] = useState({ x: 0, y: 0 });
-  const [bubbleClicks, setBubbleClicks] = useState(0);
   const [speechBubble, setSpeechBubble] = useState<string | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);

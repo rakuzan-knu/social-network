@@ -5,7 +5,11 @@ import { PrismaService } from '@common/prisma';
 import { chunkArray } from '@common/utils/batch-stream.util';
 import { publicUserSelect } from '../../users/users.select';
 import { RelationStateMachine } from '../domain/relation-state-machine';
-import type { FollowRequestRow, FollowUserRow } from '../types/followers.types';
+import type {
+  FollowRequestRow,
+  FollowShowcaseSummary,
+  FollowUserRow,
+} from '../types/followers.types';
 
 @Injectable()
 export class FollowersRepository implements IFollowersRepository {
@@ -215,7 +219,21 @@ export class FollowersRepository implements IFollowersRepository {
       take: limit,
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     });
-    return mutualFollows.map((f) => ({ id: f.id, user: f.follower as any }));
+    return mutualFollows.map((f) => ({
+      id: f.id,
+      user: {
+        ...f.follower,
+        showcase: f.follower.showcase
+          ? {
+              privacyActivity: f.follower.showcase.privacyActivity,
+              connectedAccounts: f.follower.showcase
+                .connectedAccounts as FollowShowcaseSummary['connectedAccounts'],
+              activityStatus: f.follower.showcase
+                .activityStatus as FollowShowcaseSummary['activityStatus'],
+            }
+          : null,
+      },
+    }));
   }
 
   async findUserBasic(userId: string) {

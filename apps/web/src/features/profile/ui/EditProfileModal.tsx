@@ -29,7 +29,6 @@ import {
   LogOut,
   Link as LinkIcon,
   Unlink,
-  RefreshCw,
   ShieldCheck,
 } from 'lucide-react';
 import { useUIStore } from '../../../shared/model/useUIStore';
@@ -54,11 +53,8 @@ import BadgeSettingsSection from './BadgeSettingsSection';
 import { ProfileShowcaseSettingsSection } from './ProfileShowcaseSettingsSection';
 import { compressImage } from '@/shared/lib/compressImage';
 import { useShowcase } from '@/entities/showcase/model/useShowcase';
-import {
-  ConfigureIntegrationModal,
-  PLATFORMS_LIST,
-  PlatformConfig,
-} from './integrations/ConfigureIntegrationModal';
+import { ConfigureIntegrationModal } from './integrations/ConfigureIntegrationModal';
+import { PLATFORMS_LIST, type PlatformConfig } from './integrations/platforms';
 import { UnlinkConfirmationModal } from './integrations/UnlinkConfirmationModal';
 import { integrationsApi } from '@/entities/showcase/api/integrationsApi';
 import { FloatingSelectionToolbar, SelectionFormatType } from '@/shared/ui/editor';
@@ -217,7 +213,6 @@ export default function EditProfileModal() {
 
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   const navigate = useNavigate();
@@ -508,28 +503,6 @@ export default function EditProfileModal() {
     clearAuth();
     closeEditProfile();
     navigate('/login', { replace: true });
-  };
-
-  const handleConnectGithubOAuth = () => {
-    const rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-    const baseBackendUrl = rawApiUrl.replace(/\/api\/?$/, '').replace(/\/$/, '');
-    const token = localStorage.getItem('accessToken');
-    window.location.href = `${baseBackendUrl}/auth/github${token ? `?token=${encodeURIComponent(token)}` : ''}`;
-  };
-
-  const handleSyncGitHub = async () => {
-    if (!currentUser?.id) return;
-    try {
-      setIsSyncing(true);
-      const res = await userApi.syncGithub();
-      queryClient.invalidateQueries({ queryKey: [USER_KEY] });
-      addProfileToast('PRs Synced', `Total merged PRs: ${res.mergedPrsCount}`);
-    } catch (err: unknown) {
-      console.error('Sync error:', err);
-      addProfileToast('Sync Rate Limited', 'Please try again in a few minutes.');
-    } finally {
-      setIsSyncing(false);
-    }
   };
 
   const { data: userShowcase } = useShowcase(currentUser?.username);

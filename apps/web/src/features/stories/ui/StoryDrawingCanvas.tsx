@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Pencil, Highlighter, Eraser, Undo2, Redo2, Trash2, Check, X, Sliders } from 'lucide-react';
 import type { DrawingStroke } from '../model/types';
 
@@ -71,7 +71,7 @@ export const StoryDrawingCanvas: React.FC<StoryDrawingCanvasProps> = ({
     ctx.restore();
   };
 
-  const redraw = () => {
+  const redraw = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -130,7 +130,7 @@ export const StoryDrawingCanvas: React.FC<StoryDrawingCanvasProps> = ({
       ctx.stroke();
       ctx.restore();
     }
-  };
+  }, [strokes]);
 
   useEffect(() => {
     redraw();
@@ -269,19 +269,23 @@ export const StoryDrawingCanvas: React.FC<StoryDrawingCanvasProps> = ({
   }, []);
 
   // Undo & Redo
-  const handleUndo = () => {
-    if (strokes.length === 0) return;
-    const last = strokes[strokes.length - 1];
-    setStrokes((prev) => prev.slice(0, -1));
-    setRedoStack((prev) => [...prev, last]);
-  };
+  const handleUndo = useCallback(() => {
+    setStrokes((prev) => {
+      if (prev.length === 0) return prev;
+      const last = prev[prev.length - 1];
+      setRedoStack((r) => [...r, last]);
+      return prev.slice(0, -1);
+    });
+  }, []);
 
-  const handleRedo = () => {
-    if (redoStack.length === 0) return;
-    const next = redoStack[redoStack.length - 1];
-    setRedoStack((prev) => prev.slice(0, -1));
-    setStrokes((prev) => [...prev, next]);
-  };
+  const handleRedo = useCallback(() => {
+    setRedoStack((prevRedo) => {
+      if (prevRedo.length === 0) return prevRedo;
+      const next = prevRedo[prevRedo.length - 1];
+      setStrokes((s) => [...s, next]);
+      return prevRedo.slice(0, -1);
+    });
+  }, []);
 
   const handleClear = () => {
     if (strokes.length === 0) return;

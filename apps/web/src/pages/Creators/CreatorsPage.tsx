@@ -14,16 +14,7 @@ import {
   CreatorHeroCameraIllustration,
   CreatorCardThumbnail,
 } from './ui/CreatorsIllustrations';
-import {
-  Sparkles,
-  BookOpen,
-  ArrowRight,
-  Clock,
-  X,
-  CheckCircle2,
-  ChevronRight,
-  Layers,
-} from 'lucide-react';
+import { Sparkles, ArrowRight, Clock, X, CheckCircle2, ChevronRight } from 'lucide-react';
 
 export const CreatorsPage: React.FC = () => {
   const { currentLanguage } = useLanguageStore();

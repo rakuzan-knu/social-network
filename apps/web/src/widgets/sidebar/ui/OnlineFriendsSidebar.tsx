@@ -9,7 +9,6 @@ import {
   ChevronDown,
   Sparkles,
   MapPin,
-  Gamepad2,
   Music,
   Pause,
 } from 'lucide-react';

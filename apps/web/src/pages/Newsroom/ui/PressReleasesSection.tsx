@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Play, Heart, MessageCircle, Send, CheckCheck, FileText } from 'lucide-react';
+import { Play, CheckCheck, FileText } from 'lucide-react';
 import { PressReleaseItem } from '../data/newsroomData';
 
 /**

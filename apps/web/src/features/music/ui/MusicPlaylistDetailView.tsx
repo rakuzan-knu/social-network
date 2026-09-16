@@ -34,12 +34,13 @@ import { TrackActionMenu } from './TrackActionMenu';
 import { PlaylistCollaboratorsModal } from './PlaylistCollaboratorsModal';
 import { EditPlaylistDetailsModal } from './EditPlaylistDetailsModal';
 import { integrationsApi } from '@/entities/showcase/api/integrationsApi';
+import { PlaylistSortViewMenu } from './PlaylistSortViewMenu';
 import {
-  PlaylistSortViewMenu,
+  SORT_LABELS,
+  formatSpotifyTrackAddedDate,
   type SortKey,
   type ViewMode,
-  SORT_LABELS,
-} from './PlaylistSortViewMenu';
+} from '../model/types';
 import { useCurrentUser } from '@/entities/profile/model/useCurrentUser';
 
 interface MusicPlaylistDetailViewProps {
@@ -69,70 +70,6 @@ const getTrackReleaseDateMs = (track: SpotifyTrack, originalIndex: number): numb
     if (!isNaN(t)) return t;
   }
   return Date.now() - (originalIndex + 1) * 86400000 * 365;
-};
-
-export const formatSpotifyTrackAddedDate = (track: SpotifyTrack): string => {
-  let targetMs: number | null = null;
-  if (track.addedAt) {
-    const t = new Date(track.addedAt).getTime();
-    if (!isNaN(t)) targetMs = t;
-  }
-
-  if (!targetMs) return 'just now';
-
-  const now = new Date();
-  const date = new Date(targetMs);
-  const diffMs = now.getTime() - targetMs;
-
-  // 1. Just now (0 to 60 seconds)
-  if (diffMs < 60 * 1000) {
-    return 'just now';
-  }
-
-  const diffSec = Math.floor(diffMs / 1000);
-  const diffMin = Math.floor(diffSec / 60);
-  const diffHours = Math.floor(diffMin / 60);
-
-  // 2. Minutes ago (1 to 60 minutes)
-  if (diffMin < 60) {
-    return diffMin === 1 ? '1 minute ago' : `${diffMin} minutes ago`;
-  }
-
-  // Check yesterday
-  const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
-  const isYesterday =
-    date.getFullYear() === yesterday.getFullYear() &&
-    date.getMonth() === yesterday.getMonth() &&
-    date.getDate() === yesterday.getDate();
-
-  const isToday =
-    date.getFullYear() === now.getFullYear() &&
-    date.getMonth() === now.getMonth() &&
-    date.getDate() === now.getDate();
-
-  // 3. Hours ago (1 to 24 hours)
-  if (isToday || (diffHours < 24 && !isYesterday)) {
-    return diffHours === 1 ? '1 hour ago' : `${diffHours} hours ago`;
-  }
-
-  // 4. Yesterday at HH:MM
-  if (isYesterday) {
-    const hh = String(date.getHours()).padStart(2, '0');
-    const mm = String(date.getMinutes()).padStart(2, '0');
-    return `Yesterday at ${hh}:${mm}`;
-  }
-
-  // 5. More than 2 days ago
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  if (diffDays < 7) {
-    return diffDays === 1 ? '1 day ago' : `${diffDays} days ago`;
-  }
-
-  return date.toLocaleDateString('en-US', {
-    day: 'numeric',
-    month: 'short',
-    year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
-  });
 };
 
 export const MusicPlaylistDetailView: React.FC<MusicPlaylistDetailViewProps> = ({ playlistId }) => {
@@ -467,7 +404,7 @@ export const MusicPlaylistDetailView: React.FC<MusicPlaylistDetailViewProps> = (
     return getPendingInviteForUser(playlist.id, currentUser.id, currentUser.username);
   }, [currentUser, playlist, getPendingInviteForUser]);
 
-  const rawTracks = playlist?.tracks || [];
+  const rawTracks = useMemo(() => playlist?.tracks || [], [playlist?.tracks]);
 
   // Filter and sort tracks (Point 3)
   const processedTracks = useMemo(() => {
@@ -1463,7 +1400,7 @@ export const MusicPlaylistDetailView: React.FC<MusicPlaylistDetailViewProps> = (
                   </td>
                 </tr>
               ) : (
-                processedTracks.map(({ track, originalIndex }, idx) => {
+                processedTracks.map(({ track }, idx) => {
                   const isCurrent = currentTrack?.id === track.id;
                   const isThisPlaying = isCurrent && isPlaying;
                   const liked = isTrackLiked(track.id);

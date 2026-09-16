@@ -2,18 +2,11 @@ import React from 'react';
 import {
   Volume2,
   Mic,
-  MicOff,
   Headphones,
   Radio,
   Video,
   MonitorUp,
   PhoneOff,
-  Smile,
-  MessageSquare,
-  Users,
-  Grid,
-  Signal,
-  Wifi,
   Sparkles,
 } from 'lucide-react';
 import { BrandMascotAnimated3D } from '../../Brand/ui/BrandIllustrations';

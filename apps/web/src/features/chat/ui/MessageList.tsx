@@ -1,7 +1,7 @@
 import Avatar from '@/shared/ui/Avatar';
 import TypingIndicatorBubble from './TypingIndicatorBubble';
 import { ChevronDown } from 'lucide-react';
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { MessageView, UserSnapshot } from '../../../entities/chat/model/types';
 import { groupMessagesByDate } from '../lib/groupMessagesByDate';

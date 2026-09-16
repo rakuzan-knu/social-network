@@ -10,7 +10,7 @@ import {
   PolicyHeroShieldIllustration,
   PolicyCardThumbnail,
 } from './ui/PolicyHubIllustrations';
-import { ArrowRight, ShieldCheck, X, FileText, AlertTriangle, ExternalLink } from 'lucide-react';
+import { ArrowRight, ShieldCheck, X, FileText, ExternalLink } from 'lucide-react';
 
 export const PolicyHubPage: React.FC = () => {
   const navigate = useNavigate();

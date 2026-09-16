@@ -10,7 +10,6 @@ import {
   ChevronDown,
   ChevronUp,
   Mic2,
-  Clock,
   Loader2,
 } from 'lucide-react';
 import type { SpotifyTrack } from '@/shared/model/useSpotifyPlayerStore';
@@ -18,16 +17,10 @@ import { useSpotifyPlayerStore } from '@/shared/model/useSpotifyPlayerStore';
 import { useMusicHubStore, CATALOG_PLAYLISTS } from '../model/useMusicHubStore';
 import { integrationsApi } from '@/entities/showcase/api/integrationsApi';
 import { TrackActionMenu } from './TrackActionMenu';
-import { SoundCloudBrandIcon, SpotifyBrandIcon } from '@/shared/ui/BrandIcons';
 import { isSoundCloudUrl } from '@/shared/lib/urlSecurity';
 
 interface MusicTrackDetailViewProps {
   trackId: string;
-}
-
-interface LyricLine {
-  timeMs: number;
-  words: string;
 }
 
 export const MusicTrackDetailView: React.FC<MusicTrackDetailViewProps> = ({ trackId }) => {
@@ -198,7 +191,7 @@ export const MusicTrackDetailView: React.FC<MusicTrackDetailViewProps> = ({ trac
     return () => {
       active = false;
     };
-  }, [track?.id, track?.title, track?.artist, track?.durationMs]);
+  }, [track]);
 
   // 3. Fetch Recommendations (5 real tracks)
   useEffect(() => {
@@ -359,7 +352,7 @@ export const MusicTrackDetailView: React.FC<MusicTrackDetailViewProps> = ({ trac
     return () => {
       active = false;
     };
-  }, [track?.id, track?.artist, track?.title, track?.source]);
+  }, [track]);
 
   // 4. Fetch Popular Tracks by same Artist
   useEffect(() => {
@@ -426,7 +419,7 @@ export const MusicTrackDetailView: React.FC<MusicTrackDetailViewProps> = ({ trac
     return () => {
       active = false;
     };
-  }, [track?.artist]);
+  }, [track]);
 
   // Estimated plays based on duration or id hash (MUST be declared before early returns)
   const pseudoPlays = useMemo(() => {

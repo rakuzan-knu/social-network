@@ -42,11 +42,11 @@ export function isSupportedPlatform(platform: unknown): platform is string {
  * Keys written are guaranteed to originate from the hardcoded SUPPORTED_PLATFORMS set.
  */
 export function assignPlatformData(
-  target: Record<string, any> | null | undefined,
+  target: Record<string, unknown> | null | undefined,
   platform: string,
-  data: any,
-): Record<string, any> {
-  const result: Record<string, any> = {};
+  data: unknown,
+): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
   const safePlatform = platform.trim().toLowerCase();
 
   // Copy existing valid platform entries
@@ -74,10 +74,10 @@ export function assignPlatformData(
  * dynamic property deletion or index tampering.
  */
 export function removePlatformData(
-  target: Record<string, any> | null | undefined,
+  target: Record<string, unknown> | null | undefined,
   platform: string,
-): Record<string, any> {
-  const result: Record<string, any> = {};
+): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
   const safePlatform = platform.trim().toLowerCase();
 
   if (target && typeof target === 'object') {

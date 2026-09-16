@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PrivacyNavbar } from '../Privacy/ui/PrivacyNavbar';
 import { EternalFooter } from '@/widgets/footer';
@@ -97,24 +97,27 @@ export const CategoryPage: React.FC = () => {
   }, [currentLanguage, activeKey]);
 
   // Helper search filter
-  const filterPosts = (posts: BlogPost[]) => {
-    if (!searchQuery.trim()) return posts;
-    const q = searchQuery.toLowerCase();
-    return posts.filter(
-      (post) =>
-        post.title.toLowerCase().includes(q) ||
-        post.description.toLowerCase().includes(q) ||
-        post.category.toLowerCase().includes(q),
-    );
-  };
+  const filterPosts = useCallback(
+    (posts: BlogPost[]) => {
+      if (!searchQuery.trim()) return posts;
+      const q = searchQuery.toLowerCase();
+      return posts.filter(
+        (post) =>
+          post.title.toLowerCase().includes(q) ||
+          post.description.toLowerCase().includes(q) ||
+          post.category.toLowerCase().includes(q),
+      );
+    },
+    [searchQuery],
+  );
 
   const filteredFeatured = useMemo(() => {
     return filterPosts(categoryData.featuredPosts);
-  }, [categoryData.featuredPosts, searchQuery]);
+  }, [categoryData.featuredPosts, filterPosts]);
 
   const filteredExplore = useMemo(() => {
     return filterPosts(categoryData.explorePosts);
-  }, [categoryData.explorePosts, searchQuery]);
+  }, [categoryData.explorePosts, filterPosts]);
 
   // RAF Footer Collision synchronization
   useEffect(() => {

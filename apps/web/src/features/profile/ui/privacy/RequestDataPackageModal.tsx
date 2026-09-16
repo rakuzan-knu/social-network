@@ -6,7 +6,6 @@ import {
   Square,
   ShieldCheck,
   Clock,
-  Mail,
   User,
   Activity,
   Gamepad2,

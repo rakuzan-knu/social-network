@@ -16,9 +16,7 @@ import {
   ListMusic,
   Maximize2,
   Minimize2,
-  Sparkles,
   Gamepad2,
-  Headphones,
   Search,
 } from 'lucide-react';
 import { SpotifyBrandIcon, SoundCloudBrandIcon } from '@/shared/ui/BrandIcons';
@@ -60,7 +58,6 @@ export const SpotifyGameModePlayer: React.FC = () => {
   const toggleQueue = useSpotifyPlayerStore((s) => s.toggleQueue);
   const isLyricsOpen = useSpotifyPlayerStore((s) => s.isLyricsOpen);
   const isQueueOpen = useSpotifyPlayerStore((s) => s.isQueueOpen);
-  const queueSource = useSpotifyPlayerStore((s) => s.queueSource);
 
   const isSoundCloud = Boolean(
     currentTrack?.source === 'soundcloud' ||
@@ -141,7 +138,7 @@ export const SpotifyGameModePlayer: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [coverSrc, currentTrack?.id, isGameModeOpen]);
+  }, [coverSrc, currentTrack?.id, currentTrack?.title, isGameModeOpen]);
 
   // Global Keyboard handlers (Escape to close submodals first, Cmd+K / Ctrl+K to search)
   useEffect(() => {

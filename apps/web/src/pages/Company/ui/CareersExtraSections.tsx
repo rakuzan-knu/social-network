@@ -1,18 +1,6 @@
 import React, { useState } from 'react';
-import {
-  ChevronLeft,
-  ChevronRight,
-  Plus,
-  Minus,
-  Layers,
-  Award,
-  Sparkles,
-  Clock,
-  Compass,
-  Heart,
-  ArrowUpRight,
-} from 'lucide-react';
-import { EarlyTeamPerk, FunClub, FAQItem, CareersTranslations } from '../data/careersData';
+import { Plus, Minus, Layers, Award, Sparkles, Clock, Compass, Heart } from 'lucide-react';
+import { EarlyTeamPerk, FunClub, FAQItem } from '../data/careersData';
 
 /**
  * 3D Icon Badges for Experience Life at Eternal Section
@@ -126,16 +114,6 @@ export const FunPartySection: React.FC<{
   subtitle: string;
   clubs: FunClub[];
 }> = ({ heading, subtitle, clubs }) => {
-  const [startIndex, setStartIndex] = useState(0);
-
-  const prev = () => {
-    setStartIndex((i) => (i - 1 + clubs.length) % clubs.length);
-  };
-
-  const next = () => {
-    setStartIndex((i) => (i + 1) % clubs.length);
-  };
-
   return (
     <section className="py-24 px-6 lg:px-12 max-w-6xl mx-auto w-full relative z-10 select-none">
       {/* Heading */}

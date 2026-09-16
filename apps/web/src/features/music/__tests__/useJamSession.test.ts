@@ -19,17 +19,17 @@ describe('useJamSession & Clock Synchronization', () => {
       queue: [],
     });
 
-    const listeners: Record<string, Function[]> = {};
+    const listeners: Record<string, ((...args: unknown[]) => void)[]> = {};
 
     mockSocket = {
       connected: true,
       emit: vi.fn(),
-      on: vi.fn((event: string, cb: Function) => {
+      on: vi.fn((event: string, cb: (...args: unknown[]) => void) => {
         if (!listeners[event]) listeners[event] = [];
         listeners[event].push(cb);
         return mockSocket;
       }),
-      off: vi.fn((event: string, cb: Function) => {
+      off: vi.fn((event: string, cb: (...args: unknown[]) => void) => {
         if (listeners[event]) {
           listeners[event] = listeners[event].filter((fn) => fn !== cb);
         }
@@ -187,13 +187,15 @@ describe('useJamSession & Clock Synchronization', () => {
 
   it('intercepts system MediaSession API actions for listeners', () => {
     const originalMediaSession = navigator.mediaSession;
-    const actionHandlers: Record<string, Function | null> = {};
+    const actionHandlers: Record<string, ((...args: unknown[]) => void) | null> = {};
 
     Object.defineProperty(navigator, 'mediaSession', {
       value: {
-        setActionHandler: vi.fn((action: string, handler: Function | null) => {
-          actionHandlers[action] = handler;
-        }),
+        setActionHandler: vi.fn(
+          (action: string, handler: ((...args: unknown[]) => void) | null) => {
+            actionHandlers[action] = handler;
+          },
+        ),
       },
       configurable: true,
       writable: true,

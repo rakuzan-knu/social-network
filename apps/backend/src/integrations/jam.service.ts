@@ -366,7 +366,9 @@ export class JamService {
         const showcase = await this.prisma.profileShowcase.findUnique({
           where: { userId },
         });
-        const spotify = (showcase?.connectedAccounts as any)?.spotify;
+        const connectedAccounts = showcase?.connectedAccounts as Record<string, unknown> | null;
+        const spotify = connectedAccounts?.spotify as
+          { verified?: boolean; product?: string } | undefined;
         if (!spotify?.verified || spotify?.product !== 'premium') {
           return {
             success: false,
@@ -438,24 +440,28 @@ export class JamService {
         `[Jam] Host @${room.hostUsername} disconnected. Starting ${this.GRACE_PERIOD_MS / 1000}s Grace Period for ${roomId}...`,
       );
 
-      const timer = setTimeout(async () => {
-        this.graceTimers.delete(roomId);
-        this.logger.log(
-          `[Jam] Grace period expired for ${roomId}. Host did not return. Terminating room for all listeners.`,
-        );
-        await this.removeRoom(roomId);
-        onTimeout(roomId, true, undefined);
+      const timer = setTimeout(() => {
+        void (async () => {
+          this.graceTimers.delete(roomId);
+          this.logger.log(
+            `[Jam] Grace period expired for ${roomId}. Host did not return. Terminating room for all listeners.`,
+          );
+          await this.removeRoom(roomId);
+          onTimeout(roomId, true, undefined);
+        })();
       }, this.GRACE_PERIOD_MS);
 
       this.graceTimers.set(roomId, timer);
     } else {
       // Regular listener disconnect: graceful leave after 5 seconds if not reconnected
-      const timer = setTimeout(async () => {
-        const curRoom = this.rooms.get(roomId);
-        if (curRoom && !curRoom.listeners.some((l) => l.id === userId && l.socketId)) {
-          await this.leaveRoom(roomId, userId);
-          onTimeout(roomId, false, undefined);
-        }
+      const timer = setTimeout(() => {
+        void (async () => {
+          const curRoom = this.rooms.get(roomId);
+          if (curRoom && !curRoom.listeners.some((l) => l.id === userId && l.socketId)) {
+            await this.leaveRoom(roomId, userId);
+            onTimeout(roomId, false, undefined);
+          }
+        })();
       }, 5_000);
       this.graceTimers.set(`listener_${userId}`, timer);
     }

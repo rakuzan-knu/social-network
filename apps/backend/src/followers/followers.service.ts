@@ -26,7 +26,7 @@ import { RedisService } from '../redis/redis.service';
 import { MessengerGateway } from '../messenger/gateway/messenger.gateway';
 import { WS_EVENTS } from '../messenger/events/ws-events';
 import { toUserProfileDto } from './followers.mapper';
-import type { UserProfileDto } from '@common/contracts';
+import type { LiveActivityStatusDto, UserProfileDto } from '@common/contracts';
 
 @Injectable()
 export class FollowersService {
@@ -132,8 +132,8 @@ export class FollowersService {
         100,
       );
       return mutualRows.map((r) => {
-        const showcase = (r.user as any).showcase;
-        let activityStatus = null;
+        const showcase = r.user.showcase;
+        let activityStatus: LiveActivityStatusDto | null = null;
         if (showcase) {
           const isPrivate = showcase.privacyActivity === 'PRIVATE';
           const steamDisplayOff = showcase.connectedAccounts?.steam?.displayOnProfile === false;

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, Sparkles } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { PrivacyNavbar } from '../Privacy/ui/PrivacyNavbar';
 import { EternalFooter } from '@/widgets/footer';
 import { useLanguageStore } from '../../shared/lib/language/languageStore';

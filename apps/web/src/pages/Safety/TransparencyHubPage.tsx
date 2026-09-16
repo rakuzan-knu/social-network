@@ -12,15 +12,7 @@ import {
   HammerArticleIllustration,
   CommunityArticleIllustration,
 } from './ui/TransparencyIllustrations';
-import {
-  ChevronDown,
-  Download,
-  CheckCircle2,
-  FileText,
-  ShieldCheck,
-  ArrowRight,
-  ExternalLink,
-} from 'lucide-react';
+import { ChevronDown, Download, CheckCircle2, ArrowRight } from 'lucide-react';
 import { useLanguageStore } from '../../shared/lib/language/languageStore';
 import { TRANSPARENCY_HUB_DATA } from './data/transparencyHubData';
 

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-require-imports */
 import { NestFactory } from '@nestjs/core';
 import type { Request, Response } from 'express';
 

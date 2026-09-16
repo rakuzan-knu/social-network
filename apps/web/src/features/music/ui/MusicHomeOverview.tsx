@@ -1,22 +1,9 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Play,
-  Pause,
-  Heart,
-  Volume2,
-  Music2,
-  Sparkles,
-  Check,
-  ArrowLeft,
-  Radio,
-  Flame,
-  Mic2,
-} from 'lucide-react';
+import { Play, Pause, Heart, Volume2, Music2, Sparkles, Flame, Mic2 } from 'lucide-react';
 import {
   useMusicHubStore,
   STARTER_RECOMMENDED_TRACKS,
-  CATALOG_PLAYLISTS,
   detectGenre,
 } from '../model/useMusicHubStore';
 import { useSpotifyPlayerStore } from '@/shared/model/useSpotifyPlayerStore';
@@ -25,7 +12,7 @@ import { useSpotifyDockOffset } from '@/shared/model/useSpotifyDockOffset';
 import { integrationsApi } from '@/entities/showcase/api/integrationsApi';
 import { PlaylistActionMenu } from './PlaylistActionMenu';
 import { TrackActionMenu } from './TrackActionMenu';
-import type { MusicPlaylist, MusicRecentlyPlayedItem, MusicHomeCategory } from '../model/types';
+import type { MusicPlaylist, MusicRecentlyPlayedItem } from '../model/types';
 
 interface TopGridItem {
   id: string;
@@ -50,7 +37,6 @@ export const MusicHomeOverview: React.FC = () => {
     homeCategory,
     setHomeCategory,
     setSelectedPlaylistId,
-    isPlaylistSaved,
   } = useMusicHubStore();
 
   const currentTrack = useSpotifyPlayerStore((s) => s.currentTrack);
@@ -63,7 +49,7 @@ export const MusicHomeOverview: React.FC = () => {
   const [recommendedTracks, setRecommendedTracks] = useState<SpotifyTrack[]>(
     STARTER_RECOMMENDED_TRACKS,
   );
-  const [isLoadingRecs, setIsLoadingRecs] = useState(false);
+  const [_isLoadingRecs, setIsLoadingRecs] = useState(false);
   const recsCacheRef = useRef<Record<string, SpotifyTrack[]>>({});
 
   // Context menus state
@@ -129,7 +115,7 @@ export const MusicHomeOverview: React.FC = () => {
   }, [lastActiveGenre, lastActiveSeed]);
 
   // Liked songs playlist representation
-  const likedSongsPlaylist: MusicPlaylist = useMemo(
+  const _likedSongsPlaylist: MusicPlaylist = useMemo(
     () => ({
       id: 'liked-songs',
       title: 'Liked Songs',

@@ -11,13 +11,47 @@ import { Prisma } from '@prisma/client';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { MessengerGateway } from '../messenger/gateway/messenger.gateway';
 
+interface SteamPlayerSummary {
+  steamid: string;
+  gameextrainfo?: string;
+  gameid?: string;
+  personaname?: string;
+  avatarfull?: string;
+}
+
+interface ActivityStatusRecord {
+  type?: string;
+  isSteam?: boolean;
+  gameId?: string | null;
+  title?: string;
+  imageUrl?: string | null;
+  headerUrl?: string | null;
+  startedAt?: string;
+  [key: string]: unknown;
+}
+
+interface SteamAccountData {
+  steamId?: string;
+  displayOnProfile?: boolean;
+  currentActivity?: ActivityStatusRecord | null;
+}
+
+interface ConnectedAccountsRecord {
+  steam?: SteamAccountData | string | null;
+  spotify?: {
+    currentActivity?: ActivityStatusRecord | null;
+    [key: string]: unknown;
+  } | null;
+  [key: string]: unknown;
+}
+
 interface SteamUserEntry {
   userId: string;
   steamId: string;
-  existingActivity: any;
+  existingActivity: ActivityStatusRecord | null;
   privacyActivity: string;
   displayOnProfile: boolean;
-  connectedAccounts: Record<string, any>;
+  connectedAccounts: ConnectedAccountsRecord;
 }
 
 @Injectable()
@@ -137,17 +171,24 @@ export class SteamPresenceService implements OnModuleInit, OnModuleDestroy {
       // 3. Filter down to users with linked Steam accounts
       const steamUsers: SteamUserEntry[] = [];
       for (const sc of showcases) {
-        const connected = (sc.connectedAccounts as Record<string, any>) || {};
+        const connected = (sc.connectedAccounts as ConnectedAccountsRecord) || {};
         const steam = connected.steam;
-        const steamId = steam?.steamId || (typeof steam === 'string' ? steam : null);
+        const steamId =
+          typeof steam === 'object' && steam !== null
+            ? steam.steamId
+            : typeof steam === 'string'
+              ? steam
+              : null;
+        const displayOnProfile =
+          typeof steam === 'object' && steam !== null ? steam.displayOnProfile !== false : true;
 
         if (steamId && /^\d{17}$/.test(String(steamId))) {
           steamUsers.push({
             userId: sc.userId,
             steamId: String(steamId),
-            existingActivity: sc.activityStatus,
+            existingActivity: sc.activityStatus as ActivityStatusRecord | null,
             privacyActivity: sc.privacyActivity || 'PUBLIC',
-            displayOnProfile: steam?.displayOnProfile !== false,
+            displayOnProfile,
             connectedAccounts: connected,
           });
         }
@@ -185,9 +226,11 @@ export class SteamPresenceService implements OnModuleInit, OnModuleDestroy {
           continue;
         }
 
-        let summaryJson: any;
+        let summaryJson: { response?: { players?: SteamPlayerSummary[] } } | null = null;
         try {
-          summaryJson = await summaryRes.json();
+          summaryJson = (await summaryRes.json()) as {
+            response?: { players?: SteamPlayerSummary[] };
+          };
         } catch {
           this.logger.warn(`Steam API returned non-JSON body. Skipping cycle.`);
           continue;
@@ -199,7 +242,7 @@ export class SteamPresenceService implements OnModuleInit, OnModuleDestroy {
           continue;
         }
 
-        const playerMap = new Map<string, any>();
+        const playerMap = new Map<string, SteamPlayerSummary>();
         for (const p of players) {
           if (p.steamid) {
             playerMap.set(p.steamid, p);
@@ -214,8 +257,8 @@ export class SteamPresenceService implements OnModuleInit, OnModuleDestroy {
             continue;
           }
 
-          const gameTitle = player.gameextrainfo ? String(player.gameextrainfo).trim() : null;
-          const gameId = player.gameid ? String(player.gameid).trim() : null;
+          const gameTitle = player.gameextrainfo ? player.gameextrainfo.trim() : null;
+          const gameId = player.gameid ? player.gameid.trim() : null;
           const prevActivity = entry.existingActivity;
           const isPrivateActivity = entry.privacyActivity === 'PRIVATE' || !entry.displayOnProfile;
 
@@ -223,7 +266,7 @@ export class SteamPresenceService implements OnModuleInit, OnModuleDestroy {
             // User is not playing any game (or Steam Game details is set to private)
             if (prevActivity && prevActivity.type === 'gaming' && prevActivity.isSteam) {
               const connected = entry.connectedAccounts || {};
-              if (connected.steam) {
+              if (typeof connected.steam === 'object' && connected.steam !== null) {
                 connected.steam.currentActivity = null;
               }
 
@@ -233,8 +276,10 @@ export class SteamPresenceService implements OnModuleInit, OnModuleDestroy {
               await this.prisma.profileShowcase.update({
                 where: { userId: entry.userId },
                 data: {
-                  connectedAccounts: connected,
-                  activityStatus: fallbackMusic ? fallbackMusic : Prisma.DbNull,
+                  connectedAccounts: connected as unknown as Prisma.InputJsonValue,
+                  activityStatus: fallbackMusic
+                    ? (fallbackMusic as unknown as Prisma.InputJsonValue)
+                    : Prisma.DbNull,
                 },
               });
 
@@ -247,7 +292,7 @@ export class SteamPresenceService implements OnModuleInit, OnModuleDestroy {
           } else {
             // User is currently in a game
             let isCloudflareSteam = false;
-            if (prevActivity?.imageUrl) {
+            if (typeof prevActivity?.imageUrl === 'string') {
               try {
                 const parsed = new URL(prevActivity.imageUrl);
                 isCloudflareSteam =
@@ -257,7 +302,11 @@ export class SteamPresenceService implements OnModuleInit, OnModuleDestroy {
                 isCloudflareSteam = false;
               }
             }
-            const hasWorkingImage = Boolean(prevActivity?.imageUrl && !isCloudflareSteam);
+            const hasWorkingImage = Boolean(
+              typeof prevActivity?.imageUrl === 'string' &&
+              prevActivity.imageUrl &&
+              !isCloudflareSteam,
+            );
 
             const isSameGame =
               prevActivity &&
@@ -275,7 +324,7 @@ export class SteamPresenceService implements OnModuleInit, OnModuleDestroy {
             const startedAt =
               prevActivity &&
               (prevActivity.gameId === gameId || prevActivity.title === gameTitle) &&
-              prevActivity.startedAt
+              typeof prevActivity.startedAt === 'string'
                 ? prevActivity.startedAt
                 : new Date().toISOString();
 
@@ -296,15 +345,15 @@ export class SteamPresenceService implements OnModuleInit, OnModuleDestroy {
             };
 
             const connected = entry.connectedAccounts || {};
-            if (connected.steam) {
+            if (typeof connected.steam === 'object' && connected.steam !== null) {
               connected.steam.currentActivity = newActivity;
             }
 
             await this.prisma.profileShowcase.update({
               where: { userId: entry.userId },
               data: {
-                connectedAccounts: connected,
-                activityStatus: newActivity as any,
+                connectedAccounts: connected as unknown as Prisma.InputJsonValue,
+                activityStatus: newActivity,
               },
             });
 

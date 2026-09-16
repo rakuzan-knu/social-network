@@ -577,7 +577,6 @@ export const useSpotifyPlayerStore = create<SpotifyPlayerState>()(
             const isPaused = state.paused;
             const pos = state.position;
             const dur = state.duration;
-            const currentRepeatMode = get().repeatMode;
 
             sendDebugLog('player_state_changed', {
               isPaused,
@@ -1127,7 +1126,7 @@ export const useSpotifyPlayerStore = create<SpotifyPlayerState>()(
             sdkPlayerInstance.setVolume(get().volume || 0.8).catch(() => {});
           }
         }
-        const { currentTrack, isSdkReady, deviceId } = get();
+        const { currentTrack, deviceId } = get();
         if (!currentTrack) return;
 
         const isSoundCloud = Boolean(
@@ -1675,15 +1674,6 @@ export const useSpotifyPlayerStore = create<SpotifyPlayerState>()(
     },
   ),
 );
-
-function playFallbackAudio(url: string, volume: number, isMuted: boolean) {
-  const audio = getOrCreateAudio();
-  audio.src = url;
-  audio.volume = isMuted ? 0 : volume;
-  audio.currentTime = 0;
-  audioCoordinator.play(audio, 'spotify-bottom-dock');
-  audio.play().catch(() => {});
-}
 
 // Global decoupled event listeners for Music Hub synchronization
 if (typeof window !== 'undefined') {

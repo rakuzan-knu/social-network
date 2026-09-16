@@ -299,7 +299,7 @@ export const MediaDetailModal: React.FC = () => {
   }, [details?.similarItems, activeItem]);
 
   // Media selector: 0 is video trailer, 1..N are screenshots
-  const handleSelectMedia = (index: number) => {
+  const handleSelectMedia = useCallback((index: number) => {
     setSelectedMediaIndex(index);
     if (index === 0) {
       // Resume video
@@ -314,21 +314,19 @@ export const MediaDetailModal: React.FC = () => {
         setIsPlaying(false);
       }
     }
-  };
+  }, []);
 
-  const handlePrevMedia = () => {
+  const handlePrevMedia = useCallback(() => {
     if (!details || details.screenshots.length === 0) return;
     const total = details.screenshots.length;
-    const nextIdx = selectedMediaIndex === 0 ? total : selectedMediaIndex - 1;
-    handleSelectMedia(nextIdx);
-  };
+    setSelectedMediaIndex((prev) => (prev === 0 ? total : prev - 1));
+  }, [details]);
 
-  const handleNextMedia = () => {
+  const handleNextMedia = useCallback(() => {
     if (!details || details.screenshots.length === 0) return;
     const total = details.screenshots.length;
-    const nextIdx = selectedMediaIndex >= total ? 0 : selectedMediaIndex + 1;
-    handleSelectMedia(nextIdx);
-  };
+    setSelectedMediaIndex((prev) => (prev >= total ? 0 : prev + 1));
+  }, [details]);
 
   const handleClose = useCallback(() => {
     setIsAddMenuOpen(false);
@@ -368,7 +366,7 @@ export const MediaDetailModal: React.FC = () => {
       document.body.style.paddingRight = originalPaddingRight;
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isOpen, selectedMediaIndex, details?.screenshots.length, handleClose]);
+  }, [isOpen, handleClose, handlePrevMedia, handleNextMedia]);
 
   if (!isOpen || !activeItem || !details) {
     return inRouter ? (

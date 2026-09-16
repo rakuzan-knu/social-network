@@ -27,6 +27,49 @@ import { SoundCloudService } from './soundcloud.service';
 import { PrismaService } from '@common/prisma';
 import { isSupportedPlatform, assignPlatformData } from './platform.utils';
 
+interface SyncLikedTrackItem {
+  id: string;
+  title: string;
+  artist?: string;
+  album?: string;
+  albumArt?: string;
+  durationMs?: number;
+  previewUrl?: string;
+  streamUrl?: string;
+  spotifyUrl?: string;
+  source?: string;
+  addedAt?: string | number | Date;
+}
+
+interface UserPlaylistEntity {
+  id: string;
+  title: string;
+  description?: string | null;
+  coverUrl?: string | null;
+  user?: {
+    id?: string;
+    displayName?: string | null;
+    username?: string | null;
+    avatar?: string | null;
+  } | null;
+  folderId?: string | null;
+  isPublic?: boolean;
+  createdAt?: Date;
+  tracks?: Array<{
+    trackId: string;
+    title: string;
+    artist: string;
+    album?: string | null;
+    albumArt?: string | null;
+    durationMs: number;
+    previewUrl?: string | null;
+    streamUrl?: string | null;
+    spotifyUrl?: string | null;
+    source: string;
+    addedAt?: Date | null;
+  }>;
+}
+
 @Controller(['integrations', 'api/integrations'])
 export class IntegrationsController {
   constructor(
@@ -304,16 +347,16 @@ export class IntegrationsController {
       const pump = async () => {
         try {
           while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            res.write(value);
+            const chunk = (await reader.read()) as { done: boolean; value?: Uint8Array };
+            if (chunk.done) break;
+            if (chunk.value) res.write(chunk.value);
           }
           res.end();
         } catch {
           res.end();
         }
       };
-      pump();
+      void pump();
     } catch {
       return res.redirect(result.streamUrl);
     }
@@ -465,7 +508,10 @@ export class IntegrationsController {
 
   @UseGuards(AuthGuard)
   @Post('music/liked-tracks/sync')
-  async syncLikedTracks(@CurrentUser() user: RequestUser, @Body() body: { tracks: any[] }) {
+  async syncLikedTracks(
+    @CurrentUser() user: RequestUser,
+    @Body() body: { tracks: SyncLikedTrackItem[] },
+  ) {
     if (Array.isArray(body?.tracks)) {
       for (const t of body.tracks) {
         if (!t?.id || !t?.title) continue;
@@ -484,11 +530,11 @@ export class IntegrationsController {
             title: t.title,
             artist: t.artist || 'Unknown Artist',
             album: t.album || t.title,
-            albumArt: t.albumArt,
+            albumArt: t.albumArt || null,
             durationMs: t.durationMs || 180000,
-            previewUrl: t.previewUrl,
-            streamUrl: t.streamUrl,
-            spotifyUrl: t.spotifyUrl,
+            previewUrl: t.previewUrl || null,
+            streamUrl: t.streamUrl || null,
+            spotifyUrl: t.spotifyUrl || null,
             source: t.source || 'soundcloud',
             addedAt: addedAtDate,
           },
@@ -533,10 +579,10 @@ export class IntegrationsController {
       },
       orderBy: { createdAt: 'asc' },
     });
-    return folders.map((f: any) => ({
+    return folders.map((f) => ({
       id: f.id,
       name: f.name,
-      playlistIds: (f.playlists || []).map((p: any) => p.id),
+      playlistIds: (f.playlists || []).map((p) => p.id),
       createdAt: f.createdAt ? f.createdAt.toISOString() : new Date().toISOString(),
     }));
   }
@@ -595,7 +641,7 @@ export class IntegrationsController {
     return {
       id: updated.id,
       name: updated.name,
-      playlistIds: (updated.playlists || []).map((p: any) => p.id),
+      playlistIds: (updated.playlists || []).map((p) => p.id),
       createdAt: updated.createdAt.toISOString(),
     };
   }
@@ -624,7 +670,7 @@ export class IntegrationsController {
   // USER PLAYLISTS CRUD & SOCIAL SHARING
   // ==========================================
 
-  private formatUserPlaylist(p: any) {
+  private formatUserPlaylist(p: UserPlaylistEntity) {
     return {
       id: p.id,
       title: p.title,
@@ -637,7 +683,7 @@ export class IntegrationsController {
       folderId: p.folderId,
       isPrivate: !p.isPublic,
       createdAt: p.createdAt ? p.createdAt.toISOString() : new Date().toISOString(),
-      tracks: (p.tracks || []).map((t: any) => ({
+      tracks: (p.tracks || []).map((t) => ({
         id: t.trackId,
         trackId: t.trackId,
         title: t.title,
@@ -674,7 +720,7 @@ export class IntegrationsController {
       },
       orderBy: { createdAt: 'desc' },
     });
-    return playlists.map((p: any) => this.formatUserPlaylist(p));
+    return playlists.map((p) => this.formatUserPlaylist(p));
   }
 
   @Get('music/playlists/:id')
@@ -836,7 +882,7 @@ export class IntegrationsController {
   async addTrackToUserPlaylist(
     @CurrentUser() user: RequestUser,
     @Param('id') id: string,
-    @Body() body: { track: any },
+    @Body() body: { track: SyncLikedTrackItem },
   ) {
     const playlist = await this.prisma.userPlaylist.findFirst({
       where: { id, userId: user.id },
@@ -866,11 +912,11 @@ export class IntegrationsController {
         title: t.title,
         artist: t.artist || 'Unknown Artist',
         album: t.album || t.title,
-        albumArt: t.albumArt,
+        albumArt: t.albumArt || null,
         durationMs: t.durationMs || 180000,
-        previewUrl: t.previewUrl,
-        streamUrl: t.streamUrl,
-        spotifyUrl: t.spotifyUrl,
+        previewUrl: t.previewUrl || null,
+        streamUrl: t.streamUrl || null,
+        spotifyUrl: t.spotifyUrl || null,
         source: t.source || 'soundcloud',
       },
       create: {
@@ -879,11 +925,11 @@ export class IntegrationsController {
         title: t.title,
         artist: t.artist || 'Unknown Artist',
         album: t.album || t.title,
-        albumArt: t.albumArt,
+        albumArt: t.albumArt || null,
         durationMs: t.durationMs || 180000,
-        previewUrl: t.previewUrl,
-        streamUrl: t.streamUrl,
-        spotifyUrl: t.spotifyUrl,
+        previewUrl: t.previewUrl || null,
+        streamUrl: t.streamUrl || null,
+        spotifyUrl: t.spotifyUrl || null,
         source: t.source || 'soundcloud',
         position: nextPos,
         addedAt: t.addedAt ? new Date(t.addedAt) : new Date(),

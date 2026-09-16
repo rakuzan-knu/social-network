@@ -103,7 +103,7 @@ export const OAuthCallbackHandler: React.FC<{ platform?: string }> = ({
                   { type: 'INTEGRATION_AUTH_SUCCESS', platform: effectivePlatform },
                   '*',
                 );
-              } catch (e) {}
+              } catch {}
             }
           };
           broadcast();

@@ -20,7 +20,7 @@ interface SteamLevelBadgeProps {
  * - 90-99: Bronze / Brown (#795548)
  * - 100+: Hexagonal badge following color progression
  */
-export const getSteamLevelColor = (level: number) => {
+const getSteamLevelColor = (level: number) => {
   const tier = Math.floor((level % 100) / 10);
   switch (tier) {
     case 0:

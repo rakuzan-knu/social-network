@@ -7,7 +7,6 @@ import {
   Plus,
   Smile,
   Mic,
-  Send,
   Play,
   CheckCheck,
   Signal,

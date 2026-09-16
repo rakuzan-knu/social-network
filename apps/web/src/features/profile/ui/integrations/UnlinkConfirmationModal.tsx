@@ -1,5 +1,5 @@
 import React from 'react';
-import { Unlink, AlertTriangle } from 'lucide-react';
+import { Unlink } from 'lucide-react';
 
 interface UnlinkConfirmationModalProps {
   isOpen: boolean;
@@ -18,11 +18,11 @@ export const UnlinkConfirmationModal: React.FC<UnlinkConfirmationModalProps> = (
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn select-none"
+      className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn select-none"
       onClick={onCancel}
     >
       <div
-        className="relative w-full max-w-sm bg-[#121216] border border-white/[0.1] rounded-3xl p-6 shadow-2xl flex flex-col items-center text-center gap-4 animate-modalPop text-white"
+        className="relative w-full max-w-sm bg-[#121216] border border-white/10 rounded-3xl p-6 shadow-2xl flex flex-col items-center text-center gap-4 animate-modalPop text-white"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/25 flex items-center justify-center text-red-400 shadow-[0_0_24px_rgba(239,68,68,0.2)]">
@@ -42,7 +42,7 @@ export const UnlinkConfirmationModal: React.FC<UnlinkConfirmationModalProps> = (
           <button
             type="button"
             onClick={onCancel}
-            className="flex-1 py-2.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-gray-300 hover:text-white font-semibold text-xs transition-all cursor-pointer"
+            className="flex-1 py-2.5 rounded-xl bg-white/6 hover:bg-white/12 text-gray-300 hover:text-white font-semibold text-xs transition-all cursor-pointer"
           >
             Cancel
           </button>

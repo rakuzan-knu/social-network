@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
   Shield,
-  Eye,
   User,
   Palette,
   Lock,
@@ -9,14 +8,10 @@ import {
   Search,
   ChevronDown,
   ChevronRight,
-  Sparkles,
   Play,
   Pause,
   RotateCcw,
-  Check,
   Download,
-  Users,
-  Radio,
   Sliders,
   CheckCircle2,
 } from 'lucide-react';
@@ -72,7 +67,7 @@ export const InteractivePrivacyControlsMockup: React.FC = () => {
 
   // Auto-play simulation state
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const [activeStep, setActiveStep] = useState<number>(0);
+  const [_activeStep, setActiveStep] = useState<number>(0);
 
   const cycleDimensionValue = (id: string) => {
     setDimensions((prev) =>

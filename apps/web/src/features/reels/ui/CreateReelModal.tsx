@@ -26,6 +26,12 @@ export const CreateReelModal: React.FC<CreateReelModalProps> = ({ isOpen, onClos
 
   const createReelMutation = useCreateReel();
 
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
   const handleLoadDemoVideo = async (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
@@ -66,12 +72,6 @@ export const CreateReelModal: React.FC<CreateReelModalProps> = ({ isOpen, onClos
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(URL.createObjectURL(selected));
   };
-
-  useEffect(() => {
-    return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-    };
-  }, [previewUrl]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

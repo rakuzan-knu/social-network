@@ -63,7 +63,7 @@ export const SpotifyLyricsModal: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [currentTrack?.id, currentTrack?.title, currentTrack?.artist, isLyricsOpen]);
+  }, [currentTrack, isLyricsOpen]);
 
   // Find active line index
   let activeIndex = 0;

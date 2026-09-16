@@ -1,5 +1,4 @@
 import React, { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useLanguageStore } from '../../shared/lib/language/languageStore';
 import { PrivacyNavbar } from '../Privacy/ui/PrivacyNavbar';
 import { EternalFooter } from '@/widgets/footer';
@@ -26,14 +25,12 @@ import {
   AlertCircle,
   RotateCcw,
   Sparkles,
-  ArrowRight,
   ChevronLeft,
   ChevronRight,
   ExternalLink,
 } from 'lucide-react';
 
 export const TeenCharterPage: React.FC = () => {
-  const navigate = useNavigate();
   const { currentLanguage } = useLanguageStore();
   const isUkrainian = currentLanguage === 'Українська';
   const data = isUkrainian ? TEEN_CHARTER_UK : TEEN_CHARTER_EN;

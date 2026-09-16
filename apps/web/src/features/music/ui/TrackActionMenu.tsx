@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import {
   Heart,
   Plus,
-  ListPlus,
   ListMusic,
   ListMinus,
   Disc,
@@ -415,10 +414,6 @@ export const TrackActionMenu: React.FC<TrackActionMenuProps> = ({
     }
     onClose();
   };
-
-  const filteredPlaylists = customPlaylists.filter((p) =>
-    p.title.toLowerCase().includes(playlistSearch.toLowerCase().trim()),
-  );
 
   return (
     <>

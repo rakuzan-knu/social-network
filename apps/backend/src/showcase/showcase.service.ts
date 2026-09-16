@@ -262,9 +262,7 @@ export class ShowcaseService {
       this.integrationsService
     ) {
       try {
-        const liveInfo = (await this.integrationsService.getTwitchLiveStatus(
-          cleanConnected.twitch as Record<string, any>,
-        )) as Record<string, unknown> | null;
+        const liveInfo = await this.integrationsService.getTwitchLiveStatus(cleanConnected.twitch);
         if (liveInfo) {
           cleanConnected.twitch = {
             ...cleanConnected.twitch,

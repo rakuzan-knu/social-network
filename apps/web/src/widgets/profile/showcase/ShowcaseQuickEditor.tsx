@@ -21,12 +21,7 @@ import {
   Bookmark,
   Play,
   Pause,
-  Clock,
-  Eye,
-  Link as LinkIcon,
   Loader2,
-  Cloud,
-  Heart,
   MapPin,
   Home,
   Briefcase,
@@ -45,7 +40,6 @@ import {
   type UpdateShowcaseDto,
   type MediaSearchResultDto,
   type FamilyMemberDto,
-  type PersonalInfoTogglesDto,
 } from '@backend/common/contracts';
 import {
   getLanguageFlag,
@@ -63,7 +57,6 @@ import {
   useUpdateShowcase,
 } from '@/entities/showcase/model/useShowcase';
 import { useDebounce } from '@/shared/lib/useDebounce';
-import { audioCoordinator } from '@/shared/lib/audioCoordinator';
 import { SpotifyBrandIcon, SoundCloudBrandIcon } from '@/shared/ui/BrandIcons';
 import { useSpotifyPlayerStore } from '@/shared/model/useSpotifyPlayerStore';
 import {
@@ -79,13 +72,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import { USER_KEY } from '@/shared/api/queryKeys';
 import { integrationsApi } from '@/entities/showcase/api/integrationsApi';
 import { userApi } from '@/entities/profile/api/userApi';
-import {
-  ConfigureIntegrationModal,
-  PLATFORMS_LIST,
-  type PlatformConfig,
-} from '@/features/profile/ui/integrations/ConfigureIntegrationModal';
+import { ConfigureIntegrationModal } from '@/features/profile/ui/integrations/ConfigureIntegrationModal';
+import { PLATFORMS_LIST, type PlatformConfig } from '@/features/profile/ui/integrations/platforms';
 import { UnlinkConfirmationModal } from '@/features/profile/ui/integrations/UnlinkConfirmationModal';
-import { MarqueeText } from '@/shared/ui/MarqueeText';
 import { useMessageToastStore } from '@/shared/model/useMessageToastStore';
 
 interface ShowcaseQuickEditorProps {
@@ -216,10 +205,7 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
   const [trackSearchQuery, setTrackSearchQuery] = useState('');
   const debouncedTrackSearch = useDebounce(trackSearchQuery, 250);
 
-  const { data: searchResults = [], isFetching: isSearching } = useMediaSearch(
-    debouncedSearch,
-    selectedMediaType,
-  );
+  const { data: searchResults = [] } = useMediaSearch(debouncedSearch, selectedMediaType);
 
   const { data: trackResults = [], isFetching: isSearchingTracks } =
     useTrackSearch(debouncedTrackSearch);
@@ -227,55 +213,6 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
   const isTrackSearchActive = trackSearchQuery.trim().length > 0;
   const isTrackDebouncing = trackSearchQuery.trim() !== debouncedTrackSearch.trim();
   const isTrackSearchPending = isSearchingTracks || isTrackDebouncing;
-
-  // Audio preview state
-  const [previewTrackUrl, setPreviewTrackUrl] = useState<string | null>(null);
-  const previewAudioRef = useRef<HTMLAudioElement | null>(null);
-
-  useEffect(() => {
-    const audio = new Audio();
-    previewAudioRef.current = audio;
-
-    const handleEnded = () => setPreviewTrackUrl(null);
-    audio.addEventListener('ended', handleEnded);
-
-    const handleGlobalPlay = (e: Event) => {
-      const customEvent = e as CustomEvent<{ id: string }>;
-      if (customEvent.detail.id !== 'editor-track-preview') {
-        if (previewAudioRef.current) {
-          previewAudioRef.current.pause();
-        }
-        setPreviewTrackUrl(null);
-      }
-    };
-
-    window.addEventListener('app:audio-play', handleGlobalPlay);
-
-    return () => {
-      audio.removeEventListener('ended', handleEnded);
-      window.removeEventListener('app:audio-play', handleGlobalPlay);
-      audio.pause();
-      audio.src = '';
-      previewAudioRef.current = null;
-    };
-  }, []);
-
-  const toggleTrackPreview = (url?: string | null) => {
-    if (!url || !previewAudioRef.current) return;
-
-    if (previewTrackUrl === url) {
-      previewAudioRef.current.pause();
-      setPreviewTrackUrl(null);
-      audioCoordinator.stop('editor-track-preview');
-    } else {
-      previewAudioRef.current.src = url;
-      audioCoordinator.play(previewAudioRef.current, 'editor-track-preview');
-      previewAudioRef.current
-        .play()
-        .then(() => setPreviewTrackUrl(url))
-        .catch(() => setPreviewTrackUrl(null));
-    }
-  };
 
   // Local state initialized from showcase
   const [accentColor, setAccentColor] = useState(showcase.accentColor || '#6366f1');
@@ -359,18 +296,15 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
   const [familyRole, setFamilyRole] = useState<string>('Brother');
   const [familyCustomName, setFamilyCustomName] = useState('');
   const [familyUserSuggestions, setFamilyUserSuggestions] = useState<any[]>([]);
-  const [isFamilySearching, setIsFamilySearching] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     const clean = debouncedFamilySearch.trim().replace(/^@+/, '');
     if (!clean) {
       setFamilyUserSuggestions([]);
-      setIsFamilySearching(false);
       return;
     }
 
-    setIsFamilySearching(true);
     api
       .get('/users/mention-suggestions', { params: { q: clean } })
       .then((res) => {
@@ -381,9 +315,6 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
       })
       .catch(() => {
         if (!cancelled) setFamilyUserSuggestions([]);
-      })
-      .finally(() => {
-        if (!cancelled) setIsFamilySearching(false);
       });
 
     return () => {

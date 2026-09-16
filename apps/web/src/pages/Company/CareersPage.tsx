@@ -1,34 +1,18 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
 import { PrivacyNavbar } from '../Privacy/ui/PrivacyNavbar';
 import { EternalFooter } from '@/widgets/footer';
 import { SEOHead } from '../../shared/seo';
 import { CAREERS_JOBS, CAREERS_TRANSLATIONS, JobOpening } from './data/careersData';
 import { useLanguageStore } from '../../shared/lib/language/languageStore';
-import { useAuthStore } from '../../shared/model/useAuthStore';
 import { DropdownSafetyMascot, DropdownDeveloperMascot } from '../Privacy/ui/PrivacyIllustrations';
 import { EternalCrown3D, EternalSprout3D } from './ui/CompanyIllustrations';
 import { CareersGallery } from './ui/CareersGallery';
 import { JobDetailsModal } from './ui/JobDetailsModal';
-import {
-  Sparkles,
-  ChevronDown,
-  ArrowRight,
-  Shield,
-  Code,
-  Palette,
-  Users,
-  MessageSquare,
-  Heart,
-  Music,
-  CheckCircle2,
-} from 'lucide-react';
+import { ChevronDown, ArrowRight } from 'lucide-react';
 
 import { ExperienceSection, FunPartySection, FAQSection } from './ui/CareersExtraSections';
 
 export const CareersPage: React.FC = () => {
-  const navigate = useNavigate();
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const { currentLanguage } = useLanguageStore();
   const t = CAREERS_TRANSLATIONS[currentLanguage] || CAREERS_TRANSLATIONS.English;
 

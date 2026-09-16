@@ -13,10 +13,7 @@ import {
   Printer,
   ArrowUp,
   FileText,
-  CheckCircle,
-  HelpCircle,
   Lightbulb,
-  Sparkles,
 } from 'lucide-react';
 import { useLanguageStore } from '../../shared/lib/language/languageStore';
 import { DATA_PACKAGE_DATA } from './data/dataPackageData';

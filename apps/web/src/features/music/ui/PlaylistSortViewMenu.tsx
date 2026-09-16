@@ -2,19 +2,9 @@ import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, List, AlignJustify } from 'lucide-react';
 
-export type SortKey =
-  'default' | 'title' | 'artist' | 'album' | 'dateAdded' | 'releaseDate' | 'duration';
-export type ViewMode = 'list' | 'compact';
+import { SORT_LABELS, type SortKey, type ViewMode } from '../model/types';
 
-export const SORT_LABELS: Record<SortKey, string> = {
-  default: 'Custom order',
-  title: 'Title',
-  artist: 'Artist',
-  album: 'Album',
-  dateAdded: 'Date added',
-  releaseDate: 'Release date',
-  duration: 'Duration',
-};
+export type { SortKey, ViewMode };
 
 interface PlaylistSortViewMenuProps {
   isOpen: boolean;

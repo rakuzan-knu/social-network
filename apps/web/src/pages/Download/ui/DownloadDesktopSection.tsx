@@ -18,7 +18,6 @@ import {
   Compass,
   Bell,
   PlusSquare,
-  Sparkles,
 } from 'lucide-react';
 import { triggerInstallerDownload } from '../data/downloadData';
 

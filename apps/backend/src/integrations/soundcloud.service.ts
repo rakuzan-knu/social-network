@@ -13,7 +13,7 @@ export interface SoundCloudTrackDto {
   spotifyUrl: string;
   source: 'soundcloud';
   streamUrl: string;
-  artistAvatar?: string;
+  artistAvatar?: string | undefined;
 }
 
 export interface SoundCloudStreamResult {
@@ -29,11 +29,55 @@ export interface SoundCloudPlaylistDto {
   coverUrl: string;
   creator: string;
   creatorUsername: string;
-  creatorAvatar?: string;
+  creatorAvatar?: string | undefined;
   trackCount: number;
   tracks: SoundCloudTrackDto[];
   externalUrl: string;
   source: 'soundcloud';
+}
+
+export interface RawSoundCloudUser {
+  id?: number | string;
+  username?: string;
+  full_name?: string;
+  permalink?: string;
+  avatar_url?: string | null;
+}
+
+export interface RawSoundCloudTranscoding {
+  url?: string;
+  format?: {
+    protocol?: string;
+    mime_type?: string;
+  };
+}
+
+export interface RawSoundCloudTrack {
+  id: number | string;
+  title: string;
+  description?: string | null;
+  duration?: number;
+  permalink_url?: string;
+  artwork_url?: string | null;
+  user?: RawSoundCloudUser;
+  media?: {
+    transcodings?: RawSoundCloudTranscoding[];
+  };
+}
+
+export interface RawSoundCloudPlaylist {
+  id: number | string;
+  title: string;
+  description?: string | null;
+  artwork_url?: string | null;
+  permalink_url?: string;
+  track_count?: number;
+  user?: RawSoundCloudUser;
+  tracks?: Array<{ id: number | string; title?: string } & Partial<RawSoundCloudTrack>>;
+}
+
+export interface RawSoundCloudCollection<T> {
+  collection?: T[];
 }
 
 @Injectable()
@@ -163,12 +207,12 @@ export class SoundCloudService {
         return [];
       }
 
-      const data = (await res.json()) as any;
+      const data = (await res.json()) as RawSoundCloudCollection<RawSoundCloudTrack>;
       if (!Array.isArray(data.collection)) return [];
 
       return data.collection
-        .filter((item: any) => item && item.id && item.title)
-        .map((item: any) => this.mapSoundCloudTrack(item));
+        .filter((item): item is RawSoundCloudTrack => Boolean(item && item.id && item.title))
+        .map((item) => this.mapSoundCloudTrack(item));
     } catch (err) {
       this.logger.error(`SoundCloud track search error: ${(err as Error).message}`);
       return [];
@@ -211,12 +255,12 @@ export class SoundCloudService {
         return [];
       }
 
-      const data = (await res.json()) as any;
+      const data = (await res.json()) as RawSoundCloudCollection<RawSoundCloudPlaylist>;
       if (!Array.isArray(data.collection)) return [];
 
       return data.collection
-        .filter((item: any) => item && item.id && item.title)
-        .map((item: any) => {
+        .filter((item): item is RawSoundCloudPlaylist => Boolean(item && item.id && item.title))
+        .map((item) => {
           const rawArtwork = item.artwork_url || item.user?.avatar_url || '';
           const coverUrl = rawArtwork
             ? rawArtwork.replace('-large.', '-t500x500.')
@@ -231,8 +275,10 @@ export class SoundCloudService {
 
           const tracks: SoundCloudTrackDto[] = Array.isArray(item.tracks)
             ? item.tracks
-                .filter((t: any) => t && t.id && t.title)
-                .map((t: any) => this.mapSoundCloudTrack(t))
+                .filter((t): t is { id: number | string; title: string } & RawSoundCloudTrack =>
+                  Boolean(t && t.id && t.title),
+                )
+                .map((t) => this.mapSoundCloudTrack(t))
             : [];
 
           return {
@@ -276,7 +322,7 @@ export class SoundCloudService {
       try {
         const cached = await this.redis.get(cacheKey);
         if (cached) {
-          return JSON.parse(cached);
+          return JSON.parse(cached) as SoundCloudStreamResult;
         }
       } catch {}
     }
@@ -301,8 +347,8 @@ export class SoundCloudService {
         return null;
       }
 
-      const track = (await trackRes.json()) as any;
-      const transcodings: any[] = track.media?.transcodings || [];
+      const track = (await trackRes.json()) as RawSoundCloudTrack;
+      const transcodings: RawSoundCloudTranscoding[] = track.media?.transcodings || [];
 
       // 1. Prefer progressive MP3
       const progressive = transcodings.find((t) => t.format?.protocol === 'progressive');
@@ -324,12 +370,13 @@ export class SoundCloudService {
         return null;
       }
 
-      const streamData = (await streamUrlRes.json()) as any;
+      const streamData = (await streamUrlRes.json()) as { url?: string };
       if (!streamData?.url) {
         return null;
       }
 
-      const isHls = selected.format?.protocol === 'hls' || streamData.url.includes('.m3u8');
+      const isHls =
+        selected.format?.protocol === 'hls' || Boolean(streamData.url.includes('.m3u8'));
       const result: SoundCloudStreamResult = {
         streamUrl: streamData.url,
         isHls,
@@ -349,7 +396,7 @@ export class SoundCloudService {
   }
 
   /**
-   * Fetches single track metadata with high-res artwork and author avatar
+   * Fetches single track metadata by SoundCloud ID
    */
   async getTrack(rawTrackIdOrScId: string): Promise<SoundCloudTrackDto | null> {
     const cleanId = rawTrackIdOrScId
@@ -375,7 +422,7 @@ export class SoundCloudService {
       }
 
       if (!res.ok) return null;
-      const data = (await res.json()) as any;
+      const data = (await res.json()) as RawSoundCloudTrack;
       if (!data || !data.id || !data.title) return null;
 
       return this.mapSoundCloudTrack(data);
@@ -395,7 +442,7 @@ export class SoundCloudService {
     coverUrl: string;
     creator: string;
     creatorUsername: string;
-    creatorAvatar?: string;
+    creatorAvatar?: string | undefined;
     trackCount: number;
     tracks: SoundCloudTrackDto[];
   } | null> {
@@ -426,7 +473,7 @@ export class SoundCloudService {
       }
 
       if (!res.ok) return null;
-      const data = (await res.json()) as any;
+      const data = (await res.json()) as RawSoundCloudPlaylist;
       if (!data || !data.id || !data.title) return null;
 
       const rawArtwork = data.artwork_url || data.user?.avatar_url || '';
@@ -442,15 +489,15 @@ export class SoundCloudService {
       const creatorUsername = data.user?.permalink || data.user?.username || creator;
 
       // Extract already full track objects and stub IDs (SoundCloud returns full objects for first 5 tracks and only IDs for the rest)
-      const fullTracks: any[] = [];
+      const fullTracks: RawSoundCloudTrack[] = [];
       const stubIds: number[] = [];
       if (Array.isArray(data.tracks)) {
         for (const t of data.tracks) {
           if (t && t.id) {
             if (t.title) {
-              fullTracks.push(t);
+              fullTracks.push(t as RawSoundCloudTrack);
             } else {
-              stubIds.push(t.id);
+              stubIds.push(Number(t.id));
             }
           }
         }
@@ -485,7 +532,7 @@ export class SoundCloudService {
                 );
               }
               if (!r.ok) return [];
-              const json = (await r.json()) as any;
+              const json = (await r.json()) as RawSoundCloudTrack[];
               return Array.isArray(json) ? json : [];
             } catch (err) {
               this.logger.warn(
@@ -502,7 +549,7 @@ export class SoundCloudService {
       }
 
       // Preserve exact original playlist track ordering
-      const trackMap = new Map<string | number, any>();
+      const trackMap = new Map<string | number, RawSoundCloudTrack>();
       for (const t of fullTracks) {
         if (t && t.id) {
           trackMap.set(t.id, t);
@@ -511,9 +558,9 @@ export class SoundCloudService {
 
       const tracks: SoundCloudTrackDto[] = Array.isArray(data.tracks)
         ? data.tracks
-            .map((t: any) => (t && t.id ? trackMap.get(t.id) : null))
-            .filter((t: any) => t && t.id && t.title)
-            .map((t: any) => this.mapSoundCloudTrack(t))
+            .map((t) => (t && t.id ? trackMap.get(t.id) : null))
+            .filter((t): t is RawSoundCloudTrack => Boolean(t && t.id && t.title))
+            .map((t) => this.mapSoundCloudTrack(t))
         : [];
 
       return {
@@ -569,7 +616,7 @@ export class SoundCloudService {
 
       if (!res.ok) return [];
 
-      const data = (await res.json()) as any;
+      const data = (await res.json()) as RawSoundCloudCollection<RawSoundCloudTrack>;
       if (!Array.isArray(data.collection)) return [];
 
       const normalizedExcludes = new Set(
@@ -619,7 +666,7 @@ export class SoundCloudService {
   /**
    * Maps raw SoundCloud track object to standard application format
    */
-  private mapSoundCloudTrack(item: any): SoundCloudTrackDto {
+  private mapSoundCloudTrack(item: RawSoundCloudTrack): SoundCloudTrackDto {
     const rawArtwork = item.artwork_url || item.user?.avatar_url || '';
     const highResArtwork = rawArtwork
       ? rawArtwork.replace('-large.', '-t500x500.')

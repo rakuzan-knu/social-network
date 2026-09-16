@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { PrivacyNavbar } from '../Privacy/ui/PrivacyNavbar';
 import { EternalFooter } from '@/widgets/footer';
 import { SEOHead } from '../../shared/seo';
-import { OPEN_SOURCE_LIBRARIES, OpenSourceLibrary } from './data/acknowledgementsData';
+import { OPEN_SOURCE_LIBRARIES } from './data/acknowledgementsData';
 import { useLanguageStore } from '../../shared/lib/language/languageStore';
 import { sanitizeExternalUrl } from '../../shared/lib/urlSecurity';
 import {

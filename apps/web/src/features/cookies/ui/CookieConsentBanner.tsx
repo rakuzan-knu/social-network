@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useCookieConsentStore } from '../model/useCookieConsentStore';
 import { useLanguageStore } from '../../../shared/lib/language/languageStore';
-import { Cookie, Settings, Check, X, ShieldCheck } from 'lucide-react';
+import { Cookie, Settings, Check } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export const CookieConsentBanner: React.FC = () => {

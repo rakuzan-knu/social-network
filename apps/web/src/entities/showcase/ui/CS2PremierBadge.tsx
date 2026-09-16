@@ -12,7 +12,7 @@ export const CS2PremierBadge: React.FC<CS2PremierBadgeProps> = ({
   premierInfo: customInfo,
   className = '',
 }) => {
-  const info = customInfo || calculateCS2Premier(rating);
+  const _info = customInfo || calculateCS2Premier(rating);
 
   // Background and border styling for the authentic csrep.gg parallelogram badge
   const tierStyles = (() => {

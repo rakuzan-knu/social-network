@@ -1,11 +1,21 @@
-import type { PublicUserEntity, PublicUserSummary } from './types/followers.types';
-import type { UserProfileDto } from '@common/contracts';
+import type {
+  FollowShowcaseSummary,
+  PublicUserEntity,
+  PublicUserSummary,
+} from './types/followers.types';
+import type { LiveActivityStatusDto, UserProfileDto } from '@common/contracts';
 
 export function toUserProfileDto(
-  user: PublicUserEntity | PublicUserSummary,
+  user: (PublicUserEntity | PublicUserSummary) & {
+    showcase?:
+      | FollowShowcaseSummary
+      | { activityStatus?: LiveActivityStatusDto | null | undefined }
+      | null
+      | undefined;
+  },
   isFollowing: boolean = false,
   followsYou: boolean = false,
-  activityStatus?: any,
+  activityStatus?: LiveActivityStatusDto | null,
 ): UserProfileDto {
   const badgeList = Array.isArray(user.badges)
     ? user.badges.map((b: { badgeId: string } | string) => (typeof b === 'string' ? b : b.badgeId))
@@ -29,8 +39,6 @@ export function toUserProfileDto(
     followsYou,
     isFriend: Boolean(isFollowing && followsYou),
     activityStatus:
-      activityStatus !== undefined
-        ? activityStatus
-        : ((user as any).showcase?.activityStatus ?? null),
+      activityStatus !== undefined ? activityStatus : (user.showcase?.activityStatus ?? null),
   };
 }

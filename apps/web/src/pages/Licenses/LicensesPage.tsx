@@ -1,21 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import { PrivacyNavbar } from '../Privacy/ui/PrivacyNavbar';
 import { EternalFooter } from '@/widgets/footer';
 import { SEOHead } from '../../shared/seo';
-import { LICENSES_DATA, FONTS_DATA, LicenseGroup, FontsLicenseSection } from './data/licensesData';
+import { LICENSES_DATA, FONTS_DATA, LicenseGroup } from './data/licensesData';
 import { useLanguageStore } from '../../shared/lib/language/languageStore';
-import {
-  ExternalLink,
-  Search,
-  Copy,
-  Check,
-  FileCode2,
-  Sparkles,
-  Type,
-  Code2,
-  X,
-} from 'lucide-react';
+import { ExternalLink, Search, Copy, Check, FileCode2, Type, Code2, X } from 'lucide-react';
 
 const TRANSLATIONS: Record<
   string,

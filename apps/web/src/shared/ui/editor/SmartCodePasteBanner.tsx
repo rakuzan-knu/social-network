@@ -21,12 +21,12 @@ export function SmartCodePasteBanner({
     <div className="mx-4 mb-2 p-2.5 rounded-2xl bg-[#141522]/95 border border-purple-500/30 backdrop-blur-2xl shadow-[0_8px_30px_rgba(0,0,0,0.6)] animate-popIn flex items-center justify-between gap-3 text-xs">
       {/* Left: Info icon and description */}
       <div className="flex items-center gap-2.5 min-w-0">
-        <div className="w-8 h-8 rounded-xl bg-purple-500/20 border border-purple-400/40 flex items-center justify-center text-purple-300 flex-shrink-0 shadow-inner">
+        <div className="w-8 h-8 rounded-xl bg-purple-500/20 border border-purple-400/40 flex items-center justify-center text-purple-300 shrink-0 shadow-inner">
           <Code size={16} />
         </div>
         <div className="min-w-0">
           <div className="flex items-center gap-1.5 font-semibold text-white truncate">
-            <Sparkles size={12} className="text-amber-400 flex-shrink-0" />
+            <Sparkles size={12} className="text-amber-400 shrink-0" />
             <span>Code snippet detected</span>
             <span className="px-1.5 py-0.5 rounded-md bg-purple-500/30 text-purple-200 text-[10px] font-mono border border-purple-400/30 font-bold">
               {langLabel}
@@ -39,7 +39,7 @@ export function SmartCodePasteBanner({
       </div>
 
       {/* Right: Quick actions */}
-      <div className="flex items-center gap-2 flex-shrink-0">
+      <div className="flex items-center gap-2 shrink-0">
         {/* Markdown format button */}
         <button
           type="button"

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatSpotifyTrackAddedDate } from '../ui/MusicPlaylistDetailView';
+import { formatSpotifyTrackAddedDate } from '../model/types';
 import type { SpotifyTrack } from '@/shared/model/useSpotifyPlayerStore';
 
 describe('formatSpotifyTrackAddedDate', () => {

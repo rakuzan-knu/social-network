@@ -1,5 +1,6 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '@common/prisma';
+import type { Prisma } from '@prisma/client';
 import { RedisService } from '../redis/redis.service';
 import type { Response } from 'express';
 import crypto from 'crypto';
@@ -39,6 +40,163 @@ export interface SpotifyLiveActivity {
   updatedAt: number;
   isPaused?: boolean;
   pausedAt?: number;
+}
+
+export interface SpotifyConnectedAccount {
+  verified?: boolean;
+  authenticatedAt?: string;
+  id?: string;
+  username?: string;
+  avatarUrl?: string | null;
+  spotifyUrl?: string | null;
+  accessToken?: string | null;
+  refreshToken?: string | null;
+  tokenExpiresAt?: number | null;
+  likedSongs?: SpotifyTrackDto[];
+  likedSongsCount?: number;
+  playlists?: SpotifyPlaylistDto[];
+  topTracks?: SpotifyTrackDto[];
+  displayOnProfile?: boolean;
+  displayMode?: string;
+  favoriteTracks?: string[];
+  favoritePlaylists?: string[];
+  currentActivity?: SpotifyLiveActivity;
+}
+
+export interface SpotifyItemArtist {
+  name?: string;
+}
+
+export interface SpotifyTrackResponseItem {
+  id?: string;
+  name?: string;
+  artists?: SpotifyItemArtist[];
+  album?: { images?: Array<{ url?: string }> };
+  duration_ms?: number;
+  preview_url?: string | null;
+  external_urls?: { spotify?: string };
+}
+
+export interface SpotifyPlaylistResponseItem {
+  id?: string;
+  name?: string;
+  images?: Array<{ url?: string }>;
+  tracks?: { total?: number };
+  external_urls?: { spotify?: string };
+}
+
+export interface SpotifyCurrentlyPlayingResponse {
+  item?: SpotifyTrackResponseItem | null;
+  currently_playing_type?: string;
+  is_playing?: boolean;
+  progress_ms?: number;
+}
+
+export interface SpotifyLikedTracksResponse {
+  total?: number;
+  items?: Array<{ track?: SpotifyTrackResponseItem }>;
+}
+
+export interface SpotifyPlaylistsResponse {
+  total?: number;
+  items?: SpotifyPlaylistResponseItem[];
+}
+
+export interface SpotifySearchTracksResponse {
+  tracks?: {
+    items?: SpotifyTrackResponseItem[];
+  };
+}
+
+export interface SpotifyMeResponse {
+  id?: string;
+  display_name?: string;
+  images?: Array<{ url?: string }>;
+  external_urls?: { spotify?: string };
+}
+
+export interface LrclibLyricsResponse {
+  id?: number;
+  trackName?: string;
+  artistName?: string;
+  albumName?: string;
+  duration?: number;
+  syncedLyrics?: string | null;
+  plainLyrics?: string | null;
+}
+
+export interface LyricsOvhResponse {
+  lyrics?: string;
+}
+
+export interface SpotifyTokenResponse {
+  access_token?: string;
+  token_type?: string;
+  scope?: string;
+  expires_in?: number;
+  refresh_token?: string;
+}
+
+export interface SpotifyPlaylistExtendedDto {
+  id: string;
+  rawId: string;
+  title: string;
+  description: string;
+  coverUrl: string;
+  creator: string;
+  creatorUsername: string;
+  trackCount: number;
+  tracks: SpotifyTrackDto[];
+  externalUrl: string;
+  source: 'spotify';
+}
+
+export interface SpotifySearchPlaylistsResponse {
+  playlists?: {
+    items?: Array<{
+      id?: string;
+      name?: string;
+      description?: string;
+      images?: Array<{ url?: string }>;
+      owner?: { id?: string; display_name?: string };
+      tracks?: { total?: number };
+      items?: { total?: number };
+      external_urls?: { spotify?: string };
+    }>;
+  };
+}
+
+export interface SpotifyPlaylistDetailsResponse {
+  name?: string;
+  description?: string;
+  images?: Array<{ url?: string }>;
+  owner?: { display_name?: string; id?: string };
+  tracks?: { total?: number };
+  items?: { total?: number };
+  external_urls?: { spotify?: string };
+}
+
+export interface SpotifyNextDataTrack {
+  uri?: string;
+  id?: string;
+  title?: string;
+  name?: string;
+  subtitle?: string;
+  artists?: Array<{ name?: string }>;
+  duration?: number;
+  audioPreview?: { url?: string };
+}
+
+export interface SpotifyNextDataEntity {
+  name?: string;
+  title?: string;
+  description?: string;
+  visualIdentity?: { image?: Array<{ url?: string }> };
+  coverArt?: { sources?: Array<{ url?: string }> };
+  images?: Array<{ url?: string }>;
+  subtitle?: string;
+  authors?: Array<{ name?: string }>;
+  trackList?: SpotifyNextDataTrack[];
 }
 
 const SPOTIFY_HTML_ENTITIES: Record<string, string> = {
@@ -197,10 +355,11 @@ export class SpotifyService {
         return null;
       }
 
-      const data = (await res.json()) as any;
-      const newAccessToken = data.access_token;
-      const expiresIn = data.expires_in || 3600;
-      const newRefreshToken = data.refresh_token || refreshToken;
+      const data = (await res.json()) as SpotifyTokenResponse;
+      const newAccessToken = typeof data.access_token === 'string' ? data.access_token : null;
+      const expiresIn = typeof data.expires_in === 'number' ? data.expires_in : 3600;
+      const newRefreshToken =
+        typeof data.refresh_token === 'string' ? data.refresh_token : refreshToken;
 
       // Update in database
       const showcase = await this.prisma.profileShowcase.findUnique({
@@ -208,10 +367,11 @@ export class SpotifyService {
       });
 
       if (showcase) {
-        const connected = (showcase.connectedAccounts as Record<string, any>) || {};
+        const connected = (showcase.connectedAccounts as Record<string, unknown> | null) || {};
         if (connected.spotify) {
+          const spotify = connected.spotify as SpotifyConnectedAccount;
           connected.spotify = {
-            ...connected.spotify,
+            ...spotify,
             accessToken: newAccessToken,
             refreshToken: newRefreshToken,
             tokenExpiresAt: Date.now() + expiresIn * 1000,
@@ -219,7 +379,7 @@ export class SpotifyService {
 
           await this.prisma.profileShowcase.update({
             where: { userId },
-            data: { connectedAccounts: connected },
+            data: { connectedAccounts: connected as Prisma.InputJsonValue },
           });
           await this.redis.del(`showcase:user:${userId}`);
         }
@@ -237,9 +397,14 @@ export class SpotifyService {
    */
   async getValidUserToken(
     userId: string,
-    spotifyAccount: Record<string, any>,
+    spotifyAccount: SpotifyConnectedAccount | Record<string, unknown>,
   ): Promise<string | null> {
-    const { accessToken, refreshToken, tokenExpiresAt } = spotifyAccount;
+    const accessToken =
+      typeof spotifyAccount.accessToken === 'string' ? spotifyAccount.accessToken : null;
+    const refreshToken =
+      typeof spotifyAccount.refreshToken === 'string' ? spotifyAccount.refreshToken : null;
+    const tokenExpiresAt =
+      typeof spotifyAccount.tokenExpiresAt === 'number' ? spotifyAccount.tokenExpiresAt : null;
     if (!accessToken) return null;
 
     if (!tokenExpiresAt || tokenExpiresAt <= Date.now() + 60000) {
@@ -273,9 +438,10 @@ export class SpotifyService {
         throw new Error(`Failed to fetch app token (${res.status}): ${await res.text()}`);
       }
 
-      const data = (await res.json()) as any;
-      this.cachedAppToken = data.access_token as string;
-      this.cachedAppTokenExpiresAt = Date.now() + (data.expires_in || 3600) * 1000 - 300000; // 55 mins
+      const data = (await res.json()) as SpotifyTokenResponse;
+      this.cachedAppToken = typeof data.access_token === 'string' ? data.access_token : '';
+      const expiresIn = typeof data.expires_in === 'number' ? data.expires_in : 3600;
+      this.cachedAppTokenExpiresAt = Date.now() + expiresIn * 1000 - 300000; // 55 mins
       return this.cachedAppToken;
     } catch (err) {
       this.logger.error(`Error acquiring Spotify App Token: ${(err as Error).message}`);
@@ -315,7 +481,7 @@ export class SpotifyService {
           this.logger.warn(`Spotify search tracks chunk error (offset=${off}): ${res.status}`);
           return [];
         }
-        const data = (await res.json()) as any;
+        const data = (await res.json()) as SpotifySearchTracksResponse;
         return Array.isArray(data.tracks?.items) ? data.tracks.items : [];
       });
 
@@ -332,7 +498,10 @@ export class SpotifyService {
           id: t.id,
           title: cleanSpotifyText(t.name),
           artist: cleanSpotifyText(
-            t.artists?.map((a: any) => a.name).join(', ') || 'Unknown Artist',
+            t.artists
+              ?.map((a) => a.name)
+              .filter(Boolean)
+              .join(', ') || 'Unknown Artist',
           ),
           albumArt: t.album?.images?.[0]?.url || null,
           durationMs: t.duration_ms || 0,
@@ -352,7 +521,11 @@ export class SpotifyService {
   /**
    * Searches public Spotify playlists using Spotify Web API with parallel chunk batching
    */
-  async searchPlaylists(query: string, limit: number = 20, offset: number = 0): Promise<any[]> {
+  async searchPlaylists(
+    query: string,
+    limit: number = 20,
+    offset: number = 0,
+  ): Promise<SpotifyPlaylistExtendedDto[]> {
     const cleanQuery = query.trim();
     if (!cleanQuery) return [];
 
@@ -375,7 +548,7 @@ export class SpotifyService {
           this.logger.warn(`Spotify search playlists chunk error (offset=${off}): ${res.status}`);
           return [];
         }
-        const data = (await res.json()) as any;
+        const data = (await res.json()) as SpotifySearchPlaylistsResponse;
         return Array.isArray(data.playlists?.items) ? data.playlists.items : [];
       });
 
@@ -383,7 +556,7 @@ export class SpotifyService {
       const allItems = chunkResults.flat();
 
       const seenIds = new Set<string>();
-      const mapped: any[] = [];
+      const mapped: SpotifyPlaylistExtendedDto[] = [];
 
       for (const p of allItems) {
         if (!p || !p.id || !p.name || seenIds.has(p.id)) continue;
@@ -420,7 +593,7 @@ export class SpotifyService {
   /**
    * Retrieves full Spotify playlist metadata & playable tracks via embed metadata extraction
    */
-  async getPlaylist(rawPlaylistId: string): Promise<any | null> {
+  async getPlaylist(rawPlaylistId: string): Promise<SpotifyPlaylistExtendedDto | null> {
     const cleanId = rawPlaylistId
       .replace(/^sp-pl-/, '')
       .replace(/^spotify:playlist:/, '')
@@ -445,7 +618,17 @@ export class SpotifyService {
         const html = await res.text();
         const match = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
         if (match && match[1]) {
-          const data = JSON.parse(match[1]);
+          const data = JSON.parse(match[1]) as {
+            props?: {
+              pageProps?: {
+                state?: {
+                  data?: {
+                    entity?: SpotifyNextDataEntity;
+                  };
+                };
+              };
+            };
+          };
           const entity = data.props?.pageProps?.state?.data?.entity;
           if (entity) {
             const title = cleanSpotifyText(entity.name || entity.title || 'Spotify Playlist');
@@ -458,7 +641,7 @@ export class SpotifyService {
             const creator = entity.subtitle || entity.authors?.[0]?.name || 'Spotify';
 
             const rawTracks = Array.isArray(entity.trackList) ? entity.trackList : [];
-            const tracks = rawTracks.map((t: any) => {
+            const tracks = rawTracks.map((t) => {
               const rawTrackId = t.uri ? t.uri.replace('spotify:track:', '') : t.id || '';
               return {
                 id: rawTrackId,
@@ -470,7 +653,7 @@ export class SpotifyService {
                 previewUrl: t.audioPreview?.url || null,
                 spotifyUrl: `https://open.spotify.com/track/${rawTrackId}`,
                 contextName: title,
-                source: 'spotify',
+                source: 'spotify' as const,
               };
             });
 
@@ -485,7 +668,7 @@ export class SpotifyService {
               trackCount: tracks.length,
               tracks,
               externalUrl: `https://open.spotify.com/playlist/${cleanId}`,
-              source: 'spotify',
+              source: 'spotify' as const,
             };
           }
         }
@@ -501,7 +684,7 @@ export class SpotifyService {
       });
 
       if (metaRes.ok) {
-        const data = (await metaRes.json()) as any;
+        const data = (await metaRes.json()) as SpotifyPlaylistDetailsResponse;
         return {
           id: `sp-pl-${cleanId}`,
           rawId: cleanId,
@@ -514,7 +697,7 @@ export class SpotifyService {
           tracks: [],
           externalUrl:
             data.external_urls?.spotify || `https://open.spotify.com/playlist/${cleanId}`,
-          source: 'spotify',
+          source: 'spotify' as const,
         };
       }
 
@@ -541,8 +724,8 @@ export class SpotifyService {
       where: { userId },
     });
 
-    const connected = (showcase?.connectedAccounts as Record<string, any>) || {};
-    const spotifyAccount = connected.spotify;
+    const connected = (showcase?.connectedAccounts as Record<string, unknown>) || {};
+    const spotifyAccount = connected.spotify as SpotifyConnectedAccount | undefined;
 
     if (!spotifyAccount || !spotifyAccount.verified) {
       throw new BadRequestException('Spotify account is not connected or verified.');
@@ -563,11 +746,11 @@ export class SpotifyService {
         headers,
       });
       if (res1.ok) {
-        const data1 = (await res1.json()) as any;
+        const data1 = (await res1.json()) as SpotifyLikedTracksResponse;
         totalLiked = data1.total || 0;
         const page1Items = (data1.items || [])
-          .map((i: any) => this.mapSpotifyTrack(i.track))
-          .filter((t: any): t is SpotifyTrackDto => Boolean(t));
+          .map((i) => this.mapSpotifyTrack(i.track))
+          .filter((t): t is SpotifyTrackDto => Boolean(t));
         likedSongs.push(...page1Items);
 
         if (totalLiked > 50) {
@@ -575,10 +758,10 @@ export class SpotifyService {
             headers,
           });
           if (res2.ok) {
-            const data2 = (await res2.json()) as any;
+            const data2 = (await res2.json()) as SpotifyLikedTracksResponse;
             const page2Items = (data2.items || [])
-              .map((i: any) => this.mapSpotifyTrack(i.track))
-              .filter((t: any): t is SpotifyTrackDto => Boolean(t));
+              .map((i) => this.mapSpotifyTrack(i.track))
+              .filter((t): t is SpotifyTrackDto => Boolean(t));
             likedSongs.push(...page2Items);
           }
         }
@@ -595,11 +778,11 @@ export class SpotifyService {
         headers,
       });
       if (res1.ok) {
-        const data1 = (await res1.json()) as any;
+        const data1 = (await res1.json()) as SpotifyPlaylistsResponse;
         totalPlaylists = data1.total || 0;
         const page1Items = (data1.items || [])
-          .map((p: any) => this.mapSpotifyPlaylist(p))
-          .filter((p: any): p is SpotifyPlaylistDto => Boolean(p));
+          .map((p) => this.mapSpotifyPlaylist(p))
+          .filter((p): p is SpotifyPlaylistDto => Boolean(p));
         playlists.push(...page1Items);
 
         if (totalPlaylists > 50) {
@@ -607,10 +790,10 @@ export class SpotifyService {
             headers,
           });
           if (res2.ok) {
-            const data2 = (await res2.json()) as any;
+            const data2 = (await res2.json()) as SpotifyPlaylistsResponse;
             const page2Items = (data2.items || [])
-              .map((p: any) => this.mapSpotifyPlaylist(p))
-              .filter((p: any): p is SpotifyPlaylistDto => Boolean(p));
+              .map((p) => this.mapSpotifyPlaylist(p))
+              .filter((p): p is SpotifyPlaylistDto => Boolean(p));
             playlists.push(...page2Items);
           }
         }
@@ -627,10 +810,10 @@ export class SpotifyService {
         { headers },
       );
       if (topRes.ok) {
-        const topData = (await topRes.json()) as any;
+        const topData = (await topRes.json()) as { items?: SpotifyTrackResponseItem[] };
         topTracks = (topData.items || [])
-          .map((t: any) => this.mapSpotifyTrack(t))
-          .filter((t: any): t is SpotifyTrackDto => Boolean(t));
+          .map((t) => this.mapSpotifyTrack(t))
+          .filter((t): t is SpotifyTrackDto => Boolean(t));
       }
     } catch (err) {
       this.logger.warn(`Failed to fetch top tracks: ${(err as Error).message}`);
@@ -649,7 +832,7 @@ export class SpotifyService {
 
     await this.prisma.profileShowcase.update({
       where: { userId },
-      data: { connectedAccounts: connected },
+      data: { connectedAccounts: connected as Prisma.InputJsonValue },
     });
     await this.redis.del(`showcase:user:${userId}`);
 
@@ -660,20 +843,24 @@ export class SpotifyService {
       totalLiked: totalLiked || likedSongs.length,
       totalPlaylists: totalPlaylists || playlists.length,
       user: {
-        id: spotifyAccount.id,
-        username: spotifyAccount.username,
-        avatarUrl: spotifyAccount.avatarUrl,
-        spotifyUrl: spotifyAccount.spotifyUrl,
+        id: spotifyAccount.id || '',
+        username: spotifyAccount.username || 'Spotify User',
+        avatarUrl: spotifyAccount.avatarUrl || null,
+        spotifyUrl: spotifyAccount.spotifyUrl || '',
       },
     };
   }
 
-  private mapSpotifyTrack(t: any): SpotifyTrackDto | null {
+  private mapSpotifyTrack(t: SpotifyTrackResponseItem | null | undefined): SpotifyTrackDto | null {
     if (!t || !t.id || !t.name) return null;
     return {
       id: t.id,
       title: t.name,
-      artist: t.artists?.map((a: any) => a.name).join(', ') || 'Unknown Artist',
+      artist:
+        t.artists
+          ?.map((a) => a.name)
+          .filter(Boolean)
+          .join(', ') || 'Unknown Artist',
       albumArt: t.album?.images?.[0]?.url || null,
       durationMs: t.duration_ms || 0,
       previewUrl: t.preview_url || null,
@@ -682,7 +869,9 @@ export class SpotifyService {
     };
   }
 
-  private mapSpotifyPlaylist(p: any): SpotifyPlaylistDto | null {
+  private mapSpotifyPlaylist(
+    p: SpotifyPlaylistResponseItem | null | undefined,
+  ): SpotifyPlaylistDto | null {
     if (!p || !p.id || !p.name) return null;
     return {
       id: p.id,
@@ -700,12 +889,14 @@ export class SpotifyService {
    */
   async getCurrentlyPlayingTrack(
     userId: string,
-    spotifyAccount: Record<string, any>,
+    spotifyAccount: SpotifyConnectedAccount | Record<string, unknown>,
   ): Promise<SpotifyLiveActivity | null> {
     const token = await this.getValidUserToken(userId, spotifyAccount);
     if (!token) return null;
 
-    const previousActivity: SpotifyLiveActivity | undefined = spotifyAccount.currentActivity;
+    const previousActivity: SpotifyLiveActivity | undefined = (
+      spotifyAccount as SpotifyConnectedAccount
+    ).currentActivity;
     const now = Date.now();
 
     try {
@@ -731,10 +922,10 @@ export class SpotifyService {
         return null;
       }
 
-      const data = (await res.json()) as any;
+      const data = (await res.json()) as SpotifyCurrentlyPlayingResponse;
 
       // If data or item is missing:
-      if (!data || !data.item) {
+      if (!data || !data.item || !data.item.id) {
         if (previousActivity && previousActivity.type === 'spotify') {
           const pausedSince = previousActivity.pausedAt || previousActivity.updatedAt || 0;
           if (now - pausedSince < 300_000) {
@@ -760,7 +951,10 @@ export class SpotifyService {
       const item = data.item;
       const title = cleanSpotifyText(item.name || 'Unknown Track');
       const artist = cleanSpotifyText(
-        item.artists?.map((a: any) => a.name).join(', ') ?? 'Unknown Artist',
+        item.artists
+          ?.map((a) => a.name)
+          .filter(Boolean)
+          .join(', ') || 'Unknown Artist',
       );
       const imageUrl = item.album?.images?.[0]?.url ?? null;
       const externalUrl =
@@ -788,7 +982,7 @@ export class SpotifyService {
           artist,
           imageUrl,
           externalUrl,
-          trackId: item.id,
+          trackId: item.id || '',
           progressMs,
           durationMs,
           startedAt: previousActivity?.startedAt || new Date(now - progressMs).toISOString(),
@@ -821,7 +1015,7 @@ export class SpotifyService {
         artist,
         imageUrl,
         externalUrl,
-        trackId: item.id,
+        trackId: item.id || '',
         progressMs,
         durationMs,
         startedAt,
@@ -850,9 +1044,9 @@ export class SpotifyService {
   /**
    * Completes OAuth callback, fetches profile, liked songs, and playlists, then saves to Showcase
    */
-  async handleOAuthCallback(query: Record<string, any>, res: Response): Promise<void> {
-    const code = query.code;
-    const state = query.state as string;
+  async handleOAuthCallback(query: Record<string, unknown>, res: Response): Promise<void> {
+    const code = typeof query.code === 'string' ? query.code : undefined;
+    const state = typeof query.state === 'string' ? query.state : '';
 
     if (!code) {
       this.renderHtmlMessage(
@@ -863,7 +1057,7 @@ export class SpotifyService {
       return;
     }
 
-    let userId = query.userId;
+    let userId = typeof query.userId === 'string' ? query.userId : undefined;
     if (!userId && state && state.includes(':')) {
       userId = state.split(':')[1];
     }
@@ -905,7 +1099,11 @@ export class SpotifyService {
           const existingShowcase = await this.prisma.profileShowcase.findUnique({
             where: { userId },
           });
-          const existingSpotify = (existingShowcase?.connectedAccounts as any)?.spotify;
+          const existingConnected = existingShowcase?.connectedAccounts as Record<
+            string,
+            unknown
+          > | null;
+          const existingSpotify = existingConnected?.spotify as SpotifyConnectedAccount | undefined;
           if (existingSpotify?.verified) {
             this.renderSuccessHtml(res, existingSpotify.username || 'Spotify User');
             return;
@@ -919,13 +1117,13 @@ export class SpotifyService {
       const tokenExpiresAt = Date.now() + tokenData!.expires_in * 1000;
 
       // Fetch user profile
-      let me: any = {};
+      let me: SpotifyMeResponse = {};
       try {
         const meRes = await fetch('https://api.spotify.com/v1/me', {
           headers: { Authorization: `Bearer ${accessToken}` },
         });
         if (meRes.ok) {
-          me = await meRes.json();
+          me = (await meRes.json()) as SpotifyMeResponse;
         }
       } catch (err) {
         this.logger.warn(`Failed to fetch /v1/me: ${(err as Error).message}`);
@@ -938,20 +1136,28 @@ export class SpotifyService {
           headers: { Authorization: `Bearer ${accessToken}` },
         });
         if (likedRes.ok) {
-          const likedData = (await likedRes.json()) as any;
+          const likedData = (await likedRes.json()) as SpotifyLikedTracksResponse;
           if (Array.isArray(likedData.items)) {
             likedSongs = likedData.items
-              .filter((i: any) => i && i.track && i.track.id)
-              .map((i: any) => {
+              .filter((i): i is { track: SpotifyTrackResponseItem } =>
+                Boolean(i && i.track && i.track.id),
+              )
+              .map((i) => {
                 const t = i.track;
                 return {
-                  id: t.id,
-                  title: t.name,
-                  artist: t.artists?.map((a: any) => a.name).join(', ') || 'Unknown Artist',
+                  id: t.id || '',
+                  title: t.name || 'Unknown Track',
+                  artist:
+                    t.artists
+                      ?.map((a) => a.name)
+                      .filter(Boolean)
+                      .join(', ') || 'Unknown Artist',
                   albumArt: t.album?.images?.[0]?.url || null,
                   durationMs: t.duration_ms || 0,
                   previewUrl: t.preview_url || null,
-                  spotifyUrl: t.external_urls?.spotify || `https://open.spotify.com/track/${t.id}`,
+                  spotifyUrl:
+                    t.external_urls?.spotify || `https://open.spotify.com/track/${t.id || ''}`,
+                  source: 'spotify' as const,
                 };
               });
           }
@@ -967,11 +1173,13 @@ export class SpotifyService {
           headers: { Authorization: `Bearer ${accessToken}` },
         });
         if (plRes.ok) {
-          const plData = (await plRes.json()) as any;
+          const plData = (await plRes.json()) as SpotifyPlaylistsResponse;
           if (Array.isArray(plData.items)) {
             playlists = plData.items
-              .filter((p: any) => p && p.id && p.name)
-              .map((p: any) => ({
+              .filter((p): p is SpotifyPlaylistResponseItem & { id: string; name: string } =>
+                Boolean(p && p.id && p.name),
+              )
+              .map((p) => ({
                 id: p.id,
                 name: p.name,
                 coverUrl: p.images?.[0]?.url || null,
@@ -990,8 +1198,8 @@ export class SpotifyService {
         where: { userId },
       });
 
-      const connected = (showcase?.connectedAccounts as Record<string, any>) || {};
-      const existingSpotify = connected.spotify || {};
+      const connected = (showcase?.connectedAccounts as Record<string, unknown>) || {};
+      const existingSpotify = (connected.spotify as SpotifyConnectedAccount | undefined) || {};
 
       connected.spotify = {
         ...existingSpotify,
@@ -1000,7 +1208,7 @@ export class SpotifyService {
         id: me.id || 'spotify_user',
         username: me.display_name || me.id || 'Spotify User',
         avatarUrl: me.images?.[0]?.url || null,
-        spotifyUrl: me.external_urls?.spotify || `https://open.spotify.com/user/${me.id}`,
+        spotifyUrl: me.external_urls?.spotify || `https://open.spotify.com/user/${me.id || 'me'}`,
         accessToken,
         refreshToken,
         tokenExpiresAt,
@@ -1019,10 +1227,10 @@ export class SpotifyService {
         where: { userId },
         create: {
           userId,
-          connectedAccounts: connected,
+          connectedAccounts: connected as Prisma.InputJsonValue,
         },
         update: {
-          connectedAccounts: connected,
+          connectedAccounts: connected as Prisma.InputJsonValue,
         },
       });
 
@@ -1133,7 +1341,7 @@ export class SpotifyService {
       favoriteTracks?: string[];
       favoritePlaylists?: string[];
     },
-  ): Promise<any> {
+  ): Promise<Record<string, unknown>> {
     const showcase = await this.prisma.profileShowcase.findUnique({
       where: { userId },
     });
@@ -1141,10 +1349,10 @@ export class SpotifyService {
       throw new BadRequestException('Profile showcase not found');
     }
 
-    const connected = (showcase.connectedAccounts as Record<string, any>) || {};
-    const existingSpotify = connected.spotify || {};
+    const connected = (showcase.connectedAccounts as Record<string, unknown>) || {};
+    const existingSpotify = (connected.spotify as SpotifyConnectedAccount | undefined) || {};
 
-    connected.spotify = {
+    const updatedSpotify: Record<string, unknown> = {
       ...existingSpotify,
       ...(dto.displayOnProfile !== undefined && { displayOnProfile: dto.displayOnProfile }),
       ...(dto.displayMode !== undefined && { displayMode: dto.displayMode }),
@@ -1153,14 +1361,15 @@ export class SpotifyService {
         favoritePlaylists: dto.favoritePlaylists.slice(0, 3),
       }),
     };
+    connected.spotify = updatedSpotify;
 
     await this.prisma.profileShowcase.update({
       where: { userId },
-      data: { connectedAccounts: connected },
+      data: { connectedAccounts: connected as Prisma.InputJsonValue },
     });
 
     await this.redis.del(`showcase:user:${userId}`);
-    return connected.spotify;
+    return updatedSpotify;
   }
 
   private extractPureSpotifyTrackId(trackId: string): string {
@@ -1190,10 +1399,10 @@ export class SpotifyService {
       const showcase = await this.prisma.profileShowcase.findUnique({
         where: { userId },
       });
-      const connected = (showcase?.connectedAccounts as Record<string, any>) || {};
+      const connected = (showcase?.connectedAccounts as Record<string, unknown>) || {};
 
       if (isSoundCloud) {
-        const soundcloud = connected.soundcloud || {};
+        const soundcloud = (connected.soundcloud as { likedTracks?: string[] } | undefined) || {};
         let likedTracks: string[] = Array.isArray(soundcloud.likedTracks)
           ? [...soundcloud.likedTracks]
           : [];
@@ -1205,13 +1414,13 @@ export class SpotifyService {
         connected.soundcloud = { ...soundcloud, likedTracks };
         await this.prisma.profileShowcase.update({
           where: { userId },
-          data: { connectedAccounts: connected },
+          data: { connectedAccounts: connected as Prisma.InputJsonValue },
         });
         await this.redis.del(`showcase:user:${userId}`);
         return { success: true, isLiked: like };
       }
 
-      const spotify = connected.spotify;
+      const spotify = connected.spotify as SpotifyConnectedAccount | undefined;
 
       if (!spotify) {
         return { success: true, isLiked: like };
@@ -1259,30 +1468,31 @@ export class SpotifyService {
       }
 
       // Update cached liked songs
-      let likedSongs = Array.isArray(spotify.likedSongs) ? [...spotify.likedSongs] : [];
+      let likedSongs: SpotifyTrackDto[] = Array.isArray(spotify.likedSongs)
+        ? [...spotify.likedSongs]
+        : [];
       if (like) {
-        if (!likedSongs.some((t: any) => t.id === cleanId)) {
+        if (!likedSongs.some((t) => t.id === cleanId)) {
           const trackInfo = await this.fetchSingleTrack(cleanId);
           if (trackInfo) {
             likedSongs.unshift(trackInfo);
           }
         }
       } else {
-        likedSongs = likedSongs.filter((t: any) => t.id !== cleanId);
+        likedSongs = likedSongs.filter((t) => t.id !== cleanId);
       }
 
+      const currentCount =
+        typeof spotify.likedSongsCount === 'number' ? spotify.likedSongsCount : likedSongs.length;
       connected.spotify = {
         ...spotify,
         likedSongs,
-        likedSongsCount: Math.max(
-          0,
-          (spotify.likedSongsCount || likedSongs.length) + (like ? 1 : -1),
-        ),
+        likedSongsCount: Math.max(0, currentCount + (like ? 1 : -1)),
       };
 
       await this.prisma.profileShowcase.update({
         where: { userId },
-        data: { connectedAccounts: connected },
+        data: { connectedAccounts: connected as Prisma.InputJsonValue },
       });
       await this.redis.del(`showcase:user:${userId}`);
     } catch (err) {
@@ -1301,17 +1511,17 @@ export class SpotifyService {
       const showcase = await this.prisma.profileShowcase.findUnique({
         where: { userId },
       });
-      const connected = (showcase?.connectedAccounts as Record<string, any>) || {};
+      const connected = (showcase?.connectedAccounts as Record<string, unknown>) || {};
 
       if (isSoundCloud) {
-        const soundcloud = connected.soundcloud || {};
+        const soundcloud = (connected.soundcloud as { likedTracks?: string[] } | undefined) || {};
         const likedTracks: string[] = Array.isArray(soundcloud.likedTracks)
           ? soundcloud.likedTracks
           : [];
         return { isLiked: likedTracks.includes(trackId) };
       }
 
-      const spotify = connected.spotify;
+      const spotify = connected.spotify as SpotifyConnectedAccount | undefined;
       if (!spotify) return { isLiked: false };
 
       const token = await this.getValidUserToken(userId, spotify);
@@ -1329,7 +1539,7 @@ export class SpotifyService {
       );
 
       if (res.ok) {
-        const data = await res.json();
+        const data = (await res.json()) as boolean[];
         if (Array.isArray(data) && typeof data[0] === 'boolean') {
           return { isLiked: data[0] };
         }
@@ -1343,7 +1553,7 @@ export class SpotifyService {
         },
       );
       if (legacyRes.ok) {
-        const data = await legacyRes.json();
+        const data = (await legacyRes.json()) as boolean[];
         if (Array.isArray(data) && typeof data[0] === 'boolean') {
           return { isLiked: data[0] };
         }
@@ -1352,7 +1562,9 @@ export class SpotifyService {
       // 3. Fallback to cached library
       if (Array.isArray(spotify.likedSongs)) {
         return {
-          isLiked: spotify.likedSongs.some((t: any) => t.id === cleanId || t.trackId === cleanId),
+          isLiked: spotify.likedSongs.some(
+            (t) => t.id === cleanId || (t as { trackId?: string }).trackId === cleanId,
+          ),
         };
       }
     } catch (err) {
@@ -1371,8 +1583,8 @@ export class SpotifyService {
   ): Promise<{ success: boolean }> {
     try {
       const showcase = await this.prisma.profileShowcase.findUnique({ where: { userId } });
-      const connected = (showcase?.connectedAccounts as Record<string, any>) || {};
-      const spotify = connected.spotify;
+      const connected = (showcase?.connectedAccounts as Record<string, unknown>) || {};
+      const spotify = connected.spotify as SpotifyConnectedAccount | undefined;
       if (!spotify) return { success: false };
 
       const token = await this.getValidUserToken(userId, spotify);
@@ -1404,8 +1616,8 @@ export class SpotifyService {
   ): Promise<{ success: boolean }> {
     try {
       const showcase = await this.prisma.profileShowcase.findUnique({ where: { userId } });
-      const connected = (showcase?.connectedAccounts as Record<string, any>) || {};
-      const spotify = connected.spotify;
+      const connected = (showcase?.connectedAccounts as Record<string, unknown>) || {};
+      const spotify = connected.spotify as SpotifyConnectedAccount | undefined;
       if (!spotify) return { success: false };
 
       const token = await this.getValidUserToken(userId, spotify);
@@ -1439,7 +1651,7 @@ export class SpotifyService {
         headers: { Authorization: `Bearer ${appToken}` },
       });
       if (res.ok) {
-        const data = await res.json();
+        const data = (await res.json()) as SpotifyTrackResponseItem;
         return this.mapSpotifyTrack(data);
       }
     } catch {
@@ -1487,7 +1699,7 @@ export class SpotifyService {
 
     // 1. Extract content inside parentheses/brackets as candidate alternate titles
     const parenMatches: string[] = [];
-    const parenRegex = /[\(\[\{]([^\)\]\}]+)[\)\]\}]/g;
+    const parenRegex = /[([{}]([^)\]}]+)[)\]}]/g;
     let pm: RegExpExecArray | null;
     while ((pm = parenRegex.exec(rawTitle)) !== null) {
       parenMatches.push(pm[1].trim());
@@ -1498,7 +1710,7 @@ export class SpotifyService {
       /\b(hardtekk|hardstyle|slowed(\s*\+?\s*reverb)?|speed\s*up|sped\s*up|reverb|remix|nightcore|bass\s*boosted|official(\s*(audio|video|music\s*video|visualizer))?|lyrics|edit|prod\.?|instrumental|clean|extended(\s*mix)?|drill|phonk|radio\s*edit|vip|original\s*mix|club\s*mix|8d|16d|tiktok|soundtrack|ost|cover)\b/gi;
 
     const cleanTitle = rawTitle
-      .replace(/[\(\[\{][^\)\]\}]*[\)\]\}]/g, ' ')
+      .replace(/[([{}][^)\]}]*[)\]}]/g, ' ')
       .replace(tagFilter, ' ')
       .replace(/\s+/g, ' ')
       .trim();
@@ -1511,14 +1723,14 @@ export class SpotifyService {
     if (dashMatch) {
       extractedArtist = dashMatch[1].replace(tagFilter, ' ').replace(/\s+/g, ' ').trim();
       extractedTrack = dashMatch[2]
-        .replace(/[\(\[\{][^\)\]\}]*[\)\]\}]/g, ' ')
+        .replace(/[([{}][^)\]}]*[)\]}]/g, ' ')
         .replace(tagFilter, ' ')
         .replace(/\s+/g, ' ')
         .trim();
     }
 
     const cleanArtist = rawArtist
-      .replace(/[\(\[\{][^\)\]\}]*[\)\]\}]/g, ' ')
+      .replace(/[([{}][^)\]}]*[)\]}]/g, ' ')
       .replace(tagFilter, ' ')
       .replace(/\b(feat\.|ft\.|prod\.)\b.*$/i, '')
       .replace(/\s+/g, ' ')
@@ -1547,7 +1759,7 @@ export class SpotifyService {
         });
 
         if (res.ok) {
-          const data = (await res.json()) as any;
+          const data = (await res.json()) as LrclibLyricsResponse;
           if (data.syncedLyrics) {
             const parsed = this.parseLrc(data.syncedLyrics);
             if (parsed.length > 0) return { synced: true, lines: parsed };
@@ -1585,12 +1797,12 @@ export class SpotifyService {
           { headers: { 'User-Agent': 'AntigravitySocialMedia/1.0' } },
         );
         if (searchRes.ok) {
-          const items = await searchRes.json();
+          const items = (await searchRes.json()) as LrclibLyricsResponse[];
           if (Array.isArray(items) && items.length > 0) {
             const targetLower = targetTrack.toLowerCase();
             const artistLower = targetArtist.toLowerCase();
 
-            let bestItem: any = null;
+            let bestItem: LrclibLyricsResponse | null = null;
             let bestScore = -1;
 
             for (const item of items) {
@@ -1670,7 +1882,7 @@ export class SpotifyService {
           { headers: { 'User-Agent': 'AntigravitySocialMedia/1.0' } },
         );
         if (res.ok) {
-          const data = (await res.json()) as any;
+          const data = (await res.json()) as LyricsOvhResponse;
           if (data.lyrics && typeof data.lyrics === 'string') {
             const plainLines = data.lyrics
               .split('\n')
@@ -1808,15 +2020,16 @@ export class SpotifyService {
     const showcase = await this.prisma.profileShowcase.findUnique({
       where: { userId },
     });
-    const connected = (showcase?.connectedAccounts as Record<string, any>) || {};
-    const spotify = connected.spotify;
+    const connected = (showcase?.connectedAccounts as Record<string, unknown>) || {};
+    const spotify = connected.spotify as SpotifyConnectedAccount | undefined;
     if (!spotify) {
       return { accessToken: null, expiresIn: 0 };
     }
     const token = await this.getValidUserToken(userId, spotify);
-    const expiresIn = spotify.tokenExpiresAt
-      ? Math.max(0, Math.floor((spotify.tokenExpiresAt - Date.now()) / 1000))
-      : 3600;
+    const expiresIn =
+      typeof spotify.tokenExpiresAt === 'number'
+        ? Math.max(0, Math.floor((spotify.tokenExpiresAt - Date.now()) / 1000))
+        : 3600;
     return { accessToken: token, expiresIn };
   }
 
@@ -1900,7 +2113,8 @@ export class SpotifyService {
       // If 401 (token expired/invalidated), auto-refresh token and retry once
       if (res.status === 401) {
         const showcase = await this.prisma.profileShowcase.findUnique({ where: { userId } });
-        const spotify = (showcase?.connectedAccounts as any)?.spotify;
+        const connected = showcase?.connectedAccounts as Record<string, unknown> | null;
+        const spotify = connected?.spotify as SpotifyConnectedAccount | undefined;
         if (spotify?.refreshToken) {
           const freshToken = await this.refreshUserAccessToken(userId, spotify.refreshToken);
           if (freshToken) {
@@ -2141,12 +2355,12 @@ export class SpotifyService {
         });
 
         if (res.ok) {
-          const data = (await res.json()) as any;
+          const data = (await res.json()) as SpotifySearchTracksResponse;
           const items = data.tracks?.items;
           if (Array.isArray(items) && items.length > 0) {
             spotifyTracks = items
-              .map((t: any) => this.mapSpotifyTrack(t))
-              .filter((t: any): t is SpotifyTrackDto => Boolean(t))
+              .map((t) => this.mapSpotifyTrack(t))
+              .filter((t): t is SpotifyTrackDto => Boolean(t))
               .filter(
                 (t) =>
                   t.id !== cleanId &&
@@ -2155,8 +2369,8 @@ export class SpotifyService {
 
             if (spotifyTracks.length === 0) {
               spotifyTracks = items
-                .map((t: any) => this.mapSpotifyTrack(t))
-                .filter((t: any): t is SpotifyTrackDto => Boolean(t))
+                .map((t) => this.mapSpotifyTrack(t))
+                .filter((t): t is SpotifyTrackDto => Boolean(t))
                 .filter((t) => t.id !== cleanId);
             }
           }
@@ -2167,12 +2381,12 @@ export class SpotifyService {
           const fbUrl = `https://api.spotify.com/v1/search?q=${encodeURIComponent(cleanArtist)}&type=track&limit=10`;
           const fbRes = await fetch(fbUrl, { headers: { Authorization: `Bearer ${appToken}` } });
           if (fbRes.ok) {
-            const fbData = (await fbRes.json()) as any;
+            const fbData = (await fbRes.json()) as SpotifySearchTracksResponse;
             const fbItems = fbData.tracks?.items;
             if (Array.isArray(fbItems) && fbItems.length > 0) {
               spotifyTracks = fbItems
-                .map((t: any) => this.mapSpotifyTrack(t))
-                .filter((t: any): t is SpotifyTrackDto => Boolean(t))
+                .map((t) => this.mapSpotifyTrack(t))
+                .filter((t): t is SpotifyTrackDto => Boolean(t))
                 .filter((t) => t.id !== cleanId);
             }
           }
@@ -2269,7 +2483,7 @@ export class SpotifyService {
         const fbUrl = `https://api.spotify.com/v1/search?q=${encodeURIComponent(detectedStyle)}&type=track&limit=10`;
         const fbRes = await fetch(fbUrl, { headers: { Authorization: `Bearer ${appToken}` } });
         if (fbRes.ok) {
-          const fbData = (await fbRes.json()) as any;
+          const fbData = (await fbRes.json()) as SpotifySearchTracksResponse;
           const fbItems = fbData.tracks?.items;
           if (Array.isArray(fbItems)) {
             for (const item of fbItems) {

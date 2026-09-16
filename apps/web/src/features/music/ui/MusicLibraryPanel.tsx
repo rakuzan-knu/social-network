@@ -59,8 +59,6 @@ export const MusicLibraryPanel: React.FC = () => {
     deletePlaylist,
     createPlaylist,
     createMusicFolder,
-    renameMusicFolder,
-    deleteMusicFolder,
     isLibraryExpanded,
     toggleLibraryExpanded,
     isLibraryFullWidth,
@@ -204,7 +202,7 @@ export const MusicLibraryPanel: React.FC = () => {
       const raw = localStorage.getItem(userStorageKey);
       const existing = raw ? JSON.parse(raw) : {};
       localStorage.setItem(userStorageKey, JSON.stringify({ ...existing, viewMode: mode }));
-    } catch (e) {}
+    } catch {}
   };
 
   // Persist sort changes
@@ -214,7 +212,7 @@ export const MusicLibraryPanel: React.FC = () => {
       const raw = localStorage.getItem(userStorageKey);
       const existing = raw ? JSON.parse(raw) : {};
       localStorage.setItem(userStorageKey, JSON.stringify({ ...existing, sortMode: sort }));
-    } catch (e) {}
+    } catch {}
   };
 
   // Close create menu on click outside
@@ -318,7 +316,7 @@ export const MusicLibraryPanel: React.FC = () => {
     };
   }, [likedSongsMenu, libraryItemMenu]);
 
-  const likedSongsPlaylist: MusicPlaylist = useMemo(
+  const _likedSongsPlaylist: MusicPlaylist = useMemo(
     () => ({
       id: 'liked-songs',
       title: 'Liked Songs',

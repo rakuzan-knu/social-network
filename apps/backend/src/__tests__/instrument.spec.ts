@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-require-imports */
 import * as Sentry from '@sentry/nestjs';
 
 jest.mock('dotenv', () => ({

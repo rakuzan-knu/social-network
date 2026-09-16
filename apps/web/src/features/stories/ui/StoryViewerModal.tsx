@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
@@ -13,20 +13,14 @@ import {
   Trash2,
   Send,
   Eye,
-  Star,
   ChevronLeft,
   ChevronRight,
   ExternalLink,
   AtSign,
   Heart,
-  Flame,
-  Zap,
-  PartyPopper,
-  Sparkles,
   Link2,
   Share2,
   AlertCircle,
-  Music,
   Check,
 } from 'lucide-react';
 import { useStoryViewerStore } from '../model/useStoryViewerStore';
@@ -51,7 +45,7 @@ import type {
   AudioOverlay,
 } from '../model/types';
 import { StoryDrawingOverlayView } from './StoryDrawingOverlayView';
-import { getStoryFilterCss } from './StoryFiltersCarousel';
+import { getStoryFilterCss } from '../lib/storyFilterUtils';
 import { getStoryFontFamily } from '../lib/storyCanvasUtils';
 import { storiesApi } from '../api/storiesApi';
 import Hls from 'hls.js';
@@ -239,7 +233,7 @@ function StorySegmentProgressBar({
         rafRef.current = null;
       }
     };
-  }, [isActive, isPassed, durationMs, isVideo]);
+  }, [isActive, isPassed, durationMs, isVideo, onComplete, videoRef]);
 
   return (
     <div className="h-1 flex-1 bg-white/25 rounded-full overflow-hidden backdrop-blur-xs">
@@ -276,7 +270,6 @@ export function StoryViewerModal() {
     setPaused,
     setBuffering,
     toggleMute,
-    setMuted,
     setVolume,
     setInputFocused,
     setMenuOpen,
@@ -323,7 +316,7 @@ export function StoryViewerModal() {
   const wasHoldingRef = useRef(false);
   const volumeHoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const handleGoNext = () => {
+  const handleGoNext = useCallback(() => {
     if (videoRef.current) {
       try {
         videoRef.current.pause();
@@ -331,9 +324,9 @@ export function StoryViewerModal() {
     }
     setDirection(1);
     nextStory();
-  };
+  }, [nextStory]);
 
-  const handleGoPrev = () => {
+  const handleGoPrev = useCallback(() => {
     if (videoRef.current) {
       try {
         videoRef.current.pause();
@@ -341,7 +334,7 @@ export function StoryViewerModal() {
     }
     setDirection(-1);
     prevStory();
-  };
+  }, [prevStory]);
 
   // Computed effective pause flag (locks timer on input, menu, sound slider or hold)
   const isEffectivelyPaused =
@@ -376,7 +369,7 @@ export function StoryViewerModal() {
     }, 1200);
 
     return () => clearTimeout(timer);
-  }, [activeStory?.id, currentUser?.id]);
+  }, [activeStory, currentUser, markStoryViewed, queryClient, viewStoryMutation]);
 
   // Real-time synchronization for active story (live views, reactions, poll updates)
   useEffect(() => {
@@ -506,14 +499,14 @@ export function StoryViewerModal() {
         img.src = nextStoryItem.mediaUrl;
       }
     }
-  }, [activeGroupIndex, activeStoryIndex, groups]);
+  }, [activeGroupIndex, activeStoryIndex, currentGroup, groups]);
 
   // Reset transient menus and options when switching stories, groups or closing viewer
   useEffect(() => {
     setShowOptionsMenu(false);
     setMenuOpen(false);
     setShowViewersSheet(false);
-  }, [activeGroupIndex, activeStoryIndex, isOpen]);
+  }, [activeGroupIndex, activeStoryIndex, isOpen, setMenuOpen]);
 
   // Active Audio Overlay (Music sticker or voice track)
   const activeAudioOverlay = activeStory?.overlays?.find((o) => o.type === 'audio') as
@@ -711,7 +704,16 @@ export function StoryViewerModal() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, isPaused, handleGoNext, handleGoPrev, closeViewer, toggleMute, setPaused]);
+  }, [
+    isOpen,
+    isPaused,
+    showDeleteConfirm,
+    handleGoNext,
+    handleGoPrev,
+    closeViewer,
+    toggleMute,
+    setPaused,
+  ]);
 
   // Press & Hold to pause gesture (>150ms holds, release resumes)
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {

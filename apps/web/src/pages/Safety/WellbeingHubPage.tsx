@@ -24,12 +24,9 @@ import {
   BookOpen,
   PhoneCall,
   Globe2,
-  Sparkles,
   ArrowRight,
-  ExternalLink,
   X,
   ShieldCheck,
-  Users,
   Quote,
 } from 'lucide-react';
 

@@ -18,13 +18,7 @@ export function useJamSession() {
   const isHost = useJamStore((s) => s.isHost);
   const isJamActive = useJamStore((s) => s.isJamActive);
   const isPausedLocally = useJamStore((s) => s.isPausedLocally);
-  const serverTimeOffset = useJamStore((s) => s.serverTimeOffset);
   const queuePolicy = useJamStore((s) => s.queuePolicy);
-
-  const currentTrack = useSpotifyPlayerStore((s) => s.currentTrack);
-  const isPlaying = useSpotifyPlayerStore((s) => s.isPlaying);
-  const progressMs = useSpotifyPlayerStore((s) => s.progressMs);
-  const durationMs = useSpotifyPlayerStore((s) => s.durationMs);
 
   const lastPreloadedTrackIdRef = useRef<string | null>(null);
   const lastManualSyncTimeRef = useRef<number>(0);

@@ -17,11 +17,12 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/interfaces/jwt-payload.interface';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { ShowcaseService } from './showcase.service';
-import { MediaProxyService } from './media-proxy.service';
+import { MediaProxyService, type ShowcaseTrackItem } from './media-proxy.service';
 import {
   type ProfileShowcaseDto,
   type UpdateShowcaseDto,
   type MediaSearchResultDto,
+  type MediaDetailsResponseDto,
   type SearchMediaDto,
   type SearchTracksDto,
   updateShowcaseSchema,
@@ -67,7 +68,7 @@ export class ShowcaseController {
   @ApiResponse({ status: 200, description: 'Track search results retrieved' })
   searchTracks(
     @Query(new ZodValidationPipe(searchTracksSchema)) dto: SearchTracksDto,
-  ): Promise<any[]> {
+  ): Promise<ShowcaseTrackItem[]> {
     return this.mediaProxyService.searchTracks(dto.q || '');
   }
 
@@ -82,7 +83,7 @@ export class ShowcaseController {
   getMediaDetails(
     @Query('title') title: string = '',
     @Query('type') typeStr: string = 'GAME',
-  ): Promise<any> {
+  ): Promise<MediaDetailsResponseDto | null> {
     const mediaType = (
       typeStr.toUpperCase() in ShowcaseMediaType ? typeStr.toUpperCase() : ShowcaseMediaType.GAME
     ) as ShowcaseMediaType;

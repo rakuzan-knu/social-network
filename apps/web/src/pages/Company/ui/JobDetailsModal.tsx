@@ -1,17 +1,5 @@
 import React, { useState } from 'react';
-import {
-  X,
-  CheckCircle,
-  Briefcase,
-  MapPin,
-  Sparkles,
-  Send,
-  Users,
-  Shield,
-  Code,
-  Palette,
-  HeartHandshake,
-} from 'lucide-react';
+import { X, CheckCircle, MapPin, Sparkles, Send, Users, Shield, Code, Palette } from 'lucide-react';
 import { JobOpening, CareersTranslations } from '../data/careersData';
 
 interface JobDetailsModalProps {

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { renderHook, render, screen } from '@testing-library/react';
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useFeatureFlag, useFeatureFlags } from '../useFeatureFlag';
+import { useFeatureFlag } from '../useFeatureFlag';
 import { FeatureFlag } from '../../ui/FeatureFlag';
 import { queryKeys } from '@/shared/api/queryKeys';
 

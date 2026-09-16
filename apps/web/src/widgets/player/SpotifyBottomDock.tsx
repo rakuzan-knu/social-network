@@ -54,7 +54,6 @@ export const SpotifyBottomDock: React.FC = () => {
   const externalTrackLink = isSoundCloud
     ? currentTrack?.spotifyUrl || 'https://soundcloud.com'
     : getSafeSpotifyTrackUrl(currentTrack);
-  const spotifyLink = externalTrackLink;
   const isVolumeOpen = useSpotifyPlayerStore((s) => s.isVolumeOpen);
 
   const togglePlay = useSpotifyPlayerStore((s) => s.togglePlay);
@@ -301,7 +300,7 @@ export const SpotifyBottomDock: React.FC = () => {
           exit={{ y: 130, opacity: 0, scale: 0.96 }}
           transition={{ type: 'spring', stiffness: 350, damping: 28 }}
           className="fixed bottom-3 sm:bottom-5 left-1/2 -translate-x-1/2 z-50 w-[94vw] max-w-[880px] xl:max-w-[940px] select-none"
-          onClick={(e) => {
+          onClick={() => {
             // On mobile (<768px), tapping the bar expands full player sheet
             if (window.innerWidth < 768) {
               setMobileExpanded(true);

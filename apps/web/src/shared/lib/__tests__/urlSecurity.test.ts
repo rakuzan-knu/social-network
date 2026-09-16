@@ -6,7 +6,6 @@ import {
   isTrustedMessageOrigin,
   isSpotifyMessageOrigin,
   parseSpotifyUrl,
-  sanitizeImageUrl,
   sanitizeExternalUrl,
   sanitizePlatformUrl,
 } from '../urlSecurity';

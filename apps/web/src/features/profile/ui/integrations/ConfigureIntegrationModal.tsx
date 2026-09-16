@@ -11,12 +11,10 @@ import {
   Star,
   GitFork,
   Radio,
-  Lock,
   Eye,
   EyeOff,
   Unlink,
   Pencil,
-  Code2,
   Users,
   Music,
   Search,
@@ -24,28 +22,11 @@ import {
   Play,
   Pause,
 } from 'lucide-react';
-import {
-  GitHubBrandIcon,
-  SteamBrandIcon,
-  RiotGamesBrandIcon,
-  BattleNetBrandIcon,
-  SpotifyBrandIcon,
-  SoundCloudBrandIcon,
-  YouTubeBrandIcon,
-  TwitchBrandIcon,
-  RobloxBrandIcon,
-  XBrandIcon,
-  FacebookBrandIcon,
-  EpicGamesBrandIcon,
-  Dota2BrandIcon,
-  CS2BrandIcon,
-} from '@/shared/ui/BrandIcons';
+import { RobloxBrandIcon, Dota2BrandIcon, CS2BrandIcon } from '@/shared/ui/BrandIcons';
 import {
   DotaRankMedal,
   CS2PremierBadge,
   ShowcaseIntegrationCard,
-  calculateDotaRank,
-  calculateCS2Premier,
   integrationsApi,
 } from '@/entities/showcase';
 import { SteamLevelBadge } from '@/shared/ui/SteamLevelBadge';
@@ -55,75 +36,9 @@ import { USER_KEY } from '@/shared/api/queryKeys';
 import { UnlinkConfirmationModal } from './UnlinkConfirmationModal';
 import { useSpotifyPlayerStore } from '@/shared/model/useSpotifyPlayerStore';
 import { isSpotifyUrl, isTrustedMessageOrigin, sanitizeImageUrl } from '@/shared/lib/urlSecurity';
+import type { PlatformConfig } from './platforms';
 
-export interface PlatformConfig {
-  id: string;
-  name: string;
-  icon: React.ReactNode;
-  accentColor: string;
-  placeholder: string;
-  description: string;
-  authProviderName: string;
-}
-
-export const PLATFORMS_LIST: PlatformConfig[] = [
-  {
-    id: 'steam',
-    name: 'Steam',
-    icon: <SteamBrandIcon size={38} />,
-    accentColor: '#1b2838',
-    placeholder: 'Steam ID',
-    description: 'Display Steam level, games count, and featured Dota 2 or CS2 ranks.',
-    authProviderName: 'Steam OpenID',
-  },
-  {
-    id: 'github',
-    name: 'GitHub',
-    icon: <GitHubBrandIcon size={38} />,
-    accentColor: '#24292e',
-    placeholder: 'github_username',
-    description:
-      'Sync your profile card, public repositories count, and feature a pinned repository.',
-    authProviderName: 'GitHub OAuth',
-  },
-  {
-    id: 'spotify',
-    name: 'Spotify',
-    icon: <SpotifyBrandIcon size={38} />,
-    accentColor: '#1DB954',
-    placeholder: 'Spotify Username',
-    description: 'Showcase liked songs count, playlists, and top tracks with audio previews.',
-    authProviderName: 'Spotify OAuth',
-  },
-  {
-    id: 'youtube',
-    name: 'YouTube',
-    icon: <YouTubeBrandIcon size={38} />,
-    accentColor: '#FF0000',
-    placeholder: 'YouTube Channel',
-    description: 'Showcase subscribers count, total views, and feature 3 video uploads.',
-    authProviderName: 'Google OAuth',
-  },
-  {
-    id: 'twitch',
-    name: 'Twitch',
-    icon: <TwitchBrandIcon size={38} />,
-    accentColor: '#9146FF',
-    placeholder: 'Twitch Channel',
-    description: 'Display live streaming status, game category, viewers, and followers count.',
-    authProviderName: 'Twitch OAuth',
-  },
-  {
-    id: 'roblox',
-    name: 'Roblox',
-    icon: <RobloxBrandIcon size={38} />,
-    accentColor: '#000000',
-    placeholder: 'Roblox Username',
-    description:
-      'Display 3D avatar bust, friends count, 5 inventory collectibles, and 5 favorite places.',
-    authProviderName: 'Roblox Open Cloud',
-  },
-];
+export type { PlatformConfig };
 
 interface ConfigureIntegrationModalProps {
   isOpen: boolean;
@@ -692,9 +607,6 @@ export const ConfigureIntegrationModal: React.FC<ConfigureIntegrationModalProps>
       setIsSaving(false);
     }
   };
-
-  const dotaRank = calculateDotaRank(activeData?.dota2?.mmr || 6124);
-  const cs2Premier = calculateCS2Premier(activeData?.cs2?.premierRating || 17499);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn select-none">
@@ -1781,7 +1693,12 @@ export const ConfigureIntegrationModal: React.FC<ConfigureIntegrationModalProps>
                                   placeholder={`Search ${allLikedSongs.length} liked tracks or type to search catalog...`}
                                   className="w-full pl-9 pr-8 py-2 rounded-xl bg-white/[0.04] border border-white/[0.08] focus:border-[#1DB954]/50 text-xs text-white placeholder-gray-500 focus:outline-hidden transition-all"
                                 />
-                                {spotifySearchQuery && (
+                                {isSearchingCatalog ? (
+                                  <Loader2
+                                    size={12}
+                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 animate-spin"
+                                  />
+                                ) : spotifySearchQuery ? (
                                   <button
                                     type="button"
                                     onClick={() => setSpotifySearchQuery('')}
@@ -1789,7 +1706,7 @@ export const ConfigureIntegrationModal: React.FC<ConfigureIntegrationModalProps>
                                   >
                                     <X size={12} />
                                   </button>
-                                )}
+                                ) : null}
                               </div>
 
                               <div className="flex items-center justify-between px-1">

@@ -1,14 +1,14 @@
-import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
-import axios from 'axios';
-import { RedisService } from '../redis/redis.service';
-import { CircuitBreaker } from '../common/resilience/circuit-breaker';
 import {
   ShowcaseMediaType,
-  type MediaSearchResultDto,
-  type MediaDetailsResponseDto,
   sanitizePlainText,
+  type MediaDetailsResponseDto,
+  type MediaSearchResultDto,
 } from '@common/contracts';
+import { Inject, Injectable, Logger, forwardRef } from '@nestjs/common';
+import axios from 'axios';
+import { CircuitBreaker } from '../common/resilience/circuit-breaker';
 import { SoundCloudService } from '../integrations/soundcloud.service';
+import { RedisService } from '../redis/redis.service';
 
 interface AniListMedia {
   id: number;
@@ -65,7 +65,7 @@ export interface ShowcaseTrackItem {
   artist: string;
   albumArt: string;
   previewUrl: string | null;
-  spotifyUrl: string;
+  spotifyUrl: string | null;
   durationMs: number | null;
   source?: string;
 }
@@ -3439,7 +3439,7 @@ export class MediaProxyService {
     }
   }
 
-  async searchTracks(query: string): Promise<any[]> {
+  async searchTracks(query: string): Promise<ShowcaseTrackItem[]> {
     const cleanQuery = (query || '').trim();
 
     // Verified Spotify Global Top 10 Most Streamed Tracks
@@ -3633,7 +3633,7 @@ export class MediaProxyService {
   }
 
   /**
-   * Fetch rich Discord-grade media details (official 1080p/4K screenshots, trailer, metadata)
+   * Fetch rich media details (official 1080p/4K screenshots, trailer, metadata)
    * for any game, anime, or cinema title.
    */
   async getMediaDetails(
