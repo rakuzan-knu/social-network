@@ -11,17 +11,5 @@
     "noEmit": true
   },
   "include": ["*.js", "*.cjs", "*.mjs", "*.ts", "scripts/**/*"],
-  "exclude": ["node_modules", "dist", "coverage", "frontend", "backend"],
-  "references": [
-    { "path": "./apps/backend" },
-    { "path": "./apps/web" },
-    { "path": "./apps/mobile" },
-    { "path": "./packages/shared/contracts" },
-    { "path": "./packages/shared/utils" },
-    { "path": "./packages/shared/crypto" },
-    { "path": "./packages/shared/socket" },
-    { "path": "./packages/shared/stores" },
-    { "path": "./packages/shared/api-client" },
-    { "path": "./packages/shared/ui-primitives" }
-  ]
+  "exclude": ["node_modules", "dist", "coverage", "frontend", "backend", "apps", "packages"]
 }

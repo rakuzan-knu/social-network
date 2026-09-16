@@ -22,6 +22,7 @@ The desktop client application is currently in the architectural evaluation stag
 ## 🚀 Shared Architecture Ready
 
 Whichever runtime is selected, the desktop application will consume the unified shared packages:
+
 - `@shared/contracts` — Zod schemas & API contracts
 - `@shared/api-client` — TanStack Query & HTTP client
 - `@shared/stores` — Global Zustand state (Auth, UI, Media, E2EE, Voice)

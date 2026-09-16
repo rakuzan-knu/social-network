@@ -1,6 +1,6 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vitest/config';
-import path from 'path';
+import * as path from 'node:path';
 
 /**
  * Contract tests run in a Node environment (Pact spins up real mock servers)

@@ -14,7 +14,6 @@
     "moduleDetection": "force",
     "noEmit": true,
     "jsx": "react-jsx",
-    "target": "es2023",
 
     /* Linting */
     "noUnusedLocals": true,

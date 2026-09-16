@@ -38,16 +38,19 @@ const wrapTestFn = (fn: any) => {
     return () =>
       new Promise<void>((resolve, reject) => {
         const done = (err?: any) => {
-          if (err) reject(err);
+          if (err) reject(err instanceof Error ? err : new Error(String(err)));
           else resolve();
         };
         try {
           const result = fn(done);
           if (result && typeof result.then === 'function') {
-            result.then(() => resolve(), reject);
+            result.then(
+              () => resolve(),
+              (reason) => reject(reason instanceof Error ? reason : new Error(String(reason))),
+            );
           }
         } catch (e) {
-          reject(e);
+          reject(e instanceof Error ? e : new Error(String(e)));
         }
       });
   }

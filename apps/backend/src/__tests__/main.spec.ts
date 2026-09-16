@@ -142,15 +142,13 @@ describe('main.ts handler and bootstrap', () => {
   });
 
   it('runs serverless handler and initializes cachedApp on first request', async () => {
-    let handler: ((req: Request, res: Response) => Promise<void>) | undefined;
-
     process.env.NODE_ENV = 'production';
     process.env.VERCEL = '1';
     process.env.CORS_ORIGIN = 'http://localhost:3000, https://myapp.vercel.app';
 
     vi.resetModules();
     const mod = (await import('../main.js')) as unknown as ServerlessModule;
-    handler = mod.default;
+    const handler = mod.default;
 
     const req = { url: '/api/health' } as unknown as Request;
     const res = { status: jest.fn() } as unknown as Response;
