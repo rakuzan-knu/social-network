@@ -130,6 +130,19 @@ export class InMemoryLruCache<K = string, V = unknown> {
     return true;
   }
 
+  deleteByPattern(pattern: string): number {
+    const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+    const regex = new RegExp(`^${escaped}$`);
+    let count = 0;
+    for (const [key, node] of this.map.entries()) {
+      if (typeof key === 'string' && regex.test(key)) {
+        this.deleteNode(node);
+        count++;
+      }
+    }
+    return count;
+  }
+
   clear(): void {
     this.map.clear();
     this.head = null;

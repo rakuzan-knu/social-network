@@ -22,6 +22,7 @@ interface ProfileHeaderProps {
   createdAt?: string | Date | null;
   isOwnProfile: boolean;
   isFollowing?: boolean;
+  followStatus?: string;
   followsYou?: boolean;
   isFriend?: boolean;
   isVerified?: boolean;
@@ -61,6 +62,7 @@ export default function ProfileHeader({
   createdAt,
   isOwnProfile,
   isFollowing,
+  followStatus,
   followsYou = false,
   isFriend = false,
   isVerified = false,
@@ -173,7 +175,8 @@ export default function ProfileHeader({
               </button>
               <FollowButton
                 authorId={userId}
-                isFollowing={!!isFollowing}
+                isFollowing={Boolean(isFollowing || followStatus === 'following')}
+                followStatus={followStatus}
                 isFriend={isFriend}
                 followsYou={followsYou}
               />

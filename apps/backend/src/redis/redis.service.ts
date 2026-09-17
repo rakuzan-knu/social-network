@@ -175,6 +175,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
   /** Deletes every key matching a glob pattern using batch unlinks to prevent RAM spikes and stream leaks. */
   async delByPattern(pattern: string): Promise<void> {
+    this.fallbackLru.deleteByPattern(pattern);
     try {
       if (
         this.client.status !== 'ready' &&

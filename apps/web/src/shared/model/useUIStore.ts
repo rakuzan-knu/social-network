@@ -32,6 +32,10 @@ interface UIState {
   activePostForShare: ActivePostItem | any | null;
   openShareModal: (post: any) => void;
   closeShareModal: () => void;
+
+  isCreateReelOpen: boolean;
+  openCreateReel: () => void;
+  closeCreateReel: () => void;
 }
 
 export const useUIStore = create<UIState>((set, get) => ({
@@ -64,6 +68,10 @@ export const useUIStore = create<UIState>((set, get) => ({
   activePostForShare: null,
   openShareModal: (post) => set({ isShareModalOpen: true, activePostForShare: post }),
   closeShareModal: () => set({ isShareModalOpen: false, activePostForShare: null }),
+
+  isCreateReelOpen: false,
+  openCreateReel: () => set({ isCreateReelOpen: true }),
+  closeCreateReel: () => set({ isCreateReelOpen: false }),
 }));
 
 export type PostType = ActivePostItem;

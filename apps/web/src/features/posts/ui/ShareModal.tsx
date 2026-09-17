@@ -129,7 +129,7 @@ export function ShareModal() {
         pages: old.pages.map((page) => ({
           ...page,
           posts: page.posts.map((p) =>
-            p.id === post.id
+            String(p.id) === String(post.id)
               ? {
                   ...p,
                   sharesCount: (p.sharesCount ?? 0) + 1,
@@ -154,8 +154,16 @@ export function ShareModal() {
       updateFeedData,
     );
 
-    // Call backend API to record share count
-    postsApi.share(post.id).catch(() => {});
+    // Call backend API to record share count and invalidate on settled
+    postsApi
+      .share(post.id)
+      .finally(() => {
+        queryClient.invalidateQueries({ queryKey: [FEED_KEY] });
+        queryClient.invalidateQueries({ queryKey: [USER_POSTS_KEY] });
+        queryClient.invalidateQueries({ queryKey: [USER_REPOSTS_KEY] });
+        queryClient.invalidateQueries({ queryKey: [SAVED_POSTS_KEY] });
+      })
+      .catch(() => {});
   };
 
   const toggleSelectUser = (userId: string) => {

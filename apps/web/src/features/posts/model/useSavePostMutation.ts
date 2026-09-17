@@ -19,9 +19,19 @@ export function useSavePostMutation(
   const { data: currentUser } = useCurrentUser();
 
   return useMutation({
-    mutationFn: () => (isSaved ? postsApi.unsave(postId) : postsApi.save(postId)),
+    mutationFn: async () => {
+      try {
+        return await (isSaved ? postsApi.unsave(postId) : postsApi.save(postId));
+      } catch (err: unknown) {
+        const status = (err as { response?: { status?: number } })?.response?.status;
+        if (!isSaved && status === 409) return { success: true };
+        if (isSaved && status === 404) return { success: true };
+        throw err;
+      }
+    },
     onMutate: async () => {
       const nextIsSaved = !isSaved;
+      const targetId = String(postId);
 
       const updateFeedData = (old: InfiniteData<FeedPage> | undefined) => {
         if (!old?.pages) return old;
@@ -29,10 +39,22 @@ export function useSavePostMutation(
           ...old,
           pages: old.pages.map((page) => ({
             ...page,
-            posts: page.posts.map((p) => (p.id === postId ? { ...p, isSaved: nextIsSaved } : p)),
+            posts: page.posts.map((p) => {
+              if (String(p.id) !== targetId) return p;
+              if (p.isSaved === nextIsSaved) return p;
+              return { ...p, isSaved: nextIsSaved };
+            }),
           })),
         };
       };
+
+      if (currentQueryKey) {
+        await queryClient.cancelQueries({ queryKey: currentQueryKey });
+      }
+      await queryClient.cancelQueries({ queryKey: [FEED_KEY] });
+      await queryClient.cancelQueries({ queryKey: [USER_POSTS_KEY] });
+      await queryClient.cancelQueries({ queryKey: [USER_REPOSTS_KEY] });
+      await queryClient.cancelQueries({ queryKey: [SAVED_POSTS_KEY] });
 
       if (currentQueryKey) {
         queryClient.setQueryData<InfiniteData<FeedPage>>(currentQueryKey, updateFeedData);
@@ -78,6 +100,12 @@ export function useSavePostMutation(
       }
     },
     onError: () => {
+      if (currentQueryKey) queryClient.invalidateQueries({ queryKey: currentQueryKey });
+      queryClient.invalidateQueries({ queryKey: [FEED_KEY] });
+      queryClient.invalidateQueries({ queryKey: [USER_POSTS_KEY] });
+      queryClient.invalidateQueries({ queryKey: [USER_REPOSTS_KEY] });
+      queryClient.invalidateQueries({ queryKey: [SAVED_POSTS_KEY] });
+
       useMessageToastStore.getState().addToast({
         id: `toast-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
         conversationId: '',
@@ -92,6 +120,8 @@ export function useSavePostMutation(
     onSettled: () => {
       if (currentQueryKey) queryClient.invalidateQueries({ queryKey: currentQueryKey });
       queryClient.invalidateQueries({ queryKey: [FEED_KEY] });
+      queryClient.invalidateQueries({ queryKey: [USER_POSTS_KEY] });
+      queryClient.invalidateQueries({ queryKey: [USER_REPOSTS_KEY] });
       queryClient.invalidateQueries({ queryKey: [SAVED_POSTS_KEY] });
     },
   });

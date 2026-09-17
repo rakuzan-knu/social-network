@@ -180,7 +180,13 @@ export function UserListModal({ userId, mode, isOwnProfile, onClose }: UserListM
                     Remove
                   </button>
                 ) : (
-                  <FollowButton authorId={u.id} isFollowing={!!u.isFollowing} />
+                  <FollowButton
+                    authorId={u.id}
+                    isFollowing={!!u.isFollowing}
+                    followStatus={u.isFollowing ? 'following' : 'none'}
+                    isFriend={u.isFriend}
+                    followsYou={u.followsYou}
+                  />
                 )}
               </div>
             ))

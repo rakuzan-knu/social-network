@@ -46,6 +46,8 @@ export const ExportShowcaseModal: React.FC<ExportShowcaseModalProps> = ({
         cacheBust: true,
         pixelRatio: 2,
         skipAutoScale: true,
+        imagePlaceholder:
+          'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAED5eb3QAAAABJRU5ErkJggg==',
       });
       setPreviewUrl(dataUrl);
     } catch (err) {
@@ -192,16 +194,16 @@ export const ExportShowcaseModal: React.FC<ExportShowcaseModalProps> = ({
 
             {/* Profile Header Block */}
             <div className="relative rounded-2xl overflow-hidden bg-white/3 border border-white/8 p-3 flex items-center gap-3.5 backdrop-blur-xl">
-              {user.banner && (
+              {user.banner && sanitizeImageUrl(user.banner) ? (
                 <img
                   src={sanitizeImageUrl(user.banner)}
                   alt="Banner"
                   crossOrigin="anonymous"
                   className="absolute inset-0 w-full h-full object-cover opacity-20 blur-xs pointer-events-none"
                 />
-              )}
+              ) : null}
               <Avatar
-                src={sanitizeImageUrl(user.avatar)}
+                src={user.avatar ? sanitizeImageUrl(user.avatar) || undefined : undefined}
                 alt={user.displayName}
                 size="md"
                 className="w-13 h-13 rounded-2xl border-2 border-white/20 shrink-0"
@@ -226,12 +228,14 @@ export const ExportShowcaseModal: React.FC<ExportShowcaseModalProps> = ({
                 </div>
 
                 <div className="relative rounded-xl overflow-hidden aspect-video border border-white/10 bg-black/40">
-                  <img
-                    src={sanitizeImageUrl(bannerSource)}
-                    alt={showcase.spotlightMedia.title}
-                    crossOrigin="anonymous"
-                    className="w-full h-full object-cover"
-                  />
+                  {bannerSource && sanitizeImageUrl(bannerSource) ? (
+                    <img
+                      src={sanitizeImageUrl(bannerSource)}
+                      alt={showcase.spotlightMedia.title}
+                      crossOrigin="anonymous"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : null}
                   <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/30 to-transparent flex flex-col justify-end p-3">
                     <div className="flex items-center justify-between">
                       <div className="flex flex-col">
@@ -277,22 +281,29 @@ export const ExportShowcaseModal: React.FC<ExportShowcaseModalProps> = ({
                   Top Favorites
                 </span>
                 <div className="grid grid-cols-3 gap-2">
-                  {topMedia.map((m, idx) => (
-                    <div
-                      key={idx}
-                      className="aspect-2/3 rounded-xl overflow-hidden border border-white/10 bg-black/40 relative"
-                    >
-                      <img
-                        src={sanitizeImageUrl(m.posterUrl)}
-                        alt={m.title}
-                        crossOrigin="anonymous"
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute inset-0 bg-linear-to-t from-black/80 to-transparent p-1.5 flex items-end">
-                        <span className="text-[9px] font-bold text-white truncate">{m.title}</span>
+                  {topMedia.map((m, idx) => {
+                    const posterUrl = m.posterUrl ? sanitizeImageUrl(m.posterUrl) : '';
+                    return (
+                      <div
+                        key={idx}
+                        className="aspect-2/3 rounded-xl overflow-hidden border border-white/10 bg-black/40 relative"
+                      >
+                        {posterUrl ? (
+                          <img
+                            src={posterUrl}
+                            alt={m.title}
+                            crossOrigin="anonymous"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : null}
+                        <div className="absolute inset-0 bg-linear-to-t from-black/80 to-transparent p-1.5 flex items-end">
+                          <span className="text-[9px] font-bold text-white truncate">
+                            {m.title}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}

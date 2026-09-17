@@ -98,6 +98,21 @@ export function PostCard({ post, queryKey }: PostCardProps) {
     }),
   );
 
+  const [, startRepostTransition] = useTransition();
+  const [optimisticReposts, setOptimisticReposts] = useOptimistic(
+    { isReposted: !!post.isReposted, count: post.reposts ?? 0 },
+    (state, _update: 'toggle') => ({
+      isReposted: !state.isReposted,
+      count: state.isReposted ? Math.max(0, state.count - 1) : state.count + 1,
+    }),
+  );
+
+  const [, startSaveTransition] = useTransition();
+  const [optimisticSaved, setOptimisticSaved] = useOptimistic(
+    !!post.isSaved,
+    (state, _update: 'toggle') => !state,
+  );
+
   const isHidden = hiddenIds.has(post.id);
   if (isHidden && !isCollapsing) {
     return null;
@@ -129,12 +144,34 @@ export function PostCard({ post, queryKey }: PostCardProps) {
     setIsRepostSpinning(true);
     if (repostTimerRef.current) clearTimeout(repostTimerRef.current);
     repostTimerRef.current = setTimeout(() => setIsRepostSpinning(false), 400);
-    repostMutation.mutate();
+    startRepostTransition(async () => {
+      setOptimisticReposts('toggle');
+      try {
+        if (repostMutation.mutateAsync) {
+          await repostMutation.mutateAsync();
+        } else {
+          repostMutation.mutate();
+        }
+      } catch {
+        // useOptimistic automatically rolls back when transition settles
+      }
+    });
   };
 
   const handleSaveClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    saveMutation.mutate();
+    startSaveTransition(async () => {
+      setOptimisticSaved('toggle');
+      try {
+        if (saveMutation.mutateAsync) {
+          await saveMutation.mutateAsync();
+        } else {
+          saveMutation.mutate();
+        }
+      } catch {
+        // useOptimistic automatically rolls back when transition settles
+      }
+    });
   };
 
   const handleHidePost = () => {
@@ -366,9 +403,9 @@ export function PostCard({ post, queryKey }: PostCardProps) {
                 type="button"
                 onClick={handleRepost}
                 className={`flex items-center gap-1.5 cursor-pointer hover:text-green-400 transition-colors group ${
-                  post.isReposted ? 'text-green-400 font-semibold' : ''
+                  optimisticReposts.isReposted ? 'text-green-400 font-semibold' : ''
                 }`}
-                title={post.isReposted ? 'Undo repost' : 'Repost'}
+                title={optimisticReposts.isReposted ? 'Undo repost' : 'Repost'}
               >
                 <Repeat
                   size={16}
@@ -378,7 +415,7 @@ export function PostCard({ post, queryKey }: PostCardProps) {
                       : 'group-hover:scale-110'
                   }`}
                 />
-                <span>{post.reposts ?? 0}</span>
+                <span>{optimisticReposts.count}</span>
               </button>
 
               {/* Like Button with Pop-up Heart Animation */}
@@ -429,13 +466,13 @@ export function PostCard({ post, queryKey }: PostCardProps) {
                 <button
                   type="button"
                   onClick={handleSaveClick}
-                  title={post.isSaved ? 'Remove from Saved' : 'Save post (Hold for collections)'}
+                  title={optimisticSaved ? 'Remove from Saved' : 'Save post (Hold for collections)'}
                   className="p-1 cursor-pointer text-gray-500 hover:text-white transition-colors"
                 >
                   <Bookmark
                     size={17}
                     className={`transition-all duration-200 active:scale-125 ${
-                      post.isSaved ? 'fill-white text-white' : 'text-gray-400 hover:text-white'
+                      optimisticSaved ? 'fill-white text-white' : 'text-gray-400 hover:text-white'
                     }`}
                   />
                 </button>

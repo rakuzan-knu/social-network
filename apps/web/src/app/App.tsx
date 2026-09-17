@@ -35,6 +35,9 @@ const ShareModal = lazyWithRetry(() =>
 const CommentModal = lazyWithRetry(() =>
   import('@/widgets/comment').then((m) => ({ default: m.CommentModal })),
 );
+const CreateReelModal = lazyWithRetry(() =>
+  import('../features/reels/ui/CreateReelModal').then((m) => ({ default: m.CreateReelModal })),
+);
 const StoryViewerModal = lazy(() =>
   import('../features/stories/ui/StoryViewerModal').then((m) => ({ default: m.StoryViewerModal })),
 );
@@ -192,6 +195,8 @@ export default function App() {
   const isEditProfileOpen = useUIStore((state) => state.isEditProfileOpen);
   const isShareModalOpen = useUIStore((state) => state.isShareModalOpen);
   const isCommentModalOpen = useUIStore((state) => state.isCommentModalOpen);
+  const isCreateReelOpen = useUIStore((state) => state.isCreateReelOpen);
+  const closeCreateReel = useUIStore((state) => state.closeCreateReel);
   const location = useLocation();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
@@ -435,6 +440,9 @@ export default function App() {
                 {isEditProfileOpen && <EditProfileModal />}
                 {isShareModalOpen && <ShareModal />}
                 {isCommentModalOpen && <CommentModal />}
+                {isCreateReelOpen && (
+                  <CreateReelModal isOpen={isCreateReelOpen} onClose={closeCreateReel} />
+                )}
                 <StoryViewerModal />
                 <StoryEditorModal />
                 <CallModal />

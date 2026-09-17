@@ -84,4 +84,19 @@ describe('InMemoryLruCache (Degraded Fallback Cache)', () => {
     cache.setDegraded(false);
     expect(cache.isDegraded()).toBe(false);
   });
+
+  it('deletes keys matching a wildcard pattern', () => {
+    const cache = new InMemoryLruCache<string, string>({ maxSize: 100 });
+    cache.set('following:usr-1:10:first:usr-1', 'val1');
+    cache.set('following:usr-1:20:cursor:usr-1', 'val2');
+    cache.set('following:usr-2:10:first:usr-2', 'val3');
+    cache.set('user:usr-1', 'val4');
+
+    const deleted = cache.deleteByPattern('following:usr-1:*');
+    expect(deleted).toBe(2);
+    expect(cache.has('following:usr-1:10:first:usr-1')).toBe(false);
+    expect(cache.has('following:usr-1:20:cursor:usr-1')).toBe(false);
+    expect(cache.has('following:usr-2:10:first:usr-2')).toBe(true);
+    expect(cache.has('user:usr-1')).toBe(true);
+  });
 });

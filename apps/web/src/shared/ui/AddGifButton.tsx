@@ -13,10 +13,11 @@ interface AddGifButtonProps {
 }
 
 const PRESET_GIFS = [
-  'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbW9sc3A0b3g0Ym9pZnd5Ym9pZnd5Ym9pZnd5Ym9pZnd5JnB0Xz1mLg/a5viI92PAFUsU/giphy.gif',
-  'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbXN6MXN3bXN6MXN3bXN6MXN3bXN6MXN3bXN6MXN3bXN6JnB0Xz1mLg/du3J3cXyzhj75IOgvA/giphy.gif',
-  'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbW9pZnd5Ym9pZnd5Ym9pZnd5Ym9pZnd5Ym9pZnd5JnB0Xz1mLg/l3q2zVr6cu95nF6O4/giphy.gif',
-  'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbW9pZnd5Ym9pZnd5Ym9pZnd5Ym9pZnd5Ym9pZnd5JnB0Xz1mLg/3ntq5Fx7vH7E4/giphy.gif',
+  'https://media.giphy.com/media/Ju7l5y9osyymQ/giphy.gif',
+  'https://media.giphy.com/media/l0HlBO7eyXzSZkJri/giphy.gif',
+  'https://media.giphy.com/media/26ufdipQqU2lhNA4g/giphy.gif',
+  'https://media.giphy.com/media/3oEjI6SIIHBdRx622A/giphy.gif',
+  'https://media.giphy.com/media/xT9IgzoKnNnkbpSNAI/giphy.gif',
 ];
 
 export const AddGifButton: React.FC<AddGifButtonProps> = ({
@@ -137,6 +138,9 @@ export const AddGifButton: React.FC<AddGifButtonProps> = ({
             key={index}
             src={gif}
             alt="gif"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+            }}
             onClick={() => {
               onGifSelect(gif);
               onToggle();

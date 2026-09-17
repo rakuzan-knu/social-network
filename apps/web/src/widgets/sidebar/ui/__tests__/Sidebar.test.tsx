@@ -82,6 +82,7 @@ describe('Sidebar', () => {
 
     expect(screen.getByText('Home').closest('a')).toHaveAttribute('href', '/');
     expect(screen.getByText('Search').closest('a')).toHaveAttribute('href', '/search');
+    expect(screen.getByText('Reels').closest('a')).toHaveAttribute('href', '/reels');
     expect(screen.getByText('Music Hub').closest('a')).toHaveAttribute('href', '/music');
     expect(screen.getByText('Message').closest('a')).toHaveAttribute('href', '/messages');
     expect(screen.getByText('Notifications').closest('a')).toHaveAttribute(
@@ -91,7 +92,7 @@ describe('Sidebar', () => {
     expect(screen.getByText('Create').closest('a')).toHaveAttribute('href', '/create');
   });
 
-  it('opens Create menu and clicks Создать пост and Опубликовать историю', () => {
+  it('opens Create menu and clicks Создать пост, Опубликовать историю, and Создать рилс', () => {
     act(() => {
       renderWithProviders(<Sidebar />);
     });
@@ -101,8 +102,15 @@ describe('Sidebar', () => {
 
     expect(screen.getByText('Create Post')).toBeInTheDocument();
     expect(screen.getByText('Create Story')).toBeInTheDocument();
+    expect(screen.getByText('Create Reel')).toBeInTheDocument();
 
-    // Click Create Story
+    // Click Create Reel
+    fireEvent.click(screen.getByText('Create Reel'));
+    expect(useUIStore.getState().isCreateReelOpen).toBe(true);
+    expect(screen.queryByText('Create Reel')).not.toBeInTheDocument();
+
+    // Reopen and test Create Story
+    fireEvent.click(createBtn);
     fireEvent.click(screen.getByText('Create Story'));
     expect(useStoryEditorStore.getState().isOpen).toBe(true);
 

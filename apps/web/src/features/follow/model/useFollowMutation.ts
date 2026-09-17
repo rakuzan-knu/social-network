@@ -19,7 +19,26 @@ export function useFollowMutation(id: string, isFollowing: boolean) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: () => (isFollowing ? followApi.unfollow(id) : followApi.follow(id)),
+    mutationFn: async () => {
+      try {
+        if (isFollowing) {
+          await followApi.unfollow(id);
+        } else {
+          await followApi.follow(id);
+        }
+      } catch (err: unknown) {
+        const status = (err as { response?: { status?: number } })?.response?.status;
+        if (status === 409 && !isFollowing) {
+          // Idempotent: already following or request already pending on server
+          return;
+        }
+        if (status === 404 && isFollowing) {
+          // Idempotent: already unfollowed on server
+          return;
+        }
+        throw err;
+      }
+    },
     onMutate: async () => {
       const myUserId = useAuthStore.getState().userId;
       const nextIsFollowing = !isFollowing;
@@ -65,6 +84,7 @@ export function useFollowMutation(id: string, isFollowing: boolean) {
             return {
               ...old,
               isFollowing: nextIsFollowing,
+              followStatus: nextIsFollowing ? 'following' : 'none',
               followersCount: Math.max(0, (old.followersCount ?? 0) + (nextIsFollowing ? 1 : -1)),
             };
           }
@@ -88,7 +108,14 @@ export function useFollowMutation(id: string, isFollowing: boolean) {
             return {
               ...old,
               isFollowing: nextIsFollowing,
+              followStatus: nextIsFollowing ? 'following' : 'none',
               followersCount: Math.max(0, (old.followersCount ?? 0) + (nextIsFollowing ? 1 : -1)),
+            };
+          }
+          if (myUserId && old.id === myUserId) {
+            return {
+              ...old,
+              followingCount: Math.max(0, (old.followingCount ?? 0) + (nextIsFollowing ? 1 : -1)),
             };
           }
           return old;
@@ -133,7 +160,13 @@ export function useFollowMutation(id: string, isFollowing: boolean) {
             pages: old.pages.map((page: FollowListPage) => ({
               ...page,
               items: page.items.map((u: FollowListPage['items'][number]) =>
-                u.id === id ? { ...u, isFollowing: nextIsFollowing } : u,
+                u.id === id
+                  ? {
+                      ...u,
+                      isFollowing: nextIsFollowing,
+                      isFriend: Boolean(nextIsFollowing && u.followsYou),
+                    }
+                  : u,
               ),
             })),
           };
@@ -163,20 +196,26 @@ export function useFollowMutation(id: string, isFollowing: boolean) {
         },
       );
 
-      // If unfollowed and current user has an active following list, also update it
+      // If unfollowed and current user has an active following list, also update both query key orders
       if (myUserId && !nextIsFollowing) {
+        const removeFilter = (old: InfiniteData<FollowListPage> | undefined) => {
+          if (!old?.pages) return old;
+          return {
+            ...old,
+            pages: old.pages.map((page: FollowListPage) => ({
+              ...page,
+              items: page.items.filter((u: FollowListPage['items'][number]) => u.id !== id),
+            })),
+          };
+        };
+
         queryClient.setQueryData<InfiniteData<FollowListPage>>(
           [FOLLOW_LIST_KEY, myUserId, 'following'],
-          (old: InfiniteData<FollowListPage> | undefined) => {
-            if (!old?.pages) return old;
-            return {
-              ...old,
-              pages: old.pages.map((page: FollowListPage) => ({
-                ...page,
-                items: page.items.filter((u: FollowListPage['items'][number]) => u.id !== id),
-              })),
-            };
-          },
+          removeFilter,
+        );
+        queryClient.setQueryData<InfiniteData<FollowListPage>>(
+          [FOLLOW_LIST_KEY, 'following', myUserId],
+          removeFilter,
         );
       }
 

@@ -122,4 +122,34 @@ describe('useFollowMutation', () => {
     const myFollowingList = queryClient.getQueryData<any>([FOLLOW_LIST_KEY, 'me', 'following']);
     expect(myFollowingList?.pages[0].items).toHaveLength(0);
   });
+
+  it('handles 409 Conflict idempotently without rolling back', async () => {
+    const error409 = Object.assign(new Error('Already following'), {
+      response: { status: 409 },
+    });
+    vi.spyOn(followApi, 'follow').mockRejectedValue(error409);
+    useAuthStore.setState({ userId: 'me' });
+    const queryClient = new QueryClient();
+
+    queryClient.setQueryData([USER_KEY, 'target-user'], {
+      id: 'target-user',
+      isFollowing: false,
+      followersCount: 10,
+    });
+
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(QueryClientProvider, { client: queryClient }, children);
+
+    const { result } = renderHook(() => useFollowMutation('target-user', false), {
+      wrapper,
+    });
+
+    await act(async () => {
+      await expect(result.current.mutateAsync()).resolves.toBeUndefined();
+    });
+
+    const updatedTarget = queryClient.getQueryData<any>([USER_KEY, 'target-user']);
+    expect(updatedTarget?.isFollowing).toBe(true);
+    expect(updatedTarget?.followersCount).toBe(11);
+  });
 });

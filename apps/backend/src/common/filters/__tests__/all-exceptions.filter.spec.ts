@@ -216,4 +216,36 @@ describe('AllExceptionsFilter', () => {
       uninitializedFilter.catch(new Error('Test error'), mockHost);
     }).not.toThrow();
   });
+
+  it('skips reply and error logging when client connection is aborted', () => {
+    const errorSpy = jest.spyOn(Logger.prototype, 'error');
+    const abortedError = new Error('aborted');
+
+    filter.catch(abortedError, mockHost);
+
+    expect(mockHttpAdapter.reply).not.toHaveBeenCalled();
+    expect(errorSpy).not.toHaveBeenCalled();
+  });
+
+  it('skips reply and error logging for ECONNRESET or ERR_STREAM_PREMATURE_CLOSE', () => {
+    const errorSpy = jest.spyOn(Logger.prototype, 'error');
+    const econnresetError = Object.assign(new Error('read ECONNRESET'), { code: 'ECONNRESET' });
+
+    filter.catch(econnresetError, mockHost);
+
+    expect(mockHttpAdapter.reply).not.toHaveBeenCalled();
+    expect(errorSpy).not.toHaveBeenCalled();
+  });
+
+  it('skips reply and error logging when headers are already sent', () => {
+    const errorSpy = jest.spyOn(Logger.prototype, 'error');
+    (
+      mockHttpAdapter as unknown as { isHeadersSent: jest.Mock<boolean, [Response]> }
+    ).isHeadersSent = jest.fn<boolean, [Response]>().mockReturnValue(true);
+
+    filter.catch(new Error('Post-header crash'), mockHost);
+
+    expect(mockHttpAdapter.reply).not.toHaveBeenCalled();
+    expect(errorSpy).not.toHaveBeenCalled();
+  });
 });

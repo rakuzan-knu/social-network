@@ -51,14 +51,7 @@ export function generateETag(payload: unknown, weak = true): string {
   let raw = '';
   if (typeof payload === 'object') {
     const obj = payload as Record<string, unknown>;
-    // Fast path: if updated_at or updatedAt exists, incorporate it with entity id
-    if (obj.updatedAt || obj.updated_at) {
-      const id = toPrimitiveString(obj.id);
-      const updated = toPrimitiveString(obj.updatedAt ?? obj.updated_at);
-      raw = `${id}:${updated}`;
-    } else {
-      raw = JSON.stringify(payload);
-    }
+    raw = JSON.stringify(payload);
   } else if (
     typeof payload === 'string' ||
     typeof payload === 'number' ||

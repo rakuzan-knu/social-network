@@ -89,7 +89,11 @@ export function useConversationRealtime(conversationId: string | null) {
       const isOwn = Boolean(
         payload.message.sender?.id && userId && payload.message.sender.id === userId,
       );
-      applyIncomingMessage(queryClient, conversationId, payload.message, {
+      const messageToApply =
+        payload.clientMessageId && !payload.message.clientMessageId
+          ? { ...payload.message, clientMessageId: payload.clientMessageId }
+          : payload.message;
+      applyIncomingMessage(queryClient, conversationId, messageToApply, {
         status: isOwn ? 'sent' : 'sent',
       });
       if (!isOwn) {

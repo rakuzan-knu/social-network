@@ -115,7 +115,8 @@ export function useMessengerRealtime(
   const sessionIdRef = useRef<string>(persisted.current.sessionId);
 
   const handleNewMessageRef = useRef<
-    ((data: { conversationId: string; message: MessageView }) => void) | null
+    | ((data: { conversationId: string; message: MessageView; clientMessageId?: string }) => void)
+    | null
   >(null);
   const handleReplayEventRef = useRef<
     ((evt: { seq: number; event: string; payload: unknown }) => void) | null
@@ -242,7 +243,15 @@ export function useMessengerRealtime(
     });
   }, [conversationIds, socket]);
 
-  const handleNewMessage = ({ message }: { conversationId: string; message: MessageView }) => {
+  const handleNewMessage = (payload: {
+    conversationId: string;
+    message: MessageView;
+    clientMessageId?: string;
+  }) => {
+    const message =
+      payload.clientMessageId && !payload.message.clientMessageId
+        ? { ...payload.message, clientMessageId: payload.clientMessageId }
+        : payload.message;
     const conversations = queryClient.getQueryData<ConversationView[]>(
       queryKeys.conversations.root,
     );
@@ -329,6 +338,7 @@ export function useMessengerRealtime(
         handleNewMessageRef.current?.({
           conversationId: payload.conversationId ?? payload.message.conversationId,
           message: payload.message,
+          clientMessageId: (payload as { clientMessageId?: string }).clientMessageId,
         });
         return;
       }
@@ -536,7 +546,7 @@ export function useMessengerRealtime(
     applyMessagesCleared(queryClient, payload.conversationId);
   };
 
-  useChatSocketEvent<{ conversationId: string; message: MessageView }>(
+  useChatSocketEvent<{ conversationId: string; message: MessageView; clientMessageId?: string }>(
     'newMessage',
     handleNewMessage,
   );

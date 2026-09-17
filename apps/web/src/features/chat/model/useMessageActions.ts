@@ -5,7 +5,7 @@ import { useAuthStore } from '@/shared/model/useAuthStore';
 import { queryKeys } from '@/shared/api/queryKeys';
 import { chatApi } from '../api/chatApi';
 import { emitWithAck } from './socketAck';
-import { updateCachedPages } from './chatCacheSync';
+import { updateCachedPages, dedupeMessages } from './chatCacheSync';
 import { nextMessageStatus } from './messageStatus';
 import {
   decryptMessageForDisplay,
@@ -232,13 +232,22 @@ export function useMessageActions(conversationId: string | null) {
           void mutationOutboxDb.delete(optimisticId);
           const real = {
             ...res.message,
+            tempId: optimisticId,
+            clientMessageId: optimisticId,
             status: nextMessageStatus(res.message.status, 'sent'),
           } as MessageView;
           updatePages((pages) =>
             pages.map((p) => ({
               ...p,
-              data: p.data.map((m) =>
-                m.id === optimisticId || m.tempId === optimisticId ? real : m,
+              data: dedupeMessages(
+                p.data.map((m) =>
+                  m.id === optimisticId ||
+                  m.tempId === optimisticId ||
+                  m.clientMessageId === optimisticId ||
+                  m.id === real.id
+                    ? real
+                    : m,
+                ),
               ),
             })),
           );
@@ -268,12 +277,24 @@ export function useMessageActions(conversationId: string | null) {
           });
           if (fallbackRes) {
             void mutationOutboxDb.delete(optimisticId);
-            const real = { ...(fallbackRes as MessageView), status: 'SENT' as const };
+            const real = {
+              ...(fallbackRes as MessageView),
+              tempId: optimisticId,
+              clientMessageId: optimisticId,
+              status: 'SENT' as const,
+            };
             updatePages((pages) =>
               pages.map((p) => ({
                 ...p,
-                data: p.data.map((m) =>
-                  m.id === optimisticId || m.tempId === optimisticId ? real : m,
+                data: dedupeMessages(
+                  p.data.map((m) =>
+                    m.id === optimisticId ||
+                    m.tempId === optimisticId ||
+                    m.clientMessageId === optimisticId ||
+                    m.id === real.id
+                      ? real
+                      : m,
+                  ),
                 ),
               })),
             );

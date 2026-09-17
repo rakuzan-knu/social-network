@@ -461,7 +461,7 @@ export function CommentModal() {
 
   const modalContent = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-0 sm:p-3 md:p-6 animate-fadeIn"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/85 backdrop-blur-md p-0 sm:p-3 md:p-6 animate-fadeIn"
       onClick={closeCommentModal}
     >
       {/* Floating Top-Right Close Button for Desktop */}

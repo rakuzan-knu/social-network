@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useOptimistic, useTransition } from 'react';
+import React, { useState, useEffect, useMemo, useOptimistic, useTransition, useRef } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { useUIStore } from '../../shared/model/useUIStore';
@@ -156,10 +156,20 @@ export default function ProfilePage() {
   const feedQueryKey =
     activeTab === 'posts' ? [USER_POSTS_KEY, user?.id] : [USER_REPOSTS_KEY, user?.id];
 
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scrollMargin, setScrollMargin] = useState(0);
+
+  useEffect(() => {
+    if (containerRef.current) {
+      setScrollMargin(containerRef.current.offsetTop);
+    }
+  }, [activeTab]);
+
   const postVirtualizer = useWindowVirtualizer({
     count: activeFeed.length,
-    estimateSize: () => 480,
-    overscan: 4,
+    estimateSize: () => 240,
+    overscan: 5,
+    scrollMargin,
   });
 
   const virtualItems = postVirtualizer.getVirtualItems();
@@ -172,6 +182,18 @@ export default function ProfilePage() {
       fetchNextPage();
     }
   }, [lastVirtualItem, activeFeed.length, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const hash = window.location.hash;
+    if (hash && hash.startsWith('#post-') && activeFeed.length > 0) {
+      const targetPostId = hash.replace('#post-', '');
+      const targetIndex = activeFeed.findIndex((p) => String(p.id) === targetPostId);
+      if (targetIndex !== -1) {
+        postVirtualizer.scrollToIndex(targetIndex, { align: 'center', behavior: 'smooth' });
+      }
+    }
+  }, [activeFeed, postVirtualizer]);
 
   if (isReserved) {
     return (
@@ -282,7 +304,8 @@ export default function ProfilePage() {
             bannerPosition={user.bannerPosition}
             createdAt={user.createdAt}
             isOwnProfile={isOwnProfile}
-            isFollowing={user.isFollowing}
+            isFollowing={Boolean(user.isFollowing || user.followStatus === 'following')}
+            followStatus={user.followStatus}
             followsYou={user.followsYou}
             isVerified={user.isVerified}
             primaryBadge={user.primaryBadge}
@@ -334,6 +357,7 @@ export default function ProfilePage() {
           <SkeletonFeed count={4} />
         ) : activeFeed.length > 0 ? (
           <div
+            ref={containerRef}
             style={{
               height: `${postVirtualizer.getTotalSize()}px`,
               width: '100%',
@@ -345,7 +369,7 @@ export default function ProfilePage() {
               if (!post) return null;
               return (
                 <div
-                  key={post.id || virtualItem.key}
+                  key={virtualItem.key}
                   ref={postVirtualizer.measureElement}
                   data-index={virtualItem.index}
                   style={{
@@ -353,7 +377,7 @@ export default function ProfilePage() {
                     top: 0,
                     left: 0,
                     width: '100%',
-                    transform: `translateY(${virtualItem.start}px)`,
+                    transform: `translateY(${virtualItem.start - postVirtualizer.options.scrollMargin}px)`,
                     paddingBottom: '16px',
                   }}
                 >

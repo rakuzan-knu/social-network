@@ -3,6 +3,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   Home,
   Search,
+  Film,
   Music2,
   MessageSquare,
   Bell,
@@ -27,6 +28,7 @@ import { useUnreadNotificationsCount } from '../model/useUnreadNotificationsCoun
 const menuItems = [
   { to: '/', icon: <Home size={22} />, label: 'Home' },
   { to: '/search', icon: <Search size={22} />, label: 'Search' },
+  { to: '/reels', icon: <Film size={22} />, label: 'Reels' },
   { to: '/music', icon: <Music2 size={22} />, label: 'Music Hub' },
   { to: '/messages', icon: <MessageSquare size={22} />, label: 'Message' },
   { to: '/notifications', icon: <Bell size={22} />, label: 'Notifications' },
@@ -36,6 +38,12 @@ const menuItems = [
 export default function MessengerSidebar() {
   const isSidebarExpanded = useUIStore((s) => s.isSidebarExpanded);
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
+  const openCreateReel = useUIStore((s) => s.openCreateReel);
+  const isEditProfileOpen = useUIStore((s) => s.isEditProfileOpen);
+  const isShareModalOpen = useUIStore((s) => s.isShareModalOpen);
+  const isCommentModalOpen = useUIStore((s) => s.isCommentModalOpen);
+  const isCreateReelOpen = useUIStore((s) => s.isCreateReelOpen);
+  const isStoryEditorOpen = useStoryEditorStore((s) => s.isOpen);
   const { data: currentUser } = useCurrentUser();
   const openStoryEditor = useStoryEditorStore((s) => s.openEditor);
   const location = useLocation();
@@ -55,6 +63,30 @@ export default function MessengerSidebar() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isCreateMenuOpen]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsCreateMenuOpen(false);
+      }
+    };
+    if (isCreateMenuOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [isCreateMenuOpen]);
+
+  // Close create menu when navigating or modals open
+  useEffect(() => {
+    setIsCreateMenuOpen(false);
+  }, [
+    location.pathname,
+    isEditProfileOpen,
+    isShareModalOpen,
+    isCommentModalOpen,
+    isCreateReelOpen,
+    isStoryEditorOpen,
+  ]);
+
   const handleCreatePost = () => {
     setIsCreateMenuOpen(false);
     navigate('/');
@@ -70,6 +102,11 @@ export default function MessengerSidebar() {
   const handleCreateStory = () => {
     setIsCreateMenuOpen(false);
     openStoryEditor();
+  };
+
+  const handleCreateReel = () => {
+    setIsCreateMenuOpen(false);
+    openCreateReel();
   };
   const profilePath = currentUser?.username ? `/${currentUser.username}` : null;
   const isProfileActive = Boolean(profilePath && location.pathname === profilePath);
@@ -191,6 +228,14 @@ export default function MessengerSidebar() {
                       >
                         <Zap size={16} className="text-pink-400" />
                         <span>Create Story</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCreateReel}
+                        className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold text-gray-200 hover:text-white hover:bg-white/10 transition-colors text-left cursor-pointer mt-1"
+                      >
+                        <Film size={16} className="text-cyan-400" />
+                        <span>Create Reel</span>
                       </button>
                     </div>
                   )}

@@ -31,8 +31,15 @@ function matchesIdentity(
   id: string,
   clientMessageId?: string | null,
 ): boolean {
-  if (id && (m.id === id || m.tempId === id)) return true;
-  if (clientMessageId && (m.id === clientMessageId || m.tempId === clientMessageId)) return true;
+  if (id && (m.id === id || m.tempId === id || m.clientMessageId === id)) return true;
+  if (
+    clientMessageId &&
+    (m.id === clientMessageId ||
+      m.tempId === clientMessageId ||
+      m.clientMessageId === clientMessageId)
+  ) {
+    return true;
+  }
   return false;
 }
 
@@ -53,10 +60,11 @@ export function dedupeMessages(messages: MessageView[]): MessageView[] {
   const seen = new Set<string>();
   const out: MessageView[] = [];
   for (const m of messages) {
-    const key = messageIdentity(m);
-    if (key) {
-      if (seen.has(key)) continue;
-      seen.add(key);
+    const ids = [m.id, m.tempId, m.clientMessageId].filter(Boolean) as string[];
+    const alreadySeen = ids.some((id) => seen.has(id));
+    if (alreadySeen) continue;
+    for (const id of ids) {
+      seen.add(id);
     }
     out.push(m);
   }
@@ -85,11 +93,13 @@ export function upsertMessageIntoPages(
       }
     : incoming;
 
+  const targetClientMsgId = withStatus.clientMessageId || withStatus.tempId;
+
   let replaced = false;
   const mapped = pages.map((page) => ({
     ...page,
     data: page.data.map((m) => {
-      if (matchesIdentity(m, withStatus.id, withStatus.clientMessageId)) {
+      if (matchesIdentity(m, withStatus.id, targetClientMsgId)) {
         replaced = true;
         // Never regress delivery status on echo/replay (e.g. SENT echo
         // must not overwrite a locally-advanced DELIVERED).
@@ -97,7 +107,12 @@ export function upsertMessageIntoPages(
           m.status,
           (withStatus.status as MessageDeliveryStatus) ?? 'sent',
         );
-        return { ...withStatus, status: mergedStatus as MessageView['status'] };
+        return {
+          ...withStatus,
+          clientMessageId: withStatus.clientMessageId || m.clientMessageId,
+          tempId: withStatus.tempId || m.tempId,
+          status: mergedStatus as MessageView['status'],
+        };
       }
       return m;
     }),
@@ -108,7 +123,7 @@ export function upsertMessageIntoPages(
       return [{ data: [withStatus], hasMore: false, nextCursor: null }];
     }
     const next = [...mapped];
-    next[0] = { ...next[0], data: [withStatus, ...next[0].data] };
+    next[0] = { ...next[0], data: dedupeMessages([withStatus, ...next[0].data]) };
     return clampPages(next);
   }
   return mapped;

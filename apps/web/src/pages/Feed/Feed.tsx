@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useRef, useState } from 'react';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import CreatePost from '../../features/posts/ui/CreatePost';
 import { StoriesBar } from '@/widgets/feed/ui/StoriesBar';
@@ -42,10 +42,20 @@ export default function FeedPage() {
     rootMargin: '600px 0px',
   });
 
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scrollMargin, setScrollMargin] = useState(0);
+
+  useEffect(() => {
+    if (containerRef.current) {
+      setScrollMargin(containerRef.current.offsetTop);
+    }
+  }, []);
+
   const postVirtualizer = useWindowVirtualizer({
     count: visiblePosts.length,
-    estimateSize: () => 480,
-    overscan: 4,
+    estimateSize: () => 240,
+    overscan: 5,
+    scrollMargin,
   });
 
   const virtualItems = postVirtualizer.getVirtualItems();
@@ -105,6 +115,7 @@ export default function FeedPage() {
       ) : visiblePosts.length > 0 ? (
         <>
           <div
+            ref={containerRef}
             style={{
               height: `${postVirtualizer.getTotalSize()}px`,
               width: '100%',
@@ -131,16 +142,15 @@ export default function FeedPage() {
               if (!post) return null;
               return (
                 <div
-                  key={post.id || virtualItem.key}
+                  key={virtualItem.key}
                   ref={postVirtualizer.measureElement}
                   data-index={virtualItem.index}
-
                   style={{
                     position: 'absolute',
                     top: 0,
                     left: 0,
                     width: '100%',
-                    transform: `translateY(${virtualItem.start}px)`,
+                    transform: `translateY(${virtualItem.start - postVirtualizer.options.scrollMargin}px)`,
                     paddingBottom: '16px',
                   }}
                 >

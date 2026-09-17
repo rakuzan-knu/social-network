@@ -16,6 +16,33 @@ export interface ErrorResponseFormat {
   traceId: string;
 }
 
+function isClientAbortError(exception: unknown): boolean {
+  if (!exception) return false;
+  if (typeof exception === 'string') {
+    const lower = exception.toLowerCase();
+    return lower === 'aborted' || lower.includes('premature close') || lower.includes('econnreset');
+  }
+  const err = exception as { message?: string; code?: string; name?: string; type?: string };
+  const message = typeof err.message === 'string' ? err.message.toLowerCase() : '';
+  const code = typeof err.code === 'string' ? err.code.toUpperCase() : '';
+  const name = typeof err.name === 'string' ? err.name : '';
+  const type = typeof err.type === 'string' ? err.type.toLowerCase() : '';
+
+  return (
+    message === 'aborted' ||
+    message.includes('request aborted') ||
+    message.includes('client abort') ||
+    message.includes('premature close') ||
+    code === 'ECONNRESET' ||
+    code === 'ECONNABORTED' ||
+    code === 'ERR_STREAM_PREMATURE_CLOSE' ||
+    code === 'ERR_HTTP2_STREAM_CANCEL' ||
+    code === 'FST_ERR_PROMISE_NOT_FULLFILLED' ||
+    name === 'AbortError' ||
+    type === 'aborted'
+  );
+}
+
 const STATUS_CODE_TO_ERROR_CODE: Record<number, string> = {
   [HttpStatus.BAD_REQUEST]: 'BAD_REQUEST',
   [HttpStatus.UNAUTHORIZED]: 'UNAUTHORIZED',
@@ -58,6 +85,51 @@ export class AllExceptionsFilter implements ExceptionFilter {
       request?.headers?.['x-correlation-id'] ||
       request?.headers?.['x-request-id'] ||
       randomUUID()) as string;
+
+    const rawReq =
+      (request as unknown as { raw?: { aborted?: boolean; destroyed?: boolean } })?.raw ||
+      (request as unknown as { aborted?: boolean; destroyed?: boolean });
+    const rawRes = (
+      response as unknown as {
+        raw?: {
+          destroyed?: boolean;
+          headersSent?: boolean;
+          writableEnded?: boolean;
+          socket?: { destroyed?: boolean; writable?: boolean };
+        };
+        sent?: boolean;
+        headersSent?: boolean;
+      }
+    )?.raw;
+
+    const headersAlreadySent = Boolean(
+      (typeof httpAdapter.isHeadersSent === 'function' && httpAdapter.isHeadersSent(response)) ||
+      (response as { headersSent?: boolean })?.headersSent ||
+      (response as { sent?: boolean })?.sent ||
+      rawRes?.headersSent ||
+      rawRes?.writableEnded,
+    );
+
+    const clientDisconnected =
+      isClientAbortError(exception) ||
+      Boolean(rawReq?.aborted) ||
+      Boolean(rawReq?.destroyed) ||
+      Boolean(rawRes?.destroyed) ||
+      (rawRes?.socket ? rawRes.socket.destroyed || !rawRes.socket.writable : false);
+
+    if (headersAlreadySent) {
+      this.logger.debug(
+        `[${request?.method || 'UNKNOWN'}] ${path} [traceId: ${traceId}] - Headers already sent; skipping exception reply.`,
+      );
+      return;
+    }
+
+    if (clientDisconnected) {
+      this.logger.debug(
+        `[${request?.method || 'UNKNOWN'}] ${path} [traceId: ${traceId}] - Client connection aborted or closed prematurely.`,
+      );
+      return;
+    }
 
     const isProduction = process.env.NODE_ENV === 'production';
 
@@ -157,6 +229,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
       traceId,
     };
 
-    httpAdapter.reply(response, responseBody, httpStatus);
+    try {
+      httpAdapter.reply(response, responseBody, httpStatus);
+    } catch (replyError) {
+      this.logger.debug(
+        `[${request.method}] ${path} [traceId: ${traceId}] - Failed to send error reply: ${replyError instanceof Error ? replyError.message : String(replyError)}`,
+      );
+    }
   }
 }

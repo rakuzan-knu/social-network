@@ -111,6 +111,16 @@ async function bootstrap() {
         callback(new Error('Not allowed by CORS'), false);
       }
     },
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    exposedHeaders: [
+      'Content-Range',
+      'X-Total-Count',
+      'X-Trace-Id',
+      'X-Correlation-Id',
+      'X-Idempotency-Key',
+      'X-Idempotent-Replay',
+      'X-Cache-Lookup',
+    ],
     credentials: true,
   });
 
@@ -258,6 +268,7 @@ export default async function handler(req: Request, res: Response): Promise<void
     );
     app.enableCors({
       origin: process.env.CORS_ORIGIN?.split(',').map((o) => o.trim()) ?? '*',
+      methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
       credentials: true,
     });
     const redisIoAdapter = new RedisIoAdapter(app);
