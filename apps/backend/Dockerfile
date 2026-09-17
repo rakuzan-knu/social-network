@@ -45,7 +45,7 @@ RUN pnpm --parallel \
 FROM builder AS deployer
 
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
-    pnpm --filter backend deploy --prod /app/deploy
+    pnpm --filter backend deploy --legacy --prod /app/deploy
 
 # Stage 5: Minimal Production Runtime
 FROM node:24-alpine AS production

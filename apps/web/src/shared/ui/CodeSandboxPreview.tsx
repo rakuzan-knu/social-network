@@ -256,6 +256,7 @@ export default function CodeSandboxPreview({
   const [consoleMessages, setConsoleMessages] = useState<ConsoleMessage[]>([]);
   const [isConsoleOpen, setIsConsoleOpen] = useState(false);
   const instanceIdRef = useRef<string>(`sandbox-${Math.random().toString(36).slice(2, 9)}`);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
   const handleReload = () => {
     setConsoleMessages([]);
@@ -264,6 +265,12 @@ export default function CodeSandboxPreview({
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
+      if (event.origin !== 'null' && event.origin !== window.location.origin) {
+        return;
+      }
+      if (iframeRef.current && event.source !== iframeRef.current.contentWindow) {
+        return;
+      }
       const data = event.data;
       if (
         data &&
@@ -345,6 +352,7 @@ export default function CodeSandboxPreview({
       {/* 100% Isolated Safe IFrame (No allow-same-origin, No allow-top-navigation) */}
       <div className="relative w-full h-52 sm:h-64 bg-[#0a0b0e]">
         <iframe
+          ref={iframeRef}
           key={reloadKey}
           title="Code Sandbox Preview"
           sandbox="allow-scripts"

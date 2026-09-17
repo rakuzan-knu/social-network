@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import type { IStorageService, UploadFileOptions } from './storage.interface';
+import { isR2Endpoint, isCloudflareStorageDomain } from './storage-url.util';
 
 @Injectable()
 export class R2StorageService implements IStorageService {
@@ -47,13 +48,11 @@ export class R2StorageService implements IStorageService {
     this.publicUrl = rawPublicUrl.replace(/\/+$/, '');
 
     const isR2 =
-      Boolean(accountId) ||
-      endpoint.includes('.r2.cloudflarestorage.com') ||
-      this.publicUrl.includes('.r2.dev');
+      Boolean(accountId) || isR2Endpoint(endpoint) || isCloudflareStorageDomain(this.publicUrl);
 
     this.isDirectDomain =
       isR2 ||
-      this.publicUrl.includes('.r2.dev') ||
+      isCloudflareStorageDomain(this.publicUrl) ||
       this.publicUrl.endsWith(`/${this.defaultBucket}`) ||
       this.configService.get<string>('S3_FORCE_PATH_STYLE') === 'false';
 

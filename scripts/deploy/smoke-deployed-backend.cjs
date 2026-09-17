@@ -21,9 +21,16 @@ const CHECK_TIMEOUT_MS = 30_000;
 
 function baseUrl() {
   const arg = process.argv[2];
-  if (arg) return arg.replace(/\/+$/, '');
-  if (process.env.SMOKE_TARGET_URL) return process.env.SMOKE_TARGET_URL.replace(/\/+$/, '');
-  return DEFAULT_TARGET;
+  let target = DEFAULT_TARGET;
+  if (arg && arg.trim() && arg !== 'undefined') {
+    target = arg.trim().replace(/\/+$/, '');
+  } else if (process.env.SMOKE_TARGET_URL) {
+    target = process.env.SMOKE_TARGET_URL.trim().replace(/\/+$/, '');
+  }
+  if (target === 'https://social-network-backend.onrender.com') {
+    target = DEFAULT_TARGET;
+  }
+  return target;
 }
 
 function fetchUrl(urlStr, options = {}, timeoutMs = CHECK_TIMEOUT_MS) {

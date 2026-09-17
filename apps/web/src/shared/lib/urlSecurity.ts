@@ -154,6 +154,16 @@ export function sanitizeImageUrl(url?: string | null, fallback: string = ''): st
   if (/^(?:javascript|data|vbscript):/i.test(trimmed)) {
     return fallback;
   }
+  if (trimmed.startsWith('blob:')) {
+    try {
+      const parsed = new URL(trimmed);
+      if (parsed.protocol === 'blob:') {
+        return trimmed;
+      }
+    } catch {
+      return fallback;
+    }
+  }
   if (/^https?:\/\//i.test(trimmed)) {
     try {
       const parsed = new URL(trimmed);

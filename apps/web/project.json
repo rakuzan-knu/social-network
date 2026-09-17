@@ -1,14 +1,14 @@
 {
   "name": "frontend",
-  "sourceRoot": "frontend/src",
+  "sourceRoot": "apps/web/src",
   "projectType": "application",
   "targets": {
     "build": {
       "executor": "nx:run-commands",
-      "outputs": ["{workspaceRoot}/frontend/dist"],
+      "outputs": ["{workspaceRoot}/apps/web/dist"],
       "options": {
         "command": "pnpm build",
-        "cwd": "frontend",
+        "cwd": "apps/web",
         "forwardAllArgs": false
       }
     },
@@ -16,7 +16,7 @@
       "executor": "nx:run-commands",
       "options": {
         "command": "pnpm lint",
-        "cwd": "frontend",
+        "cwd": "apps/web",
         "forwardAllArgs": false
       }
     },
@@ -24,7 +24,7 @@
       "executor": "nx:run-commands",
       "options": {
         "command": "pnpm typecheck",
-        "cwd": "frontend",
+        "cwd": "apps/web",
         "forwardAllArgs": false
       }
     },
@@ -32,7 +32,7 @@
       "executor": "nx:run-commands",
       "options": {
         "command": "pnpm dev",
-        "cwd": "frontend",
+        "cwd": "apps/web",
         "forwardAllArgs": false
       }
     },
@@ -40,7 +40,7 @@
       "executor": "nx:run-commands",
       "options": {
         "command": "pnpm test:ci",
-        "cwd": "frontend",
+        "cwd": "apps/web",
         "forwardAllArgs": false
       }
     }

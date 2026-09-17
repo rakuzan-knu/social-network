@@ -8,6 +8,7 @@ import { useUpdateGroup } from '../model/useConversationMutations';
 import { chatApi } from '../api/chatApi';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/api/queryKeys';
+import { sanitizeImageUrl } from '../../../shared/lib/urlSecurity';
 
 interface EditGroupModalProps {
   conversation: ConversationView;
@@ -46,15 +47,9 @@ export default function EditGroupModal({
   ).length;
   const memberCount = conversation.participants.length;
 
-  const safeAvatarPreview =
-    avatarPreview &&
-    (avatarPreview.startsWith('blob:') ||
-      avatarPreview.startsWith('https://') ||
-      avatarPreview.startsWith('http://') ||
-      avatarPreview.startsWith('/') ||
-      avatarPreview.startsWith('data:'))
-      ? avatarPreview
-      : null;
+  const safeAvatarPreview = React.useMemo(() => {
+    return avatarPreview ? sanitizeImageUrl(avatarPreview) || null : null;
+  }, [avatarPreview]);
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { S3Client } from '@aws-sdk/client-s3';
 import { StoriesRepository } from './stories.repository';
 import { deleteFromStorage } from '../common/media/image-processor';
+import { isR2Endpoint } from '../common/storage/storage-url.util';
 
 @Injectable()
 export class StoriesRetentionService implements OnModuleDestroy {
@@ -38,9 +39,11 @@ export class StoriesRetentionService implements OnModuleDestroy {
       this.configService.get<string>('S3_ENDPOINT') ??
       'http://localhost:9000';
 
+    const isR2 = Boolean(accountId) || isR2Endpoint(endpoint);
+
     this.s3 = new S3Client({
       endpoint,
-      region: accountId || endpoint.includes('.r2.cloudflarestorage.com') ? 'auto' : 'us-east-1',
+      region: isR2 ? 'auto' : 'us-east-1',
       credentials: {
         accessKeyId:
           this.configService.get<string>('R2_ACCESS_KEY_ID') ??
@@ -53,7 +56,7 @@ export class StoriesRetentionService implements OnModuleDestroy {
           this.configService.get<string>('S3_SECRET_KEY') ??
           'rootpassword',
       },
-      forcePathStyle: !accountId && !endpoint.includes('.r2.cloudflarestorage.com'),
+      forcePathStyle: !isR2,
     });
   }
 

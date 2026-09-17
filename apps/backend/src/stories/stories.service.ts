@@ -14,6 +14,7 @@ import { S3Client, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { uid } from 'uid';
 import { StoryMediaType, StoryPrivacy, NotificationType } from '@prisma/client';
 export { StoryMediaType, StoryPrivacy } from '@prisma/client';
+import { isR2Endpoint } from '../common/storage/storage-url.util';
 import { RedisService } from '../redis/redis.service';
 import { StoriesRepository, type StoryWithDetails } from './stories.repository';
 import { ConversationsService } from '../messenger/conversations/conversations.service';
@@ -81,9 +82,11 @@ export class StoriesService implements OnModuleDestroy {
       this.configService.get<string>('S3_ENDPOINT') ??
       'http://localhost:9000';
 
+    const isR2 = Boolean(accountId) || isR2Endpoint(endpoint);
+
     this.s3 = new S3Client({
       endpoint,
-      region: accountId || endpoint.includes('.r2.cloudflarestorage.com') ? 'auto' : 'us-east-1',
+      region: isR2 ? 'auto' : 'us-east-1',
       credentials: {
         accessKeyId:
           this.configService.get<string>('R2_ACCESS_KEY_ID') ??
@@ -96,7 +99,7 @@ export class StoriesService implements OnModuleDestroy {
           this.configService.get<string>('S3_SECRET_KEY') ??
           'rootpassword',
       },
-      forcePathStyle: !accountId && !endpoint.includes('.r2.cloudflarestorage.com'),
+      forcePathStyle: !isR2,
     });
   }
 

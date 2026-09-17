@@ -1,5 +1,6 @@
 import { S3Client } from '@aws-sdk/client-s3';
 import { ConfigService } from '@nestjs/config';
+import { isR2Endpoint } from '../common/storage/storage-url.util';
 
 export const POSTS_S3_CLIENT = 'POSTS_S3_CLIENT';
 
@@ -14,9 +15,11 @@ export const postsS3Provider = {
       configService.get<string>('S3_ENDPOINT') ??
       'http://minio:9000';
 
+    const isR2 = Boolean(accountId) || isR2Endpoint(endpoint);
+
     return new S3Client({
       endpoint,
-      region: accountId || endpoint.includes('.r2.cloudflarestorage.com') ? 'auto' : 'us-east-1',
+      region: isR2 ? 'auto' : 'us-east-1',
       credentials: {
         accessKeyId:
           configService.get<string>('R2_ACCESS_KEY_ID') ??
@@ -29,7 +32,7 @@ export const postsS3Provider = {
           configService.get<string>('S3_SECRET_KEY') ??
           'rootpassword',
       },
-      forcePathStyle: !accountId && !endpoint.includes('.r2.cloudflarestorage.com'),
+      forcePathStyle: !isR2,
     });
   },
   inject: [ConfigService],

@@ -1302,7 +1302,17 @@ export class SpotifyService {
     `);
   }
 
+  private escapeHtml(str: string): string {
+    return (str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
   private renderHtmlMessage(res: Response, success: boolean, message: string) {
+    const safeMessage = this.escapeHtml(message);
     res.setHeader('Content-Type', 'text/html');
     res.send(`
       <!DOCTYPE html>
@@ -1322,7 +1332,7 @@ export class SpotifyService {
         <body>
           <div class="card">
             <h2>${success ? 'Success' : 'Notice'}</h2>
-            <p>${message}</p>
+            <p>${safeMessage}</p>
             <button class="btn" onclick="window.close()">Close Window</button>
           </div>
         </body>

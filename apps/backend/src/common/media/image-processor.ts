@@ -1,6 +1,8 @@
 import sharp from 'sharp';
 import os from 'os';
+import path from 'path';
 import { type S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { isCloudflareStorageDomain } from '../storage/storage-url.util';
 
 // Configure libvips threadpool and SIMD hardware acceleration for peak throughput
 try {
@@ -178,12 +180,16 @@ export async function uploadToStorageWithFallback(
   if (isLocalStorage) {
     try {
       const fs = await import('fs/promises');
-      const path = await import('path');
       const uploadDir = process.env.LOCAL_STORAGE_DIR
         ? path.resolve(process.cwd(), process.env.LOCAL_STORAGE_DIR)
         : path.resolve(process.cwd(), 'uploads');
 
-      const targetPath = path.resolve(uploadDir, cleanKey);
+      const safeKey = path.normalize(cleanKey).replace(/^(\.\.(\/|\\|$))+/, '');
+      const targetPath = path.resolve(uploadDir, safeKey);
+      if (!targetPath.startsWith(uploadDir + path.sep)) {
+        throw new Error('Invalid storage file path: directory traversal attempt');
+      }
+
       await fs.mkdir(path.dirname(targetPath), { recursive: true });
       await fs.writeFile(targetPath, buffer);
 
@@ -192,7 +198,7 @@ export async function uploadToStorageWithFallback(
         /\/+$/,
         '',
       );
-      return `${baseUrl}/uploads/${cleanKey}`;
+      return `${baseUrl}/uploads/${safeKey}`;
     } catch (localErr) {
       if (isRender || isProduction) {
         throw localErr;
@@ -217,8 +223,7 @@ export async function uploadToStorageWithFallback(
     const cleanPublicUrl = (process.env.R2_PUBLIC_URL || publicUrl).replace(/\/+$/, '');
 
     const isDirectBucketDomain =
-      cleanPublicUrl.includes('.r2.dev') ||
-      cleanPublicUrl.includes('.cloudflarestorage.com') ||
+      isCloudflareStorageDomain(cleanPublicUrl) ||
       cleanPublicUrl.endsWith(`/${bucket}`) ||
       process.env.S3_FORCE_PATH_STYLE === 'false';
 

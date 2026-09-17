@@ -39,5 +39,5 @@ variable "github_repository" {
 variable "api_url" {
   type        = string
   description = "Production Backend API URL"
-  default     = "https://social-network-backend.onrender.com/api"
+  default     = "https://social-network-backend-4h47.onrender.com/api"
 }

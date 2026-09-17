@@ -76,8 +76,7 @@ let activeFileName = '';
 let currentOffset = 0;
 
 self.onmessage = async (event: MessageEvent<WorkerInMessage>) => {
-  const trustedOrigins = new Set([self.location.origin, 'null', '']);
-  if (!trustedOrigins.has(event.origin)) {
+  if (event.origin !== self.location.origin && event.origin !== '' && event.origin !== 'null') {
     return;
   }
   const message = event.data;

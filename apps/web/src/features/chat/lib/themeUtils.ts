@@ -1496,6 +1496,24 @@ export function dispatchThemeSync(conversationId: string, theme: ChatThemeConfig
  * Strips <script>, <foreignObject>, <iframe>, <object>, <embed>, inline event handlers (onload, onerror, etc.),
  * and dangerous URI schemes.
  */
+/**
+ * Sanitizes and strips dangerous active tags, event handlers, and schemes from raw SVG content
+ * before DOM parsing to prevent XSS through DOM (CWE-79 / CWE-116).
+ */
+export function sanitizeRawSvgContent(raw: string): string {
+  return raw
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/<foreignobject\b[^<]*(?:(?!<\/foreignobject>)<[^<]*)*<\/foreignobject>/gi, '')
+    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
+    .replace(/<object\b[^<]*(?:(?!<\/object>)<[^<]*)*<\/object>/gi, '')
+    .replace(/<embed\b[^<]*(?:(?!<\/embed>)<[^<]*)*<\/embed>/gi, '')
+    .replace(/<applet\b[^<]*(?:(?!<\/applet>)<[^<]*)*<\/applet>/gi, '')
+    .replace(/<meta\b[^>]*\/?>/gi, '')
+    .replace(/<link\b[^>]*\/?>/gi, '')
+    .replace(/\s*on[a-z0-9_-]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(/(?:javascript|vbscript):/gi, 'about:blank');
+}
+
 export function sanitizeAndValidateSvg(svgContent: string): {
   isValid: boolean;
   sanitizedSvg?: string;
@@ -1506,23 +1524,24 @@ export function sanitizeAndValidateSvg(svgContent: string): {
   }
 
   try {
+    const cleanSvg = sanitizeRawSvgContent(svgContent);
+
     if (typeof DOMParser === 'undefined') {
-      // In test/Node environment, strictly reject any executable or active content without partial regex replacement
       if (
         /<(?:script|foreignobject|iframe|object|embed|audio|video|meta|link|use|set|animate|animatetransform|handler)\b/i.test(
-          svgContent,
+          cleanSvg,
         ) ||
-        /\bon[a-z0-9_-]+\s*=/i.test(svgContent) ||
-        /(?:javascript|vbscript):/i.test(svgContent) ||
-        /data:(?!image\/(?:png|jpeg|jpg|webp|gif|avif);base64)/i.test(svgContent)
+        /\bon[a-z0-9_-]+\s*=/i.test(cleanSvg) ||
+        /(?:javascript|vbscript):/i.test(cleanSvg) ||
+        /data:(?!image\/(?:png|jpeg|jpg|webp|gif|avif);base64)/i.test(cleanSvg)
       ) {
         return { isValid: false, error: 'SVG contains forbidden executable tags or scripts' };
       }
-      return { isValid: true, sanitizedSvg: svgContent };
+      return { isValid: true, sanitizedSvg: cleanSvg };
     }
 
     const parser = new DOMParser();
-    const doc = parser.parseFromString(svgContent, 'image/svg+xml');
+    const doc = parser.parseFromString(cleanSvg, 'image/svg+xml');
 
     const parserError = doc.querySelector('parsererror');
     if (parserError) {
