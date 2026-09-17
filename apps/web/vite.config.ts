@@ -16,6 +16,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      zod: path.resolve(__dirname, './node_modules/zod'),
       '@': path.resolve(__dirname, './src'),
       '@backend/common/contracts': path.resolve(
         __dirname,

@@ -29,6 +29,16 @@ const config: StorybookConfig = {
     config.resolve.alias = {
       ...config.resolve.alias,
       '@': srcDir,
+      zod: fileURLToPath(new URL('../node_modules/zod', import.meta.url)),
+      '@backend/common/contracts': fileURLToPath(
+        new URL('../../../packages/shared/contracts/src/index.ts', import.meta.url),
+      ),
+      '@common/contracts': fileURLToPath(
+        new URL('../../../packages/shared/contracts/src/index.ts', import.meta.url),
+      ),
+      '@shared/contracts': fileURLToPath(
+        new URL('../../../packages/shared/contracts/src/index.ts', import.meta.url),
+      ),
     };
     return config;
   },

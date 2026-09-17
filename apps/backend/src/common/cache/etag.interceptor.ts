@@ -33,16 +33,6 @@ interface HttpResponseAdapter {
   };
 }
 
-function toPrimitiveString(val: unknown): string {
-  if (typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean') {
-    return String(val);
-  }
-  if (val instanceof Date) {
-    return val.toISOString();
-  }
-  return '';
-}
-
 export function generateETag(payload: unknown, weak = true): string {
   if (payload === null || payload === undefined) {
     return weak ? 'W/"0"' : '"0"';
@@ -50,7 +40,6 @@ export function generateETag(payload: unknown, weak = true): string {
 
   let raw = '';
   if (typeof payload === 'object') {
-    const obj = payload as Record<string, unknown>;
     raw = JSON.stringify(payload);
   } else if (
     typeof payload === 'string' ||

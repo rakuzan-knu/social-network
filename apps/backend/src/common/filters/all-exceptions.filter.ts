@@ -79,43 +79,36 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
 
     const path = String(httpAdapter.getRequestUrl(request));
-    const traceId = (request?.traceId ||
+    const rawTraceId =
+      request?.traceId ||
       request?.correlationId ||
       request?.headers?.['x-trace-id'] ||
       request?.headers?.['x-correlation-id'] ||
       request?.headers?.['x-request-id'] ||
-      randomUUID()) as string;
+      randomUUID();
+    const traceId = Array.isArray(rawTraceId) ? rawTraceId[0] || randomUUID() : String(rawTraceId);
 
-    const rawReq =
-      (request as unknown as { raw?: { aborted?: boolean; destroyed?: boolean } })?.raw ||
-      (request as unknown as { aborted?: boolean; destroyed?: boolean });
-    const rawRes = (
-      response as unknown as {
-        raw?: {
-          destroyed?: boolean;
-          headersSent?: boolean;
-          writableEnded?: boolean;
-          socket?: { destroyed?: boolean; writable?: boolean };
-        };
-        sent?: boolean;
+    const rawRes = response as unknown as {
+      raw?: {
+        destroyed?: boolean;
         headersSent?: boolean;
-      }
-    )?.raw;
+        writableEnded?: boolean;
+        socket?: { destroyed?: boolean; writable?: boolean };
+      };
+      sent?: boolean;
+      headersSent?: boolean;
+      writableEnded?: boolean;
+      destroyed?: boolean;
+    };
 
     const headersAlreadySent = Boolean(
       (typeof httpAdapter.isHeadersSent === 'function' && httpAdapter.isHeadersSent(response)) ||
-      (response as { headersSent?: boolean })?.headersSent ||
-      (response as { sent?: boolean })?.sent ||
       rawRes?.headersSent ||
-      rawRes?.writableEnded,
+      rawRes?.sent ||
+      rawRes?.writableEnded ||
+      rawRes?.raw?.headersSent ||
+      rawRes?.raw?.writableEnded,
     );
-
-    const clientDisconnected =
-      isClientAbortError(exception) ||
-      Boolean(rawReq?.aborted) ||
-      Boolean(rawReq?.destroyed) ||
-      Boolean(rawRes?.destroyed) ||
-      (rawRes?.socket ? rawRes.socket.destroyed || !rawRes.socket.writable : false);
 
     if (headersAlreadySent) {
       this.logger.debug(
@@ -124,7 +117,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       return;
     }
 
-    if (clientDisconnected) {
+    if (isClientAbortError(exception)) {
       this.logger.debug(
         `[${request?.method || 'UNKNOWN'}] ${path} [traceId: ${traceId}] - Client connection aborted or closed prematurely.`,
       );
