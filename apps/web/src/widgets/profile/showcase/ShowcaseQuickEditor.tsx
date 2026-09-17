@@ -1971,9 +1971,10 @@ export const ShowcaseQuickEditor: React.FC<ShowcaseQuickEditorProps> = ({
                         value={spotlightMedia.customBannerUrl || ''}
                         onChange={(e) => {
                           const val = e.target.value.trim();
+                          const sanitized = val ? sanitizeImageUrl(val) : null;
                           setSpotlightMedia({
                             ...spotlightMedia,
-                            customBannerUrl: val || null,
+                            customBannerUrl: sanitized || null,
                           });
                         }}
                         placeholder="Custom cover art / GIF (URL)..."

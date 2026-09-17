@@ -60,9 +60,11 @@ export default function EditGroupModal({
       URL.revokeObjectURL(lastObjectUrlRef.current);
     }
     const newUrl = URL.createObjectURL(file);
+    const sanitizedUrl = sanitizeImageUrl(newUrl);
+    if (!sanitizedUrl) return;
     lastObjectUrlRef.current = newUrl;
     setAvatarFile(file);
-    setAvatarPreview(newUrl);
+    setAvatarPreview(sanitizedUrl);
     setErrorMsg(null);
   };
 

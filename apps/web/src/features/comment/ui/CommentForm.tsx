@@ -8,6 +8,7 @@ import {
   type SelectionFormatType,
 } from '@/shared/ui/editor';
 import { detectCodeSnippet, type DetectedCodeSnippet } from '@/shared/lib/editor';
+import { sanitizeImageUrl } from '@/shared/lib/urlSecurity';
 
 interface CommentFormProps {
   currentUserHandle: string;
@@ -264,7 +265,13 @@ export function CommentForm({
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      const filesArray = Array.from(e.target.files).map((file) => URL.createObjectURL(file));
+      const filesArray = Array.from(e.target.files)
+        .filter((file) => file.type.startsWith('image/'))
+        .map((file) => {
+          const objectUrl = URL.createObjectURL(file);
+          return sanitizeImageUrl(objectUrl);
+        })
+        .filter(Boolean) as string[];
       setImages((prev) => [...prev, ...filesArray]);
     }
   };
@@ -309,7 +316,11 @@ export function CommentForm({
               key={idx}
               className="relative group w-16 h-16 rounded-xl overflow-hidden border border-white/[0.1]"
             >
-              <img src={url} className="w-full h-full object-cover" alt="preview" />
+              <img
+                src={sanitizeImageUrl(url)}
+                className="w-full h-full object-cover"
+                alt="preview"
+              />
               <button
                 type="button"
                 onClick={() => handleImageRemove(idx)}

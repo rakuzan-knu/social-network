@@ -151,31 +151,38 @@ function formatParsedUrl(parsed: URL, trimmed: string): string {
 export function sanitizeImageUrl(url?: string | null, fallback: string = ''): string {
   if (!url || typeof url !== 'string') return fallback;
   const trimmed = url.trim();
-  if (/^(?:javascript|data|vbscript):/i.test(trimmed)) {
+  // Reject HTML meta-characters or quotes that could cause DOM attribute injection
+  if (/[<>"'`\\]/.test(trimmed)) {
     return fallback;
   }
-  if (trimmed.startsWith('blob:')) {
+  // HTML meta-characters already rejected above — no need for DOMPurify re-parse
+  // (using DOMPurify here would trigger CodeQL CWE-79 taint-tracking false positive)
+  const clean = trimmed;
+  if (!clean || /^(?:javascript|data|vbscript):/i.test(clean)) {
+    return fallback;
+  }
+  if (clean.startsWith('blob:')) {
     try {
-      const parsed = new URL(trimmed);
+      const parsed = new URL(clean);
       if (parsed.protocol === 'blob:') {
-        return trimmed;
+        return parsed.href;
       }
     } catch {
       return fallback;
     }
   }
-  if (/^https?:\/\//i.test(trimmed)) {
+  if (/^https?:\/\//i.test(clean)) {
     try {
-      const parsed = new URL(trimmed);
+      const parsed = new URL(clean);
       if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
-        return formatParsedUrl(parsed, trimmed);
+        return formatParsedUrl(parsed, clean);
       }
     } catch {
       return fallback;
     }
   }
-  if (trimmed.startsWith('/') && !trimmed.startsWith('//')) {
-    return encodeURI(trimmed);
+  if (clean.startsWith('/') && !clean.startsWith('//')) {
+    return encodeURI(clean);
   }
   return fallback;
 }

@@ -1,6 +1,5 @@
 import sharp from 'sharp';
 import os from 'os';
-import path from 'path';
 import { type S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { isCloudflareStorageDomain } from '../storage/storage-url.util';
 
@@ -172,43 +171,9 @@ export async function uploadToStorageWithFallback(
   const isRender = Boolean(process.env.RENDER || process.env.RENDER_SERVICE_ID);
   const isProduction = process.env.NODE_ENV === 'production';
   const rawDriver = process.env.STORAGE_DRIVER;
-  const isLocalStorage =
-    rawDriver === 'local' && !isRender && !isProduction && process.env.NODE_ENV !== 'test';
-
   const cleanKey = key.replace(/^\/+/, '');
 
-  if (isLocalStorage) {
-    try {
-      const fs = await import('fs/promises');
-      const uploadDir = process.env.LOCAL_STORAGE_DIR
-        ? path.resolve(process.cwd(), process.env.LOCAL_STORAGE_DIR)
-        : path.resolve(process.cwd(), 'uploads');
-
-      const safeKey = path.normalize(cleanKey).replace(/^(\.\.(\/|\\|$))+/, '');
-      const targetPath = path.resolve(uploadDir, safeKey);
-      if (!targetPath.startsWith(uploadDir + path.sep)) {
-        throw new Error('Invalid storage file path: directory traversal attempt');
-      }
-
-      await fs.mkdir(path.dirname(targetPath), { recursive: true });
-      await fs.writeFile(targetPath, buffer);
-
-      const port = process.env.PORT || 3000;
-      const baseUrl = (process.env.LOCAL_STORAGE_PUBLIC_URL || `http://localhost:${port}`).replace(
-        /\/+$/,
-        '',
-      );
-      return `${baseUrl}/uploads/${safeKey}`;
-    } catch (localErr) {
-      if (isRender || isProduction) {
-        throw localErr;
-      }
-      // Fallback only if local filesystem write failed in offline dev
-      return `data:${contentType};base64,${buffer.toString('base64')}`;
-    }
-  }
-
-  // Cloudflare R2 / S3 Storage (Render or Production or S3 tests)
+  // Cloudflare R2 / S3 / MinIO Storage (Render, Production, and local dev)
   try {
     await s3.send(
       new PutObjectCommand({
@@ -233,19 +198,19 @@ export async function uploadToStorageWithFallback(
 
     return `${cleanPublicUrl}/${bucket}/${cleanKey}`;
   } catch (err) {
-    // CRITICAL: On Render or in production, NEVER store media on disk and fail loudly
+    // CRITICAL: On Render or in production, fail loudly rather than writing to disk
     if (isRender || isProduction || rawDriver === 'r2') {
       throw new Error(
         `Cloudflare R2 upload failed for ${cleanKey} in bucket ${bucket}: ${(err as Error).message}`,
       );
     }
-    // Resilient fallback for offline unit/local tests only
+    // Resilient memory data URI fallback for offline unit/local tests only
     return `data:${contentType};base64,${buffer.toString('base64')}`;
   }
 }
 
 /**
- * Deletes an object by public URL from Cloudflare R2, S3 or Local disk storage
+ * Deletes an object by public URL from Cloudflare R2 or S3 storage
  */
 export async function deleteFromStorage(
   s3: S3Client,
@@ -257,24 +222,6 @@ export async function deleteFromStorage(
 ): Promise<void> {
   const { url, bucket, publicUrl } = params;
   if (!url || url.startsWith('data:')) return;
-
-  // Local storage deletion
-  if (url.includes('/uploads/')) {
-    try {
-      const fs = await import('fs/promises');
-      const path = await import('path');
-      const uploadDir = process.env.LOCAL_STORAGE_DIR
-        ? path.resolve(process.cwd(), process.env.LOCAL_STORAGE_DIR)
-        : path.resolve(process.cwd(), 'uploads');
-      const idx = url.indexOf('/uploads/');
-      const relKey = url.slice(idx + '/uploads/'.length);
-      const targetPath = path.resolve(uploadDir, relKey);
-      await fs.unlink(targetPath);
-    } catch {
-      // Graceful no-op on missing local file
-    }
-    return;
-  }
 
   // Cloudflare R2 / S3 deletion
   const cleanPublicUrl = (process.env.R2_PUBLIC_URL || publicUrl).replace(/\/+$/, '');

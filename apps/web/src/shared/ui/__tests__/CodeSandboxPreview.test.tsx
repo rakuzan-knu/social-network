@@ -76,6 +76,8 @@ describe('CodeSandboxPreview', () => {
     act(() => {
       window.dispatchEvent(
         new MessageEvent('message', {
+          origin: 'null',
+          source: iframe.contentWindow,
           data: {
             type: 'SANDBOX_CONSOLE_LOG',
             instanceId,
@@ -86,6 +88,8 @@ describe('CodeSandboxPreview', () => {
       );
       window.dispatchEvent(
         new MessageEvent('message', {
+          origin: 'null',
+          source: iframe.contentWindow,
           data: {
             type: 'SANDBOX_CONSOLE_LOG',
             instanceId,
@@ -96,6 +100,8 @@ describe('CodeSandboxPreview', () => {
       );
       window.dispatchEvent(
         new MessageEvent('message', {
+          origin: 'null',
+          source: iframe.contentWindow,
           data: {
             type: 'SANDBOX_CONSOLE_LOG',
             instanceId,
@@ -106,6 +112,8 @@ describe('CodeSandboxPreview', () => {
       );
       window.dispatchEvent(
         new MessageEvent('message', {
+          origin: 'null',
+          source: iframe.contentWindow,
           data: {
             type: 'SANDBOX_CONSOLE_LOG',
             instanceId,
@@ -136,6 +144,8 @@ describe('CodeSandboxPreview', () => {
     act(() => {
       window.dispatchEvent(
         new MessageEvent('message', {
+          origin: 'null',
+          source: iframe.contentWindow,
           data: {
             type: 'SANDBOX_CONSOLE_LOG',
             instanceId,

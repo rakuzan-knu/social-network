@@ -1,4 +1,5 @@
 import React from 'react';
+import DOMPurify from 'dompurify';
 import { z } from 'zod';
 import {
   BUILT_IN_PRESETS,
@@ -1493,27 +1494,8 @@ export function dispatchThemeSync(conversationId: string, theme: ChatThemeConfig
 // ----------------------------------------------------
 /**
  * Sanitizes and validates SVG file content to prevent CSS/JS injection and XSS attacks.
- * Strips <script>, <foreignObject>, <iframe>, <object>, <embed>, inline event handlers (onload, onerror, etc.),
- * and dangerous URI schemes.
+ * Uses DOMPurify to strip dangerous elements and attributes, then validates structure.
  */
-/**
- * Sanitizes and strips dangerous active tags, event handlers, and schemes from raw SVG content
- * before DOM parsing to prevent XSS through DOM (CWE-79 / CWE-116).
- */
-export function sanitizeRawSvgContent(raw: string): string {
-  return raw
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/<foreignobject\b[^<]*(?:(?!<\/foreignobject>)<[^<]*)*<\/foreignobject>/gi, '')
-    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
-    .replace(/<object\b[^<]*(?:(?!<\/object>)<[^<]*)*<\/object>/gi, '')
-    .replace(/<embed\b[^<]*(?:(?!<\/embed>)<[^<]*)*<\/embed>/gi, '')
-    .replace(/<applet\b[^<]*(?:(?!<\/applet>)<[^<]*)*<\/applet>/gi, '')
-    .replace(/<meta\b[^>]*\/?>/gi, '')
-    .replace(/<link\b[^>]*\/?>/gi, '')
-    .replace(/\s*on[a-z0-9_-]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-    .replace(/(?:javascript|vbscript):/gi, 'about:blank');
-}
-
 export function sanitizeAndValidateSvg(svgContent: string): {
   isValid: boolean;
   sanitizedSvg?: string;
@@ -1524,113 +1506,80 @@ export function sanitizeAndValidateSvg(svgContent: string): {
   }
 
   try {
-    const cleanSvg = sanitizeRawSvgContent(svgContent);
-
-    if (typeof DOMParser === 'undefined') {
-      if (
-        /<(?:script|foreignobject|iframe|object|embed|audio|video|meta|link|use|set|animate|animatetransform|handler)\b/i.test(
-          cleanSvg,
-        ) ||
-        /\bon[a-z0-9_-]+\s*=/i.test(cleanSvg) ||
-        /(?:javascript|vbscript):/i.test(cleanSvg) ||
-        /data:(?!image\/(?:png|jpeg|jpg|webp|gif|avif);base64)/i.test(cleanSvg)
-      ) {
-        return { isValid: false, error: 'SVG contains forbidden executable tags or scripts' };
-      }
-      return { isValid: true, sanitizedSvg: cleanSvg };
-    }
-
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(cleanSvg, 'image/svg+xml');
-
-    const parserError = doc.querySelector('parsererror');
-    if (parserError) {
-      return { isValid: false, error: 'Invalid SVG format' };
-    }
-
-    const svgElement = doc.documentElement;
-    if (!svgElement || svgElement.nodeName.toLowerCase() !== 'svg') {
+    const trimmed = svgContent.trim();
+    if (!trimmed.toLowerCase().includes('<svg')) {
       return { isValid: false, error: 'Root element is not <svg>' };
     }
 
-    // Dangerous tags to remove completely (case-insensitive & namespace-safe)
-    const dangerousTagSet = new Set([
-      'script',
-      'foreignobject',
-      'iframe',
-      'object',
-      'embed',
-      'audio',
-      'video',
-      'meta',
-      'link',
-      'applet',
-      'frame',
-      'frameset',
-      'use',
-      'set',
-      'animate',
-      'animatetransform',
-      'handler',
-    ]);
-
-    const allElements = Array.from(doc.getElementsByTagName('*'));
-    for (const el of allElements) {
-      const tagName = el.tagName.toLowerCase().replace(/^.*:/, '');
-      if (dangerousTagSet.has(tagName)) {
-        el.parentNode?.removeChild(el);
-        continue;
-      }
-
-      const attrs = Array.from(el.attributes);
-      for (const attr of attrs) {
-        const attrName = attr.name.toLowerCase();
-        const attrVal = attr.value.trim().toLowerCase();
-
-        // Remove inline event handlers (e.g. onload, onerror, onclick, onanything)
-        if (attrName.startsWith('on') || attrName.includes('on')) {
-          el.removeAttribute(attr.name);
-          continue;
-        }
-
-        // Remove dangerous href/xlink:href/src protocols
+    // Configure DOMPurify hook to strip dangerous style attributes and protocols
+    DOMPurify.removeAllHooks();
+    DOMPurify.addHook('afterSanitizeAttributes', (node) => {
+      if (node.hasAttribute('style')) {
+        const style = node.getAttribute('style') || '';
         if (
-          attrName === 'href' ||
-          attrName === 'xlink:href' ||
-          attrName === 'src' ||
-          attrName.endsWith(':href') ||
-          attrName.endsWith(':src')
+          style.includes('url(') ||
+          style.includes('javascript:') ||
+          style.includes('vbscript:') ||
+          style.includes('expression(') ||
+          style.includes('-moz-binding')
         ) {
-          if (
-            attrVal.startsWith('javascript:') ||
-            attrVal.startsWith('vbscript:') ||
-            (attrVal.startsWith('data:') &&
-              !/^data:image\/(?:png|jpeg|jpg|webp|gif|avif);base64,[a-z0-9+/=]+$/i.test(attrVal))
-          ) {
-            el.removeAttribute(attr.name);
-            continue;
-          }
+          node.removeAttribute('style');
         }
-
-        // Check style attributes for javascript/expression execution
-        if (attrName === 'style') {
+      }
+      for (const attr of ['href', 'xlink:href', 'src']) {
+        if (node.hasAttribute(attr)) {
+          const val = (node.getAttribute(attr) || '').trim().toLowerCase();
           if (
-            attrVal.includes('javascript:') ||
-            attrVal.includes('vbscript:') ||
-            attrVal.includes('expression(') ||
-            attrVal.includes('-moz-binding') ||
-            attrVal.includes('url(')
+            val.startsWith('javascript:') ||
+            val.startsWith('vbscript:') ||
+            (val.startsWith('data:') &&
+              !/^data:image\/(?:png|jpeg|jpg|webp|gif|avif);base64,[a-z0-9+/=]+$/i.test(val))
           ) {
-            el.removeAttribute(attr.name);
-            continue;
+            node.removeAttribute(attr);
           }
         }
       }
+    });
+
+    const purifiedSvg = DOMPurify.sanitize(trimmed, {
+      USE_PROFILES: { svg: true, svgFilters: true },
+      FORBID_TAGS: [
+        'script',
+        'foreignobject',
+        'iframe',
+        'object',
+        'embed',
+        'audio',
+        'video',
+        'meta',
+        'link',
+        'applet',
+        'frame',
+        'frameset',
+        'use',
+        'set',
+        'animate',
+        'animatetransform',
+        'handler',
+      ],
+      FORBID_ATTR: ['onload', 'onerror', 'onclick', 'onmouseover', 'onfocus', 'onblur'],
+    });
+
+    DOMPurify.removeAllHooks();
+
+    // Validate the DOMPurify output structurally without re-parsing via DOMParser
+    // (re-parsing triggers CodeQL CWE-79 "DOM text reinterpreted as HTML" false positive)
+    if (!purifiedSvg || !purifiedSvg.trim()) {
+      return { isValid: false, error: 'SVG content was fully stripped by sanitizer' };
     }
 
-    const serializer = new XMLSerializer();
-    const sanitized = serializer.serializeToString(doc);
-    return { isValid: true, sanitizedSvg: sanitized };
+    // Verify root element is <svg> using anchored pattern on the sanitized output
+    const rootTagMatch = purifiedSvg.trim().match(/^<svg[\s>]/i);
+    if (!rootTagMatch) {
+      return { isValid: false, error: 'Root element is not <svg>' };
+    }
+
+    return { isValid: true, sanitizedSvg: purifiedSvg };
   } catch (err) {
     return { isValid: false, error: (err as Error).message || 'Failed to sanitize SVG' };
   }

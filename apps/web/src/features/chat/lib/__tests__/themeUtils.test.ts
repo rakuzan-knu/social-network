@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import DOMPurify from 'dompurify';
 import {
   getLuminance,
   getBubbleContrastTheme,
@@ -178,19 +179,17 @@ describe('themeUtils', () => {
       }
     });
 
-    it('handles parser exceptions in sanitizeAndValidateSvg gracefully', () => {
-      const origDOMParser = window.DOMParser;
-      window.DOMParser = vi.fn().mockImplementation(() => ({
-        parseFromString: () => {
-          throw new Error('Fatal parser crash');
-        },
-      })) as any;
+    it('handles DOMPurify exceptions in sanitizeAndValidateSvg gracefully', () => {
+      const origSanitize = DOMPurify.sanitize;
+      (DOMPurify as any).sanitize = () => {
+        throw new Error('DOMPurify crash');
+      };
 
       const res = sanitizeAndValidateSvg('<svg></svg>');
       expect(res.isValid).toBe(false);
-      expect(res.error).toBe('Fatal parser crash');
+      expect(res.error).toBe('DOMPurify crash');
 
-      window.DOMParser = origDOMParser;
+      (DOMPurify as any).sanitize = origSanitize;
     });
   });
 

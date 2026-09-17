@@ -265,10 +265,18 @@ export default function CodeSandboxPreview({
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      if (event.origin !== 'null' && event.origin !== window.location.origin) {
+      if (
+        event.origin !== 'null' &&
+        event.origin !== window.location.origin &&
+        event.origin !== ''
+      ) {
         return;
       }
-      if (iframeRef.current && event.source !== iframeRef.current.contentWindow) {
+      if (
+        event.source &&
+        iframeRef.current?.contentWindow &&
+        event.source !== iframeRef.current.contentWindow
+      ) {
         return;
       }
       const data = event.data;
