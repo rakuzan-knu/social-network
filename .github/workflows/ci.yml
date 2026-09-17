@@ -109,6 +109,8 @@ jobs:
             apps/web/node_modules
             packages/*/dist
             packages/*/node_modules
+            packages/*/*/dist
+            packages/*/*/node_modules
             ~/.cache/prisma
           key: ${{ needs.setup.outputs.cache-key }}
           fail-on-cache-miss: true
@@ -143,7 +145,7 @@ jobs:
       - name: Generate Cache Key
         id: cache-key-gen
         run: |
-          echo "key=${{ runner.os }}-monorepo-pnpm-v3-${{ hashFiles('pnpm-lock.yaml', 'apps/backend/prisma/schema.prisma') }}" >> $GITHUB_OUTPUT
+          echo "key=${{ runner.os }}-monorepo-pnpm-v4-${{ hashFiles('pnpm-lock.yaml', 'apps/backend/prisma/schema.prisma') }}" >> $GITHUB_OUTPUT
 
       - name: Cache Node Modules & Prisma
         id: monorepo-cache
@@ -155,6 +157,8 @@ jobs:
             apps/web/node_modules
             packages/*/dist
             packages/*/node_modules
+            packages/*/*/dist
+            packages/*/*/node_modules
             ~/.cache/prisma
           key: ${{ steps.cache-key-gen.outputs.key }}
 
@@ -195,6 +199,8 @@ jobs:
             apps/web/node_modules
             packages/*/dist
             packages/*/node_modules
+            packages/*/*/dist
+            packages/*/*/node_modules
             ~/.cache/prisma
           key: ${{ needs.setup.outputs.cache-key }}
           fail-on-cache-miss: true
@@ -241,6 +247,8 @@ jobs:
             apps/web/node_modules
             packages/*/dist
             packages/*/node_modules
+            packages/*/*/dist
+            packages/*/*/node_modules
             ~/.cache/prisma
           key: ${{ needs.setup.outputs.cache-key }}
           fail-on-cache-miss: true
@@ -294,6 +302,8 @@ jobs:
             apps/web/node_modules
             packages/*/dist
             packages/*/node_modules
+            packages/*/*/dist
+            packages/*/*/node_modules
             ~/.cache/prisma
           key: ${{ needs.setup.outputs.cache-key }}
           fail-on-cache-miss: true
@@ -387,6 +397,8 @@ jobs:
             apps/web/node_modules
             packages/*/dist
             packages/*/node_modules
+            packages/*/*/dist
+            packages/*/*/node_modules
             ~/.cache/prisma
           key: ${{ needs.setup.outputs.cache-key }}
           fail-on-cache-miss: true
@@ -461,6 +473,8 @@ jobs:
             apps/web/node_modules
             packages/*/dist
             packages/*/node_modules
+            packages/*/*/dist
+            packages/*/*/node_modules
             ~/.cache/prisma
           key: ${{ needs.setup.outputs.cache-key }}
           fail-on-cache-miss: true
@@ -522,6 +536,8 @@ jobs:
             apps/web/node_modules
             packages/*/dist
             packages/*/node_modules
+            packages/*/*/dist
+            packages/*/*/node_modules
             ~/.cache/prisma
           key: ${{ needs.setup.outputs.cache-key }}
           fail-on-cache-miss: true
@@ -576,6 +592,8 @@ jobs:
             apps/web/node_modules
             packages/*/dist
             packages/*/node_modules
+            packages/*/*/dist
+            packages/*/*/node_modules
             ~/.cache/prisma
           key: ${{ needs.setup.outputs.cache-key }}
           fail-on-cache-miss: true
@@ -612,6 +630,8 @@ jobs:
             apps/web/node_modules
             packages/*/dist
             packages/*/node_modules
+            packages/*/*/dist
+            packages/*/*/node_modules
             ~/.cache/prisma
           key: ${{ needs.setup.outputs.cache-key }}
           fail-on-cache-miss: true

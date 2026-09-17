@@ -32,6 +32,20 @@ export const envSchema = z
     BLIND_RSA_N_HEX: z.string().optional(),
     BLIND_RSA_E_HEX: z.string().optional(),
     BLIND_RSA_D_HEX: z.string().optional(),
+    STORAGE_DRIVER: z.enum(['r2', 's3', 'minio', 'local', 'auto']).optional().default('auto'),
+    R2_ACCOUNT_ID: z.string().optional(),
+    R2_ENDPOINT: z.string().optional(),
+    R2_ACCESS_KEY_ID: z.string().optional(),
+    R2_SECRET_ACCESS_KEY: z.string().optional(),
+    R2_BUCKET: z.string().optional(),
+    R2_PUBLIC_URL: z.string().optional(),
+    MINIO_ENDPOINT: z.string().optional(),
+    MINIO_ACCESS_KEY: z.string().optional(),
+    MINIO_SECRET_KEY: z.string().optional(),
+    MINIO_BUCKET: z.string().optional(),
+    MINIO_PUBLIC_URL: z.string().optional(),
+    LOCAL_STORAGE_DIR: z.string().optional(),
+    LOCAL_STORAGE_PUBLIC_URL: z.string().optional(),
   })
 
   .refine((data) => data.JWT_ACCESS_SECRET !== data.JWT_REFRESH_SECRET, {

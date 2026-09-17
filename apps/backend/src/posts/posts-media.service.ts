@@ -27,8 +27,11 @@ export class PostsMediaService implements OnModuleDestroy {
     @Inject(POSTS_S3_CLIENT) private readonly s3: S3Client,
     private readonly configService: ConfigService,
   ) {
-    this.bucket = this.configService.get<string>('MINIO_BUCKET', 'posts');
+    this.bucket =
+      this.configService.get<string>('R2_BUCKET') ??
+      this.configService.get<string>('MINIO_BUCKET', 'posts');
     this.publicUrl =
+      this.configService.get<string>('R2_PUBLIC_URL') ??
       this.configService.get<string>('MINIO_PUBLIC_URL') ??
       this.configService.get<string>('S3_PUBLIC_URL') ??
       'http://localhost:9000';

@@ -6,23 +6,30 @@ export const BANNER_S3_CLIENT = 'BANNER_S3_CLIENT';
 export const bannerS3Provider = {
   provide: BANNER_S3_CLIENT,
   useFactory: (configService: ConfigService) => {
+    const accountId = configService.get<string>('R2_ACCOUNT_ID');
+    const endpoint =
+      (accountId ? `https://${accountId}.r2.cloudflarestorage.com` : undefined) ??
+      configService.get<string>('R2_ENDPOINT') ??
+      configService.get<string>('MINIO_ENDPOINT') ??
+      configService.get<string>('S3_ENDPOINT') ??
+      'http://minio:9000';
+
     return new S3Client({
-      endpoint:
-        configService.get<string>('MINIO_ENDPOINT') ??
-        configService.get<string>('S3_ENDPOINT') ??
-        'http://minio:9000',
-      region: 'us-east-1',
+      endpoint,
+      region: accountId || endpoint.includes('.r2.cloudflarestorage.com') ? 'auto' : 'us-east-1',
       credentials: {
         accessKeyId:
+          configService.get<string>('R2_ACCESS_KEY_ID') ??
           configService.get<string>('MINIO_ACCESS_KEY') ??
           configService.get<string>('S3_ACCESS_KEY') ??
           'rootuser',
         secretAccessKey:
+          configService.get<string>('R2_SECRET_ACCESS_KEY') ??
           configService.get<string>('MINIO_SECRET_KEY') ??
           configService.get<string>('S3_SECRET_KEY') ??
           'rootpassword',
       },
-      forcePathStyle: true,
+      forcePathStyle: !accountId && !endpoint.includes('.r2.cloudflarestorage.com'),
       maxAttempts: 1,
     });
   },

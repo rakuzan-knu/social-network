@@ -23,8 +23,11 @@ export class AvatarsService {
     private readonly configService: ConfigService,
     @Optional() private readonly redis?: RedisService,
   ) {
-    this.bucket = this.configService.get<string>('MINIO_BUCKET', 'avatars');
+    this.bucket =
+      this.configService.get<string>('R2_BUCKET') ??
+      this.configService.get<string>('MINIO_BUCKET', 'avatars');
     this.publicUrl =
+      this.configService.get<string>('R2_PUBLIC_URL') ??
       this.configService.get<string>('MINIO_PUBLIC_URL') ??
       this.configService.get<string>('S3_PUBLIC_URL') ??
       'http://localhost:9000';

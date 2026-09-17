@@ -250,7 +250,7 @@ export function sanitizeMediaUrl(url?: string | null, fallback: string = ''): st
     try {
       const parsed = new URL(trimmed);
       if (parsed.protocol === 'blob:') {
-        return trimmed;
+        return formatParsedUrl(parsed, trimmed);
       }
     } catch {
       return fallback;

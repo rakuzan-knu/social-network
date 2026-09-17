@@ -48,6 +48,8 @@ build/Release
 build/
 
 .next/
+uploads/
+apps/backend/uploads/
 
 # Dependency directories
 node_modules/

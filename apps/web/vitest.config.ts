@@ -7,6 +7,14 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '@backend/common/contracts': path.resolve(
+        __dirname,
+        '../../packages/shared/contracts/src/index.ts',
+      ),
+      '@backend/messenger/events/ws-events': path.resolve(
+        __dirname,
+        '../../packages/shared/socket/src/events.ts',
+      ),
       '@backend': path.resolve(__dirname, '../backend/src'),
       '@common/contracts': path.resolve(__dirname, '../../packages/shared/contracts/src/index.ts'),
       '@common': path.resolve(__dirname, '../backend/src/common'),

@@ -58,6 +58,7 @@ import { CrdtModule } from './common/crdt/crdt.module';
 import { BloomModule } from './common/bloom/bloom.module';
 import { TextPipelineModule } from './common/text-pipeline/text-pipeline.module';
 import { IntegrationsModule } from './integrations/integrations.module';
+import { StorageModule } from './common/storage/storage.module';
 
 import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware';
 
@@ -218,6 +219,7 @@ import type { MiddlewareConsumer, NestModule } from '@nestjs/common';
       }),
     }),
     ScheduleModule.forRoot(),
+    StorageModule,
     MetricsModule,
     PrismaModule,
     DataLoaderModule,

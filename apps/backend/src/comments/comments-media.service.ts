@@ -1,9 +1,10 @@
 import { BadRequestException, Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client } from '@aws-sdk/client-s3';
 import sharp from 'sharp';
 import { uid } from 'uid';
 import { POSTS_S3_CLIENT } from '../posts/s3-provider';
+import { uploadToStorageWithFallback } from '../common/media/image-processor';
 
 export const MAX_COMMENT_MEDIA_SIZE = 5 * 1024 * 1024; // 5MB
 
@@ -123,26 +124,14 @@ export class CommentsMediaService {
     const finalExt = isGif ? 'gif' : ext === 'jpg' || ext === 'png' ? 'webp' : ext;
     const filename = `comments/${Date.now()}-${uid(16)}.${finalExt}`;
 
-    if (this.s3) {
-      try {
-        await this.s3.send(
-          new PutObjectCommand({
-            Bucket: this.bucket,
-            Key: filename,
-            Body: sanitizedBuffer,
-            ContentType: contentType,
-          }),
-        );
-        const url = `${this.publicUrl}/${this.bucket}/${filename}`;
-        return { url, mimetype: contentType, size: sanitizedBuffer.length };
-      } catch (e) {
-        this.logger.warn(
-          `S3 upload failed for comment image ${filename}, falling back to data URI: ${String(e)}`,
-        );
-      }
-    }
+    const url = await uploadToStorageWithFallback(this.s3 || new S3Client({ region: 'auto' }), {
+      bucket: this.bucket,
+      key: filename,
+      buffer: sanitizedBuffer,
+      contentType,
+      publicUrl: this.publicUrl,
+    });
 
-    const base64Url = `data:${contentType};base64,${sanitizedBuffer.toString('base64')}`;
-    return { url: base64Url, mimetype: contentType, size: sanitizedBuffer.length };
+    return { url, mimetype: contentType, size: sanitizedBuffer.length };
   }
 }

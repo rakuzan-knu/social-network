@@ -38,6 +38,21 @@ services:
         sync: false
       - key: SENTRY_TRACES_SAMPLE_RATE
         value: '1.0'
+      # Cloudflare R2 Object Storage (Zero local media stored on Render)
+      - key: STORAGE_DRIVER
+        value: 'r2'
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ENDPOINT
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET
+        sync: false
+      - key: R2_PUBLIC_URL
+        sync: false
       - key: MINIO_ENDPOINT
         sync: false
       - key: MINIO_ACCESS_KEY
@@ -45,7 +60,7 @@ services:
       - key: MINIO_SECRET_KEY
         sync: false
       - key: MINIO_BUCKET
-        value: 'avatars'
+        value: 'social-network'
       - key: MINIO_PUBLIC_URL
         sync: false
     # Secrets synced automatically via GitOps script scripts/secrets/sync-render-secrets.sh

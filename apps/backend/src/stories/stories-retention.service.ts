@@ -1,8 +1,9 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
-import { S3Client, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client } from '@aws-sdk/client-s3';
 import { StoriesRepository } from './stories.repository';
+import { deleteFromStorage } from '../common/media/image-processor';
 
 @Injectable()
 export class StoriesRetentionService implements OnModuleDestroy {
@@ -14,28 +15,45 @@ export class StoriesRetentionService implements OnModuleDestroy {
     this.s3.destroy();
   }
 
+  private readonly publicUrl: string;
+
   constructor(
     private readonly storiesRepo: StoriesRepository,
     private readonly configService: ConfigService,
   ) {
-    this.bucket = this.configService.get<string>('MINIO_BUCKET', 'stories');
+    this.bucket =
+      this.configService.get<string>('R2_BUCKET') ??
+      this.configService.get<string>('MINIO_BUCKET', 'stories');
+    this.publicUrl =
+      this.configService.get<string>('R2_PUBLIC_URL') ??
+      this.configService.get<string>('MINIO_PUBLIC_URL') ??
+      this.configService.get<string>('S3_PUBLIC_URL') ??
+      'http://localhost:9000';
+
+    const accountId = this.configService.get<string>('R2_ACCOUNT_ID');
+    const endpoint =
+      (accountId ? `https://${accountId}.r2.cloudflarestorage.com` : undefined) ??
+      this.configService.get<string>('R2_ENDPOINT') ??
+      this.configService.get<string>('MINIO_ENDPOINT') ??
+      this.configService.get<string>('S3_ENDPOINT') ??
+      'http://localhost:9000';
+
     this.s3 = new S3Client({
-      endpoint:
-        this.configService.get<string>('MINIO_ENDPOINT') ??
-        this.configService.get<string>('S3_ENDPOINT') ??
-        'http://localhost:9000',
-      region: 'us-east-1',
+      endpoint,
+      region: accountId || endpoint.includes('.r2.cloudflarestorage.com') ? 'auto' : 'us-east-1',
       credentials: {
         accessKeyId:
+          this.configService.get<string>('R2_ACCESS_KEY_ID') ??
           this.configService.get<string>('MINIO_ACCESS_KEY') ??
           this.configService.get<string>('S3_ACCESS_KEY') ??
           'rootuser',
         secretAccessKey:
+          this.configService.get<string>('R2_SECRET_ACCESS_KEY') ??
           this.configService.get<string>('MINIO_SECRET_KEY') ??
           this.configService.get<string>('S3_SECRET_KEY') ??
           'rootpassword',
       },
-      forcePathStyle: true,
+      forcePathStyle: !accountId && !endpoint.includes('.r2.cloudflarestorage.com'),
     });
   }
 
@@ -61,17 +79,14 @@ export class StoriesRetentionService implements OnModuleDestroy {
           !story.mediaUrl.startsWith('data:')
         ) {
           try {
-            const urlParts = story.mediaUrl.split('/');
-            const key = `stories/${urlParts[urlParts.length - 1]}`;
-            await this.s3.send(
-              new DeleteObjectCommand({
-                Bucket: this.bucket,
-                Key: key,
-              }),
-            );
+            await deleteFromStorage(this.s3, {
+              url: story.mediaUrl,
+              bucket: this.bucket,
+              publicUrl: this.publicUrl,
+            });
           } catch (err) {
             this.logger.warn(
-              `Failed to delete S3 object for expired story ${story.id}: ${String(err)}`,
+              `Failed to delete storage object for expired story ${story.id}: ${String(err)}`,
             );
           }
         }

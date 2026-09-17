@@ -27,6 +27,10 @@ export type CompressImageWorkerResponse =
   CompressImageWorkerSuccessResponse | CompressImageWorkerErrorResponse;
 
 self.onmessage = async (event: MessageEvent<CompressImageWorkerRequest>) => {
+  const trustedOrigins = new Set([self.location.origin, 'null', '']);
+  if (!trustedOrigins.has(event.origin)) {
+    return;
+  }
   const { id, fileOrBlob, maxWidth = 1920, maxHeight = 1920, quality = 0.8 } = event.data;
 
   try {

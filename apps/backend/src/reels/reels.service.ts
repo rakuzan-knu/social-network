@@ -45,8 +45,11 @@ export class ReelsService {
     @Optional()
     private readonly queueService?: QueueService,
   ) {
-    this.bucket = this.configService.get<string>('MINIO_BUCKET', 'posts');
+    this.bucket =
+      this.configService.get<string>('R2_BUCKET') ??
+      this.configService.get<string>('MINIO_BUCKET', 'posts');
     this.publicUrl =
+      this.configService.get<string>('R2_PUBLIC_URL') ??
       this.configService.get<string>('MINIO_PUBLIC_URL') ??
       this.configService.get<string>('S3_PUBLIC_URL') ??
       'http://localhost:9000';

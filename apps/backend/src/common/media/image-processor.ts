@@ -155,9 +155,6 @@ export async function optimizeGroupAvatar(buffer: Buffer): Promise<ProcessedImag
   }
 }
 
-/**
- * Uploads a buffer to S3/MinIO/R2 with automatic retry and resilient data-URI fallback
- */
 export async function uploadToStorageWithFallback(
   s3: S3Client,
   params: {
@@ -170,25 +167,58 @@ export async function uploadToStorageWithFallback(
   },
 ): Promise<string> {
   const { bucket, key, buffer, contentType, publicUrl, cacheControl } = params;
+  const isRender = Boolean(process.env.RENDER || process.env.RENDER_SERVICE_ID);
+  const isProduction = process.env.NODE_ENV === 'production';
+  const rawDriver = process.env.STORAGE_DRIVER;
+  const isLocalStorage =
+    rawDriver === 'local' && !isRender && !isProduction && process.env.NODE_ENV !== 'test';
 
+  const cleanKey = key.replace(/^\/+/, '');
+
+  if (isLocalStorage) {
+    try {
+      const fs = await import('fs/promises');
+      const path = await import('path');
+      const uploadDir = process.env.LOCAL_STORAGE_DIR
+        ? path.resolve(process.cwd(), process.env.LOCAL_STORAGE_DIR)
+        : path.resolve(process.cwd(), 'uploads');
+
+      const targetPath = path.resolve(uploadDir, cleanKey);
+      await fs.mkdir(path.dirname(targetPath), { recursive: true });
+      await fs.writeFile(targetPath, buffer);
+
+      const port = process.env.PORT || 3000;
+      const baseUrl = (process.env.LOCAL_STORAGE_PUBLIC_URL || `http://localhost:${port}`).replace(
+        /\/+$/,
+        '',
+      );
+      return `${baseUrl}/uploads/${cleanKey}`;
+    } catch (localErr) {
+      if (isRender || isProduction) {
+        throw localErr;
+      }
+      // Fallback only if local filesystem write failed in offline dev
+      return `data:${contentType};base64,${buffer.toString('base64')}`;
+    }
+  }
+
+  // Cloudflare R2 / S3 Storage (Render or Production or S3 tests)
   try {
     await s3.send(
       new PutObjectCommand({
         Bucket: bucket,
-        Key: key,
+        Key: cleanKey,
         Body: buffer,
         ContentType: contentType,
         CacheControl: cacheControl ?? 'public, max-age=31536000, immutable',
       }),
     );
 
-    const cleanPublicUrl = publicUrl.replace(/\/+$/, '');
-    const cleanKey = key.replace(/^\/+/, '');
+    const cleanPublicUrl = (process.env.R2_PUBLIC_URL || publicUrl).replace(/\/+$/, '');
 
-    // Cloudflare R2 bucket domains (e.g. .r2.dev or custom domain mapped to bucket)
-    // or when S3_FORCE_PATH_STYLE is explicitly disabled
     const isDirectBucketDomain =
       cleanPublicUrl.includes('.r2.dev') ||
+      cleanPublicUrl.includes('.cloudflarestorage.com') ||
       cleanPublicUrl.endsWith(`/${bucket}`) ||
       process.env.S3_FORCE_PATH_STYLE === 'false';
 
@@ -197,14 +227,20 @@ export async function uploadToStorageWithFallback(
     }
 
     return `${cleanPublicUrl}/${bucket}/${cleanKey}`;
-  } catch {
-    // Resilient fallback for local / offline / memory storage
+  } catch (err) {
+    // CRITICAL: On Render or in production, NEVER store media on disk and fail loudly
+    if (isRender || isProduction || rawDriver === 'r2') {
+      throw new Error(
+        `Cloudflare R2 upload failed for ${cleanKey} in bucket ${bucket}: ${(err as Error).message}`,
+      );
+    }
+    // Resilient fallback for offline unit/local tests only
     return `data:${contentType};base64,${buffer.toString('base64')}`;
   }
 }
 
 /**
- * Deletes an object by public URL from S3/MinIO/R2
+ * Deletes an object by public URL from Cloudflare R2, S3 or Local disk storage
  */
 export async function deleteFromStorage(
   s3: S3Client,
@@ -215,9 +251,50 @@ export async function deleteFromStorage(
   },
 ): Promise<void> {
   const { url, bucket, publicUrl } = params;
-  if (!url || url.startsWith('data:') || !url.startsWith(publicUrl)) return;
-  const cleanPublicUrl = publicUrl.replace(/\/+$/, '');
-  const key = url.replace(`${cleanPublicUrl}/${bucket}/`, '').replace(`${cleanPublicUrl}/`, '');
+  if (!url || url.startsWith('data:')) return;
+
+  // Local storage deletion
+  if (url.includes('/uploads/')) {
+    try {
+      const fs = await import('fs/promises');
+      const path = await import('path');
+      const uploadDir = process.env.LOCAL_STORAGE_DIR
+        ? path.resolve(process.cwd(), process.env.LOCAL_STORAGE_DIR)
+        : path.resolve(process.cwd(), 'uploads');
+      const idx = url.indexOf('/uploads/');
+      const relKey = url.slice(idx + '/uploads/'.length);
+      const targetPath = path.resolve(uploadDir, relKey);
+      await fs.unlink(targetPath);
+    } catch {
+      // Graceful no-op on missing local file
+    }
+    return;
+  }
+
+  // Cloudflare R2 / S3 deletion
+  const cleanPublicUrl = (process.env.R2_PUBLIC_URL || publicUrl).replace(/\/+$/, '');
+  if (cleanPublicUrl && !url.startsWith(cleanPublicUrl)) return;
+
+  let key = '';
+  if (url.startsWith(cleanPublicUrl)) {
+    const remaining = url.slice(cleanPublicUrl.length).replace(/^\/+/, '');
+    if (remaining.startsWith(`${bucket}/`)) {
+      key = remaining.slice(`${bucket}/`.length);
+    } else {
+      key = remaining;
+    }
+  } else {
+    const parts = url.split('/');
+    const bucketIdx = parts.indexOf(bucket);
+    if (bucketIdx !== -1 && bucketIdx < parts.length - 1) {
+      key = parts.slice(bucketIdx + 1).join('/');
+    } else {
+      key = parts[parts.length - 1] || '';
+    }
+  }
+
+  if (!key) return;
+
   try {
     await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
   } catch {

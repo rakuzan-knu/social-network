@@ -64,29 +64,39 @@ export class StoriesService implements OnModuleDestroy {
     @Optional()
     private readonly storyViewsCoalescer?: StoryViewsCoalescerService,
   ) {
-    this.bucket = this.configService.get<string>('MINIO_BUCKET', 'stories');
+    this.bucket =
+      this.configService.get<string>('R2_BUCKET') ??
+      this.configService.get<string>('MINIO_BUCKET', 'stories');
     this.publicUrl =
+      this.configService.get<string>('R2_PUBLIC_URL') ??
       this.configService.get<string>('MINIO_PUBLIC_URL') ??
       this.configService.get<string>('S3_PUBLIC_URL') ??
       'http://localhost:9000';
 
+    const accountId = this.configService.get<string>('R2_ACCOUNT_ID');
+    const endpoint =
+      (accountId ? `https://${accountId}.r2.cloudflarestorage.com` : undefined) ??
+      this.configService.get<string>('R2_ENDPOINT') ??
+      this.configService.get<string>('MINIO_ENDPOINT') ??
+      this.configService.get<string>('S3_ENDPOINT') ??
+      'http://localhost:9000';
+
     this.s3 = new S3Client({
-      endpoint:
-        this.configService.get<string>('MINIO_ENDPOINT') ??
-        this.configService.get<string>('S3_ENDPOINT') ??
-        'http://localhost:9000',
-      region: 'us-east-1',
+      endpoint,
+      region: accountId || endpoint.includes('.r2.cloudflarestorage.com') ? 'auto' : 'us-east-1',
       credentials: {
         accessKeyId:
+          this.configService.get<string>('R2_ACCESS_KEY_ID') ??
           this.configService.get<string>('MINIO_ACCESS_KEY') ??
           this.configService.get<string>('S3_ACCESS_KEY') ??
           'rootuser',
         secretAccessKey:
+          this.configService.get<string>('R2_SECRET_ACCESS_KEY') ??
           this.configService.get<string>('MINIO_SECRET_KEY') ??
           this.configService.get<string>('S3_SECRET_KEY') ??
           'rootpassword',
       },
-      forcePathStyle: true,
+      forcePathStyle: !accountId && !endpoint.includes('.r2.cloudflarestorage.com'),
     });
   }
 

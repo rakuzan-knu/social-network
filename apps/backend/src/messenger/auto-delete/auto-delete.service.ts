@@ -2,7 +2,7 @@ import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nest
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import { AutoDeletePeriod } from '@prisma/client';
-import { DeleteObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { S3Client } from '@aws-sdk/client-s3';
 import { PrismaService } from '@common/prisma';
 import { MessengerGateway } from '../gateway/messenger.gateway';
 import { AUTO_DELETE_S3_CLIENT } from './s3-provider';
@@ -11,6 +11,7 @@ import { cutoffFor } from './auto-delete.util';
 import { TraceContext } from '../../common/tracing/trace-context';
 import { chunkQuery } from '../../common/utils/batch-stream.util';
 import { randomUUID } from 'node:crypto';
+import { deleteFromStorage } from '../../common/media/image-processor';
 
 const PAGE_SIZE = 200;
 const USER_BATCH_SIZE = 500;
@@ -115,11 +116,11 @@ export class AutoDeleteService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async deleteObjectByUrl(url: string): Promise<void> {
-    const prefix = `${this.publicUrl}/${this.bucket}/`;
-    if (!this.publicUrl || !url.startsWith(prefix)) return;
-    const key = url.slice(prefix.length);
-    if (!key) return;
-    await this.s3.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
+    await deleteFromStorage(this.s3, {
+      url,
+      bucket: this.bucket,
+      publicUrl: this.publicUrl,
+    });
   }
 
   onModuleInit(): void {

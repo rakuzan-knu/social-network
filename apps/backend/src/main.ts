@@ -3,6 +3,9 @@ import fastifyCompress from '@fastify/compress';
 import fastifyCookie from '@fastify/cookie';
 import fastifyHelmet from '@fastify/helmet';
 import fastifyMultipart from '@fastify/multipart';
+import fastifyStatic from '@fastify/static';
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
 import { type INestApplication, Logger, ValidationPipe, VersioningType } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
@@ -67,6 +70,17 @@ async function bootstrap() {
       files: 10,
     },
     attachFieldsToBody: false,
+  });
+
+  const uploadDir = process.env.LOCAL_STORAGE_DIR
+    ? path.resolve(process.cwd(), process.env.LOCAL_STORAGE_DIR)
+    : path.resolve(process.cwd(), 'uploads');
+  await fs.mkdir(uploadDir, { recursive: true });
+
+  await app.register(fastifyStatic, {
+    root: uploadDir,
+    prefix: '/uploads/',
+    decorateReply: false,
   });
 
   setupApiVersioning(app);
@@ -188,6 +202,7 @@ function setupApiVersioning(app: NestFastifyApplication): void {
         !pathOnly.startsWith('/ping') &&
         !pathOnly.startsWith('/api/ping') &&
         !pathOnly.startsWith('/api/docs') &&
+        !pathOnly.startsWith('/uploads') &&
         !pathOnly.startsWith('/socket.io') &&
         !pathOnly.startsWith('/favicon.ico')
       ) {
@@ -222,6 +237,15 @@ export default async function handler(req: Request, res: Response): Promise<void
     await app.register(fastifyMultipart, {
       limits: { fileSize: 100 * 1024 * 1024, files: 10 },
       attachFieldsToBody: false,
+    });
+    const uploadDir = process.env.LOCAL_STORAGE_DIR
+      ? path.resolve(process.cwd(), process.env.LOCAL_STORAGE_DIR)
+      : path.resolve(process.cwd(), 'uploads');
+    await fs.mkdir(uploadDir, { recursive: true });
+    await app.register(fastifyStatic, {
+      root: uploadDir,
+      prefix: '/uploads/',
+      decorateReply: false,
     });
     setupApiVersioning(app);
     app.useGlobalPipes(

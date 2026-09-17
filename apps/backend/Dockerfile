@@ -32,12 +32,13 @@ COPY tsconfig.base.json* nx.json* ./
 COPY apps/backend ./apps/backend
 COPY packages ./packages
 
-RUN pnpm --filter @social-network/msg-codec \
+RUN pnpm --parallel \
+         --filter @social-network/msg-codec \
          --filter @social-network/text-pipeline \
          --filter @social-network/blinded-crypto \
          --filter @social-network/feed-score \
          --filter @social-network/native \
-         build --parallel \
+         build \
     && pnpm --filter backend build
 
 # Stage 4: Deploy clean production bundle via pnpm deploy

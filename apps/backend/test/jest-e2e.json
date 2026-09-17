@@ -8,10 +8,11 @@
   "moduleNameMapper": {
     "^@common/(.*)$": "<rootDir>/src/common/$1",
     "^@backend/(.*)$": "<rootDir>/src/$1",
-    "^@social-network/msg-codec$": "<rootDir>/../packages/msg-codec/src/index.ts",
-    "^@social-network/text-pipeline$": "<rootDir>/../packages/text-pipeline/src/index.ts",
-    "^@social-network/blinded-crypto$": "<rootDir>/../packages/blinded-crypto/src/index.ts",
-    "^@social-network/feed-score$": "<rootDir>/../packages/feed-score/src/index.ts"
+    "^@social-network/msg-codec$": "<rootDir>/../../packages/msg-codec/src/index.ts",
+    "^@social-network/text-pipeline$": "<rootDir>/../../packages/text-pipeline/src/index.ts",
+    "^@social-network/blinded-crypto$": "<rootDir>/../../packages/blinded-crypto/src/index.ts",
+    "^@social-network/feed-score$": "<rootDir>/../../packages/feed-score/src/index.ts",
+    "^@social-network/native$": "<rootDir>/../../packages/native/src/index.ts"
   },
   "transformIgnorePatterns": [
     "node_modules/(?!(\\.pnpm/)?(sanitize-html|htmlparser2|domutils|domhandler|dom-serializer|entities|domelementtype))"

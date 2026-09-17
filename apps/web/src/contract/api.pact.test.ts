@@ -18,7 +18,7 @@ const provider = new PactV3({
   consumer: 'frontend',
   provider: 'backend',
   port: 4010,
-  dir: path.resolve(__dirname, '../../../backend/pacts'),
+  dir: path.resolve(__dirname, '../../../../apps/backend/pacts'),
 });
 
 /** ISO-8601 with millis; a regex matcher avoids datetime-format skew between pact-js and the verifier. */
